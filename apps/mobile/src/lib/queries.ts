@@ -1,5 +1,13 @@
 import type {
   Account,
+  BudgetStatus,
+  BudgetUpsert,
+  CashflowMonth,
+  CategorySpend,
+  ManualAsset,
+  ManualAssetInput,
+  NetWorthPoint,
+  NetWorthSummary,
   PlaidItemSummary,
   SyncResult,
   TransactionPage,
@@ -17,7 +25,84 @@ export const keys = {
   items: ['items'] as const,
   transactions: (q: Omit<TransactionQuery, 'limit' | 'offset'>) => ['transactions', q] as const,
   categories: ['transactions', 'categories'] as const,
+  netWorth: ['networth'] as const,
+  netWorthHistory: (days: number) => ['networth', 'history', days] as const,
+  cashflow: (months: number) => ['cashflow', months] as const,
+  spending: (month: string) => ['spending', month] as const,
+  budgets: (month: string) => ['budgets', month] as const,
+  manualAssets: ['manual-assets'] as const,
 };
+
+export function useNetWorth() {
+  return useQuery({ queryKey: keys.netWorth, queryFn: () => api<NetWorthSummary>('/networth') });
+}
+
+export function useNetWorthHistory(days = 365) {
+  return useQuery({
+    queryKey: keys.netWorthHistory(days),
+    queryFn: () => api<NetWorthPoint[]>(`/networth/history?days=${days}`),
+  });
+}
+
+export function useCashflow(months = 6) {
+  return useQuery({ queryKey: keys.cashflow(months), queryFn: () => api<CashflowMonth[]>(`/cashflow?months=${months}`) });
+}
+
+export function useSpending(month: string) {
+  return useQuery({ queryKey: keys.spending(month), queryFn: () => api<CategorySpend[]>(`/spending?month=${month}`) });
+}
+
+export function useBudgets(month: string) {
+  return useQuery({ queryKey: keys.budgets(month), queryFn: () => api<BudgetStatus[]>(`/budgets?month=${month}`) });
+}
+
+export function useUpsertBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (budget: BudgetUpsert) => api('/budgets', { method: 'PUT', body: JSON.stringify(budget) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['budgets'] }),
+  });
+}
+
+export function useDeleteBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (category: string) => api(`/budgets/${encodeURIComponent(category)}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['budgets'] }),
+  });
+}
+
+export function useManualAssets() {
+  return useQuery({ queryKey: keys.manualAssets, queryFn: () => api<ManualAsset[]>('/manual-assets') });
+}
+
+function useInvalidateManualAssets() {
+  const qc = useQueryClient();
+  return () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: keys.manualAssets }),
+      qc.invalidateQueries({ queryKey: ['networth'] }),
+    ]);
+}
+
+export function useSaveManualAsset() {
+  const invalidate = useInvalidateManualAssets();
+  return useMutation({
+    mutationFn: ({ id, ...input }: Partial<ManualAssetInput> & { id?: string }) =>
+      id
+        ? api<ManualAsset>(`/manual-assets/${id}`, { method: 'PATCH', body: JSON.stringify(input) })
+        : api<ManualAsset>('/manual-assets', { method: 'POST', body: JSON.stringify(input) }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteManualAsset() {
+  const invalidate = useInvalidateManualAssets();
+  return useMutation({
+    mutationFn: (id: string) => api(`/manual-assets/${id}`, { method: 'DELETE' }),
+    onSuccess: invalidate,
+  });
+}
 
 export function useAccounts() {
   return useQuery({ queryKey: keys.accounts, queryFn: () => api<Account[]>('/accounts') });
@@ -55,6 +140,10 @@ function useInvalidateFinancialData() {
       qc.invalidateQueries({ queryKey: keys.accounts }),
       qc.invalidateQueries({ queryKey: keys.items }),
       qc.invalidateQueries({ queryKey: ['transactions'] }),
+      qc.invalidateQueries({ queryKey: ['networth'] }),
+      qc.invalidateQueries({ queryKey: ['cashflow'] }),
+      qc.invalidateQueries({ queryKey: ['spending'] }),
+      qc.invalidateQueries({ queryKey: ['budgets'] }),
     ]);
 }
 
@@ -91,6 +180,10 @@ export function useUpdateTransaction() {
   return useMutation({
     mutationFn: ({ id, ...update }: TransactionUpdate & { id: string }) =>
       api(`/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(update) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['transactions'] }),
+    // Recategorizing changes spending, budgets and cash flow too.
+    onSuccess: () =>
+      Promise.all(
+        [['transactions'], ['cashflow'], ['spending'], ['budgets']].map((queryKey) => qc.invalidateQueries({ queryKey })),
+      ),
   });
 }

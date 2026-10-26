@@ -32,9 +32,9 @@ function EditorBody({ transaction, onClose }: { transaction: Transaction; onClos
   const update = useUpdateTransaction();
   const [custom, setCustom] = useState('');
 
-  async function save(category: string | null) {
-    await update.mutateAsync({ id: transaction.id, category });
-    onClose();
+  // mutate (not mutateAsync): failures surface via isError below instead of throwing.
+  function save(category: string | null) {
+    update.mutate({ id: transaction.id, category }, { onSuccess: onClose });
   }
 
   return (

@@ -1,0 +1,114 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { accounts, budgets, manualAssets, transactions } from '../db/schema';
+import { setupTestDb, testDatabaseUrl } from '../test/db';
+import {
+  getBudgetStatus,
+  getCashflow,
+  getNetWorthHistory,
+  getSpendingByCategory,
+  monthRange,
+  recentMonths,
+  recordSnapshot,
+} from './overview';
+
+describe('month helpers', () => {
+  it('computes month ranges across year boundaries', () => {
+    expect(monthRange('2026-12')).toEqual(['2026-12-01', '2027-01-01']);
+    expect(monthRange('2026-02')).toEqual(['2026-02-01', '2026-03-01']);
+  });
+
+  it('lists recent months oldest first', () => {
+    expect(recentMonths(3, '2026-01-15')).toEqual(['2025-11', '2025-12', '2026-01']);
+  });
+});
+
+describe.skipIf(!testDatabaseUrl)('overview queries (Postgres)', () => {
+  let ctx: Awaited<ReturnType<typeof setupTestDb>>;
+
+  beforeAll(async () => {
+    ctx = await setupTestDb();
+  });
+  afterAll(async () => {
+    await ctx?.sql.end();
+  });
+
+  beforeEach(async () => {
+    await ctx.reset();
+    const db = ctx.db;
+    const [checking, card, brokerage, hidden] = await db
+      .insert(accounts)
+      .values([
+        { source: 'manual', name: 'Checking', type: 'depository', currentBalance: 5000 },
+        { source: 'manual', name: 'Card', type: 'credit', currentBalance: 800 },
+        { source: 'manual', name: 'Brokerage', type: 'investment', currentBalance: 20000 },
+        { source: 'manual', name: 'Old', type: 'depository', currentBalance: 999, hidden: true },
+      ])
+      .returning({ id: accounts.id });
+
+    const t = (
+      accountId: string,
+      date: string,
+      amount: number,
+      primary: string,
+      extra: Partial<typeof transactions.$inferInsert> = {},
+    ) => ({ accountId, date, amount, name: primary, plaidCategoryPrimary: primary, ...extra });
+
+    await db.insert(transactions).values([
+      t(checking!.id, '2026-10-01', -3000, 'INCOME'),
+      t(card!.id, '2026-10-03', 100, 'FOOD_AND_DRINK'),
+      t(card!.id, '2026-10-04', -20, 'FOOD_AND_DRINK'), // refund nets out
+      t(checking!.id, '2026-10-05', 500, 'TRANSFER_OUT'), // excluded
+      t(checking!.id, '2026-10-06', 400, 'LOAN_PAYMENTS', {
+        plaidCategoryDetailed: 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT', // excluded
+      }),
+      t(checking!.id, '2026-10-07', 2000, 'LOAN_PAYMENTS', {
+        plaidCategoryDetailed: 'LOAN_PAYMENTS_MORTGAGE_PAYMENT', // real spending
+      }),
+      t(checking!.id, '2026-10-08', 700, 'TRANSFER_OUT', { category: 'RENT' }), // override brings it in
+      t(brokerage!.id, '2026-10-09', 50, 'GENERAL_MERCHANDISE'), // not a cash account
+      t(hidden!.id, '2026-10-10', 75, 'GENERAL_MERCHANDISE'), // hidden account
+      t(card!.id, '2026-09-15', 60, 'FOOD_AND_DRINK'),
+      t(card!.id, '2026-11-01', 999, 'FOOD_AND_DRINK'), // next month
+    ]);
+  });
+
+  it('computes monthly cash flow excluding transfers, card payments and non-cash accounts', async () => {
+    expect(await getCashflow(ctx.db, 3, '2026-10-15')).toEqual([
+      { month: '2026-08', income: 0, spending: 0 },
+      { month: '2026-09', income: 0, spending: 60 },
+      { month: '2026-10', income: 3000, spending: 2780 },
+    ]);
+  });
+
+  it('breaks down spending by effective category, largest first', async () => {
+    expect(await getSpendingByCategory(ctx.db, '2026-10')).toEqual([
+      { category: 'LOAN_PAYMENTS', amount: 2000 },
+      { category: 'RENT', amount: 700 },
+      { category: 'FOOD_AND_DRINK', amount: 80 },
+    ]);
+  });
+
+  it('reports budget progress, including budgets with no spending', async () => {
+    await ctx.db.insert(budgets).values([
+      { category: 'FOOD_AND_DRINK', monthlyTarget: 300 },
+      { category: 'TRAVEL', monthlyTarget: 200 },
+    ]);
+    expect(await getBudgetStatus(ctx.db, '2026-10')).toEqual([
+      { category: 'FOOD_AND_DRINK', monthlyTarget: 300, spent: 80 },
+      { category: 'TRAVEL', monthlyTarget: 200, spent: 0 },
+    ]);
+  });
+
+  it('records one net-worth snapshot per day, updating in place', async () => {
+    await recordSnapshot(ctx.db, '2026-10-14');
+    await ctx.db.insert(manualAssets).values({ kind: 'home', name: 'House', value: 400000 });
+    await recordSnapshot(ctx.db, '2026-10-15');
+    await recordSnapshot(ctx.db, '2026-10-15');
+
+    // Assets: 5000 + 20000 (+ 400000 home); liabilities: 800 card. Hidden account ignored.
+    expect(await getNetWorthHistory(ctx.db, '2026-01-01')).toEqual([
+      { date: '2026-10-14', assets: 25000, liabilities: 800, netWorth: 24200 },
+      { date: '2026-10-15', assets: 425000, liabilities: 800, netWorth: 424200 },
+    ]);
+  });
+});
