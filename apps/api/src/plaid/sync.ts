@@ -6,6 +6,7 @@ import { accounts, plaidItems, transactions } from '../db/schema';
 import { chunk, excluded } from '../db/upsert';
 import { decrypt } from '../lib/crypto';
 import { HttpError } from '../lib/http';
+import { recordSnapshot } from '../services/overview';
 import { getPlaidError } from './client';
 import { toAccountRow, toTransactionRow } from './mappers';
 import { fetchTransactionUpdates } from './transactions-sync';
@@ -114,6 +115,7 @@ async function runSync({ db, plaid, encryptionKey }: SyncDeps, itemId: string): 
         .set({ transactionsCursor: updates.nextCursor, status: 'active', lastError: null, lastSyncedAt: new Date() })
         .where(eq(plaidItems.id, item.id));
     });
+    await recordSnapshot(db);
 
     return {
       accounts: upserted.length,

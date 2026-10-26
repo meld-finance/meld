@@ -42,6 +42,12 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 - If a bank needs you to sign in again, the connection shows **Reconnect**, which reopens Plaid Link in update mode.
 - Linking on iOS/Android arrives with the mobile phase; use the web app until then.
 
+## Overview & budgets
+
+- **Net worth** = linked balances + manual assets (home, vehicles; add them on the Accounts tab) − credit, loan and mortgage balances. Meld records one snapshot per day (after each sync and every 6 hours), so the trend line starts after the second day.
+- **Cash flow** counts cash and credit card accounts only. Transfers between your accounts and credit card payments are excluded, so card purchases aren't double counted. Income is anything categorized `INCOME`; spending is everything else, net of refunds. Recategorize a transaction to change where it counts.
+- **Budgets** are monthly targets per category, set on the Budget tab.
+
 ## Common commands
 
 | Command | What it does |
@@ -51,7 +57,7 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 | `npm run db:generate` | Create a migration after editing `apps/api/src/db/schema.ts` |
 | `npm run db:migrate` | Apply migrations |
 | `npm run typecheck` | Typecheck all packages |
-| `npm test` | Run tests |
+| `npm test` | Run tests (DB tests use `TEST_DATABASE_URL`; create it once with `docker compose exec db createdb -U meld meld_test`) |
 
 ## Security notes
 

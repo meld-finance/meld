@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { ManualAssets } from '@/components/manual-assets';
 import { PlaidLinkButton } from '@/components/plaid-link-button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -53,19 +54,24 @@ export default function AccountsScreen() {
           Couldn’t load accounts: {(accounts.error ?? items.error)?.message}
         </ThemedText>
       ) : items.data.length === 0 ? (
-        <ThemedView type="backgroundElement" style={styles.card}>
-          <ThemedText type="smallBold">Link your first account</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Connect banks, credit cards, brokerages and loans through Plaid. Meld only reads balances and
-            transactions; it can’t move money.
-          </ThemedText>
-        </ThemedView>
+        <>
+          <ThemedView type="backgroundElement" style={styles.card}>
+            <ThemedText type="smallBold">Link your first account</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Connect banks, credit cards, brokerages and loans through Plaid. Meld only reads balances and
+              transactions; it can’t move money.
+            </ThemedText>
+          </ThemedView>
+          <ManualAssets />
+        </>
       ) : (
         <>
           {GROUPS.map(({ type, label }) => {
             const group = accounts.data.filter((a) => a.type === type);
             return group.length ? <AccountGroup key={type} label={label} accounts={group} /> : null;
           })}
+
+          <ManualAssets />
 
           <ThemedText type="smallBold" style={styles.sectionTitle}>
             Connections

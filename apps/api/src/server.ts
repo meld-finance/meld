@@ -9,6 +9,8 @@ import { HttpError } from './lib/http';
 import { getPlaidError } from './plaid/client';
 import type { SyncDeps } from './plaid/sync';
 import { registerAccountRoutes } from './routes/accounts';
+import { registerManualAssetRoutes } from './routes/manual-assets';
+import { registerOverviewRoutes } from './routes/overview';
 import { registerPlaidRoutes } from './routes/plaid';
 import { registerTransactionRoutes } from './routes/transactions';
 
@@ -43,7 +45,7 @@ export async function buildServer(deps: AppDeps) {
     return reply.code(500).send({ error: 'Internal server error' });
   });
 
-  await app.register(cors, { origin: env.CORS_ORIGINS, methods: ['GET', 'POST', 'PATCH', 'DELETE'] });
+  await app.register(cors, { origin: env.CORS_ORIGINS, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] });
   await app.register(jwt, { secret: env.SESSION_SECRET });
   await registerAuth(app, env);
 
@@ -57,6 +59,8 @@ export async function buildServer(deps: AppDeps) {
   await registerPlaidRoutes(app, deps);
   await registerAccountRoutes(app, deps);
   await registerTransactionRoutes(app, deps);
+  await registerOverviewRoutes(app, deps);
+  await registerManualAssetRoutes(app, deps);
 
   return app;
 }

@@ -13,13 +13,16 @@ export default function TabLayout() {
       <TabList asChild>
         <NavBar>
           <TabTrigger name="index" href="/" asChild>
-            <TabButton>Home</TabButton>
+            <TabButton>Overview</TabButton>
           </TabTrigger>
           <TabTrigger name="accounts" href="/accounts" asChild>
             <TabButton>Accounts</TabButton>
           </TabTrigger>
           <TabTrigger name="transactions" href="/transactions" asChild>
             <TabButton>Transactions</TabButton>
+          </TabTrigger>
+          <TabTrigger name="budget" href="/budget" asChild>
+            <TabButton>Budget</TabButton>
           </TabTrigger>
         </NavBar>
       </TabList>

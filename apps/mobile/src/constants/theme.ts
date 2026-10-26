@@ -36,6 +36,38 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+/**
+ * Chart colors, from the validated data-viz reference palette (each mode is its
+ * own selected step, not an automatic flip). Series slots are assigned in fixed
+ * order; status colors are reserved for state and always paired with a label.
+ */
+export const VizColors = {
+  light: {
+    series1: '#2a78d6',
+    series2: '#eb6834',
+    seriesWash: 'rgba(42,120,214,0.10)',
+    grid: '#e1e0d9',
+    axis: '#c3c2b7',
+    muted: '#898781',
+    good: '#0ca30c',
+    warning: '#fab219',
+    critical: '#d03b3b',
+    track: '#cde2fb',
+  },
+  dark: {
+    series1: '#3987e5',
+    series2: '#d95926',
+    seriesWash: 'rgba(57,135,229,0.10)',
+    grid: '#2c2c2a',
+    axis: '#383835',
+    muted: '#898781',
+    good: '#0ca30c',
+    warning: '#fab219',
+    critical: '#d03b3b',
+    track: '#184f95',
+  },
+} as const;
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

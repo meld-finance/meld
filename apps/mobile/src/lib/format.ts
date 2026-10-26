@@ -10,6 +10,38 @@ export function formatCurrency(amount: number | null, currency = 'USD'): string 
   return fmt.format(amount);
 }
 
+const compactCurrency = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+/** $1.2K, $4.5M — for axis ticks and tight spaces. */
+export function formatCompactCurrency(amount: number): string {
+  return compactCurrency.format(amount);
+}
+
+/** "2026-10" → "Oct" (or "Oct 2025" with `withYear`). */
+export function formatMonth(month: string, withYear = false): string {
+  const [y, m] = month.split('-').map(Number);
+  return new Date(y!, m! - 1, 1).toLocaleDateString('en-US', {
+    month: 'short',
+    year: withYear ? 'numeric' : undefined,
+  });
+}
+
+/** "2026-10" ± n months. */
+export function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(y!, m! - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export function currentMonth(): string {
+  return new Date().toLocaleDateString('en-CA').slice(0, 7);
+}
+
 /** "FOOD_AND_DRINK" → "Food and drink"; user-entered categories pass through. */
 export function formatCategory(category: string | null): string {
   if (!category) return 'Uncategorized';
