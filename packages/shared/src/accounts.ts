@@ -16,6 +16,7 @@ export type AccountSource = z.infer<typeof AccountSource>;
 export const Account = z.object({
   id: z.string().uuid(),
   source: AccountSource,
+  itemId: z.string().uuid().nullable(),
   institutionName: z.string().nullable(),
   name: z.string(),
   officialName: z.string().nullable(),

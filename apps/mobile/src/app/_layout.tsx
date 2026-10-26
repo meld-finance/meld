@@ -22,7 +22,7 @@ function RootNavigator() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={isLoggedIn} redirectTo="/login">
-        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" />
       </Stack.Protected>
       <Stack.Protected guard={!isLoggedIn} redirectTo="/">
         <Stack.Screen name="login" />
