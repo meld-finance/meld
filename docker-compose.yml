@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: meld
+      POSTGRES_PASSWORD: meld
+      POSTGRES_DB: meld
+    ports:
+      # Bound to localhost only so the DB is not exposed on the network.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - meld-db:/var/lib/postgresql/data
+
+volumes:
+  meld-db:

@@ -1,0 +1,36 @@
+import { z } from 'zod';
+
+export const AccountType = z.enum([
+  'depository',
+  'credit',
+  'investment',
+  'loan',
+  'mortgage',
+  'other',
+]);
+export type AccountType = z.infer<typeof AccountType>;
+
+export const AccountSource = z.enum(['plaid', 'manual']);
+export type AccountSource = z.infer<typeof AccountSource>;
+
+export const Account = z.object({
+  id: z.string().uuid(),
+  source: AccountSource,
+  institutionName: z.string().nullable(),
+  name: z.string(),
+  officialName: z.string().nullable(),
+  mask: z.string().nullable(),
+  type: AccountType,
+  subtype: z.string().nullable(),
+  currentBalance: z.number().nullable(),
+  availableBalance: z.number().nullable(),
+  creditLimit: z.number().nullable(),
+  currency: z.string(),
+  updatedAt: z.string(),
+});
+export type Account = z.infer<typeof Account>;
+
+/** Liability-type accounts reduce net worth. */
+export function isLiabilityType(type: AccountType): boolean {
+  return type === 'credit' || type === 'loan' || type === 'mortgage';
+}
