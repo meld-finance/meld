@@ -68,7 +68,7 @@ export async function registerPlaidRoutes(app: FastifyInstance, { db, plaid, env
       .returning({ id: plaidItems.id });
 
     const result = await syncItem(sync, item!.id);
-    if (!result.transactionsReady) syncUntilReady(sync, item!.id, (msg) => app.log.warn(msg));
+    syncUntilReady(sync, item!.id, (msg) => app.log.warn(msg));
     return { itemId: item!.id, ...result };
   });
 

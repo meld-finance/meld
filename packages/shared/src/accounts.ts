@@ -27,9 +27,16 @@ export const Account = z.object({
   availableBalance: z.number().nullable(),
   creditLimit: z.number().nullable(),
   currency: z.string(),
+  hidden: z.boolean(),
   updatedAt: z.string(),
 });
 export type Account = z.infer<typeof Account>;
+
+export const AccountUpdate = z.object({
+  /** Hidden accounts are excluded from net worth, cash flow, budgets and lists. */
+  hidden: z.boolean().optional(),
+});
+export type AccountUpdate = z.infer<typeof AccountUpdate>;
 
 /** Liability-type accounts reduce net worth. */
 export function isLiabilityType(type: AccountType): boolean {

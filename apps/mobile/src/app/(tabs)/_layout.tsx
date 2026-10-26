@@ -21,6 +21,10 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>Transactions</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="list.bullet.rectangle" md="receipt_long" />
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="investments">
+        <NativeTabs.Trigger.Label>Investments</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" md="trending_up" />
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="budget">
         <NativeTabs.Trigger.Label>Budget</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="chart.pie" md="pie_chart" />

@@ -1,5 +1,8 @@
 import type {
   Account,
+  AccountDetail,
+  AccountUpdate,
+  InvestmentsSummary,
   BudgetStatus,
   BudgetUpsert,
   CashflowMonth,
@@ -104,8 +107,28 @@ export function useDeleteManualAsset() {
   });
 }
 
-export function useAccounts() {
-  return useQuery({ queryKey: keys.accounts, queryFn: () => api<Account[]>('/accounts') });
+export function useAccounts({ includeHidden = false } = {}) {
+  return useQuery({
+    queryKey: [...keys.accounts, { includeHidden }],
+    queryFn: () => api<Account[]>(`/accounts${includeHidden ? '?includeHidden=true' : ''}`),
+  });
+}
+
+export function useAccountDetail(id: string) {
+  return useQuery({ queryKey: [...keys.accounts, 'detail', id], queryFn: () => api<AccountDetail>(`/accounts/${id}`) });
+}
+
+export function useInvestments() {
+  return useQuery({ queryKey: ['investments'], queryFn: () => api<InvestmentsSummary>('/investments') });
+}
+
+export function useUpdateAccount() {
+  const invalidate = useInvalidateFinancialData();
+  return useMutation({
+    mutationFn: ({ id, ...update }: AccountUpdate & { id: string }) =>
+      api(`/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(update) }),
+    onSuccess: invalidate,
+  });
 }
 
 export function useItems() {
@@ -144,6 +167,7 @@ function useInvalidateFinancialData() {
       qc.invalidateQueries({ queryKey: ['cashflow'] }),
       qc.invalidateQueries({ queryKey: ['spending'] }),
       qc.invalidateQueries({ queryKey: ['budgets'] }),
+      qc.invalidateQueries({ queryKey: ['investments'] }),
     ]);
 }
 

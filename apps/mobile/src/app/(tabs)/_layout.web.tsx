@@ -21,6 +21,9 @@ export default function TabLayout() {
           <TabTrigger name="transactions" href="/transactions" asChild>
             <TabButton>Transactions</TabButton>
           </TabTrigger>
+          <TabTrigger name="investments" href="/investments" asChild>
+            <TabButton>Investments</TabButton>
+          </TabTrigger>
           <TabTrigger name="budget" href="/budget" asChild>
             <TabButton>Budget</TabButton>
           </TabTrigger>

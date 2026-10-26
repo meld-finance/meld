@@ -1,6 +1,14 @@
-import type { AccountType } from '@meld/shared';
-import type { AccountBase, Transaction as PlaidTransaction } from 'plaid';
-import type { accounts, transactions } from '../db/schema';
+import type { AccountType, LiabilityKind } from '@meld/shared';
+import type {
+  AccountBase,
+  APR,
+  Holding as PlaidHolding,
+  InvestmentTransaction as PlaidInvestmentTransaction,
+  LiabilitiesObject,
+  Transaction as PlaidTransaction,
+  Security as PlaidSecurity,
+} from 'plaid';
+import type { accounts, holdings, investmentTransactions, liabilities, securities, transactions } from '../db/schema';
 
 export function mapAccountType(type: string, subtype: string | null): AccountType {
   if (type === 'loan' && subtype === 'mortgage') return 'mortgage';
@@ -44,4 +52,145 @@ export function toTransactionRow(t: PlaidTransaction, accountId: string): typeof
     plaidCategoryDetailed: t.personal_finance_category?.detailed ?? null,
     pending: t.pending,
   };
+}
+
+export function toSecurityRow(s: PlaidSecurity): typeof securities.$inferInsert {
+  return {
+    plaidSecurityId: s.security_id,
+    tickerSymbol: s.ticker_symbol,
+    name: s.name,
+    // Plaid's type wins: it flags some non-cash assets (e.g. BTC) as cash equivalents.
+    type: s.type ?? (s.is_cash_equivalent ? 'cash' : null),
+    closePrice: s.close_price,
+    closePriceAsOf: s.close_price_as_of,
+  };
+}
+
+export function toHoldingRow(h: PlaidHolding, accountId: string, securityId: string): typeof holdings.$inferInsert {
+  return {
+    accountId,
+    securityId,
+    quantity: h.quantity,
+    institutionPrice: h.institution_price,
+    institutionValue: h.institution_value,
+    costBasis: h.cost_basis,
+  };
+}
+
+export function toInvestmentTransactionRow(
+  t: PlaidInvestmentTransaction,
+  accountId: string,
+  securityId: string | null,
+): typeof investmentTransactions.$inferInsert {
+  return {
+    accountId,
+    securityId,
+    plaidInvestmentTransactionId: t.investment_transaction_id,
+    date: t.date,
+    name: t.name,
+    type: t.type,
+    subtype: t.subtype,
+    quantity: t.quantity,
+    price: t.price,
+    amount: t.amount,
+    fees: t.fees,
+  };
+}
+
+type LiabilityRow = Omit<typeof liabilities.$inferInsert, 'accountId'> & { kind: LiabilityKind };
+
+const SENSITIVE_KEYS = new Set(['account_number', 'payment_reference_number']);
+
+/** Full account numbers aren't needed for anything Meld does, so they're never stored. */
+export function stripSensitive<T extends object>(payload: T): Partial<T> {
+  return Object.fromEntries(Object.entries(payload).filter(([k]) => !SENSITIVE_KEYS.has(k))) as Partial<T>;
+}
+
+/** Purchase APR is the one that applies to a carried card balance. */
+function purchaseApr(aprs: APR[]): number | null {
+  return (aprs.find((a) => a.apr_type === 'purchase_apr') ?? aprs[0])?.apr_percentage ?? null;
+}
+
+/** Normalizes Plaid's per-kind liability shapes, keyed by Plaid account id. */
+export function toLiabilityRows(l: LiabilitiesObject): { plaidAccountId: string; row: LiabilityRow }[] {
+  const out: { plaidAccountId: string; row: LiabilityRow }[] = [];
+  const base = { originationDate: null, originationPrincipal: null, maturityDate: null, escrowBalance: null };
+
+  for (const c of l.credit ?? []) {
+    if (!c.account_id) continue;
+    out.push({
+      plaidAccountId: c.account_id,
+      row: {
+        ...base,
+        kind: 'credit',
+        interestRatePct: purchaseApr(c.aprs),
+        minimumPayment: c.minimum_payment_amount,
+        nextPaymentDueDate: c.next_payment_due_date,
+        details: stripSensitive(c),
+      },
+    });
+  }
+  for (const m of l.mortgage ?? []) {
+    out.push({
+      plaidAccountId: m.account_id,
+      row: {
+        kind: 'mortgage',
+        interestRatePct: m.interest_rate.percentage,
+        minimumPayment: m.next_monthly_payment,
+        nextPaymentDueDate: m.next_payment_due_date,
+        originationDate: m.origination_date,
+        originationPrincipal: m.origination_principal_amount,
+        maturityDate: m.maturity_date,
+        escrowBalance: m.escrow_balance,
+        details: stripSensitive(m),
+      },
+    });
+  }
+  for (const s of l.student ?? []) {
+    if (!s.account_id) continue;
+    out.push({
+      plaidAccountId: s.account_id,
+      row: {
+        ...base,
+        kind: 'student',
+        interestRatePct: s.interest_rate_percentage,
+        minimumPayment: s.minimum_payment_amount,
+        nextPaymentDueDate: s.next_payment_due_date,
+        originationDate: s.origination_date,
+        originationPrincipal: s.origination_principal_amount,
+        maturityDate: s.expected_payoff_date,
+        details: stripSensitive(s),
+      },
+    });
+  }
+  for (const loan of l.loan ?? []) {
+    out.push({
+      plaidAccountId: loan.account_id,
+      row: {
+        ...base,
+        kind: 'loan',
+        interestRatePct: loan.interest_rate?.percentage ?? null,
+        minimumPayment: loan.next_payment_amount,
+        nextPaymentDueDate: loan.next_payment_due_date,
+        originationDate: loan.origination_date,
+        originationPrincipal: loan.origination_principal_amount,
+        maturityDate: loan.maturity_date,
+        details: stripSensitive(loan),
+      },
+    });
+  }
+  for (const loc of l.line_of_credit ?? []) {
+    out.push({
+      plaidAccountId: loc.account_id,
+      row: {
+        ...base,
+        kind: 'line_of_credit',
+        interestRatePct: loc.interest_rate?.percentage ?? purchaseApr(loc.aprs),
+        minimumPayment: loc.minimum_payment_amount ?? loc.next_payment_amount,
+        nextPaymentDueDate: loc.next_payment_due_date,
+        details: stripSensitive(loc),
+      },
+    });
+  }
+  return out;
 }

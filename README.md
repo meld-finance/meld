@@ -48,6 +48,13 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 - **Cash flow** counts cash and credit card accounts only. Transfers between your accounts and credit card payments are excluded, so card purchases aren't double counted. Income is anything categorized `INCOME`; spending is everything else, net of refunds. Recategorize a transaction to change where it counts.
 - **Budgets** are monthly targets per category, set on the Budget tab.
 
+## Investments & loans
+
+- Holdings (with cost basis and gain/loss), investment transactions (2 years), and loan/card details (rate, payment, due date, escrow) sync with every refresh when the institution supports Plaid's Investments and Liabilities products.
+- Tap any account for details. Loans and cards show a payoff estimate at the current payment.
+- **Hide from totals** on an account's page excludes it from net worth, cash flow, budgets and lists (e.g. a closed or duplicate account). Hidden accounts are listed at the bottom of the Accounts tab.
+- Full account numbers that Plaid returns for loans are dropped before storage.
+
 ## Common commands
 
 | Command | What it does |
