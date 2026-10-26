@@ -33,6 +33,15 @@ Open http://localhost:8081 and unlock with `APP_PASSPHRASE`.
 
 Generate secrets with `openssl rand -base64 32` (`SESSION_SECRET` and `ENCRYPTION_KEY`).
 
+## Linking accounts (Plaid)
+
+Use **Accounts → Link account** in the web app. Accounts and balances sync immediately; transaction history (up to 2 years) arrives over the next minute or so and is fetched automatically. Every linked connection also re-syncs every 6 hours while the API is running, or on demand with **Refresh**.
+
+- **Sandbox** (`PLAID_ENV=sandbox`): pick any institution and sign in with `user_good` / `pass_good`.
+- **Real accounts** (`PLAID_ENV=production`): needs Plaid production (or limited production) access and production secrets.
+- If a bank needs you to sign in again, the connection shows **Reconnect**, which reopens Plaid Link in update mode.
+- Linking on iOS/Android arrives with the mobile phase; use the web app until then.
+
 ## Common commands
 
 | Command | What it does |

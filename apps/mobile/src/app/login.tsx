@@ -43,7 +43,7 @@ export default function LoginScreen() {
           onChangeText={setPassphrase}
           onSubmitEditing={submit}
         />
-        {error && <ThemedText style={styles.error}>{error}</ThemedText>}
+        {error && <ThemedText themeColor="negative">{error}</ThemedText>}
 
         <Pressable
           onPress={submit}
@@ -85,5 +85,4 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     alignItems: 'center',
   },
-  error: { color: '#D93025' },
 });
