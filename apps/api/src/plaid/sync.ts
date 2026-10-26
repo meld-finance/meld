@@ -9,6 +9,7 @@ import { HttpError } from '../lib/http';
 import { recordSnapshot } from '../services/overview';
 import { getPlaidError } from './client';
 import { toAccountRow, toTransactionRow } from './mappers';
+import { syncInvestments, syncLiabilities } from './products-sync';
 import { fetchTransactionUpdates } from './transactions-sync';
 
 export type SyncDeps = { db: Db; plaid: PlaidApi; encryptionKey: string };
@@ -115,6 +116,16 @@ async function runSync({ db, plaid, encryptionKey }: SyncDeps, itemId: string): 
         .set({ transactionsCursor: updates.nextCursor, status: 'active', lastError: null, lastSyncedAt: new Date() })
         .where(eq(plaidItems.id, item.id));
     });
+
+    // Only call optional products when the item has accounts they apply to.
+    const types = new Set(accountRows.map((a) => a.type));
+    const ctx = { db, plaid, accessToken, accountIdByPlaidId };
+    const investments = types.has('investment')
+      ? await syncInvestments(ctx)
+      : { holdings: 0, investmentTransactions: 0 };
+    const liabilityCount =
+      types.has('credit') || types.has('loan') || types.has('mortgage') ? await syncLiabilities(ctx) : 0;
+
     await recordSnapshot(db);
 
     return {
@@ -123,6 +134,8 @@ async function runSync({ db, plaid, encryptionKey }: SyncDeps, itemId: string): 
       modified: updates.modified.length,
       removed: updates.removed.length,
       transactionsReady: updates.ready,
+      holdings: investments.holdings,
+      liabilities: liabilityCount,
     };
   } catch (err) {
     const plaidError = getPlaidError(err);
@@ -139,9 +152,13 @@ async function runSync({ db, plaid, encryptionKey }: SyncDeps, itemId: string): 
   }
 }
 
-const READY_RETRY_DELAYS_MS = [5_000, 15_000, 45_000, 120_000];
+const READY_RETRY_DELAYS_MS = [5_000, 15_000, 45_000, 120_000, 300_000, 900_000];
 
-/** New items may not have transactions yet; re-sync a few times in the background. */
+/**
+ * New items keep receiving history for a while after linking, and Plaid's status
+ * can say "complete" before it all arrives. Without webhooks (local mode), keep
+ * re-syncing in the background while the status is pending or data is still landing.
+ */
 export function syncUntilReady(deps: SyncDeps, itemId: string, log: (msg: string) => void) {
   const schedule = (i: number) => {
     const delay = READY_RETRY_DELAYS_MS[i];
@@ -149,7 +166,8 @@ export function syncUntilReady(deps: SyncDeps, itemId: string, log: (msg: string
     setTimeout(async () => {
       try {
         const result = await syncItem(deps, itemId);
-        if (!result.transactionsReady) schedule(i + 1);
+        const stillArriving = result.added + result.modified + result.removed > 0;
+        if (!result.transactionsReady || stillArriving) schedule(i + 1);
       } catch (err) {
         log(`Background sync failed for item ${itemId}: ${(err as Error).message}`);
       }

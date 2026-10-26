@@ -1,4 +1,5 @@
 import type { Transaction } from '@meld/shared';
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
@@ -14,8 +15,16 @@ import { useAccounts, useCategories, useTransactions } from '@/lib/queries';
 
 export default function TransactionsScreen() {
   const theme = useTheme();
+  const params = useLocalSearchParams<{ accountId?: string }>();
   const [search, setSearch] = useState('');
-  const [accountId, setAccountId] = useState<string | undefined>();
+  const [accountId, setAccountId] = useState<string | undefined>(params.accountId);
+  // Tabs stay mounted, so follow later "View transactions" links too
+  // (adjusting state during render when the param changes, per React docs).
+  const [linkedAccountId, setLinkedAccountId] = useState(params.accountId);
+  if (params.accountId !== linkedAccountId) {
+    setLinkedAccountId(params.accountId);
+    if (params.accountId) setAccountId(params.accountId);
+  }
   const [category, setCategory] = useState<string | undefined>();
   const [editing, setEditing] = useState<Transaction | null>(null);
   const debouncedSearch = useDebouncedValue(search.trim());
@@ -40,7 +49,8 @@ export default function TransactionsScreen() {
 
       <FilterRow>
         <Chip label="All accounts" selected={!accountId} onPress={() => setAccountId(undefined)} />
-        {(accounts.data ?? []).map((a) => (
+        {/* Selected account first so the active filter is always visible. */}
+        {[...(accounts.data ?? [])].sort((a, b) => Number(b.id === accountId) - Number(a.id === accountId)).map((a) => (
           <Chip
             key={a.id}
             label={a.mask ? `${a.name} ••${a.mask}` : a.name}

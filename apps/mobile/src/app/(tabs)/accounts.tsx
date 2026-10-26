@@ -1,6 +1,7 @@
 import { isLiabilityType, type Account, type AccountType, type PlaidItemSummary } from '@meld/shared';
+import { router } from 'expo-router';
 import { useState } from 'react';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { ManualAssets } from '@/components/manual-assets';
@@ -24,8 +25,10 @@ const GROUPS: { type: AccountType; label: string }[] = [
 ];
 
 export default function AccountsScreen() {
-  const accounts = useAccounts();
+  const accounts = useAccounts({ includeHidden: true });
   const items = useItems();
+  const visible = accounts.data?.filter((a) => !a.hidden) ?? [];
+  const hidden = accounts.data?.filter((a) => a.hidden) ?? [];
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   const refreshing = accounts.isRefetching || items.isRefetching;
@@ -67,11 +70,15 @@ export default function AccountsScreen() {
       ) : (
         <>
           {GROUPS.map(({ type, label }) => {
-            const group = accounts.data.filter((a) => a.type === type);
+            const group = visible.filter((a) => a.type === type);
             return group.length ? <AccountGroup key={type} label={label} accounts={group} /> : null;
           })}
 
           <ManualAssets />
+
+          {hidden.length > 0 && (
+            <AccountGroup label="Hidden from totals" accounts={hidden} showTotal={false} />
+          )}
 
           <ThemedText type="smallBold" style={styles.sectionTitle}>
             Connections
@@ -85,7 +92,7 @@ export default function AccountsScreen() {
   );
 }
 
-function AccountGroup({ label, accounts }: { label: string; accounts: Account[] }) {
+function AccountGroup({ label, accounts, showTotal = true }: { label: string; accounts: Account[]; showTotal?: boolean }) {
   const total = accounts.reduce((sum, a) => sum + (a.currentBalance ?? 0), 0);
   const liability = isLiabilityType(accounts[0]!.type);
   return (
@@ -93,13 +100,20 @@ function AccountGroup({ label, accounts }: { label: string; accounts: Account[] 
       <View style={styles.row}>
         <ThemedText type="smallBold">{label}</ThemedText>
         {/* Plaid reports liabilities as positive amounts owed. */}
-        <ThemedText type="smallBold" themeColor={liability ? 'negative' : 'text'}>
-          {formatCurrency(total)}
-          {liability ? ' owed' : ''}
-        </ThemedText>
+        {showTotal && (
+          <ThemedText type="smallBold" themeColor={liability ? 'negative' : 'text'}>
+            {formatCurrency(total)}
+            {liability ? ' owed' : ''}
+          </ThemedText>
+        )}
       </View>
       {accounts.map((a) => (
-        <View key={a.id} style={styles.row}>
+        <Pressable
+          key={a.id}
+          onPress={() => router.push({ pathname: '/account/[id]', params: { id: a.id } })}
+          style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+          accessibilityRole="link"
+          accessibilityHint="Show account details">
           <View style={styles.shrink}>
             <ThemedText numberOfLines={1}>
               {a.name}
@@ -109,8 +123,8 @@ function AccountGroup({ label, accounts }: { label: string; accounts: Account[] 
               {[a.institutionName, a.subtype].filter(Boolean).join(' · ')}
             </ThemedText>
           </View>
-          <ThemedText>{formatCurrency(a.currentBalance, a.currency)}</ThemedText>
-        </View>
+          <ThemedText>{formatCurrency(a.currentBalance, a.currency)} ›</ThemedText>
+        </Pressable>
       ))}
     </ThemedView>
   );
@@ -194,4 +208,5 @@ const styles = StyleSheet.create({
   shrink: { flexShrink: 1 },
   buttons: { flexDirection: 'row', gap: Spacing.two },
   sectionTitle: { marginTop: Spacing.two },
+  pressed: { opacity: 0.6 },
 });

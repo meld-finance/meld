@@ -33,5 +33,7 @@ export const SyncResult = z.object({
   removed: z.number().int(),
   /** False while Plaid is still pulling history for a new item. */
   transactionsReady: z.boolean(),
+  holdings: z.number().int(),
+  liabilities: z.number().int(),
 });
 export type SyncResult = z.infer<typeof SyncResult>;

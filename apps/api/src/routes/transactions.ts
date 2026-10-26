@@ -15,6 +15,7 @@ export async function registerTransactionRoutes(app: FastifyInstance, { db }: Ap
   app.get('/transactions', async (req): Promise<TransactionPage> => {
     const q = parse(TransactionQuery, req.query);
     const filters: (SQL | undefined)[] = [
+      eq(accounts.hidden, false),
       q.accountId ? eq(transactions.accountId, q.accountId) : undefined,
       q.from ? gte(transactions.date, q.from) : undefined,
       q.to ? lte(transactions.date, q.to) : undefined,
@@ -50,7 +51,11 @@ export async function registerTransactionRoutes(app: FastifyInstance, { db }: Ap
         .orderBy(desc(transactions.date), desc(transactions.createdAt))
         .limit(q.limit)
         .offset(q.offset),
-      db.select({ total: count() }).from(transactions).where(where),
+      db
+        .select({ total: count() })
+        .from(transactions)
+        .innerJoin(accounts, eq(accounts.id, transactions.accountId))
+        .where(where),
     ]);
     return { transactions: rows, total: totalRow?.total ?? 0 };
   });
@@ -59,7 +64,8 @@ export async function registerTransactionRoutes(app: FastifyInstance, { db }: Ap
     const rows = await db
       .selectDistinct({ category: effectiveCategory })
       .from(transactions)
-      .where(sql`${effectiveCategory} is not null`)
+      .innerJoin(accounts, eq(accounts.id, transactions.accountId))
+      .where(and(eq(accounts.hidden, false), sql`${effectiveCategory} is not null`))
       .orderBy(effectiveCategory);
     return rows.map((r) => r.category!);
   });
