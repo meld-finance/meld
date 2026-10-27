@@ -70,11 +70,22 @@ const ICONS = {
       <Path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
     </>
   ),
+  barChart: <Path d="M4 20h16M7 16v-5M12 16V6M17 16v-8" />,
+  calendar: (
+    <>
+      <Rect x={3} y={5} width={18} height={16} rx={2} />
+      <Path d="M3 10h18M8 3v4M16 3v4" />
+    </>
+  ),
+  message: <Path d="M21 12a8 8 0 0 1-11.8 7L4 20.5l1.5-4.6A8 8 0 1 1 21 12Z" />,
   arrowUpRight: <Path d="M7 17 17 7M8 7h9v9" />,
+  arrowDownRight: <Path d="M7 7l10 10M17 8v9H8" />,
   arrowRight: <Path d="M5 12h14M13 6l6 6-6 6" />,
   arrowUp: <Path d="M12 19V5M6 11l6-6 6 6" />,
   arrowDown: <Path d="M12 5v14M6 13l6 6 6-6" />,
   chevronDown: <Path d="m6 9 6 6 6-6" />,
+  chevronLeft: <Path d="m15 6-6 6 6 6" />,
+  chevronRight: <Path d="m9 6 6 6-6 6" />,
 } as const;
 
 export type IconName = keyof typeof ICONS;

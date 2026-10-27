@@ -6,6 +6,8 @@ import type {
   BudgetStatus,
   BudgetUpsert,
   CashflowMonth,
+  CashflowPeriod,
+  CategoryMonth,
   CategorySpend,
   ChatSessionDetail,
   ChatSessionSummary,
@@ -39,6 +41,8 @@ export const keys = {
   netWorth: ['networth'] as const,
   netWorthHistory: (days: number) => ['networth', 'history', days] as const,
   cashflow: (months: number) => ['cashflow', months] as const,
+  cashflowPeriod: (from: string, to: string) => ['cashflow', 'period', from, to] as const,
+  cashflowCategories: (months: number, end: string) => ['cashflow', 'categories', months, end] as const,
   spending: (month: string) => ['spending', month] as const,
   budgets: (month: string) => ['budgets', month] as const,
   manualAssets: ['manual-assets'] as const,
@@ -61,6 +65,24 @@ export function useNetWorthHistory(days = 365) {
 
 export function useCashflow(months = 6) {
   return useQuery({ queryKey: keys.cashflow(months), queryFn: () => api<CashflowMonth[]>(`/cashflow?months=${months}`) });
+}
+
+/** Cash flow for [from, to] alongside the same dates a year earlier. */
+export function useCashflowPeriod(from: string, to: string) {
+  return useQuery({
+    queryKey: keys.cashflowPeriod(from, to),
+    queryFn: () => api<CashflowPeriod>(`/cashflow/period?from=${from}&to=${to}`),
+    placeholderData: (previous) => previous,
+  });
+}
+
+/** Spending by category for the `months` months ending with `end` (YYYY-MM). */
+export function useSpendingByMonth(months: number, end: string) {
+  return useQuery({
+    queryKey: keys.cashflowCategories(months, end),
+    queryFn: () => api<CategoryMonth[]>(`/cashflow/categories?months=${months}&end=${end}`),
+    placeholderData: (previous) => previous,
+  });
 }
 
 export function useSpending(month: string) {

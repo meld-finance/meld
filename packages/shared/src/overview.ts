@@ -36,6 +36,40 @@ export type CashflowMonth = z.infer<typeof CashflowMonth>;
 export const CategorySpend = z.object({ category: z.string(), amount: z.number() });
 export type CategorySpend = z.infer<typeof CategorySpend>;
 
+/** One month's spending split by category, largest first. */
+export const CategoryMonth = z.object({ month: Month, categories: z.array(CategorySpend) });
+export type CategoryMonth = z.infer<typeof CategoryMonth>;
+
+export const CategoryChange = z.object({
+  category: z.string(),
+  amount: z.number(),
+  /** Spending in the same category over the comparison period. */
+  previous: z.number(),
+  /** The merchant whose spending moved the most between the two periods. */
+  driver: z.object({ merchant: z.string(), amount: z.number(), previous: z.number() }).nullable(),
+});
+export type CategoryChange = z.infer<typeof CategoryChange>;
+
+/** Cash flow over a date range, compared with the same dates a year earlier. */
+export const CashflowPeriod = z.object({
+  from: z.iso.date(),
+  to: z.iso.date(),
+  previousFrom: z.iso.date(),
+  previousTo: z.iso.date(),
+  income: z.number(),
+  spending: z.number(),
+  previousIncome: z.number(),
+  previousSpending: z.number(),
+  /** Spending categories with spending in either period, largest current amount first. */
+  categories: z.array(CategoryChange),
+});
+export type CashflowPeriod = z.infer<typeof CashflowPeriod>;
+
+export const CashflowPeriodQuery = z
+  .object({ from: z.iso.date(), to: z.iso.date() })
+  .refine((q) => q.from <= q.to, 'from must not be after to');
+export type CashflowPeriodQuery = z.infer<typeof CashflowPeriodQuery>;
+
 export const BudgetStatus = z.object({
   category: z.string(),
   monthlyTarget: z.number(),

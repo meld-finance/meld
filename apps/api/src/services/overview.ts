@@ -1,5 +1,14 @@
-import { netCashValue, type BudgetStatus, type CashflowMonth, type CategorySpend, type NetWorthSummary } from '@meld/shared';
-import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import {
+  netCashValue,
+  type BudgetStatus,
+  type CashflowMonth,
+  type CashflowPeriod,
+  type CategoryChange,
+  type CategoryMonth,
+  type CategorySpend,
+  type NetWorthSummary,
+} from '@meld/shared';
+import { and, asc, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, balanceSnapshots, budgets, insurancePolicies, manualAssets, transactions } from '../db/schema';
 import { computeNetWorth, localDate } from '../lib/networth';
@@ -134,6 +143,110 @@ export async function getSpendingByCategory(db: Db, month: string): Promise<Cate
     .having(sql`sum(${ownedAmount}) > 0`)
     .orderBy(desc(amount));
   return rows.map((r) => ({ category: r.category, amount: round2(r.amount) }));
+}
+
+/** Spending by category for each of the `count` months ending with `endMonth`, oldest first. */
+export async function getSpendingByMonth(db: Db, count: number, endMonth: string): Promise<CategoryMonth[]> {
+  const range = recentMonths(count, `${endMonth}-01`);
+  const from = monthRange(range[0]!)[0];
+  const to = monthRange(range.at(-1)!)[1];
+  const month = sql<string>`to_char(${transactions.date}, 'YYYY-MM')`;
+  const amount = sql<number>`sum(${ownedAmount})::float8`;
+  const rows = await db
+    .select({ month, category: effectiveCategory, amount })
+    .from(transactions)
+    .innerJoin(accounts, eq(accounts.id, transactions.accountId))
+    .where(
+      and(
+        countsTowardCashflow,
+        sql`${effectiveCategory} <> ${INCOME}`,
+        gte(transactions.date, from),
+        lt(transactions.date, to),
+      ),
+    )
+    .groupBy(month, effectiveCategory)
+    .having(sql`sum(${ownedAmount}) > 0`)
+    .orderBy(desc(amount));
+
+  return range.map((m) => ({
+    month: m,
+    categories: rows.filter((r) => r.month === m).map((r) => ({ category: r.category, amount: round2(r.amount) })),
+  }));
+}
+
+/** The same calendar date `years` later (negative: earlier); Feb 29 falls back to Feb 28. */
+export function shiftYears(date: string, years: number): string {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  const year = y + years;
+  const lastDay = new Date(Date.UTC(year, m, 0)).getUTCDate();
+  return `${year}-${String(m).padStart(2, '0')}-${String(Math.min(d, lastDay)).padStart(2, '0')}`;
+}
+
+/** Income, spending and per-category spending for [from, to] (inclusive) and the same dates a year earlier. */
+export async function getCashflowPeriod(db: Db, from: string, to: string): Promise<CashflowPeriod> {
+  const previousFrom = shiftYears(from, -1);
+  const previousTo = shiftYears(to, -1);
+  const inCurrent = and(gte(transactions.date, from), lte(transactions.date, to));
+  const inPrevious = and(gte(transactions.date, previousFrom), lte(transactions.date, previousTo));
+  const merchant = sql<string>`coalesce(${transactions.merchantName}, ${transactions.name})`;
+
+  const rows = await db
+    .select({
+      category: effectiveCategory,
+      merchant,
+      // Plaid: positive = money out.
+      amount: sql<number>`coalesce(sum(${ownedAmount}) filter (where ${inCurrent}), 0)::float8`,
+      previous: sql<number>`coalesce(sum(${ownedAmount}) filter (where ${inPrevious}), 0)::float8`,
+    })
+    .from(transactions)
+    .innerJoin(accounts, eq(accounts.id, transactions.accountId))
+    .where(and(countsTowardCashflow, or(inCurrent, inPrevious)))
+    .groupBy(effectiveCategory, merchant);
+
+  let income = 0;
+  let previousIncome = 0;
+  let spending = 0;
+  let previousSpending = 0;
+  const byCategory = new Map<string, typeof rows>();
+  for (const r of rows) {
+    if (r.category === INCOME) {
+      income -= r.amount;
+      previousIncome -= r.previous;
+      continue;
+    }
+    spending += r.amount;
+    previousSpending += r.previous;
+    byCategory.set(r.category, [...(byCategory.get(r.category) ?? []), r]);
+  }
+
+  const categories: CategoryChange[] = [];
+  for (const [category, merchants] of byCategory) {
+    const amount = round2(merchants.reduce((s, r) => s + r.amount, 0));
+    const previous = round2(merchants.reduce((s, r) => s + r.previous, 0));
+    // Net refunds can leave a category at or below zero; it isn't spending then.
+    if (amount <= 0 && previous <= 0) continue;
+    const delta = (r: (typeof rows)[number]) => Math.abs(r.amount - r.previous);
+    const top = merchants.reduce((best, r) => (delta(r) > delta(best) ? r : best));
+    categories.push({
+      category,
+      amount: Math.max(amount, 0),
+      previous: Math.max(previous, 0),
+      driver: round2(delta(top)) > 0 ? { merchant: top.merchant, amount: round2(top.amount), previous: round2(top.previous) } : null,
+    });
+  }
+  categories.sort((a, b) => b.amount - a.amount || b.previous - a.previous);
+
+  return {
+    from,
+    to,
+    previousFrom,
+    previousTo,
+    income: round2(income),
+    spending: round2(spending),
+    previousIncome: round2(previousIncome),
+    previousSpending: round2(previousSpending),
+    categories,
+  };
 }
 
 export async function getBudgetStatus(db: Db, month: string): Promise<BudgetStatus[]> {

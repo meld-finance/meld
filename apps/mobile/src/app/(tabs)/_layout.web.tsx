@@ -33,6 +33,11 @@ export default function TabLayout() {
               Accounts
             </NavItem>
           </TabTrigger>
+          <TabTrigger name="cashflow" href="/cashflow" asChild>
+            <NavItem icon="barChart" compact={compact}>
+              Cash Flow
+            </NavItem>
+          </TabTrigger>
           <TabTrigger name="transactions" href="/transactions" asChild>
             <NavItem icon="receipt" compact={compact}>
               Transactions

@@ -1,4 +1,4 @@
-import { BudgetUpsert, Month } from '@meld/shared';
+import { BudgetUpsert, CashflowPeriodQuery, Month } from '@meld/shared';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
@@ -8,9 +8,11 @@ import { localDate } from '../lib/networth';
 import {
   getBudgetStatus,
   getCashflow,
+  getCashflowPeriod,
   getNetWorth,
   getNetWorthHistory,
   getSpendingByCategory,
+  getSpendingByMonth,
 } from '../services/overview';
 import type { AppDeps } from '../server';
 
@@ -30,6 +32,19 @@ export async function registerOverviewRoutes(app: FastifyInstance, { db }: AppDe
   app.get('/cashflow', (req) => {
     const { months } = parse(z.object({ months: z.coerce.number().int().min(1).max(36).default(6) }), req.query);
     return getCashflow(db, months);
+  });
+
+  app.get('/cashflow/period', (req) => {
+    const { from, to } = parse(CashflowPeriodQuery, req.query);
+    return getCashflowPeriod(db, from, to);
+  });
+
+  app.get('/cashflow/categories', (req) => {
+    const { months, end } = parse(
+      z.object({ months: z.coerce.number().int().min(1).max(36).default(12), end: Month.default(currentMonth) }),
+      req.query,
+    );
+    return getSpendingByMonth(db, months, end);
   });
 
   app.get('/spending', (req) => getSpendingByCategory(db, parse(MonthQuery, req.query).month));

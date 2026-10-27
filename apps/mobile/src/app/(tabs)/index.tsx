@@ -112,7 +112,16 @@ export default function HomeScreen() {
         />
       </View>
 
-      <Card title="Cash flow" subtitle="Last 6 months · excludes transfers and card payments">
+      <Card
+        title="Cash flow"
+        subtitle="Last 6 months · excludes transfers and card payments"
+        action={
+          <Link href="/cashflow">
+            <ThemedText type="small" themeColor="tint">
+              Details →
+            </ThemedText>
+          </Link>
+        }>
         {cashflow.isError ? (
           <ThemedText themeColor="negative">{cashflow.error.message}</ThemedText>
         ) : (
