@@ -52,6 +52,7 @@ const fakeAI: AIProvider = {
       warnings: ['Term end date computed from a 20-year term.'],
     };
   },
+  chat: () => Promise.reject(new Error('not used')),
 };
 
 function pdfForm(data = PDF) {

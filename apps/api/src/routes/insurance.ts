@@ -3,58 +3,19 @@ import multipart from '@fastify/multipart';
 import {
   InsurancePolicyInput,
   maskPolicyNumber,
-  type Beneficiary,
-  type InsurancePolicy,
   type PolicyExtraction,
 } from '@meld/shared';
-import { and, asc, eq, lt, notExists } from 'drizzle-orm';
+import { and, eq, lt, notExists } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { requireAI } from '../ai/provider';
 import type { Db } from '../db/client';
 import { documents, insurancePolicies } from '../db/schema';
 import { HttpError, IdParams, parse } from '../lib/http';
 import type { AppDeps } from '../server';
+import { listPolicies } from '../services/insurance';
 import type { DocumentStorage } from '../storage';
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
-
-const columns = {
-  id: insurancePolicies.id,
-  type: insurancePolicies.type,
-  carrier: insurancePolicies.carrier,
-  policyNumberMask: insurancePolicies.policyNumberMask,
-  insuredName: insurancePolicies.insuredName,
-  coverageAmount: insurancePolicies.coverageAmount,
-  benefitPercentOfIncome: insurancePolicies.benefitPercentOfIncome,
-  premiumAmount: insurancePolicies.premiumAmount,
-  premiumFrequency: insurancePolicies.premiumFrequency,
-  effectiveDate: insurancePolicies.effectiveDate,
-  termEndDate: insurancePolicies.termEndDate,
-  eliminationPeriodDays: insurancePolicies.eliminationPeriodDays,
-  benefitPeriod: insurancePolicies.benefitPeriod,
-  ownOccupation: insurancePolicies.ownOccupation,
-  employerProvided: insurancePolicies.employerProvided,
-  cashValue: insurancePolicies.cashValue,
-  beneficiaries: insurancePolicies.beneficiaries,
-  notes: insurancePolicies.notes,
-  documentId: insurancePolicies.documentId,
-  documentFilename: documents.filename,
-  createdAt: insurancePolicies.createdAt,
-  updatedAt: insurancePolicies.updatedAt,
-};
-
-type PolicyRow = Omit<InsurancePolicy, 'beneficiaries' | 'createdAt' | 'updatedAt'> & {
-  beneficiaries: unknown;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-const toPolicy = (r: PolicyRow): InsurancePolicy => ({
-  ...r,
-  beneficiaries: r.beneficiaries as Beneficiary[],
-  createdAt: r.createdAt.toISOString(),
-  updatedAt: r.updatedAt.toISOString(),
-});
 
 /** A document no policy references. */
 const unreferenced = (db: Db) =>
@@ -75,13 +36,9 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
   await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
 
   async function getPolicy(id: string) {
-    const [row] = await db
-      .select(columns)
-      .from(insurancePolicies)
-      .leftJoin(documents, eq(documents.id, insurancePolicies.documentId))
-      .where(eq(insurancePolicies.id, id));
-    if (!row) throw new HttpError(404, 'Policy not found');
-    return toPolicy(row);
+    const [policy] = await listPolicies(db, eq(insurancePolicies.id, id));
+    if (!policy) throw new HttpError(404, 'Policy not found');
+    return policy;
   }
 
   async function parsePolicyInput(body: unknown) {
@@ -104,14 +61,7 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
     if (doc) await storage.delete(doc.storageKey);
   }
 
-  app.get('/insurance', async () => {
-    const rows = await db
-      .select(columns)
-      .from(insurancePolicies)
-      .leftJoin(documents, eq(documents.id, insurancePolicies.documentId))
-      .orderBy(asc(insurancePolicies.type), asc(insurancePolicies.carrier));
-    return rows.map(toPolicy);
-  });
+  app.get('/insurance', () => listPolicies(db));
 
   app.get('/insurance/:id', async (req) => getPolicy(parse(IdParams, req.params).id));
 

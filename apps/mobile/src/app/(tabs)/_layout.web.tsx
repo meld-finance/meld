@@ -15,6 +15,9 @@ export default function TabLayout() {
           <TabTrigger name="index" href="/" asChild>
             <TabButton>Overview</TabButton>
           </TabTrigger>
+          <TabTrigger name="ask" href="/ask" asChild>
+            <TabButton>Ask</TabButton>
+          </TabTrigger>
           <TabTrigger name="accounts" href="/accounts" asChild>
             <TabButton>Accounts</TabButton>
           </TabTrigger>

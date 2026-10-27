@@ -7,6 +7,8 @@ import type {
   BudgetUpsert,
   CashflowMonth,
   CategorySpend,
+  ChatSessionDetail,
+  ChatSessionSummary,
   InsurancePolicy,
   InsurancePolicyInput,
   ManualAsset,
@@ -19,6 +21,7 @@ import type {
   TransactionPage,
   TransactionQuery,
   TransactionUpdate,
+  UserProfile,
 } from '@meld/shared';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -38,6 +41,9 @@ export const keys = {
   budgets: (month: string) => ['budgets', month] as const,
   manualAssets: ['manual-assets'] as const,
   insurance: ['insurance'] as const,
+  chatSessions: ['chat', 'sessions'] as const,
+  chatSession: (id: string) => ['chat', 'sessions', id] as const,
+  profile: ['profile'] as const,
 };
 
 export function useNetWorth() {
@@ -258,4 +264,36 @@ export function useExtractPolicy() {
 /** Drops an uploaded document whose draft was abandoned. */
 export function discardDocument(documentId: string) {
   return api(`/documents/${documentId}`, { method: 'DELETE' }).catch(() => undefined);
+}
+
+export function useProfile() {
+  return useQuery({ queryKey: keys.profile, queryFn: () => api<UserProfile>('/profile') });
+}
+
+export function useSaveProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (profile: UserProfile) => api<UserProfile>('/profile', { method: 'PUT', body: JSON.stringify(profile) }),
+    onSuccess: (saved) => qc.setQueryData(keys.profile, saved),
+  });
+}
+
+export function useChatSessions() {
+  return useQuery({ queryKey: keys.chatSessions, queryFn: () => api<ChatSessionSummary[]>('/chat/sessions') });
+}
+
+export function useChatSession(id: string) {
+  return useQuery({ queryKey: keys.chatSession(id), queryFn: () => api<ChatSessionDetail>(`/chat/sessions/${id}`) });
+}
+
+export function useCreateChatSession() {
+  return useMutation({ mutationFn: () => api<ChatSessionSummary>('/chat/sessions', { method: 'POST' }) });
+}
+
+export function useDeleteChatSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/chat/sessions/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.chatSessions }),
+  });
 }

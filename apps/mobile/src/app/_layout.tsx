@@ -25,6 +25,8 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="account/[id]" />
         <Stack.Screen name="insurance/[id]" />
+        <Stack.Screen name="chat/[id]" />
+        <Stack.Screen name="profile" />
       </Stack.Protected>
       <Stack.Protected guard={!isLoggedIn} redirectTo="/">
         <Stack.Screen name="login" />

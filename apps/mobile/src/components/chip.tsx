@@ -14,7 +14,7 @@ export function Chip({ label, selected, onPress }: { label: string; selected?: b
       style={({ pressed }) => [
         styles.chip,
         {
-          backgroundColor: selected ? theme.tint : theme.backgroundElement,
+          backgroundColor: selected ? theme.tint : theme.backgroundSelected,
           opacity: pressed ? 0.7 : 1,
         },
       ]}>

@@ -16,6 +16,15 @@ export function setAuthToken(token: string | null) {
   authToken = token;
 }
 
+export function getAuthToken() {
+  return authToken;
+}
+
+/** Reports a 401 so the app can return to the lock screen. */
+export function notifyUnauthorized() {
+  if (authToken) onUnauthorized?.();
+}
+
 export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
