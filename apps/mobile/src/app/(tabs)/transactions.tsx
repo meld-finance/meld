@@ -7,6 +7,7 @@ import { CategoryEditor } from '@/components/category-editor';
 import { Chip } from '@/components/chip';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { VerifiedMark } from '@/components/verified-mark';
 import { Spacing } from '@/constants/theme';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useTheme } from '@/hooks/use-theme';
@@ -26,12 +27,13 @@ export default function TransactionsScreen() {
     if (params.accountId) setAccountId(params.accountId);
   }
   const [category, setCategory] = useState<string | undefined>();
+  const [verified, setVerified] = useState<boolean | undefined>();
   const [editing, setEditing] = useState<Transaction | null>(null);
   const debouncedSearch = useDebouncedValue(search.trim());
 
   const accounts = useAccounts();
   const categories = useCategories();
-  const query = useTransactions({ search: debouncedSearch || undefined, accountId, category });
+  const query = useTransactions({ search: debouncedSearch || undefined, accountId, category, verified: verified === undefined ? undefined : String(verified) });
 
   const rows = useMemo(() => query.data?.pages.flatMap((p) => p.transactions) ?? [], [query.data]);
   const total = query.data?.pages[0]?.total ?? 0;
@@ -92,13 +94,22 @@ export default function TransactionsScreen() {
           onEndReached={() => query.hasNextPage && !query.isFetchingNextPage && void query.fetchNextPage()}
           onEndReachedThreshold={0.5}
           ListHeaderComponent={
-            <ThemedText type="small" themeColor="textSecondary" style={styles.count}>
-              {total.toLocaleString()} transactions
-            </ThemedText>
+            <View style={styles.header}>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.grow}>
+                {total.toLocaleString()} transactions
+              </ThemedText>
+              <Chip label="All" selected={verified === undefined} onPress={() => setVerified(undefined)} />
+              <Chip label="To verify" selected={verified === false} onPress={() => setVerified(false)} />
+              <Chip label="Verified" selected={verified === true} onPress={() => setVerified(true)} />
+            </View>
           }
           ListEmptyComponent={
             <ThemedText themeColor="textSecondary">
-              {debouncedSearch || accountId || category ? 'No matching transactions.' : 'No transactions yet.'}
+              {verified === false && !debouncedSearch && !accountId && !category
+                ? 'Every transaction’s category is verified.'
+                : debouncedSearch || accountId || category || verified !== undefined
+                  ? 'No matching transactions.'
+                  : 'No transactions yet.'}
             </ThemedText>
           }
           ListFooterComponent={query.isFetchingNextPage ? <ActivityIndicator style={styles.loading} /> : undefined}
@@ -127,12 +138,13 @@ function TransactionRow({ transaction: t, onPress }: { transaction: Transaction;
   const inflow = t.amount < 0;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-      <View style={styles.shrink}>
+      <VerifiedMark verified={t.categoryVerified} />
+      <View style={[styles.shrink, styles.grow]}>
         <ThemedText numberOfLines={1}>{t.merchantName ?? t.name}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
           {formatDate(t.date)} · {formatCategory(t.category)}
           {t.subcategory ? ` › ${formatSubcategory(t.subcategory, t.category)}` : ''}
-          {t.categoryOverridden ? ' ✎' : ''} · {t.accountName}
+          {t.categoryRuleId ? ' · by rule' : ''} · {t.accountName}
           {t.pending ? ' · Pending' : ''}
         </ThemedText>
       </View>
@@ -150,7 +162,8 @@ const styles = StyleSheet.create({
   filterScroll: { flexGrow: 0 },
   filterRow: { gap: Spacing.two, alignItems: 'center' },
   list: { flex: 1 },
-  count: { marginBottom: Spacing.two },
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginBottom: Spacing.two },
+  grow: { flex: 1 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

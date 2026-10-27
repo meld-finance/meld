@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { accounts, transactions } from '../db/schema';
 import { setupTestDb, testDatabaseUrl } from '../test/db';
-import { categorizeNewRows, deleteRule, listRules, matchRule, saveRule } from './category-rules';
+import { categorizeNewRows, deleteRule, listRules, matchRule, saveRule, updateRule } from './category-rules';
 
 const rule = (pattern: string, category: string, updatedAt = new Date(0)) => ({
   id: pattern,
@@ -32,10 +32,12 @@ describe('matchRule', () => {
       { accountId: 'a', amount: 1, date: '2026-10-01', name: 'COSTCO WHSE', merchantName: null },
       { accountId: 'a', amount: 1, date: '2026-10-01', name: 'COSTCO WHSE', category: 'KEEP' },
       { accountId: 'a', amount: 1, date: '2026-10-01', name: 'Safeway' },
+      { accountId: 'a', amount: 1, date: '2026-10-01', name: 'COSTCO WHSE', categoryVerified: true },
     ];
     expect(categorizeNewRows(rules, rows).map((r) => [r.category, r.categoryRuleId])).toEqual([
       ['GROCERIES', 'costco'],
       ['KEEP', undefined],
+      [undefined, undefined],
       [undefined, undefined],
     ]);
   });
@@ -80,6 +82,7 @@ describe.skipIf(!testDatabaseUrl)('category rules (Postgres)', () => {
       t('Something', { merchantName: 'Costco' }),
       t('COSTCO WHSE #2', { category: 'HOUSEHOLD' }), // categorized by hand
       t('Safeway'),
+      t('COSTCO WHSE #3', { categoryVerified: true }), // Plaid's category accepted as is
     ]);
   });
 
@@ -105,6 +108,7 @@ describe.skipIf(!testDatabaseUrl)('category rules (Postgres)', () => {
       Something: ['FOOD_AND_DRINK', 'FOOD_AND_DRINK_GROCERIES'],
       'COSTCO WHSE #2': ['HOUSEHOLD', null],
       Safeway: [null, null],
+      'COSTCO WHSE #3': [null, null],
     });
   });
 
@@ -124,5 +128,40 @@ describe.skipIf(!testDatabaseUrl)('category rules (Postgres)', () => {
     expect((await categories())['COSTCO WHSE #2']).toEqual(['HOUSEHOLD', null]);
     const [hand] = await ctx.db.select().from(transactions).where(eq(transactions.name, 'COSTCO WHSE #2'));
     expect(hand?.categoryRuleId).toBeNull();
+  });
+
+  it('edits a rule, releasing transactions the new pattern no longer matches', async () => {
+    await saveRule(ctx.db, { pattern: 'whse', category: 'SHOPPING', applyToExisting: false });
+    const { rule } = await saveRule(ctx.db, { pattern: 'costco', category: 'FOOD_AND_DRINK', applyToExisting: true });
+    expect(rule.transactionCount).toBe(3);
+
+    const result = await updateRule(ctx.db, rule.id, {
+      pattern: 'costco gas',
+      category: 'TRANSPORTATION',
+      subcategory: 'TRANSPORTATION_GAS',
+      applyToExisting: false,
+    });
+    expect(result).toMatchObject({ rule: { pattern: 'costco gas', transactionCount: 1 }, updated: 1 });
+    expect(await categories()).toMatchObject({
+      'COSTCO GAS #1': ['TRANSPORTATION', 'TRANSPORTATION_GAS'],
+      'COSTCO WHSE #1': ['SHOPPING', null], // picked up by the other rule that still matches
+      Something: [null, null],
+      'COSTCO WHSE #2': ['HOUSEHOLD', null],
+    });
+  });
+
+  it('refuses to edit a rule into another rule\'s pattern', async () => {
+    await saveRule(ctx.db, { pattern: 'costco', category: 'FOOD_AND_DRINK', applyToExisting: false });
+    const { rule } = await saveRule(ctx.db, { pattern: 'safeway', category: 'FOOD_AND_DRINK', applyToExisting: false });
+    expect(await updateRule(ctx.db, rule.id, { pattern: 'COSTCO', category: 'SHOPPING', applyToExisting: false })).toBe(
+      'conflict',
+    );
+    expect(
+      await updateRule(ctx.db, '00000000-0000-0000-0000-000000000000', {
+        pattern: 'x y',
+        category: 'SHOPPING',
+        applyToExisting: false,
+      }),
+    ).toBe('not-found');
   });
 });

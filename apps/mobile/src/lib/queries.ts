@@ -303,6 +303,15 @@ export function useSaveCategoryRule() {
   });
 }
 
+export function useUpdateCategoryRule() {
+  const invalidate = useInvalidateCategories();
+  return useMutation({
+    mutationFn: ({ id, ...rule }: CategoryRuleCreate & { id: string }) =>
+      api<CategoryRuleResult>(`/category-rules/${id}`, { method: 'PATCH', body: JSON.stringify(rule) }),
+    onSuccess: invalidate,
+  });
+}
+
 export function useDeleteCategoryRule() {
   const invalidate = useInvalidateCategories();
   return useMutation({

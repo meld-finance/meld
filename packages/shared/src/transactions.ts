@@ -17,6 +17,8 @@ export const Transaction = z.object({
   subcategory: z.string().nullable(),
   /** Set when a categorization rule chose the category. */
   categoryRuleId: z.string().uuid().nullable(),
+  /** The user has confirmed the category, by setting it by hand or accepting it as is. */
+  categoryVerified: z.boolean(),
   pending: z.boolean(),
   notes: z.string().nullable(),
 });
@@ -29,6 +31,8 @@ export const TransactionQuery = z.object({
   subcategory: z.string().optional(),
   /** Only transactions that count toward cash flow (cash and card accounts, no transfers or card payments). */
   cashflow: z.stringbool().optional(),
+  /** Only transactions whose category the user has (true) or hasn't (false) confirmed. */
+  verified: z.stringbool().optional(),
   from: z.iso.date().optional(),
   to: z.iso.date().optional(),
   limit: z.coerce.number().int().min(1).max(500).default(100),
@@ -46,6 +50,8 @@ export const TransactionUpdate = z.object({
   /** null clears the override and falls back to Plaid's category. */
   category: z.string().trim().min(1).nullable().optional(),
   subcategory: z.string().trim().min(1).nullable().optional(),
+  /** true accepts the current category as correct; setting a category verifies it too. */
+  categoryVerified: z.boolean().optional(),
   notes: z.string().nullable().optional(),
 });
 export type TransactionUpdate = z.infer<typeof TransactionUpdate>;

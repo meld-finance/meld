@@ -111,6 +111,8 @@ export const transactions = pgTable(
     subcategory: text('subcategory'),
     /** The rule that set `category`, if one did; null for manual edits. */
     categoryRuleId: uuid('category_rule_id').references(() => categoryRules.id, { onDelete: 'set null' }),
+    /** The user has confirmed the category (by setting it or accepting it); rules leave these alone. */
+    categoryVerified: boolean('category_verified').notNull().default(false),
     pending: boolean('pending').notNull().default(false),
     notes: text('notes'),
     ...timestamps,

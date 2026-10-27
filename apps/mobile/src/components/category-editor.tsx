@@ -1,6 +1,6 @@
 import type { Transaction } from '@meld/shared';
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -16,11 +16,20 @@ type Props = { transaction: Transaction | null; onClose: () => void };
 
 export function CategoryEditor({ transaction, onClose }: Props) {
   return (
-    <Modal visible={transaction !== null} transparent animationType="fade" onRequestClose={onClose}>
+    <Sheet visible={transaction !== null} onClose={onClose}>
+      {transaction && <EditorBody key={transaction.id} transaction={transaction} onClose={onClose} />}
+    </Sheet>
+  );
+}
+
+/** A centered modal card; tapping the backdrop closes it. */
+export function Sheet({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         {/* Inner Pressable swallows taps so they don't close the sheet. */}
         <Pressable style={styles.sheetWrap} onPress={() => {}}>
-          {transaction && <EditorBody key={transaction.id} transaction={transaction} onClose={onClose} />}
+          {children}
         </Pressable>
       </Pressable>
     </Modal>
@@ -29,29 +38,20 @@ export function CategoryEditor({ transaction, onClose }: Props) {
 
 function EditorBody({ transaction, onClose }: { transaction: Transaction; onClose: () => void }) {
   const theme = useTheme();
-  const categories = useCategories();
   const update = useUpdateTransaction();
   const saveRule = useSaveCategoryRule();
   const [category, setCategory] = useState(transaction.category);
   const [subcategory, setSubcategory] = useState(transaction.subcategory);
-  const subcategories = useSubcategories(category);
-  const [customCategory, setCustomCategory] = useState('');
-  const [customSubcategory, setCustomSubcategory] = useState('');
   const [makeRule, setMakeRule] = useState(false);
   const [pattern, setPattern] = useState(transaction.merchantName ?? transaction.name);
   const [applyToExisting, setApplyToExisting] = useState(true);
 
-  const categoryOptions = withCurrent(categories.data ?? [], category);
-  const subcategoryOptions = withCurrent(subcategories.data ?? [], subcategory);
   const changed = category !== transaction.category || subcategory !== transaction.subcategory;
-  const canSave = !!category && (changed || makeRule) && (!makeRule || pattern.trim().length >= 2);
+  // Saving an unchanged category accepts it as correct.
+  const verifies = !changed && !transaction.categoryVerified;
+  const canSave = !!category && (changed || makeRule || verifies) && (!makeRule || pattern.trim().length >= 2);
   const saving = update.isPending || saveRule.isPending;
   const error = update.error ?? saveRule.error;
-
-  function pickCategory(c: string) {
-    if (c !== category) setSubcategory(null);
-    setCategory(c);
-  }
 
   // mutate (not mutateAsync): failures surface via `error` below instead of throwing.
   function save() {
@@ -61,9 +61,9 @@ function EditorBody({ transaction, onClose }: { transaction: Transaction; onClos
         { pattern: pattern.trim(), category, subcategory, applyToExisting },
         { onSuccess: onClose },
       );
-    if (!changed) return createRule();
+    if (!changed && !verifies) return createRule();
     update.mutate(
-      { id: transaction.id, category, subcategory },
+      changed ? { id: transaction.id, category, subcategory } : { id: transaction.id, categoryVerified: true },
       { onSuccess: () => (makeRule ? createRule() : onClose()) },
     );
   }
@@ -74,6 +74,9 @@ function EditorBody({ transaction, onClose }: { transaction: Transaction; onClos
       <ThemedText type="small" themeColor="textSecondary">
         {formatDate(transaction.date)} · {formatCurrency(Math.abs(transaction.amount), transaction.currency)} ·{' '}
         {transaction.accountName}
+      </ThemedText>
+      <ThemedText type="small" themeColor={transaction.categoryVerified ? 'positive' : 'textSecondary'}>
+        {transaction.categoryVerified ? '✓ Category verified' : 'Not verified yet'}
       </ThemedText>
       {transaction.categoryRuleId && (
         <ThemedText type="small" themeColor="textSecondary">
@@ -86,6 +89,87 @@ function EditorBody({ transaction, onClose }: { transaction: Transaction; onClos
         </ThemedText>
       )}
 
+      <CategoryPicker
+        category={category}
+        subcategory={subcategory}
+        onChange={(c, sub) => {
+          setCategory(c);
+          setSubcategory(sub);
+        }}
+      />
+
+      <View style={[styles.rule, { borderColor: theme.border }]}>
+        <Toggle label="Always categorize matching transactions this way" value={makeRule} onChange={setMakeRule} />
+        {makeRule && (
+          <>
+            <ThemedText type="small" themeColor="textSecondary">
+              Applies to new transactions whose merchant or description contains:
+            </ThemedText>
+            <TextInput
+              style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
+              value={pattern}
+              onChangeText={setPattern}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Toggle
+              label="Also update past matches I haven’t categorized or verified by hand"
+              value={applyToExisting}
+              onChange={setApplyToExisting}
+            />
+          </>
+        )}
+      </View>
+
+      {error && <ThemedText themeColor="negative">{error.message}</ThemedText>}
+
+      <View style={styles.footer}>
+        {transaction.categoryOverridden && (
+          <Button
+            label="Reset to Plaid category"
+            variant="secondary"
+            size="small"
+            disabled={saving}
+            onPress={() => update.mutate({ id: transaction.id, category: null, subcategory: null }, { onSuccess: onClose })}
+          />
+        )}
+        <Button label="Cancel" variant="secondary" size="small" onPress={onClose} />
+        <Button
+          label={verifies && !makeRule ? 'Mark verified' : 'Save'}
+          size="small"
+          disabled={!canSave}
+          loading={saving}
+          onPress={save}
+        />
+      </View>
+    </ThemedView>
+  );
+}
+
+/** Category and subcategory chips, with rows to add new ones. Picking a new category clears the subcategory. */
+export function CategoryPicker({
+  category,
+  subcategory,
+  onChange,
+}: {
+  category: string | null;
+  subcategory: string | null;
+  onChange: (category: string, subcategory: string | null) => void;
+}) {
+  const categories = useCategories();
+  const subcategories = useSubcategories(category);
+  const [customCategory, setCustomCategory] = useState('');
+  const [customSubcategory, setCustomSubcategory] = useState('');
+
+  const categoryOptions = withCurrent(categories.data ?? [], category);
+  const subcategoryOptions = withCurrent(subcategories.data ?? [], subcategory);
+
+  function pickCategory(c: string) {
+    onChange(c, c === category ? subcategory : null);
+  }
+
+  return (
+    <>
       <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
         Category
       </ThemedText>
@@ -110,13 +194,13 @@ function EditorBody({ transaction, onClose }: { transaction: Transaction; onClos
             Subcategory
           </ThemedText>
           <ScrollView style={styles.subchipScroll} contentContainerStyle={styles.chips}>
-            <Chip label="None" selected={!subcategory} onPress={() => setSubcategory(null)} />
+            <Chip label="None" selected={!subcategory} onPress={() => onChange(category, null)} />
             {subcategoryOptions.map((s) => (
               <Chip
                 key={s}
                 label={formatSubcategory(s, category)}
                 selected={s === subcategory}
-                onPress={() => setSubcategory(s)}
+                onPress={() => onChange(category, s)}
               />
             ))}
           </ScrollView>
@@ -125,52 +209,13 @@ function EditorBody({ transaction, onClose }: { transaction: Transaction; onClos
             value={customSubcategory}
             onChangeText={setCustomSubcategory}
             onAdd={(s) => {
-              setSubcategory(s);
+              onChange(category, s);
               setCustomSubcategory('');
             }}
           />
         </>
       )}
-
-      <View style={[styles.rule, { borderColor: theme.border }]}>
-        <Toggle label="Always categorize matching transactions this way" value={makeRule} onChange={setMakeRule} />
-        {makeRule && (
-          <>
-            <ThemedText type="small" themeColor="textSecondary">
-              Applies to new transactions whose merchant or description contains:
-            </ThemedText>
-            <TextInput
-              style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
-              value={pattern}
-              onChangeText={setPattern}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <Toggle
-              label="Also update past matches I haven’t changed by hand"
-              value={applyToExisting}
-              onChange={setApplyToExisting}
-            />
-          </>
-        )}
-      </View>
-
-      {error && <ThemedText themeColor="negative">{error.message}</ThemedText>}
-
-      <View style={styles.footer}>
-        {transaction.categoryOverridden && (
-          <Button
-            label="Reset to Plaid category"
-            variant="secondary"
-            size="small"
-            disabled={saving}
-            onPress={() => update.mutate({ id: transaction.id, category: null, subcategory: null }, { onSuccess: onClose })}
-          />
-        )}
-        <Button label="Cancel" variant="secondary" size="small" onPress={onClose} />
-        <Button label="Save" size="small" disabled={!canSave} loading={saving} onPress={save} />
-      </View>
-    </ThemedView>
+    </>
   );
 }
 
@@ -207,7 +252,7 @@ function AddRow({
   );
 }
 
-function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
+export function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
   return (
     <View style={styles.toggle}>
       <ThemedText type="small" style={styles.grow}>

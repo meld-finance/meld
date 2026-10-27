@@ -37,7 +37,7 @@ export function escapeLike(s: string) {
 }
 
 type TransactionFilters = Partial<
-  Pick<z.output<typeof TransactionQuery>, 'accountId' | 'from' | 'to' | 'category' | 'subcategory' | 'cashflow' | 'search'>
+  Pick<z.output<typeof TransactionQuery>, 'accountId' | 'from' | 'to' | 'category' | 'subcategory' | 'cashflow' | 'verified' | 'search'>
 >;
 
 /** Filters shared by listing and aggregation; hidden accounts are always excluded. */
@@ -50,6 +50,7 @@ function transactionFilters(q: TransactionFilters) {
     q.category ? eq(categoryKey, q.category) : undefined,
     q.subcategory ? eq(effectiveSubcategory, q.subcategory) : undefined,
     q.cashflow ? countsTowardCashflow : undefined,
+    q.verified !== undefined ? eq(transactions.categoryVerified, q.verified) : undefined,
     q.search
       ? or(
           ilike(transactions.name, `%${escapeLike(q.search)}%`),
@@ -77,6 +78,7 @@ export async function queryTransactions(db: Db, q: z.output<typeof TransactionQu
         categoryOverridden: sql<boolean>`${transactions.category} is not null`,
         subcategory: effectiveSubcategory,
         categoryRuleId: transactions.categoryRuleId,
+        categoryVerified: transactions.categoryVerified,
         pending: transactions.pending,
         notes: transactions.notes,
       })

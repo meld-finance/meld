@@ -1,5 +1,5 @@
 import type { CategoryRule, CategoryRuleCreate, CategoryRuleResult } from '@meld/shared';
-import { and, asc, count, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, count, eq, ilike, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { Db } from '../db/client';
 import { categoryRules, transactions } from '../db/schema';
@@ -25,11 +25,11 @@ export function matchRule<R extends Rule>(rules: R[], t: { name: string; merchan
   return best;
 }
 
-/** Fills in the category of new rows that matched a rule; rows that already carry a category are left alone. */
+/** Fills in the category of new rows that matched a rule; rows already categorized or verified are left alone. */
 export function categorizeNewRows<T extends typeof transactions.$inferInsert>(rules: Rule[], rows: T[]): T[] {
   if (!rules.length) return rows;
   return rows.map((row) => {
-    if (row.category) return row;
+    if (row.category || row.categoryVerified) return row;
     const rule = matchRule(rules, { name: row.name, merchantName: row.merchantName ?? null });
     return rule ? { ...row, category: rule.category, subcategory: rule.subcategory, categoryRuleId: rule.id } : row;
   });
@@ -62,6 +62,9 @@ export async function listRules(db: Db): Promise<CategoryRule[]> {
     .orderBy(asc(sql`lower(${categoryRules.pattern})`));
 }
 
+type RuleFields = Omit<z.output<typeof CategoryRuleCreate>, 'applyToExisting'>;
+type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+
 /**
  * Creates a rule, or updates the one with the same pattern (ignoring case). Transactions the rule
  * already categorized follow the change; with `applyToExisting`, other matches that weren't
@@ -79,36 +82,87 @@ export async function saveRule(db: Db, input: z.output<typeof CategoryRuleCreate
     const [saved] = existing
       ? await tx.update(categoryRules).set(values).where(eq(categoryRules.id, existing.id)).returning({ id: categoryRules.id })
       : await tx.insert(categoryRules).values(values).returning({ id: categoryRules.id });
-    const ruleId = saved!.id;
-    const assign = { category: values.category, subcategory: values.subcategory, categoryRuleId: ruleId };
-
-    const followed = await tx
-      .update(transactions)
-      .set(assign)
-      .where(eq(transactions.categoryRuleId, ruleId))
-      .returning({ id: transactions.id });
-    if (!applyToExisting) return { id: ruleId, updated: followed.length };
-
-    const like = `%${escapeLike(values.pattern)}%`;
-    const candidates = await tx
-      .select({ id: transactions.id, name: transactions.name, merchantName: transactions.merchantName })
-      .from(transactions)
-      .where(
-        and(
-          or(isNull(transactions.category), isNotNull(transactions.categoryRuleId)),
-          or(ilike(transactions.name, like), ilike(transactions.merchantName, like)),
-        ),
-      );
-    const rules = await loadRules(tx);
-    const ids = candidates.filter((c) => matchRule(rules, c)?.id === ruleId).map((c) => c.id);
-    for (const batch of chunk(ids, 1000)) {
-      await tx.update(transactions).set(assign).where(inArray(transactions.id, batch));
-    }
-    return { id: ruleId, updated: new Set([...followed.map((r) => r.id), ...ids]).size };
+    return { id: saved!.id, updated: await applyRule(tx, saved!.id, values, applyToExisting) };
   });
 
   const rule = (await listRules(db)).find((r) => r.id === id)!;
   return { rule, updated };
+}
+
+/**
+ * Edits a rule. Transactions it categorized that no longer match the new pattern go back to their
+ * original category (or to another rule that matches them); the rest follow the change, and
+ * `applyToExisting` picks up other matches as in `saveRule`.
+ */
+export async function updateRule(
+  db: Db,
+  id: string,
+  input: z.output<typeof CategoryRuleCreate>,
+): Promise<CategoryRuleResult | 'not-found' | 'conflict'> {
+  const { applyToExisting, ...fields } = input;
+  const values = { ...fields, subcategory: fields.subcategory ?? null };
+
+  const result = await db.transaction(async (tx) => {
+    const [clash] = await tx
+      .select({ id: categoryRules.id })
+      .from(categoryRules)
+      .where(and(eq(sql`lower(${categoryRules.pattern})`, values.pattern.toLowerCase()), ne(categoryRules.id, id)));
+    if (clash) return 'conflict' as const;
+    const [saved] = await tx.update(categoryRules).set(values).where(eq(categoryRules.id, id)).returning();
+    if (!saved) return 'not-found' as const;
+
+    const owned = await tx
+      .select({ id: transactions.id, name: transactions.name, merchantName: transactions.merchantName })
+      .from(transactions)
+      .where(eq(transactions.categoryRuleId, id));
+    const released = owned.filter((t) => !matchRule([saved], t));
+    if (released.length) {
+      const others = (await loadRules(tx)).filter((r) => r.id !== id);
+      const reset = { category: null, subcategory: null, categoryRuleId: null };
+      for (const t of released) {
+        const other = matchRule(others, t);
+        await tx
+          .update(transactions)
+          .set(other ? { category: other.category, subcategory: other.subcategory, categoryRuleId: other.id } : reset)
+          .where(eq(transactions.id, t.id));
+      }
+    }
+    return applyRule(tx, id, values, applyToExisting);
+  });
+  if (typeof result === 'string') return result;
+
+  const rule = (await listRules(db)).find((r) => r.id === id)!;
+  return { rule, updated: result };
+}
+
+/** Brings the rule's transactions (and, with `applyToExisting`, its other matches) in line with it; returns how many. */
+async function applyRule(tx: Tx, ruleId: string, values: RuleFields & { subcategory: string | null }, applyToExisting: boolean) {
+  const assign = { category: values.category, subcategory: values.subcategory, categoryRuleId: ruleId };
+
+  const followed = await tx
+    .update(transactions)
+    .set(assign)
+    .where(eq(transactions.categoryRuleId, ruleId))
+    .returning({ id: transactions.id });
+  if (!applyToExisting) return followed.length;
+
+  const like = `%${escapeLike(values.pattern)}%`;
+  const candidates = await tx
+    .select({ id: transactions.id, name: transactions.name, merchantName: transactions.merchantName })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.categoryVerified, false),
+        or(isNull(transactions.category), isNotNull(transactions.categoryRuleId)),
+        or(ilike(transactions.name, like), ilike(transactions.merchantName, like)),
+      ),
+    );
+  const rules = await loadRules(tx);
+  const ids = candidates.filter((c) => matchRule(rules, c)?.id === ruleId).map((c) => c.id);
+  for (const batch of chunk(ids, 1000)) {
+    await tx.update(transactions).set(assign).where(inArray(transactions.id, batch));
+  }
+  return new Set([...followed.map((r) => r.id), ...ids]).size;
 }
 
 /** Deletes a rule; the transactions it categorized go back to their original category. */
