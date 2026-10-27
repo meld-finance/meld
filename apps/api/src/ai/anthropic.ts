@@ -79,6 +79,7 @@ export class AnthropicProvider implements AIProvider {
   constructor(
     apiKey: string,
     private model: string,
+    private chatModel: string,
     private lookupModel: string,
   ) {
     this.client = new Anthropic({ apiKey });
@@ -162,7 +163,7 @@ export class AnthropicProvider implements AIProvider {
     for (let step = 0; step < MAX_STEPS; step++) {
       const stream = this.client.beta.messages.stream(
         {
-          model: this.model,
+          model: this.chatModel,
           max_tokens: 64000,
           ...FALLBACK,
           output_config: { effort: 'high' },
