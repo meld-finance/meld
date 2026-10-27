@@ -35,6 +35,8 @@ const EnvSchema = z
     AI_PROVIDER: z.enum(['anthropic']).default('anthropic'),
     ANTHROPIC_API_KEY: z.string().default(''),
     ANTHROPIC_MODEL: z.string().default('claude-opus-5-5'),
+    /** Property value lookups are a chain of web searches; a fast model finishes them several times sooner. */
+    ANTHROPIC_LOOKUP_MODEL: z.string().default('claude-haiku-5-5'),
 
     /** Uploaded documents; defaults to <repo>/data/documents. */
     DOCUMENTS_DIR: z.string().default(''),
