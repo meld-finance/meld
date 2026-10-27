@@ -79,6 +79,9 @@ export const VizColors = {
     warning: '#fab219',
     critical: '#d03b3b',
     track: '#cde2fb',
+    /** Categorical slots in fixed order; anything past the eighth folds into `other`. */
+    categorical: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'],
+    other: '#a3a9b5',
   },
   dark: {
     series1: '#3987e5',
@@ -93,6 +96,8 @@ export const VizColors = {
     warning: '#fab219',
     critical: '#d03b3b',
     track: '#184f95',
+    categorical: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'],
+    other: '#5a6378',
   },
 } as const;
 

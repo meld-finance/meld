@@ -21,6 +21,10 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>Accounts</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="building.columns" md="account_balance" />
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="cashflow">
+        <NativeTabs.Trigger.Label>Cash Flow</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="chart.bar" md="bar_chart" />
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="transactions">
         <NativeTabs.Trigger.Label>Transactions</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="list.bullet.rectangle" md="receipt_long" />

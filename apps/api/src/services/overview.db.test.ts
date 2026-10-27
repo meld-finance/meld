@@ -6,11 +6,14 @@ import { setupTestDb, testDatabaseUrl } from '../test/db';
 import {
   getBudgetStatus,
   getCashflow,
+  getCashflowPeriod,
   getNetWorthHistory,
   getSpendingByCategory,
+  getSpendingByMonth,
   monthRange,
   recentMonths,
   recordSnapshot,
+  shiftYears,
 } from './overview';
 
 describe('month helpers', () => {
@@ -21,6 +24,11 @@ describe('month helpers', () => {
 
   it('lists recent months oldest first', () => {
     expect(recentMonths(3, '2026-01-15')).toEqual(['2025-11', '2025-12', '2026-01']);
+  });
+
+  it('shifts dates by whole years, clamping Feb 29', () => {
+    expect(shiftYears('2026-10-27', -1)).toBe('2025-10-27');
+    expect(shiftYears('2028-02-29', -1)).toBe('2027-02-28');
   });
 });
 
@@ -88,6 +96,48 @@ describe.skipIf(!testDatabaseUrl)('overview queries (Postgres)', () => {
       { category: 'RENT', amount: 700 },
       { category: 'FOOD_AND_DRINK', amount: 80 },
     ]);
+  });
+
+  it('splits monthly spending by category', async () => {
+    expect(await getSpendingByMonth(ctx.db, 2, '2026-10')).toEqual([
+      { month: '2026-09', categories: [{ category: 'FOOD_AND_DRINK', amount: 60 }] },
+      {
+        month: '2026-10',
+        categories: [
+          { category: 'LOAN_PAYMENTS', amount: 2000 },
+          { category: 'RENT', amount: 700 },
+          { category: 'FOOD_AND_DRINK', amount: 80 },
+        ],
+      },
+    ]);
+  });
+
+  it('compares a period with the same dates a year earlier, naming the merchant that moved most', async () => {
+    const [checking] = await ctx.db.select({ id: accounts.id }).from(accounts).where(eq(accounts.name, 'Checking'));
+    await ctx.db.insert(transactions).values([
+      { accountId: checking!.id, date: '2025-10-01', amount: -2500, name: 'Paycheck', plaidCategoryPrimary: 'INCOME' },
+      { accountId: checking!.id, date: '2025-10-03', amount: 40, name: 'Cafe', plaidCategoryPrimary: 'FOOD_AND_DRINK' },
+      { accountId: checking!.id, date: '2025-10-04', amount: 500, name: 'Airline', plaidCategoryPrimary: 'TRAVEL' },
+      { accountId: checking!.id, date: '2025-10-20', amount: 999, name: 'Late', plaidCategoryPrimary: 'TRAVEL' }, // outside
+    ]);
+
+    const period = await getCashflowPeriod(ctx.db, '2026-10-01', '2026-10-15');
+    expect(period).toMatchObject({
+      previousFrom: '2025-10-01',
+      previousTo: '2025-10-15',
+      income: 3000,
+      spending: 2780,
+      previousIncome: 2500,
+      previousSpending: 540,
+    });
+    expect(period.categories.map((c) => c.category)).toEqual(['LOAN_PAYMENTS', 'RENT', 'FOOD_AND_DRINK', 'TRAVEL']);
+    expect(period.categories.find((c) => c.category === 'FOOD_AND_DRINK')).toEqual({
+      category: 'FOOD_AND_DRINK',
+      amount: 80,
+      previous: 40,
+      driver: { merchant: 'FOOD_AND_DRINK', amount: 80, previous: 0 },
+    });
+    expect(period.categories.find((c) => c.category === 'TRAVEL')).toMatchObject({ amount: 0, previous: 500 });
   });
 
   it('reports budget progress, including budgets with no spending', async () => {
