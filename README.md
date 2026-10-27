@@ -55,6 +55,13 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 - **Hide from totals** on an account's page excludes it from net worth, cash flow, budgets and lists (e.g. a closed or duplicate account). Hidden accounts are listed at the bottom of the Accounts tab.
 - Full account numbers that Plaid returns for loans are dropped before storage.
 
+## Insurance
+
+- Add life and disability policies on the **Insurance** tab, including coverage through work. The tab totals your life coverage, monthly disability benefit and yearly premiums. Term policies past their end date aren't counted.
+- **Upload PDF** on the Add policy page sends a policy, certificate or benefits summary to the AI provider (Claude by default), which fills in the form and flags anything it inferred or couldn't find. Nothing is saved until you check the fields and press **Save**. Needs `ANTHROPIC_API_KEY`.
+- Uploaded PDFs are stored in `data/documents/` (gitignored; change with `DOCUMENTS_DIR`). A PDF is deleted with its policy, when you cancel the draft, or after a day if it was never saved.
+- Only the last 4 characters of policy numbers are stored.
+
 ## Common commands
 
 | Command | What it does |
@@ -71,4 +78,4 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 - Plaid access tokens are encrypted at rest (AES-256-GCM, `ENCRYPTION_KEY`). Losing the key means re-linking accounts.
 - The API and Postgres bind to `127.0.0.1` only.
 - Auth is a single-user passphrase that issues a bearer token. Replace it with a real identity provider before hosting.
-- AI features send financial data to the configured LLM provider. Account numbers are masked first.
+- AI features send financial data to the configured LLM provider. Account numbers are masked first. Insurance PDF upload sends the whole document.

@@ -25,6 +25,10 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>Investments</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" md="trending_up" />
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="insurance">
+        <NativeTabs.Trigger.Label>Insurance</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="shield" md="shield" />
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="budget">
         <NativeTabs.Trigger.Label>Budget</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="chart.pie" md="pie_chart" />

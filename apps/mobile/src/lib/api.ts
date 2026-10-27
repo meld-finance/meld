@@ -20,9 +20,10 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request(path: string, init: RequestInit): Promise<Response> {
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  // FormData bodies need fetch to set the multipart boundary itself.
+  if (typeof init.body === 'string' && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if (authToken) headers.set('Authorization', `Bearer ${authToken}`);
 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
@@ -31,5 +32,14 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const body = await res.json().catch(() => null);
     throw new ApiError(res.status, body?.error ?? `Request failed (${res.status})`);
   }
-  return res.json() as Promise<T>;
+  return res;
+}
+
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return (await request(path, init)).json() as Promise<T>;
+}
+
+/** For binary responses such as uploaded documents. */
+export async function apiBlob(path: string): Promise<Blob> {
+  return (await request(path, {})).blob();
 }
