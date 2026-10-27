@@ -2,13 +2,17 @@ import { fileURLToPath } from 'node:url';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { createDb } from '../db/client';
+import { configuredDatabaseUrls } from '../env';
 
 export const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 
 /** Connects to the test DB, applies migrations, and returns a truncate helper. */
 export async function setupTestDb() {
   if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL is not set');
-  if (testDatabaseUrl === process.env.DATABASE_URL) throw new Error('TEST_DATABASE_URL must differ from DATABASE_URL');
+  // Tests truncate every table; never let them touch a real database.
+  if ([...configuredDatabaseUrls(), process.env.DATABASE_URL].includes(testDatabaseUrl)) {
+    throw new Error('TEST_DATABASE_URL must differ from the sandbox and production databases');
+  }
   const conn = createDb(testDatabaseUrl);
   await migrate(conn.db, { migrationsFolder: fileURLToPath(new URL('../../drizzle', import.meta.url)) });
 
