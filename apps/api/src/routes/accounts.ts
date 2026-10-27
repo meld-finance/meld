@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { accounts, holdings } from '../db/schema';
 import { HttpError, IdParams, parse } from '../lib/http';
-import { getInvestmentsSummary, getLiability, listAccounts, listHoldings } from '../services/accounts';
+import { getInvestmentsSummary, getLiability, listAccounts, listLiabilities, listHoldings } from '../services/accounts';
 import { recordSnapshot } from '../services/overview';
 import type { AppDeps } from '../server';
 
@@ -35,4 +35,6 @@ export async function registerAccountRoutes(app: FastifyInstance, { db }: AppDep
   });
 
   app.get('/investments', () => getInvestmentsSummary(db));
+
+  app.get('/liabilities', () => listLiabilities(db));
 }

@@ -11,6 +11,7 @@ import type {
   ChatSessionSummary,
   InsurancePolicy,
   InsurancePolicyInput,
+  LiabilitySummary,
   ManualAsset,
   ManualAssetInput,
   NetWorthPoint,
@@ -130,6 +131,10 @@ export function useAccountDetail(id: string) {
 
 export function useInvestments() {
   return useQuery({ queryKey: ['investments'], queryFn: () => api<InvestmentsSummary>('/investments') });
+}
+
+export function useLiabilities() {
+  return useQuery({ queryKey: [...keys.accounts, 'liabilities'], queryFn: () => api<LiabilitySummary[]>('/liabilities') });
 }
 
 export function useUpdateAccount() {

@@ -1,4 +1,4 @@
-import { taxTreatment, type Account, type Holding, type InvestmentsSummary, type LiabilityDetails, type LiabilityKind } from '@meld/shared';
+import { taxTreatment, type Account, type Holding, type InvestmentsSummary, type LiabilityDetails, type LiabilityKind, type LiabilitySummary } from '@meld/shared';
 import { asc, desc, eq, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, holdings, institutions, liabilities, securities } from '../db/schema';
@@ -75,7 +75,7 @@ export async function getLiability(db: Db, accountId: string): Promise<Liability
 }
 
 /** Loan and card terms for every visible account that has them. */
-export async function listLiabilities(db: Db) {
+export async function listLiabilities(db: Db): Promise<LiabilitySummary[]> {
   const rows = await db
     .select({ liability: liabilities, accountId: accounts.id, accountName: accounts.name, balance: accounts.currentBalance })
     .from(liabilities)
