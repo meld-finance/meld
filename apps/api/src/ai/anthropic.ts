@@ -79,6 +79,7 @@ export class AnthropicProvider implements AIProvider {
   constructor(
     apiKey: string,
     private model: string,
+    private lookupModel: string,
   ) {
     this.client = new Anthropic({ apiKey });
   }
@@ -117,14 +118,15 @@ export class AnthropicProvider implements AIProvider {
     for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
       const response = await this.client.beta.messages
         .parse({
-          model: this.model,
+          model: this.lookupModel,
           max_tokens: 16000,
           ...FALLBACK,
-          output_config: { effort: 'medium', format: betaZodOutputFormat(ValuationSchema) },
+          // Each search is a sequential step, so time grows with the budget. Most sites' pages either
+          // show up in the first few searches or not at all, and real estate pages often block fetches.
+          output_config: { effort: 'low', format: betaZodOutputFormat(ValuationSchema) },
           tools: [
-            // Units need more searching: one page per site for the exact unit, then comparables.
-            { type: 'web_search_20260209', name: 'web_search', max_uses: 16 },
-            { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 8 },
+            { type: 'web_search_20260209', name: 'web_search', max_uses: 8 },
+            { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 2 },
           ],
           messages,
         })
