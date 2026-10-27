@@ -2,6 +2,7 @@ import {
   annualPremium,
   hasCashValue,
   insuranceTotals,
+  isCashValueStale,
   isDisabilityPolicy,
   isLapsed,
   isLifePolicy,
@@ -125,6 +126,11 @@ function PolicyRow({ policy: p }: { policy: InsurancePolicy }) {
         {lapsed && (
           <ThemedText type="small" themeColor="warning">
             Term has ended, so this isn’t counted in your coverage.
+          </ThemedText>
+        )}
+        {isCashValueStale(p, today()) && (
+          <ThemedText type="small" themeColor="warning">
+            Cash values are over a year old. Update them from your latest annual statement.
           </ThemedText>
         )}
       </View>

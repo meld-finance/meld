@@ -113,6 +113,17 @@ export function netCashValue(p: CashValueFields): number | null {
   return Math.max(0, p.cashValue - (p.loanBalance ?? 0));
 }
 
+/** Statements are annual; allow a month's slack for the next one to arrive. */
+const CASH_VALUE_STALE_MONTHS = 13;
+
+/** Cash values from a statement older than about a year are likely out of date. */
+export function isCashValueStale(p: CashValueFields & Pick<InsurancePolicyInput, 'valuesAsOf'>, today: string): boolean {
+  if (netCashValue(p) === null || p.valuesAsOf === null) return false;
+  const [y, m, d] = today.split('-').map(Number) as [number, number, number];
+  const cutoff = new Date(Date.UTC(y, m - 1 - CASH_VALUE_STALE_MONTHS, d)).toISOString().slice(0, 10);
+  return p.valuesAsOf < cutoff;
+}
+
 export type InsuranceTotals = {
   lifeCoverage: number;
   /** Monthly disability benefit; short- and long-term counted separately. */

@@ -1,4 +1,4 @@
-import { insuranceTotals, maskPolicyNumber, netCashValue, type InsurancePolicyInput } from '@meld/shared';
+import { insuranceTotals, isCashValueStale, maskPolicyNumber, netCashValue, type InsurancePolicyInput } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
 import { normalizeExtraction, type RawExtraction } from './insurance-extraction';
 
@@ -115,5 +115,21 @@ describe('netCashValue', () => {
     expect(netCashValue({ ...none, type: 'life_term', cashSurrenderValue: 1_000 })).toBeNull();
     expect(netCashValue({ ...none, type: 'disability_long' })).toBeNull();
     expect(netCashValue({ ...none, type: 'life_whole' })).toBeNull();
+  });
+});
+
+describe('isCashValueStale', () => {
+  const policy = { type: 'life_whole' as const, cashValue: 40_000, cashSurrenderValue: null, loanBalance: null };
+
+  it('flags values from a statement more than 13 months old', () => {
+    expect(isCashValueStale({ ...policy, valuesAsOf: '2025-09-26' }, '2026-10-27')).toBe(true);
+    expect(isCashValueStale({ ...policy, valuesAsOf: '2025-09-27' }, '2026-10-27')).toBe(false);
+    expect(isCashValueStale({ ...policy, valuesAsOf: '2026-03-01' }, '2026-10-27')).toBe(false);
+  });
+
+  it('ignores policies without a date or without cash values', () => {
+    expect(isCashValueStale({ ...policy, valuesAsOf: null }, '2026-10-27')).toBe(false);
+    expect(isCashValueStale({ ...policy, cashValue: null, valuesAsOf: '2020-01-01' }, '2026-10-27')).toBe(false);
+    expect(isCashValueStale({ ...policy, type: 'life_term', valuesAsOf: '2020-01-01' }, '2026-10-27')).toBe(false);
   });
 });
