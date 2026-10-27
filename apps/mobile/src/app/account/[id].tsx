@@ -1,6 +1,7 @@
-import { estimatePayoff, isLiabilityType, type LiabilityDetails } from '@meld/shared';
+import { estimatePayoff, isLiabilityType, ownedBalance, type Account, type LiabilityDetails } from '@meld/shared';
 import { Link, router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -8,6 +9,7 @@ import { HoldingsList } from '@/components/holdings-list';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useAccountDetail, useUpdateAccount } from '@/lib/queries';
 
@@ -75,6 +77,11 @@ export default function AccountDetailScreen() {
             : ''}
           {account.creditLimit !== null ? ` · ${formatCurrency(account.creditLimit, account.currency)} limit` : ''}
         </ThemedText>
+        {account.ownershipPercent !== null && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Your {account.ownershipPercent}% share: {formatCurrency(ownedBalance(account), account.currency)}
+          </ThemedText>
+        )}
         {account.hidden && (
           <ThemedText type="small" themeColor="warning">
             Hidden: not counted in net worth, cash flow or budgets.
@@ -89,6 +96,8 @@ export default function AccountDetailScreen() {
           <HoldingsList holdings={holdings} />
         </Card>
       )}
+
+      {!account.hidden && <OwnershipCard key={account.ownershipPercent ?? 100} account={account} />}
 
       <Card>
         <View style={styles.actions}>
@@ -106,6 +115,49 @@ export default function AccountDetailScreen() {
         {update.isError && <ThemedText themeColor="negative">{update.error.message}</ThemedText>}
       </Card>
     </Screen>
+  );
+}
+
+/** Your share of a jointly held account; scales its balance and transactions in every total. */
+function OwnershipCard({ account }: { account: Account }) {
+  const theme = useTheme();
+  const update = useUpdateAccount();
+  const [share, setShare] = useState(String(account.ownershipPercent ?? 100));
+  const percent = Number(share.replace(/[%\s]/g, ''));
+  const valid = share.trim() !== '' && Number.isFinite(percent) && percent > 0 && percent <= 100;
+  const next = percent === 100 ? null : percent;
+  const changed = valid && next !== account.ownershipPercent;
+
+  const save = () => changed && update.mutate({ id: account.id, ownershipPercent: next });
+
+  return (
+    <Card title="Ownership">
+      <ThemedText type="small" themeColor="textSecondary">
+        For a joint account, enter your share. Net worth, cash flow, spending and budgets count only that part of the
+        balance and transactions.
+      </ThemedText>
+      <View style={styles.actions}>
+        <TextInput
+          style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
+          value={share}
+          onChangeText={setShare}
+          keyboardType="decimal-pad"
+          inputMode="decimal"
+          onSubmitEditing={save}
+          accessibilityLabel="Your ownership percent"
+        />
+        <ThemedText type="small" themeColor="textSecondary" style={styles.grow}>
+          %
+        </ThemedText>
+        <Button label="Save" size="small" disabled={!changed} loading={update.isPending} onPress={save} />
+      </View>
+      {!valid && (
+        <ThemedText type="small" themeColor="negative">
+          Ownership must be between 0 and 100%.
+        </ThemedText>
+      )}
+      {update.isError && <ThemedText themeColor="negative">{update.error.message}</ThemedText>}
+    </Card>
   );
 }
 
@@ -152,4 +204,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.three },
   estimate: { gap: Spacing.one, marginTop: Spacing.two },
   actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },
+  input: { width: 80, borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+  grow: { flex: 1 },
 });

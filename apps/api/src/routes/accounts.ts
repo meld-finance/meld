@@ -29,8 +29,8 @@ export async function registerAccountRoutes(app: FastifyInstance, { db }: AppDep
     const update = parse(AccountUpdate, req.body);
     const [row] = await db.update(accounts).set(update).where(eq(accounts.id, id)).returning({ id: accounts.id });
     if (!row) throw new HttpError(404, 'Account not found');
-    // Hiding changes net worth today.
-    if (update.hidden !== undefined) await recordSnapshot(db);
+    // Hiding or changing your share changes net worth today.
+    if (update.hidden !== undefined || update.ownershipPercent !== undefined) await recordSnapshot(db);
     return { ok: true };
   });
 

@@ -1,11 +1,13 @@
 import type { TransactionPage } from '@meld/shared';
 import { TransactionQuery } from '@meld/shared';
 import type { z } from 'zod';
-import { and, count, desc, eq, gte, ilike, lte, or, sql, sum, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, transactions } from '../db/schema';
 
 export const effectiveCategory = sql<string | null>`coalesce(${transactions.category}, ${transactions.plaidCategoryPrimary})`;
+/** Your share of a transaction on a jointly held account; needs `accounts` joined. */
+export const ownedAmount = sql`${transactions.amount} * coalesce(${accounts.ownershipPercent}, 100) / 100`;
 
 function escapeLike(s: string) {
   return s.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -60,10 +62,13 @@ export async function queryTransactions(db: Db, q: z.output<typeof TransactionQu
   return { transactions: rows, total: totalRow?.total ?? 0 };
 }
 
-/** Totals by merchant (Plaid sign: positive = money out), largest outflows first. */
+/**
+ * Totals by merchant (Plaid sign: positive = money out), largest outflows first.
+ * Transactions on shared accounts count at your ownership share.
+ */
 export async function totalsByMerchant(db: Db, q: TransactionFilters, limit = 25) {
   const merchant = sql<string>`coalesce(${transactions.merchantName}, ${transactions.name})`;
-  const total = sum(transactions.amount).mapWith(Number);
+  const total = sql<number>`round(sum(${ownedAmount}), 2)`.mapWith(Number);
   return db
     .select({ merchant, total, count: count() })
     .from(transactions)

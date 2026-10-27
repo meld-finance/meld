@@ -54,6 +54,7 @@ export async function buildSnapshot(db: Db, today = localDate()): Promise<string
       type: a.type,
       subtype: a.subtype,
       balance: round(a.currentBalance),
+      ...(a.ownershipPercent !== null && { ownershipPercent: a.ownershipPercent }),
     })),
     manualAssets: manual.map((m) => ({ ...m, value: round(m.value) })),
     insurance: {

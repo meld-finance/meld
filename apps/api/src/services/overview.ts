@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, balanceSnapshots, budgets, insurancePolicies, manualAssets, transactions } from '../db/schema';
 import { computeNetWorth, localDate } from '../lib/networth';
+import { ownedAmount } from './transactions';
 
 const INCOME = 'INCOME';
 const TRANSFERS = ['TRANSFER_IN', 'TRANSFER_OUT'];
@@ -42,7 +43,7 @@ export function recentMonths(count: number, today: string): string[] {
 export async function getNetWorth(db: Db): Promise<NetWorthSummary> {
   const [accountRows, manualRows, policyRows] = await Promise.all([
     db
-      .select({ type: accounts.type, currentBalance: accounts.currentBalance })
+      .select({ type: accounts.type, currentBalance: accounts.currentBalance, ownershipPercent: accounts.ownershipPercent })
       .from(accounts)
       .where(eq(accounts.hidden, false)),
     db.select({ value: manualAssets.value, ownershipPercent: manualAssets.ownershipPercent }).from(manualAssets),
@@ -98,8 +99,8 @@ export async function getCashflow(db: Db, months: number, today = localDate()): 
     .select({
       month,
       // Plaid: positive = money out. Income is reported as a positive number.
-      income: sql<number>`coalesce(-sum(${transactions.amount}) filter (where ${effectiveCategory} = ${INCOME}), 0)::float8`,
-      spending: sql<number>`coalesce(sum(${transactions.amount}) filter (where ${effectiveCategory} <> ${INCOME}), 0)::float8`,
+      income: sql<number>`coalesce(-sum(${ownedAmount}) filter (where ${effectiveCategory} = ${INCOME}), 0)::float8`,
+      spending: sql<number>`coalesce(sum(${ownedAmount}) filter (where ${effectiveCategory} <> ${INCOME}), 0)::float8`,
     })
     .from(transactions)
     .innerJoin(accounts, eq(accounts.id, transactions.accountId))
@@ -116,7 +117,7 @@ export async function getCashflow(db: Db, months: number, today = localDate()): 
 
 export async function getSpendingByCategory(db: Db, month: string): Promise<CategorySpend[]> {
   const [from, to] = monthRange(month);
-  const amount = sql<number>`sum(${transactions.amount})::float8`;
+  const amount = sql<number>`sum(${ownedAmount})::float8`;
   const rows = await db
     .select({ category: effectiveCategory, amount })
     .from(transactions)
@@ -130,7 +131,7 @@ export async function getSpendingByCategory(db: Db, month: string): Promise<Cate
       ),
     )
     .groupBy(effectiveCategory)
-    .having(sql`sum(${transactions.amount}) > 0`)
+    .having(sql`sum(${ownedAmount}) > 0`)
     .orderBy(desc(amount));
   return rows.map((r) => ({ category: r.category, amount: round2(r.amount) }));
 }

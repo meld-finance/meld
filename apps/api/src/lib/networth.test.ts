@@ -24,6 +24,20 @@ describe('computeNetWorth', () => {
     expect(result.assets).toBe(420000);
   });
 
+  it('counts only the owned share of joint accounts, including debts', () => {
+    const result = computeNetWorth(
+      [
+        { type: 'depository', currentBalance: 10000, ownershipPercent: 50 },
+        { type: 'mortgage', currentBalance: 300000, ownershipPercent: 50 },
+        { type: 'depository', currentBalance: 1000, ownershipPercent: null },
+      ],
+      [],
+    );
+    expect(result.assets).toBe(6000);
+    expect(result.liabilities).toBe(150000);
+    expect(result.byType).toContainEqual({ type: 'depository', total: 6000 });
+  });
+
   it('adds life insurance surrender value as its own asset type', () => {
     const result = computeNetWorth([{ type: 'loan', currentBalance: 1000 }], [], [30000, 7500]);
     expect(result.assets).toBe(37500);

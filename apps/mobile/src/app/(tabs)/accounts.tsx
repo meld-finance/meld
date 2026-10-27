@@ -1,4 +1,4 @@
-import { isLiabilityType, type Account, type AccountType, type PlaidItemSummary } from '@meld/shared';
+import { isLiabilityType, ownedBalance, type Account, type AccountType, type PlaidItemSummary } from '@meld/shared';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
@@ -93,7 +93,7 @@ export default function AccountsScreen() {
 }
 
 function AccountGroup({ label, accounts, showTotal = true }: { label: string; accounts: Account[]; showTotal?: boolean }) {
-  const total = accounts.reduce((sum, a) => sum + (a.currentBalance ?? 0), 0);
+  const total = accounts.reduce((sum, a) => sum + ownedBalance(a), 0);
   const liability = isLiabilityType(accounts[0]!.type);
   return (
     <Card style={styles.card}>
@@ -120,10 +120,19 @@ function AccountGroup({ label, accounts, showTotal = true }: { label: string; ac
               {a.mask ? ` ••${a.mask}` : ''}
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-              {[a.institutionName, a.subtype].filter(Boolean).join(' · ')}
+              {[
+                a.institutionName,
+                a.subtype,
+                a.ownershipPercent !== null && `${a.ownershipPercent}% of ${formatCurrency(a.currentBalance, a.currency)}`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </ThemedText>
           </View>
-          <ThemedText>{formatCurrency(a.currentBalance, a.currency)} ›</ThemedText>
+          {/* Shared accounts show your share, matching the group total. */}
+          <ThemedText>
+            {formatCurrency(a.ownershipPercent !== null ? ownedBalance(a) : a.currentBalance, a.currency)} ›
+          </ThemedText>
         </Pressable>
       ))}
     </Card>
