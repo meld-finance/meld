@@ -7,7 +7,11 @@ import type {
   BudgetUpsert,
   CashflowMonth,
   CashflowPeriod,
+  CategoryDetail,
   CategoryMonth,
+  CategoryRule,
+  CategoryRuleCreate,
+  CategoryRuleResult,
   CategorySpend,
   ChatSessionDetail,
   ChatSessionSummary,
@@ -38,11 +42,14 @@ export const keys = {
   items: ['items'] as const,
   transactions: (q: Omit<TransactionQuery, 'limit' | 'offset'>) => ['transactions', q] as const,
   categories: ['transactions', 'categories'] as const,
+  subcategories: (category: string) => ['transactions', 'subcategories', category] as const,
+  categoryRules: ['category-rules'] as const,
   netWorth: ['networth'] as const,
   netWorthHistory: (days: number) => ['networth', 'history', days] as const,
   cashflow: (months: number) => ['cashflow', months] as const,
   cashflowPeriod: (from: string, to: string) => ['cashflow', 'period', from, to] as const,
   cashflowCategories: (months: number, end: string) => ['cashflow', 'categories', months, end] as const,
+  categoryDetail: (category: string, from: string, to: string) => ['cashflow', 'category', category, from, to] as const,
   spending: (month: string) => ['spending', month] as const,
   budgets: (month: string) => ['budgets', month] as const,
   manualAssets: ['manual-assets'] as const,
@@ -82,6 +89,15 @@ export function useSpendingByMonth(months: number, end: string) {
     queryKey: keys.cashflowCategories(months, end),
     queryFn: () => api<CategoryMonth[]>(`/cashflow/categories?months=${months}&end=${end}`),
     placeholderData: (previous) => previous,
+  });
+}
+
+/** One category's spending by subcategory and merchant for [from, to], against a year earlier. */
+export function useCategoryDetail(category: string, from: string, to: string) {
+  return useQuery({
+    queryKey: keys.categoryDetail(category, from, to),
+    queryFn: () =>
+      api<CategoryDetail>(`/cashflow/category?${new URLSearchParams({ category, from, to })}`),
   });
 }
 
@@ -185,6 +201,14 @@ export function useCategories() {
   return useQuery({ queryKey: keys.categories, queryFn: () => api<string[]>('/transactions/categories') });
 }
 
+export function useSubcategories(category: string | null) {
+  return useQuery({
+    queryKey: keys.subcategories(category ?? ''),
+    queryFn: () => api<string[]>(`/transactions/subcategories?${new URLSearchParams({ category: category! })}`),
+    enabled: !!category,
+  });
+}
+
 export function useTransactions(filters: Omit<TransactionQuery, 'limit' | 'offset'>) {
   return useInfiniteQuery({
     queryKey: keys.transactions(filters),
@@ -245,16 +269,45 @@ export function useRemoveItem() {
   });
 }
 
-export function useUpdateTransaction() {
+/** Recategorizing changes spending, budgets, cash flow and rule counts too. */
+function useInvalidateCategories() {
   const qc = useQueryClient();
+  return () =>
+    Promise.all(
+      [['transactions'], ['cashflow'], ['spending'], ['budgets'], keys.categoryRules].map((queryKey) =>
+        qc.invalidateQueries({ queryKey }),
+      ),
+    );
+}
+
+export function useUpdateTransaction() {
+  const invalidate = useInvalidateCategories();
   return useMutation({
     mutationFn: ({ id, ...update }: TransactionUpdate & { id: string }) =>
       api(`/transactions/${id}`, { method: 'PATCH', body: JSON.stringify(update) }),
-    // Recategorizing changes spending, budgets and cash flow too.
-    onSuccess: () =>
-      Promise.all(
-        [['transactions'], ['cashflow'], ['spending'], ['budgets']].map((queryKey) => qc.invalidateQueries({ queryKey })),
-      ),
+    onSuccess: invalidate,
+  });
+}
+
+export function useCategoryRules() {
+  return useQuery({ queryKey: keys.categoryRules, queryFn: () => api<CategoryRule[]>('/category-rules') });
+}
+
+/** Creates a rule, or updates the one with the same pattern. */
+export function useSaveCategoryRule() {
+  const invalidate = useInvalidateCategories();
+  return useMutation({
+    mutationFn: (rule: CategoryRuleCreate) =>
+      api<CategoryRuleResult>('/category-rules', { method: 'POST', body: JSON.stringify(rule) }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteCategoryRule() {
+  const invalidate = useInvalidateCategories();
+  return useMutation({
+    mutationFn: (id: string) => api(`/category-rules/${id}`, { method: 'DELETE' }),
+    onSuccess: invalidate,
   });
 }
 

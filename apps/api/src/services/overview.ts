@@ -4,34 +4,18 @@ import {
   type CashflowMonth,
   type CashflowPeriod,
   type CategoryChange,
+  type CategoryDetail,
   type CategoryMonth,
   type CategorySpend,
   type NetWorthSummary,
 } from '@meld/shared';
-import { and, asc, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lt, lte, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, balanceSnapshots, budgets, insurancePolicies, manualAssets, transactions } from '../db/schema';
 import { computeNetWorth, localDate } from '../lib/networth';
-import { ownedAmount } from './transactions';
+import { categoryKey, countsTowardCashflow, effectiveSubcategory, ownedAmount } from './transactions';
 
 const INCOME = 'INCOME';
-const TRANSFERS = ['TRANSFER_IN', 'TRANSFER_OUT'];
-/** Paying a card moves money between your own accounts; the card purchases are the spending. */
-const CARD_PAYMENT_DETAILED = 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT';
-
-const effectiveCategory = sql<string>`coalesce(${transactions.category}, ${transactions.plaidCategoryPrimary}, 'UNCATEGORIZED')`;
-
-/**
- * Transactions that count toward cash flow: everyday (cash + card) accounts,
- * excluding transfers and card payments. A user override wins over Plaid's
- * classification, so recategorizing a transfer brings it back in.
- */
-const countsTowardCashflow = and(
-  inArray(accounts.type, ['depository', 'credit']),
-  eq(accounts.hidden, false),
-  sql`${effectiveCategory} not in (${sql.join(TRANSFERS.map((t) => sql`${t}`), sql`, `)})`,
-  sql`not (${transactions.category} is null and ${transactions.plaidCategoryDetailed} is not distinct from ${CARD_PAYMENT_DETAILED})`,
-);
 
 /** [first day of month, first day of next month) as YYYY-MM-DD. */
 export function monthRange(month: string): [string, string] {
@@ -108,8 +92,8 @@ export async function getCashflow(db: Db, months: number, today = localDate()): 
     .select({
       month,
       // Plaid: positive = money out. Income is reported as a positive number.
-      income: sql<number>`coalesce(-sum(${ownedAmount}) filter (where ${effectiveCategory} = ${INCOME}), 0)::float8`,
-      spending: sql<number>`coalesce(sum(${ownedAmount}) filter (where ${effectiveCategory} <> ${INCOME}), 0)::float8`,
+      income: sql<number>`coalesce(-sum(${ownedAmount}) filter (where ${categoryKey} = ${INCOME}), 0)::float8`,
+      spending: sql<number>`coalesce(sum(${ownedAmount}) filter (where ${categoryKey} <> ${INCOME}), 0)::float8`,
     })
     .from(transactions)
     .innerJoin(accounts, eq(accounts.id, transactions.accountId))
@@ -128,18 +112,18 @@ export async function getSpendingByCategory(db: Db, month: string): Promise<Cate
   const [from, to] = monthRange(month);
   const amount = sql<number>`sum(${ownedAmount})::float8`;
   const rows = await db
-    .select({ category: effectiveCategory, amount })
+    .select({ category: categoryKey, amount })
     .from(transactions)
     .innerJoin(accounts, eq(accounts.id, transactions.accountId))
     .where(
       and(
         countsTowardCashflow,
-        sql`${effectiveCategory} <> ${INCOME}`,
+        sql`${categoryKey} <> ${INCOME}`,
         gte(transactions.date, from),
         lt(transactions.date, to),
       ),
     )
-    .groupBy(effectiveCategory)
+    .groupBy(categoryKey)
     .having(sql`sum(${ownedAmount}) > 0`)
     .orderBy(desc(amount));
   return rows.map((r) => ({ category: r.category, amount: round2(r.amount) }));
@@ -153,18 +137,18 @@ export async function getSpendingByMonth(db: Db, count: number, endMonth: string
   const month = sql<string>`to_char(${transactions.date}, 'YYYY-MM')`;
   const amount = sql<number>`sum(${ownedAmount})::float8`;
   const rows = await db
-    .select({ month, category: effectiveCategory, amount })
+    .select({ month, category: categoryKey, amount })
     .from(transactions)
     .innerJoin(accounts, eq(accounts.id, transactions.accountId))
     .where(
       and(
         countsTowardCashflow,
-        sql`${effectiveCategory} <> ${INCOME}`,
+        sql`${categoryKey} <> ${INCOME}`,
         gte(transactions.date, from),
         lt(transactions.date, to),
       ),
     )
-    .groupBy(month, effectiveCategory)
+    .groupBy(month, categoryKey)
     .having(sql`sum(${ownedAmount}) > 0`)
     .orderBy(desc(amount));
 
@@ -192,7 +176,7 @@ export async function getCashflowPeriod(db: Db, from: string, to: string): Promi
 
   const rows = await db
     .select({
-      category: effectiveCategory,
+      category: categoryKey,
       merchant,
       // Plaid: positive = money out.
       amount: sql<number>`coalesce(sum(${ownedAmount}) filter (where ${inCurrent}), 0)::float8`,
@@ -201,7 +185,7 @@ export async function getCashflowPeriod(db: Db, from: string, to: string): Promi
     .from(transactions)
     .innerJoin(accounts, eq(accounts.id, transactions.accountId))
     .where(and(countsTowardCashflow, or(inCurrent, inPrevious)))
-    .groupBy(effectiveCategory, merchant);
+    .groupBy(categoryKey, merchant);
 
   let income = 0;
   let previousIncome = 0;
@@ -246,6 +230,53 @@ export async function getCashflowPeriod(db: Db, from: string, to: string): Promi
     previousIncome: round2(previousIncome),
     previousSpending: round2(previousSpending),
     categories,
+  };
+}
+
+/** One category's spending by subcategory and merchant over [from, to] and the same dates a year earlier. */
+export async function getCategoryDetail(db: Db, category: string, from: string, to: string): Promise<CategoryDetail> {
+  const previousFrom = shiftYears(from, -1);
+  const previousTo = shiftYears(to, -1);
+  const inCurrent = and(gte(transactions.date, from), lte(transactions.date, to));
+  const inPrevious = and(gte(transactions.date, previousFrom), lte(transactions.date, previousTo));
+  const merchant = sql<string>`coalesce(${transactions.merchantName}, ${transactions.name})`;
+
+  const rows = await db
+    .select({
+      subcategory: effectiveSubcategory,
+      merchant,
+      // Plaid: positive = money out.
+      amount: sql<number>`coalesce(sum(${ownedAmount}) filter (where ${inCurrent}), 0)::float8`,
+      previous: sql<number>`coalesce(sum(${ownedAmount}) filter (where ${inPrevious}), 0)::float8`,
+      count: sql<number>`(count(*) filter (where ${inCurrent}))::int`,
+    })
+    .from(transactions)
+    .innerJoin(accounts, eq(accounts.id, transactions.accountId))
+    .where(and(countsTowardCashflow, eq(categoryKey, category), or(inCurrent, inPrevious)))
+    .groupBy(effectiveSubcategory, merchant);
+
+  const totals = <K extends 'subcategory' | 'merchant'>(key: K) => {
+    const byKey = new Map<(typeof rows)[number][K], { amount: number; previous: number; count: number }>();
+    for (const r of rows) {
+      const t = byKey.get(r[key]) ?? { amount: 0, previous: 0, count: 0 };
+      byKey.set(r[key], { amount: t.amount + r.amount, previous: t.previous + r.previous, count: t.count + r.count });
+    }
+    return [...byKey]
+      .map(([k, t]) => ({ key: k, amount: round2(t.amount), previous: round2(t.previous), count: t.count }))
+      .filter((t) => t.amount > 0 || t.previous > 0)
+      .sort((a, b) => b.amount - a.amount || b.previous - a.previous);
+  };
+
+  return {
+    category,
+    from,
+    to,
+    previousFrom,
+    previousTo,
+    amount: round2(Math.max(rows.reduce((s, r) => s + r.amount, 0), 0)),
+    previous: round2(Math.max(rows.reduce((s, r) => s + r.previous, 0), 0)),
+    subcategories: totals('subcategory').map((t) => ({ subcategory: t.key, amount: t.amount, previous: t.previous })),
+    merchants: totals('merchant').map((t) => ({ merchant: t.key, count: t.count, amount: t.amount, previous: t.previous })),
   };
 }
 

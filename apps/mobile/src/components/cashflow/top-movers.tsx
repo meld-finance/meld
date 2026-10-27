@@ -1,5 +1,5 @@
 import type { CategoryChange } from '@meld/shared';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { Icon } from '@/components/icon';
@@ -17,6 +17,7 @@ export function TopMovers({
   periodLabel,
   comparison,
   showNotes,
+  onSelect,
   style,
 }: {
   movers: CategoryChange[];
@@ -25,6 +26,8 @@ export function TopMovers({
   comparison: string;
   /** The notes column needs room; narrow layouts drop it. */
   showNotes: boolean;
+  /** Opens a category's details. */
+  onSelect: (category: string) => void;
   style?: object;
 }) {
   const theme = useTheme();
@@ -59,7 +62,11 @@ export function TopMovers({
             const pct = percentChange(m.amount, m.previous);
             const up = m.amount > m.previous;
             return (
-              <View key={m.category} style={[styles.row, styles.body, { borderColor: theme.border }]}>
+              <Pressable
+                key={m.category}
+                accessibilityRole="button"
+                onPress={() => onSelect(m.category)}
+                style={({ pressed }) => [styles.row, styles.body, { borderColor: theme.border }, pressed && styles.pressed]}>
                 <View style={[styles.category, styles.categoryCell]}>
                   <View style={[styles.dot, { backgroundColor: color(m.category) }]} />
                   <ThemedText type="small" numberOfLines={1} style={styles.shrink}>
@@ -81,7 +88,7 @@ export function TopMovers({
                     {moverNote(m)}
                   </ThemedText>
                 )}
-              </View>
+              </Pressable>
             );
           })}
         </View>
@@ -102,4 +109,5 @@ const styles = StyleSheet.create({
   change: { flex: 2, justifyContent: 'flex-end', textAlign: 'right' },
   changeCell: { flexDirection: 'row', alignItems: 'center', gap: Spacing.half },
   notes: { flex: 4, paddingLeft: Spacing.three },
+  pressed: { opacity: 0.6 },
 });

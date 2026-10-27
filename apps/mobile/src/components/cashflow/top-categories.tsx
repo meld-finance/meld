@@ -1,5 +1,5 @@
 import type { CategoryChange } from '@meld/shared';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { ThemedText } from '@/components/themed-text';
@@ -13,12 +13,15 @@ export function TopCategories({
   total,
   slots,
   periodLabel,
+  onSelect,
   style,
 }: {
   categories: CategoryChange[];
   total: number;
   slots: Map<string, number>;
   periodLabel: string;
+  /** Opens a category's details. */
+  onSelect: (category: string) => void;
   style?: object;
 }) {
   const viz = useVizColors();
@@ -29,7 +32,12 @@ export function TopCategories({
       {top.map((c) => {
         const share = total > 0 ? c.amount / total : 0;
         return (
-          <View key={c.category} style={styles.item}>
+          <Pressable
+            key={c.category}
+            accessibilityRole="button"
+            accessibilityHint="Shows subcategories, merchants and transactions"
+            onPress={() => onSelect(c.category)}
+            style={({ pressed }) => [styles.item, pressed && styles.pressed]}>
             <View style={styles.labels}>
               <ThemedText type="small" style={styles.name} numberOfLines={1}>
                 {formatCategory(c.category)}
@@ -49,7 +57,7 @@ export function TopCategories({
                 ]}
               />
             </View>
-          </View>
+          </Pressable>
         );
       })}
     </Card>
@@ -64,4 +72,5 @@ const styles = StyleSheet.create({
   pct: { width: 40 },
   track: { height: 8, borderRadius: 4, overflow: 'hidden' },
   fill: { height: 8, minWidth: 2, borderRadius: 4 },
+  pressed: { opacity: 0.6 },
 });

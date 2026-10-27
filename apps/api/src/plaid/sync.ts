@@ -6,6 +6,7 @@ import { accounts, plaidItems, transactions } from '../db/schema';
 import { chunk, excluded } from '../db/upsert';
 import { decrypt } from '../lib/crypto';
 import { HttpError } from '../lib/http';
+import { categorizeNewRows, loadRules } from '../services/category-rules';
 import { recordSnapshot } from '../services/overview';
 import { getPlaidError } from './client';
 import { toAccountRow, toTransactionRow } from './mappers';
@@ -74,6 +75,8 @@ async function runSync({ db, plaid, encryptionKey }: SyncDeps, itemId: string): 
           .select({
             plaidTransactionId: transactions.plaidTransactionId,
             category: transactions.category,
+            subcategory: transactions.subcategory,
+            categoryRuleId: transactions.categoryRuleId,
             notes: transactions.notes,
           })
           .from(transactions)
@@ -81,11 +84,17 @@ async function runSync({ db, plaid, encryptionKey }: SyncDeps, itemId: string): 
         const byId = new Map(pendingRows.map((r) => [r.plaidTransactionId, r]));
         changed.forEach((t, i) => {
           const prior = t.pending_transaction_id ? byId.get(t.pending_transaction_id) : undefined;
-          if (prior) Object.assign(rows[i]!, { category: prior.category, notes: prior.notes });
+          if (prior) {
+            const { plaidTransactionId: _, ...carried } = prior;
+            Object.assign(rows[i]!, carried);
+          }
         });
       }
 
-      for (const batch of chunk(rows, 500)) {
+      // Rules categorize what's new; existing rows keep their category (the upsert never touches it).
+      const categorized = categorizeNewRows(await loadRules(tx), rows);
+
+      for (const batch of chunk(categorized, 500)) {
         await tx
           .insert(transactions)
           .values(batch)

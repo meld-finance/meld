@@ -65,6 +65,22 @@ export const CashflowPeriod = z.object({
 });
 export type CashflowPeriod = z.infer<typeof CashflowPeriod>;
 
+const Change = { amount: z.number(), previous: z.number() };
+
+/** One category over a period and the same dates a year earlier, split by subcategory and merchant. */
+export const CategoryDetail = z.object({
+  category: z.string(),
+  from: z.iso.date(),
+  to: z.iso.date(),
+  previousFrom: z.iso.date(),
+  previousTo: z.iso.date(),
+  ...Change,
+  /** Largest current amount first; null groups transactions without a subcategory. */
+  subcategories: z.array(z.object({ subcategory: z.string().nullable(), ...Change })),
+  merchants: z.array(z.object({ merchant: z.string(), count: z.number().int(), ...Change })),
+});
+export type CategoryDetail = z.infer<typeof CategoryDetail>;
+
 export const CashflowPeriodQuery = z
   .object({ from: z.iso.date(), to: z.iso.date() })
   .refine((q) => q.from <= q.to, 'from must not be after to');
@@ -138,3 +154,8 @@ export const PropertyEstimate = z.object({
   warnings: z.array(z.string()),
 });
 export type PropertyEstimate = z.infer<typeof PropertyEstimate>;
+
+export const CategoryDetailQuery = z
+  .object({ category: z.string().min(1), from: z.iso.date(), to: z.iso.date() })
+  .refine((q) => q.from <= q.to, 'from must not be after to');
+export type CategoryDetailQuery = z.infer<typeof CategoryDetailQuery>;

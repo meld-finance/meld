@@ -57,6 +57,13 @@ export function formatCategory(category: string | null): string {
   return words.map((w, i) => (i === 0 ? w[0]!.toUpperCase() + w.slice(1) : w)).join(' ');
 }
 
+/** "FOOD_AND_DRINK_GROCERIES" under "FOOD_AND_DRINK" → "Groceries"; null → "Other". */
+export function formatSubcategory(subcategory: string | null, category: string | null): string {
+  if (!subcategory) return 'Other';
+  const prefix = category ? `${category}_` : '';
+  return formatCategory(prefix && subcategory.startsWith(prefix) ? subcategory.slice(prefix.length) : subcategory);
+}
+
 /** "2026-10-24" → "Oct 24" (this year) or "Oct 24, 2025". Dates are local calendar dates. */
 export function formatDate(isoDate: string): string {
   const [y, m, d] = isoDate.split('-').map(Number);

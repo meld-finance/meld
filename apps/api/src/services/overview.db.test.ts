@@ -1,12 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { accounts, budgets, manualAssets, transactions } from '../db/schema';
-import { totalsByMerchant } from './transactions';
+import { queryTransactions, totalsByMerchant } from './transactions';
 import { setupTestDb, testDatabaseUrl } from '../test/db';
 import {
   getBudgetStatus,
   getCashflow,
   getCashflowPeriod,
+  getCategoryDetail,
   getNetWorthHistory,
   getSpendingByCategory,
   getSpendingByMonth,
@@ -138,6 +139,48 @@ describe.skipIf(!testDatabaseUrl)('overview queries (Postgres)', () => {
       driver: { merchant: 'FOOD_AND_DRINK', amount: 80, previous: 0 },
     });
     expect(period.categories.find((c) => c.category === 'TRAVEL')).toMatchObject({ amount: 0, previous: 500 });
+  });
+
+  it('drills into a category by subcategory and merchant', async () => {
+    const [card] = await ctx.db.select({ id: accounts.id }).from(accounts).where(eq(accounts.name, 'Card'));
+    const [checking] = await ctx.db.select({ id: accounts.id }).from(accounts).where(eq(accounts.name, 'Checking'));
+    const food = { plaidCategoryPrimary: 'FOOD_AND_DRINK' };
+    await ctx.db.insert(transactions).values([
+      { ...food, accountId: card!.id, date: '2026-10-11', amount: 120, name: 'SAFEWAY #12', merchantName: 'Safeway', plaidCategoryDetailed: 'FOOD_AND_DRINK_GROCERIES' },
+      { ...food, accountId: card!.id, date: '2025-10-11', amount: 90, name: 'SAFEWAY #12', merchantName: 'Safeway', plaidCategoryDetailed: 'FOOD_AND_DRINK_GROCERIES' },
+      { ...food, accountId: card!.id, date: '2026-10-12', amount: 45, name: 'Taqueria', plaidCategoryDetailed: 'FOOD_AND_DRINK_RESTAURANT' },
+      // Moved into food by hand with a subcategory of its own.
+      { accountId: checking!.id, date: '2026-10-13', amount: 200, name: 'COSTCO', plaidCategoryPrimary: 'GENERAL_MERCHANDISE', plaidCategoryDetailed: 'GENERAL_MERCHANDISE_SUPERSTORES', category: 'FOOD_AND_DRINK', subcategory: 'FOOD_AND_DRINK_GROCERIES' },
+    ]);
+
+    const detail = await getCategoryDetail(ctx.db, 'FOOD_AND_DRINK', '2026-10-01', '2026-10-31');
+    expect(detail).toMatchObject({ amount: 445, previous: 90, previousFrom: '2025-10-01' });
+    expect(detail.subcategories).toEqual([
+      { subcategory: 'FOOD_AND_DRINK_GROCERIES', amount: 320, previous: 90 },
+      // The base fixtures (100 − 20 refund) have no subcategory.
+      { subcategory: null, amount: 80, previous: 0 },
+      { subcategory: 'FOOD_AND_DRINK_RESTAURANT', amount: 45, previous: 0 },
+    ]);
+    expect(detail.merchants).toEqual([
+      { merchant: 'COSTCO', count: 1, amount: 200, previous: 0 },
+      { merchant: 'Safeway', count: 1, amount: 120, previous: 90 },
+      { merchant: 'FOOD_AND_DRINK', count: 2, amount: 80, previous: 0 },
+      { merchant: 'Taqueria', count: 1, amount: 45, previous: 0 },
+    ]);
+
+    const groceries = await queryTransactions(ctx.db, {
+      category: 'FOOD_AND_DRINK',
+      subcategory: 'FOOD_AND_DRINK_GROCERIES',
+      cashflow: true,
+      from: '2026-10-01',
+      to: '2026-10-31',
+      limit: 100,
+      offset: 0,
+    });
+    expect(groceries.transactions.map((t) => [t.name, t.subcategory])).toEqual([
+      ['COSTCO', 'FOOD_AND_DRINK_GROCERIES'],
+      ['SAFEWAY #12', 'FOOD_AND_DRINK_GROCERIES'],
+    ]);
   });
 
   it('reports budget progress, including budgets with no spending', async () => {
