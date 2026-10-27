@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { transactions } from '../db/schema';
 import { HttpError, IdParams, parse } from '../lib/http';
 import type { AppDeps } from '../server';
-import { deleteRule, listRules, saveRule } from '../services/category-rules';
+import { deleteRule, listRules, saveRule, updateRule } from '../services/category-rules';
 import { listCategories, listSubcategories, queryTransactions } from '../services/transactions';
 
 export async function registerTransactionRoutes(app: FastifyInstance, { db }: AppDeps) {
@@ -26,9 +26,12 @@ export async function registerTransactionRoutes(app: FastifyInstance, { db }: Ap
       .update(transactions)
       .set({
         ...update,
-        // A new category drops the old subcategory unless one is given; a hand edit outranks any rule.
+        // A new category drops the old subcategory unless one is given; a hand edit outranks any rule
+        // and counts as verified, while resetting to Plaid's category leaves it for review again.
         ...(update.category !== undefined && { subcategory: update.subcategory ?? null }),
-        ...(recategorized && { categoryRuleId: null }),
+        ...(recategorized && { categoryRuleId: null, categoryVerified: update.category !== null }),
+        // Accepting a rule's choice keeps the category but takes it out of the rule's hands.
+        ...(update.categoryVerified && { categoryRuleId: null }),
       })
       .where(eq(transactions.id, id))
       .returning({ id: transactions.id });
@@ -39,6 +42,14 @@ export async function registerTransactionRoutes(app: FastifyInstance, { db }: Ap
   app.get('/category-rules', () => listRules(db));
 
   app.post('/category-rules', (req) => saveRule(db, parse(CategoryRuleCreate, req.body)));
+
+  app.patch('/category-rules/:id', async (req) => {
+    const { id } = parse(IdParams, req.params);
+    const result = await updateRule(db, id, parse(CategoryRuleCreate, req.body));
+    if (result === 'not-found') throw new HttpError(404, 'Rule not found');
+    if (result === 'conflict') throw new HttpError(409, 'Another rule already uses that text');
+    return result;
+  });
 
   app.delete('/category-rules/:id', async (req) => {
     const { id } = parse(IdParams, req.params);

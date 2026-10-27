@@ -77,6 +77,7 @@ async function runSync({ db, plaid, encryptionKey }: SyncDeps, itemId: string): 
             category: transactions.category,
             subcategory: transactions.subcategory,
             categoryRuleId: transactions.categoryRuleId,
+            categoryVerified: transactions.categoryVerified,
             notes: transactions.notes,
           })
           .from(transactions)

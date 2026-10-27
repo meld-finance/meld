@@ -9,6 +9,7 @@ import { CategoryEditor } from '@/components/category-editor';
 import { Icon } from '@/components/icon';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { VerifiedMark } from '@/components/verified-mark';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useVizColors } from '@/hooks/use-viz-colors';
@@ -230,13 +231,14 @@ function Transactions({
                 key={t.id}
                 onPress={() => onEdit(t)}
                 style={({ pressed }) => [styles.txRow, { borderColor: theme.border }, pressed && styles.pressed]}>
+                <VerifiedMark verified={t.categoryVerified} size={16} />
                 <View style={styles.grow}>
                   <ThemedText type="small" numberOfLines={1}>
                     {t.merchantName ?? t.name}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
                     {formatDate(t.date)} · {formatSubcategory(t.subcategory, t.category)}
-                    {t.categoryOverridden ? ' ✎' : ''} · {t.accountName}
+                    {t.categoryRuleId ? ' · by rule' : ''} · {t.accountName}
                   </ThemedText>
                 </View>
                 <ThemedText type="small" themeColor={inflow ? 'positive' : 'text'} style={styles.numeric}>
