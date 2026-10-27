@@ -1,0 +1,1 @@
+ALTER TABLE "accounts" ADD COLUMN "ownership_percent" numeric(5, 2);

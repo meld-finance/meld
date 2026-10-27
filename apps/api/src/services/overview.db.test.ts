@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { accounts, budgets, manualAssets, transactions } from '../db/schema';
+import { totalsByMerchant } from './transactions';
 import { setupTestDb, testDatabaseUrl } from '../test/db';
 import {
   getBudgetStatus,
@@ -97,6 +99,29 @@ describe.skipIf(!testDatabaseUrl)('overview queries (Postgres)', () => {
       { category: 'FOOD_AND_DRINK', monthlyTarget: 300, spent: 80 },
       { category: 'TRAVEL', monthlyTarget: 200, spent: 0 },
     ]);
+  });
+
+  it('counts only your share of a joint account in cash flow, spending and net worth', async () => {
+    const [joint] = await ctx.db
+      .insert(accounts)
+      .values({ source: 'manual', name: 'Joint', type: 'depository', currentBalance: 4000, ownershipPercent: 50 })
+      .returning({ id: accounts.id });
+    await ctx.db.insert(transactions).values([
+      { accountId: joint!.id, date: '2026-10-11', amount: -1000, name: 'Paycheck', plaidCategoryPrimary: 'INCOME' },
+      { accountId: joint!.id, date: '2026-10-12', amount: 300, name: 'Grocer', plaidCategoryPrimary: 'FOOD_AND_DRINK' },
+    ]);
+
+    expect((await getCashflow(ctx.db, 1, '2026-10-15'))[0]).toEqual({ month: '2026-10', income: 3500, spending: 2930 });
+    expect(await getSpendingByCategory(ctx.db, '2026-10')).toContainEqual({ category: 'FOOD_AND_DRINK', amount: 230 });
+    expect(await totalsByMerchant(ctx.db, { from: '2026-10-12', to: '2026-10-12' })).toEqual([
+      { merchant: 'Grocer', total: 150, count: 1 },
+    ]);
+
+    await recordSnapshot(ctx.db, '2026-10-15');
+    expect((await getNetWorthHistory(ctx.db, '2026-10-15'))[0]?.assets).toBe(27000);
+
+    await ctx.db.update(accounts).set({ ownershipPercent: null }).where(eq(accounts.id, joint!.id));
+    expect(await getSpendingByCategory(ctx.db, '2026-10')).toContainEqual({ category: 'FOOD_AND_DRINK', amount: 380 });
   });
 
   it('records one net-worth snapshot per day, updating in place', async () => {

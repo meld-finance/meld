@@ -80,6 +80,8 @@ export const accounts = pgTable(
     creditLimit: money('credit_limit'),
     currency: text('currency').notNull().default('USD'),
     hidden: boolean('hidden').notNull().default(false),
+    /** Your share of a jointly held account, 0–100; null means 100. Never written by sync. */
+    ownershipPercent: numeric('ownership_percent', { precision: 5, scale: 2, mode: 'number' }),
     ...timestamps,
   },
   (t) => [index('accounts_item_idx').on(t.plaidItemId)],

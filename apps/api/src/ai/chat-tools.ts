@@ -55,7 +55,7 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_accounts',
       description:
-        'All linked and manual accounts that count toward totals: name, institution, type (depository, credit, investment, loan, mortgage), subtype (checking, 401k, roth, ...), and balances. Balances on credit, loan and mortgage accounts are amounts owed. Also returns manually entered assets such as a home or car; `value` is the full market value and `ownershipPercent` the user’s share (null = 100%), and only the share counts toward net worth.',
+        'All linked and manual accounts that count toward totals: name, institution, type (depository, credit, investment, loan, mortgage), subtype (checking, 401k, roth, ...), and balances. Balances on credit, loan and mortgage accounts are amounts owed. `currentBalance` is the full account balance; on a jointly held account `ownershipPercent` is the user’s share (null = 100%), and only the share counts toward net worth, cash flow, spending and budgets. Also returns manually entered assets such as a home or car; `value` is the full market value and `ownershipPercent` the user’s share (null = 100%), and only the share counts toward net worth.',
       input: z.object({}),
       label: () => 'Checked accounts and balances',
       run: async () => {
@@ -83,6 +83,7 @@ export function createChatTools(db: Db): ChatTool[] {
             availableBalance: a.availableBalance,
             creditLimit: a.creditLimit,
             currency: a.currency,
+            ownershipPercent: a.ownershipPercent,
           })),
           manualAssets: manual,
         };
@@ -103,7 +104,7 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'search_transactions',
       description:
-        'Find individual bank and card transactions. Amount sign: positive = money out (purchases, payments), negative = money in (income, refunds). Combine filters as needed; results are newest first. Use spending_by_merchant or get_spending_by_category for totals instead of adding up pages of transactions.',
+        'Find individual bank and card transactions. Amount sign: positive = money out (purchases, payments), negative = money in (income, refunds). Amounts are the full transaction, even on jointly held accounts (see get_accounts `ownershipPercent`); totals from the other tools count only the user’s share. Combine filters as needed; results are newest first. Use spending_by_merchant or get_spending_by_category for totals instead of adding up pages of transactions.',
       input: z.object({
         search: z.string().optional().describe('Text to match in the merchant or description'),
         category: z.string().optional().describe('Exact category from list_categories, e.g. FOOD_AND_DRINK'),
@@ -132,7 +133,7 @@ export function createChatTools(db: Db): ChatTool[] {
     }),
     tool({
       name: 'spending_by_merchant',
-      description: 'Net totals per merchant over a date range (positive = net money out), largest first. Optional category filter.',
+      description: 'Net totals per merchant over a date range (positive = net money out), largest first, counting only the user’s share of jointly held accounts. Optional category filter.',
       input: z.object({
         ...dateRange,
         category: z.string().optional(),
@@ -151,7 +152,7 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_spending_by_category',
       description:
-        'Spending by category for one month, from cash and card accounts. Excludes transfers between the user’s accounts and credit card payments; refunds are netted out.',
+        'Spending by category for one month, from cash and card accounts. Excludes transfers between the user’s accounts and credit card payments; refunds are netted out. Jointly held accounts count at the user’s ownership share.',
       input: z.object({ month: Month.describe('YYYY-MM') }),
       label: ({ month }) => `Checked spending for ${month}`,
       run: ({ month }) => getSpendingByCategory(db, month),

@@ -18,6 +18,7 @@ const accountColumns = {
   creditLimit: accounts.creditLimit,
   currency: accounts.currency,
   hidden: accounts.hidden,
+  ownershipPercent: accounts.ownershipPercent,
   updatedAt: accounts.updatedAt,
 };
 
