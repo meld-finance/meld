@@ -26,8 +26,9 @@ export default function RulesScreen() {
   return (
     <Screen title="Category rules" actions={back}>
       <ThemedText themeColor="textSecondary">
-        Rules categorize new transactions as they sync, by matching text in the merchant name or description. The longest
-        matching pattern wins, and categorizing or verifying a transaction by hand always overrides a rule. To add one,
+        Rules categorize new transactions as they sync, by matching text in the merchant name or description, and mark
+        them verified. The longest matching pattern wins, and categorizing or verifying a transaction by hand always
+        overrides a rule. To add one,
         open a transaction and turn on “Always categorize matching transactions this way”. Tap a rule to change or delete
         it.
       </ThemedText>

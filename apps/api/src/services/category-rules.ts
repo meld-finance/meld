@@ -25,13 +25,24 @@ export function matchRule<R extends Rule>(rules: R[], t: { name: string; merchan
   return best;
 }
 
+/** What a transaction gets when a rule categorizes it: a rule's category counts as verified. */
+const byRule = (r: Pick<Rule, 'id' | 'category' | 'subcategory'>) => ({
+  category: r.category,
+  subcategory: r.subcategory,
+  categoryRuleId: r.id,
+  categoryVerified: true,
+});
+
+/** Back to the original category, for review again. */
+const released = { category: null, subcategory: null, categoryRuleId: null, categoryVerified: false };
+
 /** Fills in the category of new rows that matched a rule; rows already categorized or verified are left alone. */
 export function categorizeNewRows<T extends typeof transactions.$inferInsert>(rules: Rule[], rows: T[]): T[] {
   if (!rules.length) return rows;
   return rows.map((row) => {
     if (row.category || row.categoryVerified) return row;
     const rule = matchRule(rules, { name: row.name, merchantName: row.merchantName ?? null });
-    return rule ? { ...row, category: rule.category, subcategory: rule.subcategory, categoryRuleId: rule.id } : row;
+    return rule ? { ...row, ...byRule(rule) } : row;
   });
 }
 
@@ -91,7 +102,7 @@ export async function saveRule(db: Db, input: z.output<typeof CategoryRuleCreate
 
 /**
  * Edits a rule. Transactions it categorized that no longer match the new pattern go back to their
- * original category (or to another rule that matches them); the rest follow the change, and
+ * original category, unverified (or to another rule that matches them); the rest follow the change, and
  * `applyToExisting` picks up other matches as in `saveRule`.
  */
 export async function updateRule(
@@ -115,15 +126,14 @@ export async function updateRule(
       .select({ id: transactions.id, name: transactions.name, merchantName: transactions.merchantName })
       .from(transactions)
       .where(eq(transactions.categoryRuleId, id));
-    const released = owned.filter((t) => !matchRule([saved], t));
-    if (released.length) {
+    const unmatched = owned.filter((t) => !matchRule([saved], t));
+    if (unmatched.length) {
       const others = (await loadRules(tx)).filter((r) => r.id !== id);
-      const reset = { category: null, subcategory: null, categoryRuleId: null };
-      for (const t of released) {
+      for (const t of unmatched) {
         const other = matchRule(others, t);
         await tx
           .update(transactions)
-          .set(other ? { category: other.category, subcategory: other.subcategory, categoryRuleId: other.id } : reset)
+          .set(other ? byRule(other) : released)
           .where(eq(transactions.id, t.id));
       }
     }
@@ -137,7 +147,7 @@ export async function updateRule(
 
 /** Brings the rule's transactions (and, with `applyToExisting`, its other matches) in line with it; returns how many. */
 async function applyRule(tx: Tx, ruleId: string, values: RuleFields & { subcategory: string | null }, applyToExisting: boolean) {
-  const assign = { category: values.category, subcategory: values.subcategory, categoryRuleId: ruleId };
+  const assign = byRule({ id: ruleId, ...values });
 
   const followed = await tx
     .update(transactions)
@@ -152,8 +162,8 @@ async function applyRule(tx: Tx, ruleId: string, values: RuleFields & { subcateg
     .from(transactions)
     .where(
       and(
-        eq(transactions.categoryVerified, false),
-        or(isNull(transactions.category), isNotNull(transactions.categoryRuleId)),
+        // Another rule's transactions are fair game; otherwise only ones never categorized or verified by hand.
+        or(isNotNull(transactions.categoryRuleId), and(isNull(transactions.category), eq(transactions.categoryVerified, false))),
         or(ilike(transactions.name, like), ilike(transactions.merchantName, like)),
       ),
     );
@@ -165,13 +175,10 @@ async function applyRule(tx: Tx, ruleId: string, values: RuleFields & { subcateg
   return new Set([...followed.map((r) => r.id), ...ids]).size;
 }
 
-/** Deletes a rule; the transactions it categorized go back to their original category. */
+/** Deletes a rule; the transactions it categorized go back to their original category, unverified. */
 export async function deleteRule(db: Db, id: string): Promise<boolean> {
   return db.transaction(async (tx) => {
-    await tx
-      .update(transactions)
-      .set({ category: null, subcategory: null, categoryRuleId: null })
-      .where(eq(transactions.categoryRuleId, id));
+    await tx.update(transactions).set(released).where(eq(transactions.categoryRuleId, id));
     const [row] = await tx.delete(categoryRules).where(eq(categoryRules.id, id)).returning({ id: categoryRules.id });
     return !!row;
   });

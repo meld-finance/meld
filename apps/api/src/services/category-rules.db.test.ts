@@ -34,11 +34,11 @@ describe('matchRule', () => {
       { accountId: 'a', amount: 1, date: '2026-10-01', name: 'Safeway' },
       { accountId: 'a', amount: 1, date: '2026-10-01', name: 'COSTCO WHSE', categoryVerified: true },
     ];
-    expect(categorizeNewRows(rules, rows).map((r) => [r.category, r.categoryRuleId])).toEqual([
-      ['GROCERIES', 'costco'],
-      ['KEEP', undefined],
-      [undefined, undefined],
-      [undefined, undefined],
+    expect(categorizeNewRows(rules, rows).map((r) => [r.category, r.categoryRuleId, r.categoryVerified])).toEqual([
+      ['GROCERIES', 'costco', true],
+      ['KEEP', undefined, undefined],
+      [undefined, undefined, undefined],
+      [undefined, undefined, true],
     ]);
   });
 });
@@ -60,6 +60,13 @@ describe.skipIf(!testDatabaseUrl)('category rules (Postgres)', () => {
           .select({ name: transactions.name, category: transactions.category, subcategory: transactions.subcategory })
           .from(transactions)
       ).map((t) => [t.name, [t.category, t.subcategory]]),
+    );
+
+  const verified = async () =>
+    Object.fromEntries(
+      (await ctx.db.select({ name: transactions.name, verified: transactions.categoryVerified }).from(transactions)).map(
+        (t) => [t.name, t.verified],
+      ),
     );
 
   beforeEach(async () => {
@@ -110,6 +117,14 @@ describe.skipIf(!testDatabaseUrl)('category rules (Postgres)', () => {
       Safeway: [null, null],
       'COSTCO WHSE #3': [null, null],
     });
+    expect(await verified()).toEqual({
+      'COSTCO WHSE #1': true,
+      'COSTCO GAS #1': true,
+      Something: true,
+      'COSTCO WHSE #2': false,
+      Safeway: false,
+      'COSTCO WHSE #3': true,
+    });
   });
 
   it('updates the rule with the same pattern, and its transactions follow', async () => {
@@ -126,6 +141,7 @@ describe.skipIf(!testDatabaseUrl)('category rules (Postgres)', () => {
     expect(await listRules(ctx.db)).toEqual([]);
     expect((await categories())['COSTCO WHSE #1']).toEqual([null, null]);
     expect((await categories())['COSTCO WHSE #2']).toEqual(['HOUSEHOLD', null]);
+    expect((await verified())['COSTCO WHSE #1']).toBe(false);
     const [hand] = await ctx.db.select().from(transactions).where(eq(transactions.name, 'COSTCO WHSE #2'));
     expect(hand?.categoryRuleId).toBeNull();
   });
@@ -148,6 +164,7 @@ describe.skipIf(!testDatabaseUrl)('category rules (Postgres)', () => {
       Something: [null, null],
       'COSTCO WHSE #2': ['HOUSEHOLD', null],
     });
+    expect(await verified()).toMatchObject({ 'COSTCO GAS #1': true, 'COSTCO WHSE #1': true, Something: false });
   });
 
   it('refuses to edit a rule into another rule\'s pattern', async () => {
