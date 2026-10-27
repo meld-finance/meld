@@ -1,4 +1,5 @@
 import {
+  hasCashValue,
   InsurancePolicyType,
   isDisabilityPolicy,
   isLifePolicy,
@@ -62,6 +63,9 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
   const [ownOccupation, setOwnOccupation] = useState(initial?.ownOccupation ?? null);
   const [employerProvided, setEmployerProvided] = useState(initial?.employerProvided ?? null);
   const [cashValue, setCashValue] = useState(str(initial?.cashValue));
+  const [surrenderValue, setSurrenderValue] = useState(str(initial?.cashSurrenderValue));
+  const [loanBalance, setLoanBalance] = useState(str(initial?.loanBalance));
+  const [valuesAsOf, setValuesAsOf] = useState(initial?.valuesAsOf ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryDraft[]>(
     (initial?.beneficiaries ?? []).map((b) => ({ ...b, relationship: b.relationship ?? '', percentage: str(b.percentage) })),
@@ -69,6 +73,7 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
 
   const life = isLifePolicy(type);
   const disability = isDisabilityPolicy(type);
+  const permanent = hasCashValue(type);
 
   // Fields hidden for the chosen type are sent as null so stale values don't linger.
   const parsed = {
@@ -78,7 +83,10 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
     effectiveDate: date(effectiveDate),
     termEndDate: type === 'life_term' ? date(termEndDate) : null,
     eliminationPeriodDays: disability ? num(elimination) : null,
-    cashValue: type === 'life_whole' || type === 'life_universal' ? num(cashValue) : null,
+    cashValue: permanent ? num(cashValue) : null,
+    cashSurrenderValue: permanent ? num(surrenderValue) : null,
+    loanBalance: permanent ? num(loanBalance) : null,
+    valuesAsOf: permanent ? date(valuesAsOf) : null,
   };
   const invalid = new Set(Object.entries(parsed).filter(([, v]) => v === undefined).map(([k]) => k));
   if (parsed.benefitPercentOfIncome && parsed.benefitPercentOfIncome > 100) invalid.add('benefitPercentOfIncome');
@@ -114,6 +122,9 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
       ownOccupation: disability ? ownOccupation : null,
       employerProvided,
       cashValue: parsed.cashValue ?? null,
+      cashSurrenderValue: parsed.cashSurrenderValue ?? null,
+      loanBalance: parsed.loanBalance ?? null,
+      valuesAsOf: parsed.valuesAsOf ?? null,
       beneficiaries: parsedBeneficiaries as Beneficiary[],
       notes: notes.trim() || null,
       documentId: initial?.documentId ?? null,
@@ -184,13 +195,31 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
               <Input value={termEndDate} onChangeText={setTermEndDate} placeholder="YYYY-MM-DD" />
             </Field>
           )}
-          {(type === 'life_whole' || type === 'life_universal') && (
+        </Row>
+      </Card>
+
+      {permanent && (
+        <Card
+          title="Cash value"
+          subtitle="From your latest annual statement. The surrender value counts toward your net worth; without it, cash value minus loans is used.">
+          <Row>
             <Field label="Cash value" invalid={invalid.has('cashValue')} flex>
               <Input value={cashValue} onChangeText={setCashValue} placeholder="$" keyboardType="decimal-pad" inputMode="decimal" />
             </Field>
-          )}
-        </Row>
-      </Card>
+            <Field label="Cash surrender value" invalid={invalid.has('cashSurrenderValue')} flex>
+              <Input value={surrenderValue} onChangeText={setSurrenderValue} placeholder="$" keyboardType="decimal-pad" inputMode="decimal" />
+            </Field>
+          </Row>
+          <Row>
+            <Field label="Policy loans" invalid={invalid.has('loanBalance')} flex>
+              <Input value={loanBalance} onChangeText={setLoanBalance} placeholder="$" keyboardType="decimal-pad" inputMode="decimal" />
+            </Field>
+            <Field label="Values as of" invalid={invalid.has('valuesAsOf')} flex>
+              <Input value={valuesAsOf} onChangeText={setValuesAsOf} placeholder="YYYY-MM-DD" />
+            </Field>
+          </Row>
+        </Card>
+      )}
 
       <Card title="Premium" subtitle="What you pay. Use 0 if your employer pays all of it.">
         <Field label="Amount" invalid={invalid.has('premiumAmount')}>

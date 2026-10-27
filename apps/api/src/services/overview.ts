@@ -1,7 +1,7 @@
-import type { BudgetStatus, CashflowMonth, CategorySpend, NetWorthSummary } from '@meld/shared';
+import { netCashValue, type BudgetStatus, type CashflowMonth, type CategorySpend, type NetWorthSummary } from '@meld/shared';
 import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { accounts, balanceSnapshots, budgets, manualAssets, transactions } from '../db/schema';
+import { accounts, balanceSnapshots, budgets, insurancePolicies, manualAssets, transactions } from '../db/schema';
 import { computeNetWorth, localDate } from '../lib/networth';
 
 const INCOME = 'INCOME';
@@ -40,14 +40,23 @@ export function recentMonths(count: number, today: string): string[] {
 }
 
 export async function getNetWorth(db: Db): Promise<NetWorthSummary> {
-  const [accountRows, manualRows] = await Promise.all([
+  const [accountRows, manualRows, policyRows] = await Promise.all([
     db
       .select({ type: accounts.type, currentBalance: accounts.currentBalance })
       .from(accounts)
       .where(eq(accounts.hidden, false)),
     db.select({ value: manualAssets.value, ownershipPercent: manualAssets.ownershipPercent }).from(manualAssets),
+    db
+      .select({
+        type: insurancePolicies.type,
+        cashValue: insurancePolicies.cashValue,
+        cashSurrenderValue: insurancePolicies.cashSurrenderValue,
+        loanBalance: insurancePolicies.loanBalance,
+      })
+      .from(insurancePolicies),
   ]);
-  return computeNetWorth(accountRows, manualRows);
+  const cashValues = policyRows.map(netCashValue).filter((v): v is number => v !== null);
+  return computeNetWorth(accountRows, manualRows, cashValues);
 }
 
 /** Upserts today's net-worth snapshot; history accrues one point per day. */

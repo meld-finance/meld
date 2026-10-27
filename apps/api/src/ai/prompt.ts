@@ -1,4 +1,4 @@
-import { insuranceTotals } from '@meld/shared';
+import { hasCashValue, insuranceTotals, netCashValue } from '@meld/shared';
 import { eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, manualAssets } from '../db/schema';
@@ -24,6 +24,7 @@ Data conventions:
 - Transaction amounts: positive = money out, negative = money in.
 - Balances on credit, loan and mortgage accounts are amounts owed.
 - Disability insurance coverage amounts are monthly benefits; life insurance amounts are death benefits.
+- Net worth includes whole/universal life insurance at its cash surrender value (byType 'insurance'), not the death benefit. Policy loans are already netted out of it.
 - Cash flow and spending exclude transfers between the person's own accounts and credit card payments.
 - Account and policy numbers are masked; never ask for full numbers.
 
@@ -57,7 +58,13 @@ export async function buildSnapshot(db: Db, today = localDate()): Promise<string
     manualAssets: manual.map((m) => ({ ...m, value: round(m.value) })),
     insurance: {
       totals: insuranceTotals(policies, today),
-      policies: policies.map((p) => ({ type: p.type, carrier: p.carrier, coverage: p.coverageAmount, employerProvided: p.employerProvided })),
+      policies: policies.map((p) => ({
+        type: p.type,
+        carrier: p.carrier,
+        coverage: p.coverageAmount,
+        employerProvided: p.employerProvided,
+        ...(hasCashValue(p.type) && { surrenderValue: round(netCashValue(p)), valuesAsOf: p.valuesAsOf }),
+      })),
     },
   };
   return `Snapshot of the person's finances as of ${today} (balances rounded; use tools for exact and current figures):\n${JSON.stringify(maskNumbers(snapshot))}`;

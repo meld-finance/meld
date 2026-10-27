@@ -24,6 +24,13 @@ describe('computeNetWorth', () => {
     expect(result.assets).toBe(420000);
   });
 
+  it('adds life insurance surrender value as its own asset type', () => {
+    const result = computeNetWorth([{ type: 'loan', currentBalance: 1000 }], [], [30000, 7500]);
+    expect(result.assets).toBe(37500);
+    expect(result.netWorth).toBe(36500);
+    expect(result.byType).toContainEqual({ type: 'insurance', total: 37500 });
+  });
+
   it('treats missing balances as zero and omits manual when there are none', () => {
     const result = computeNetWorth([{ type: 'depository', currentBalance: null }], []);
     expect(result).toEqual({

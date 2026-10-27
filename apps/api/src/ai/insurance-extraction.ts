@@ -29,6 +29,9 @@ export const ExtractionSchema = z.object({
   ownOccupation: z.boolean().nullable(),
   employerProvided: z.boolean().nullable(),
   cashValue: z.number().nullable(),
+  cashSurrenderValue: z.number().nullable(),
+  loanBalance: z.number().nullable(),
+  valuesAsOf: z.string().nullable(),
   beneficiaries: z.array(
     z.object({
       name: z.string(),
@@ -54,6 +57,7 @@ export const EXTRACTION_PROMPT = `Read this insurance document and fill in the p
 - ownOccupation: true only if the definition of disability is own-occupation (for the whole or a stated part of the benefit period; describe any limit in notes).
 - employerProvided: true for group or employer-sponsored coverage.
 - policyNumberLast4: ONLY the last 4 characters of the policy or certificate number, never the full number.
+- cashValue, cashSurrenderValue, loanBalance: whole or universal life only, from an annual statement or in-force illustration. cashValue is the account/accumulation value; cashSurrenderValue is what cancelling would pay (after surrender charges and loans); loanBalance is outstanding policy loans. Use current guaranteed-or-actual values, never projected future values from an illustration table. valuesAsOf is the statement date those values are as of.
 - beneficiaries: name, relationship, percentage and whether primary (true) or contingent (false).
 - notes: one or two short sentences on anything important that doesn't fit a field (riders, conversion options, offsets for Social Security, coverage that ends when employment ends).
 
@@ -101,6 +105,9 @@ export function normalizeExtraction(raw: RawExtraction): ExtractedPolicy {
       ownOccupation: raw.ownOccupation,
       employerProvided: raw.employerProvided,
       cashValue: check('cash value', raw.cashValue, shape.cashValue.unwrap()),
+      cashSurrenderValue: check('cash surrender value', raw.cashSurrenderValue, shape.cashSurrenderValue.unwrap()),
+      loanBalance: check('loan balance', raw.loanBalance, shape.loanBalance.unwrap()),
+      valuesAsOf: check('values-as-of date', raw.valuesAsOf, isoDate),
       beneficiaries,
       notes: raw.notes?.trim() || null,
     },

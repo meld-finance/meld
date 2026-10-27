@@ -1,4 +1,4 @@
-import { insuranceTotals, maskPolicyNumber, type InsurancePolicyInput } from '@meld/shared';
+import { insuranceTotals, maskPolicyNumber, netCashValue, type InsurancePolicyInput } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
 import { normalizeExtraction, type RawExtraction } from './insurance-extraction';
 
@@ -18,6 +18,9 @@ const raw: RawExtraction = {
   ownOccupation: true,
   employerProvided: false,
   cashValue: null,
+  cashSurrenderValue: null,
+  loanBalance: null,
+  valuesAsOf: null,
   beneficiaries: [],
   notes: null,
   warnings: ['Monthly benefit converted from annual.'],
@@ -80,6 +83,37 @@ describe('insuranceTotals', () => {
       shortTermDisabilityMonthly: 4000,
       longTermDisabilityMonthly: 8000,
       annualPremiums: 600 + 1200 + 1350,
+      cashValue: 0,
     });
+  });
+
+  it('totals the surrender value of permanent life policies', () => {
+    const totals = insuranceTotals(
+      [
+        { ...base, type: 'life_whole', cashValue: 40_000, cashSurrenderValue: 32_000 },
+        { ...base, type: 'life_universal', cashValue: 10_000, loanBalance: 2_500 },
+      ],
+      '2026-10-26',
+    );
+    expect(totals.cashValue).toBe(32_000 + 7_500);
+  });
+});
+
+describe('netCashValue', () => {
+  const none = { cashValue: null, cashSurrenderValue: null, loanBalance: null };
+
+  it('prefers the stated surrender value, which already nets out loans', () => {
+    expect(netCashValue({ ...none, type: 'life_whole', cashValue: 50_000, cashSurrenderValue: 42_000, loanBalance: 5_000 })).toBe(42_000);
+  });
+
+  it('falls back to cash value minus loans, never below zero', () => {
+    expect(netCashValue({ ...none, type: 'life_universal', cashValue: 20_000, loanBalance: 5_000 })).toBe(15_000);
+    expect(netCashValue({ ...none, type: 'life_whole', cashValue: 3_000, loanBalance: 5_000 })).toBe(0);
+  });
+
+  it('is null for term and disability policies and when no values are entered', () => {
+    expect(netCashValue({ ...none, type: 'life_term', cashSurrenderValue: 1_000 })).toBeNull();
+    expect(netCashValue({ ...none, type: 'disability_long' })).toBeNull();
+    expect(netCashValue({ ...none, type: 'life_whole' })).toBeNull();
   });
 });

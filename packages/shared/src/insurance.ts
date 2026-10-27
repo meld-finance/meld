@@ -11,6 +11,8 @@ export const InsurancePolicyType = z.enum([
 export type InsurancePolicyType = z.infer<typeof InsurancePolicyType>;
 
 export const isLifePolicy = (t: InsurancePolicyType) => t.startsWith('life_');
+/** Permanent life policies build cash value; term life doesn't. */
+export const hasCashValue = (t: InsurancePolicyType) => t === 'life_whole' || t === 'life_universal';
 export const isDisabilityPolicy = (t: InsurancePolicyType) => t.startsWith('disability_');
 
 export const PremiumFrequency = z.enum(['monthly', 'quarterly', 'semiannual', 'annual']);
@@ -53,8 +55,14 @@ export const InsurancePolicyInput = z.object({
   benefitPeriod: z.string().nullable(),
   ownOccupation: z.boolean().nullable(),
   employerProvided: z.boolean().nullable(),
-  /** Whole/universal life cash value. */
+  /** Whole/universal life: account value before surrender charges and loans. */
   cashValue: z.number().nonnegative().nullable(),
+  /** Whole/universal life: what cancelling pays out, after surrender charges and loans. */
+  cashSurrenderValue: z.number().nonnegative().nullable(),
+  /** Whole/universal life: outstanding policy loans, including accrued interest. */
+  loanBalance: z.number().nonnegative().nullable(),
+  /** Statement date the cash values come from. */
+  valuesAsOf: z.iso.date().nullable(),
   beneficiaries: z.array(Beneficiary),
   notes: z.string().nullable(),
   /** The uploaded policy document this was entered from, if any. */
@@ -90,12 +98,29 @@ export function isLapsed(p: Pick<InsurancePolicyInput, 'type' | 'termEndDate'>, 
   return p.type === 'life_term' && p.termEndDate !== null && p.termEndDate < today;
 }
 
+type CashValueFields = Pick<InsurancePolicyInput, 'type' | 'cashValue' | 'cashSurrenderValue' | 'loanBalance'>;
+
+/**
+ * What the policy would pay if cancelled today, which is what counts toward net worth.
+ * Prefers the stated surrender value (already net of surrender charges and loans);
+ * otherwise estimates it as cash value minus loans, which overstates it while
+ * surrender charges still apply.
+ */
+export function netCashValue(p: CashValueFields): number | null {
+  if (!hasCashValue(p.type)) return null;
+  if (p.cashSurrenderValue !== null) return p.cashSurrenderValue;
+  if (p.cashValue === null) return null;
+  return Math.max(0, p.cashValue - (p.loanBalance ?? 0));
+}
+
 export type InsuranceTotals = {
   lifeCoverage: number;
   /** Monthly disability benefit; short- and long-term counted separately. */
   shortTermDisabilityMonthly: number;
   longTermDisabilityMonthly: number;
   annualPremiums: number;
+  /** Surrender value of permanent life policies; see netCashValue(). */
+  cashValue: number;
 };
 
 export function insuranceTotals(policies: InsurancePolicyInput[], today: string): InsuranceTotals {
@@ -104,6 +129,7 @@ export function insuranceTotals(policies: InsurancePolicyInput[], today: string)
     shortTermDisabilityMonthly: 0,
     longTermDisabilityMonthly: 0,
     annualPremiums: 0,
+    cashValue: 0,
   };
   for (const p of policies) {
     if (isLapsed(p, today)) continue;
@@ -112,6 +138,7 @@ export function insuranceTotals(policies: InsurancePolicyInput[], today: string)
     if (p.type === 'disability_short') totals.shortTermDisabilityMonthly += coverage;
     if (p.type === 'disability_long') totals.longTermDisabilityMonthly += coverage;
     totals.annualPremiums += annualPremium(p) ?? 0;
+    totals.cashValue += netCashValue(p) ?? 0;
   }
   return totals;
 }
