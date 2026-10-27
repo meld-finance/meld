@@ -272,6 +272,8 @@ export const userProfile = pgTable('user_profile', {
 export const chatSessions = pgTable('chat_sessions', {
   id: id(),
   title: text('title'),
+  /** Financial snapshot given to the AI, fixed when the session starts so the prompt stays stable. */
+  context: text('context'),
   ...timestamps,
 });
 

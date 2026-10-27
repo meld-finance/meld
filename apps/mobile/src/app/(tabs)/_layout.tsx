@@ -13,6 +13,10 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>Overview</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="ask">
+        <NativeTabs.Trigger.Label>Ask</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="sparkles" md="auto_awesome" />
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="accounts">
         <NativeTabs.Trigger.Label>Accounts</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="building.columns" md="account_balance" />

@@ -62,6 +62,14 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 - Uploaded PDFs are stored in `data/documents/` (gitignored; change with `DOCUMENTS_DIR`). A PDF is deleted with its policy, when you cancel the draft, or after a day if it was never saved.
 - Only the last 4 characters of policy numbers are stored.
 
+## Ask (AI chat)
+
+- The **Ask** tab answers questions about your money: spending, debt payoff, investments, tax moves, insurance gaps. Answers stream in and conversations are saved.
+- The AI looks things up with read-only tools (accounts, transactions, totals by merchant or category, cash flow, budgets, holdings, investment activity, loan terms, insurance, profile). It can't change anything. Each new conversation also starts with a short snapshot of your balances and profile.
+- Add your income, filing status, state, age and employer benefits under **Ask → Profile** for better tax and insurance answers.
+- Uses Claude (`ANTHROPIC_MODEL`, default `claude-opus-5-5`) through a provider interface in `apps/api/src/ai/provider.ts`, so other providers can be added.
+- Privacy: your question and the data the AI looks up are sent to Anthropic. Long digit runs (account, card and policy numbers) are masked first.
+
 ## Common commands
 
 | Command | What it does |
