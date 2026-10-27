@@ -1,4 +1,4 @@
-import { hasCashValue, insuranceTotals, netCashValue } from '@meld/shared';
+import { hasCashValue, insuranceTotals, isCashValueStale, netCashValue } from '@meld/shared';
 import { eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, manualAssets } from '../db/schema';
@@ -63,7 +63,11 @@ export async function buildSnapshot(db: Db, today = localDate()): Promise<string
         carrier: p.carrier,
         coverage: p.coverageAmount,
         employerProvided: p.employerProvided,
-        ...(hasCashValue(p.type) && { surrenderValue: round(netCashValue(p)), valuesAsOf: p.valuesAsOf }),
+        ...(hasCashValue(p.type) && {
+          surrenderValue: round(netCashValue(p)),
+          valuesAsOf: p.valuesAsOf,
+          valuesStale: isCashValueStale(p, today),
+        }),
       })),
     },
   };
