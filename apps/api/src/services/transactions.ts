@@ -1,19 +1,44 @@
 import type { TransactionPage } from '@meld/shared';
-import { TransactionQuery } from '@meld/shared';
+import { TransactionQuery, UNCATEGORIZED } from '@meld/shared';
 import type { z } from 'zod';
-import { and, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, transactions } from '../db/schema';
 
 export const effectiveCategory = sql<string | null>`coalesce(${transactions.category}, ${transactions.plaidCategoryPrimary})`;
+/**
+ * `effectiveCategory` with uncategorized transactions grouped under UNCATEGORIZED, for totals.
+ * The literal is inlined, not a bind parameter, so the expression can appear in GROUP BY.
+ */
+export const categoryKey = sql<string>`coalesce(${transactions.category}, ${transactions.plaidCategoryPrimary}, ${sql.raw(`'${UNCATEGORIZED}'`)})`;
+/** The user's subcategory, else Plaid's detailed category as long as the category is still Plaid's. */
+export const effectiveSubcategory = sql<string | null>`coalesce(${transactions.subcategory}, case when ${transactions.category} is null or ${transactions.category} = ${transactions.plaidCategoryPrimary} then ${transactions.plaidCategoryDetailed} end)`;
 /** Your share of a transaction on a jointly held account; needs `accounts` joined. */
 export const ownedAmount = sql`${transactions.amount} * coalesce(${accounts.ownershipPercent}, 100) / 100`;
 
-function escapeLike(s: string) {
+const TRANSFERS = ['TRANSFER_IN', 'TRANSFER_OUT'];
+/** Paying a card moves money between your own accounts; the card purchases are the spending. */
+const CARD_PAYMENT_DETAILED = 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT';
+
+/**
+ * Transactions that count toward cash flow: everyday (cash + card) accounts,
+ * excluding transfers and card payments. A user override wins over Plaid's
+ * classification, so recategorizing a transfer brings it back in. Needs `accounts` joined.
+ */
+export const countsTowardCashflow = and(
+  inArray(accounts.type, ['depository', 'credit']),
+  eq(accounts.hidden, false),
+  sql`${categoryKey} not in (${sql.join(TRANSFERS.map((t) => sql`${t}`), sql`, `)})`,
+  sql`not (${transactions.category} is null and ${transactions.plaidCategoryDetailed} is not distinct from ${CARD_PAYMENT_DETAILED})`,
+)!;
+
+export function escapeLike(s: string) {
   return s.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
-type TransactionFilters = Partial<Pick<TransactionQuery, 'accountId' | 'from' | 'to' | 'category' | 'search'>>;
+type TransactionFilters = Partial<
+  Pick<z.output<typeof TransactionQuery>, 'accountId' | 'from' | 'to' | 'category' | 'subcategory' | 'cashflow' | 'search'>
+>;
 
 /** Filters shared by listing and aggregation; hidden accounts are always excluded. */
 function transactionFilters(q: TransactionFilters) {
@@ -22,7 +47,9 @@ function transactionFilters(q: TransactionFilters) {
     q.accountId ? eq(transactions.accountId, q.accountId) : undefined,
     q.from ? gte(transactions.date, q.from) : undefined,
     q.to ? lte(transactions.date, q.to) : undefined,
-    q.category ? eq(effectiveCategory, q.category) : undefined,
+    q.category ? eq(categoryKey, q.category) : undefined,
+    q.subcategory ? eq(effectiveSubcategory, q.subcategory) : undefined,
+    q.cashflow ? countsTowardCashflow : undefined,
     q.search
       ? or(
           ilike(transactions.name, `%${escapeLike(q.search)}%`),
@@ -48,6 +75,8 @@ export async function queryTransactions(db: Db, q: z.output<typeof TransactionQu
         merchantName: transactions.merchantName,
         category: effectiveCategory,
         categoryOverridden: sql<boolean>`${transactions.category} is not null`,
+        subcategory: effectiveSubcategory,
+        categoryRuleId: transactions.categoryRuleId,
         pending: transactions.pending,
         notes: transactions.notes,
       })
@@ -87,4 +116,15 @@ export async function listCategories(db: Db): Promise<string[]> {
     .where(and(eq(accounts.hidden, false), sql`${effectiveCategory} is not null`))
     .orderBy(effectiveCategory);
   return rows.map((r) => r.category!);
+}
+
+/** Distinct subcategories in use under `category`, for picking one. */
+export async function listSubcategories(db: Db, category: string): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ subcategory: effectiveSubcategory })
+    .from(transactions)
+    .innerJoin(accounts, eq(accounts.id, transactions.accountId))
+    .where(and(eq(accounts.hidden, false), eq(categoryKey, category), sql`${effectiveSubcategory} is not null`))
+    .orderBy(effectiveSubcategory);
+  return rows.map((r) => r.subcategory!);
 }

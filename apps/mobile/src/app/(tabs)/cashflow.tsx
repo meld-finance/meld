@@ -19,6 +19,7 @@ import {
   cashflowInsights,
   categorySlots,
   foldCategories,
+  openCategory,
   formatLongDate,
   periodFor,
   today,
@@ -114,6 +115,7 @@ export default function CashflowScreen() {
             total={data!.spending}
             slots={slots}
             periodLabel={p.label}
+            onSelect={(c) => openCategory(c, p)}
             style={styles.narrowColumn}
           />
         ) : (
@@ -137,6 +139,7 @@ export default function CashflowScreen() {
           periodLabel={p.label}
           comparison={p.comparison}
           showNotes={width >= NOTES_MIN_WIDTH}
+          onSelect={(c) => openCategory(c, p)}
           style={styles.wideColumn}
         />
         {data!.spending > 0 && (
@@ -145,6 +148,7 @@ export default function CashflowScreen() {
             total={data!.spending}
             slots={slots}
             periodLabel={p.label}
+            onSelect={(c) => openCategory(c, p)}
             style={styles.narrowColumn}
           />
         )}

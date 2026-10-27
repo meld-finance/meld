@@ -1,5 +1,5 @@
 import type { Transaction } from '@meld/shared';
-import { useLocalSearchParams } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useTheme } from '@/hooks/use-theme';
-import { formatCategory, formatCurrency, formatDate } from '@/lib/format';
+import { formatCategory, formatCurrency, formatDate, formatSubcategory } from '@/lib/format';
 import { useAccounts, useCategories, useTransactions } from '@/lib/queries';
 
 export default function TransactionsScreen() {
@@ -37,7 +37,14 @@ export default function TransactionsScreen() {
   const total = query.data?.pages[0]?.total ?? 0;
 
   return (
-    <Screen title="Transactions" scroll={false}>
+    <Screen
+      title="Transactions"
+      scroll={false}
+      actions={
+        <Link href="/rules">
+          <ThemedText type="linkPrimary">Rules</ThemedText>
+        </Link>
+      }>
       <TextInput
         style={[styles.search, { color: theme.text, backgroundColor: theme.backgroundElement }]}
         placeholder="Search merchant or description"
@@ -124,6 +131,7 @@ function TransactionRow({ transaction: t, onPress }: { transaction: Transaction;
         <ThemedText numberOfLines={1}>{t.merchantName ?? t.name}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
           {formatDate(t.date)} · {formatCategory(t.category)}
+          {t.subcategory ? ` › ${formatSubcategory(t.subcategory, t.category)}` : ''}
           {t.categoryOverridden ? ' ✎' : ''} · {t.accountName}
           {t.pending ? ' · Pending' : ''}
         </ThemedText>

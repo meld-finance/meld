@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import { Card } from '@/components/card';
@@ -22,12 +22,15 @@ export function SpendingBreakdown({
   total,
   slots,
   periodLabel,
+  onSelect,
   style,
 }: {
   parts: { category: string; amount: number }[];
   total: number;
   slots: Map<string, number>;
   periodLabel: string;
+  /** Opens a category's details; "Other" isn't one category, so it doesn't open. */
+  onSelect: (category: string) => void;
   style?: object;
 }) {
   const theme = useTheme();
@@ -72,7 +75,13 @@ export function SpendingBreakdown({
 
       <View style={styles.legend}>
         {parts.map((p) => (
-          <View key={p.category} style={styles.row} accessible accessibilityLabel={`${categoryLabel(p.category)}: ${formatWholeCurrency(p.amount)}`}>
+          <Pressable
+            key={p.category}
+            disabled={p.category === OTHER}
+            onPress={() => onSelect(p.category)}
+            style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+            accessibilityRole={p.category === OTHER ? undefined : 'button'}
+            accessibilityLabel={`${categoryLabel(p.category)}: ${formatWholeCurrency(p.amount)}`}>
             <View style={[styles.dot, { backgroundColor: color(p.category) }]} />
             <ThemedText type="small" style={styles.label} numberOfLines={1}>
               {categoryLabel(p.category)}
@@ -83,7 +92,7 @@ export function SpendingBreakdown({
             <ThemedText type="smallBold" style={styles.amount}>
               {formatWholeCurrency(p.amount)}
             </ThemedText>
-          </View>
+          </Pressable>
         ))}
       </View>
     </Card>
@@ -100,5 +109,6 @@ const styles = StyleSheet.create({
   dot: { width: 10, height: 10, borderRadius: 5 },
   label: { flex: 1 },
   pct: { width: 44, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  pressed: { opacity: 0.6 },
   amount: { minWidth: 76, textAlign: 'right', fontVariant: ['tabular-nums'] },
 });

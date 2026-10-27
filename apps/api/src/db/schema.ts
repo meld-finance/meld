@@ -1,4 +1,5 @@
 import type { ValuationSource } from '@meld/shared';
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   date,
@@ -106,11 +107,29 @@ export const transactions = pgTable(
     plaidCategoryDetailed: text('plaid_category_detailed'),
     /** User override; falls back to Plaid category when null. */
     category: text('category'),
+    /** User override of the subcategory; see `effectiveSubcategory` for the fallback. */
+    subcategory: text('subcategory'),
+    /** The rule that set `category`, if one did; null for manual edits. */
+    categoryRuleId: uuid('category_rule_id').references(() => categoryRules.id, { onDelete: 'set null' }),
     pending: boolean('pending').notNull().default(false),
     notes: text('notes'),
     ...timestamps,
   },
   (t) => [index('transactions_account_date_idx').on(t.accountId, t.date), index('transactions_date_idx').on(t.date)],
+);
+
+/** "Always categorize transactions matching `pattern` as …", applied as new transactions sync. */
+export const categoryRules = pgTable(
+  'category_rules',
+  {
+    id: id(),
+    /** Case-insensitive text matched anywhere in the merchant name or description. */
+    pattern: text('pattern').notNull(),
+    category: text('category').notNull(),
+    subcategory: text('subcategory'),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('category_rules_pattern_idx').on(sql`lower(${t.pattern})`)],
 );
 
 // --- Investments ------------------------------------------------------------

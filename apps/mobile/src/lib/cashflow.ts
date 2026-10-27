@@ -1,4 +1,5 @@
 import type { CashflowPeriod, CategoryChange } from '@meld/shared';
+import { router } from 'expo-router';
 
 import type { IconName } from '@/components/icon';
 import type { Accent } from '@/constants/theme';
@@ -38,6 +39,14 @@ export function periodFor(mode: PeriodMode, month: string, now = today()): Perio
     label: formatMonth(month, true),
     comparison: formatMonth(`${y - 1}-${pad(m)}`, true),
   };
+}
+
+/** Opens a category's drill-down for the period. */
+export function openCategory(category: string, p: Period) {
+  router.push({
+    pathname: '/category/[category]',
+    params: { category, from: p.from, to: p.to, label: p.label, comparison: p.comparison },
+  });
 }
 
 /** "2026-01-01" → "Jan 1, 2026". */
