@@ -243,7 +243,7 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_insurance_policies',
       description:
-        'Life and disability insurance policies the user entered: type, carrier, coverage (death benefit, or MONTHLY benefit for disability), premium, dates, waiting period, benefit period, own-occupation, employer-provided, beneficiaries, notes. Includes totals.',
+        'Life and disability insurance policies the user entered: type, carrier, coverage (death benefit, or MONTHLY benefit for disability), premium, dates, cash value / cash surrender value / policy loans for permanent life (with the statement date; the surrender value counts toward net worth), waiting period, benefit period, own-occupation, employer-provided, beneficiaries, notes. Includes totals.',
       input: z.object({}),
       label: () => 'Checked insurance policies',
       run: async () => {

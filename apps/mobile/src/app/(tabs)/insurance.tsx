@@ -1,9 +1,11 @@
 import {
   annualPremium,
+  hasCashValue,
   insuranceTotals,
   isDisabilityPolicy,
   isLapsed,
   isLifePolicy,
+  netCashValue,
   type InsurancePolicy,
 } from '@meld/shared';
 import { router } from 'expo-router';
@@ -71,10 +73,12 @@ function Totals({ policies }: { policies: InsurancePolicy[] }) {
   const hasLife = policies.some((p) => isLifePolicy(p.type));
   const hasStd = policies.some((p) => p.type === 'disability_short');
   const hasLtd = policies.some((p) => p.type === 'disability_long');
+  const hasPermanent = policies.some((p) => hasCashValue(p.type));
   const tiles: [string, string][] = [
     ['Life insurance', hasLife ? formatWholeCurrency(t.lifeCoverage) : 'None'],
     ['Long-term disability', hasLtd ? `${formatWholeCurrency(t.longTermDisabilityMonthly)}/mo` : 'None'],
     ...(hasStd ? [['Short-term disability', `${formatWholeCurrency(t.shortTermDisabilityMonthly)}/mo`] as [string, string]] : []),
+    ...(hasPermanent ? [['Cash surrender value', formatWholeCurrency(t.cashValue)] as [string, string]] : []),
     ['Premiums', `${formatWholeCurrency(t.annualPremiums)}/yr`],
   ];
   return (
@@ -98,12 +102,15 @@ function Totals({ policies }: { policies: InsurancePolicy[] }) {
 function PolicyRow({ policy: p }: { policy: InsurancePolicy }) {
   const lapsed = isLapsed(p, today());
   const premium = annualPremium(p);
+  const surrender = netCashValue(p);
   const details = [
     POLICY_TYPE_LABELS[p.type],
     p.employerProvided && 'Through work',
     p.insuredName,
     p.policyNumberMask && `••${p.policyNumberMask}`,
     p.type === 'life_term' && p.termEndDate && `${lapsed ? 'Ended' : 'Ends'} ${formatDate(p.termEndDate)}`,
+    surrender !== null &&
+      `${formatWholeCurrency(surrender)} surrender value${p.valuesAsOf ? ` as of ${formatDate(p.valuesAsOf)}` : ''}`,
   ].filter(Boolean);
 
   return (

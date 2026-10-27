@@ -66,7 +66,9 @@ function buildTiles(summary: NetWorthSummary, accounts: Account[], policies: Ins
         : disabilityMonthly
           ? `${formatWholeCurrency(disabilityMonthly)}/mo`
           : '—',
-      caption: kinds || (policies.length ? plural(policies.length, 'policy', 'policies') : 'Add a policy'),
+      caption:
+        [kinds, totals.cashValue && `${formatWholeCurrency(totals.cashValue)} cash value`].filter(Boolean).join(' · ') ||
+        (policies.length ? plural(policies.length, 'policy', 'policies') : 'Add a policy'),
       icon: 'shield',
       accent: 'teal',
       href: '/insurance',

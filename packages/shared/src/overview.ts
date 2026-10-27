@@ -9,8 +9,11 @@ export const NetWorthSummary = z.object({
   assets: z.number(),
   liabilities: z.number(),
   netWorth: z.number(),
-  /** Balance totals per account type; manual assets appear as 'manual'. */
-  byType: z.array(z.object({ type: z.union([AccountType, z.literal('manual')]), total: z.number() })),
+  /**
+   * Balance totals per account type; manual assets appear as 'manual' and
+   * life insurance surrender value as 'insurance'.
+   */
+  byType: z.array(z.object({ type: z.union([AccountType, z.enum(['manual', 'insurance'])]), total: z.number() })),
 });
 export type NetWorthSummary = z.infer<typeof NetWorthSummary>;
 
