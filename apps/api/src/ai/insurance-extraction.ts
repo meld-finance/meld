@@ -8,41 +8,50 @@ import {
 import { z } from 'zod';
 import type { ExtractedPolicy } from './provider';
 
+/** Text and dates use '' for "not stated"; see ExtractionSchema. */
+const text = z.string();
+
 /**
  * What the model fills in. Kept loose (no ranges or formats) so structured output
  * always parses; normalizeExtraction() then validates each field and turns
  * anything unusable into null plus a warning, rather than failing the whole upload.
+ *
+ * Structured outputs allow at most MAX_UNION_FIELDS nullable fields, so text and
+ * date fields use an empty string for missing values instead of null.
  */
 export const ExtractionSchema = z.object({
   type: InsurancePolicyType,
-  carrier: z.string().nullable(),
-  policyNumberLast4: z.string().nullable(),
-  insuredName: z.string().nullable(),
+  carrier: text,
+  policyNumberLast4: text,
+  insuredName: text,
   coverageAmount: z.number().nullable(),
   benefitPercentOfIncome: z.number().nullable(),
   premiumAmount: z.number().nullable(),
   premiumFrequency: PremiumFrequency.nullable(),
-  effectiveDate: z.string().nullable(),
-  termEndDate: z.string().nullable(),
+  effectiveDate: text,
+  termEndDate: text,
   eliminationPeriodDays: z.number().nullable(),
-  benefitPeriod: z.string().nullable(),
+  benefitPeriod: text,
   ownOccupation: z.boolean().nullable(),
   employerProvided: z.boolean().nullable(),
   cashValue: z.number().nullable(),
   cashSurrenderValue: z.number().nullable(),
   loanBalance: z.number().nullable(),
-  valuesAsOf: z.string().nullable(),
+  valuesAsOf: text,
   beneficiaries: z.array(
     z.object({
       name: z.string(),
-      relationship: z.string().nullable(),
+      relationship: text,
       percentage: z.number(),
       primary: z.boolean(),
     }),
   ),
-  notes: z.string().nullable(),
+  notes: text,
   warnings: z.array(z.string()),
 });
+
+/** Structured outputs reject schemas with more nullable or union-typed fields than this. */
+export const MAX_UNION_FIELDS = 16;
 export type RawExtraction = z.infer<typeof ExtractionSchema>;
 
 export const EXTRACTION_PROMPT = `Read this insurance document and fill in the policy fields.
@@ -61,9 +70,10 @@ export const EXTRACTION_PROMPT = `Read this insurance document and fill in the p
 - beneficiaries: name, relationship, percentage and whether primary (true) or contingent (false).
 - notes: one or two short sentences on anything important that doesn't fit a field (riders, conversion options, offsets for Social Security, coverage that ends when employment ends).
 
-Use null for anything the document doesn't state. Don't guess. Add a short warning for every field you inferred, converted or couldn't find but would normally expect, and if the document isn't an insurance policy or summary of benefits.`;
+For anything the document doesn't state, use null for numbers, yes/no fields and premiumFrequency, and an empty string for text and dates. Don't guess. Add a short warning for every field you inferred, converted or couldn't find but would normally expect, and if the document isn't an insurance policy or summary of benefits.`;
 
 const isoDate = z.iso.date();
+const blankToNull = (s: string) => s.trim() || null;
 
 export function normalizeExtraction(raw: RawExtraction): ExtractedPolicy {
   const warnings = [...raw.warnings];
@@ -77,10 +87,12 @@ export function normalizeExtraction(raw: RawExtraction): ExtractedPolicy {
   }
 
   const shape = InsurancePolicyInput.shape;
-  const beneficiaries = raw.beneficiaries.filter((b) => Beneficiary.safeParse(b).success);
+  const beneficiaries = raw.beneficiaries
+    .map((b) => ({ ...b, name: b.name.trim(), relationship: b.relationship.trim() || null }))
+    .filter((b) => b.name && Beneficiary.safeParse(b).success);
   if (beneficiaries.length < raw.beneficiaries.length) warnings.push('Some beneficiaries couldn’t be read.');
 
-  const carrier = raw.carrier?.trim() ?? '';
+  const carrier = raw.carrier.trim();
   if (!carrier) warnings.push('Couldn’t find the insurance company name.');
 
   return {
@@ -89,27 +101,27 @@ export function normalizeExtraction(raw: RawExtraction): ExtractedPolicy {
       carrier,
       // Enforce masking even if the model returned more than asked.
       policyNumberMask: maskPolicyNumber(raw.policyNumberLast4),
-      insuredName: raw.insuredName?.trim() || null,
+      insuredName: raw.insuredName.trim() || null,
       coverageAmount: check('coverage amount', raw.coverageAmount, shape.coverageAmount.unwrap()),
       benefitPercentOfIncome: check('benefit percentage', raw.benefitPercentOfIncome, shape.benefitPercentOfIncome.unwrap()),
       premiumAmount: check('premium', raw.premiumAmount, shape.premiumAmount.unwrap()),
       premiumFrequency: raw.premiumFrequency,
-      effectiveDate: check('effective date', raw.effectiveDate, isoDate),
-      termEndDate: check('term end date', raw.termEndDate, isoDate),
+      effectiveDate: check('effective date', blankToNull(raw.effectiveDate), isoDate),
+      termEndDate: check('term end date', blankToNull(raw.termEndDate), isoDate),
       eliminationPeriodDays: check(
         'elimination period',
         raw.eliminationPeriodDays === null ? null : Math.round(raw.eliminationPeriodDays),
         shape.eliminationPeriodDays.unwrap(),
       ),
-      benefitPeriod: raw.benefitPeriod?.trim() || null,
+      benefitPeriod: raw.benefitPeriod.trim() || null,
       ownOccupation: raw.ownOccupation,
       employerProvided: raw.employerProvided,
       cashValue: check('cash value', raw.cashValue, shape.cashValue.unwrap()),
       cashSurrenderValue: check('cash surrender value', raw.cashSurrenderValue, shape.cashSurrenderValue.unwrap()),
       loanBalance: check('loan balance', raw.loanBalance, shape.loanBalance.unwrap()),
-      valuesAsOf: check('values-as-of date', raw.valuesAsOf, isoDate),
+      valuesAsOf: check('values-as-of date', blankToNull(raw.valuesAsOf), isoDate),
       beneficiaries,
-      notes: raw.notes?.trim() || null,
+      notes: raw.notes.trim() || null,
     },
     warnings,
   };

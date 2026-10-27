@@ -1,6 +1,7 @@
 import { insuranceTotals, isCashValueStale, maskPolicyNumber, netCashValue, type InsurancePolicyInput } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
-import { normalizeExtraction, type RawExtraction } from './insurance-extraction';
+import { z } from 'zod';
+import { ExtractionSchema, MAX_UNION_FIELDS, normalizeExtraction, type RawExtraction } from './insurance-extraction';
 
 const raw: RawExtraction = {
   type: 'disability_long',
@@ -12,7 +13,7 @@ const raw: RawExtraction = {
   premiumAmount: 112.5,
   premiumFrequency: 'monthly',
   effectiveDate: '2024-01-01',
-  termEndDate: null,
+  termEndDate: '',
   eliminationPeriodDays: 90.4,
   benefitPeriod: 'to age 65',
   ownOccupation: true,
@@ -20,11 +21,25 @@ const raw: RawExtraction = {
   cashValue: null,
   cashSurrenderValue: null,
   loanBalance: null,
-  valuesAsOf: null,
+  valuesAsOf: '',
   beneficiaries: [],
-  notes: null,
+  notes: '',
   warnings: ['Monthly benefit converted from annual.'],
 };
+
+/** Counts schema nodes the API treats as unions: anyOf/oneOf or a type array. */
+function countUnions(node: unknown): number {
+  if (!node || typeof node !== 'object') return 0;
+  const n = node as Record<string, unknown>;
+  const self = Array.isArray(n.type) || Array.isArray(n.anyOf) || Array.isArray(n.oneOf) ? 1 : 0;
+  return self + Object.values(n).reduce<number>((sum, v) => sum + (Array.isArray(v) ? v.reduce<number>((s, x) => s + countUnions(x), 0) : countUnions(v)), 0);
+}
+
+describe('ExtractionSchema', () => {
+  it('stays within the structured-output limit on nullable fields', () => {
+    expect(countUnions(z.toJSONSchema(ExtractionSchema))).toBeLessThanOrEqual(MAX_UNION_FIELDS);
+  });
+});
 
 describe('normalizeExtraction', () => {
   it('keeps valid fields and enforces masking', () => {
@@ -39,11 +54,11 @@ describe('normalizeExtraction', () => {
   it('turns unusable values into null with a warning instead of failing', () => {
     const { draft, warnings } = normalizeExtraction({
       ...raw,
-      carrier: null,
+      carrier: ' ',
       effectiveDate: 'January 2024',
       benefitPercentOfIncome: 160,
       coverageAmount: -5,
-      beneficiaries: [{ name: 'Sam', relationship: null, percentage: 150, primary: true }],
+      beneficiaries: [{ name: 'Sam', relationship: '', percentage: 150, primary: true }],
     });
     expect(draft).toMatchObject({ carrier: '', effectiveDate: null, benefitPercentOfIncome: null, coverageAmount: null });
     expect(draft.beneficiaries).toEqual([]);
