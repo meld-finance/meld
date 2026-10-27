@@ -1,3 +1,4 @@
+import type { ValuationSource } from '@meld/shared';
 import {
   boolean,
   date,
@@ -227,6 +228,11 @@ export const manualAssets = pgTable('manual_assets', {
   value: money('value').notNull(),
   valueAsOf: date('value_as_of'),
   notes: text('notes'),
+  address: text('address'),
+  /** Your share, 0–100; null means 100. */
+  ownershipPercent: numeric('ownership_percent', { precision: 5, scale: 2, mode: 'number' }),
+  /** ValuationSource[] from the last automatic estimate. */
+  valuationSources: jsonb('valuation_sources').$type<ValuationSource[]>(),
   ...timestamps,
 });
 

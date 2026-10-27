@@ -1,9 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
+import type { PropertyEstimate } from '@meld/shared';
 import { z } from 'zod';
 import { HttpError } from '../lib/http';
+import { localDate } from '../lib/networth';
 import { maskNumbers, type ChatTool } from './chat-tools';
 import { EXTRACTION_PROMPT, ExtractionSchema, normalizeExtraction } from './insurance-extraction';
+import { normalizeValuation, valuationPrompt, ValuationSchema } from './property-valuation';
 import type { AIProvider, ChatTurnInput, ChatTurnResult, ExtractedPolicy, StoredChatMessage } from './provider';
 
 type MessageParam = Anthropic.Beta.BetaMessageParam;
@@ -12,6 +15,8 @@ type ContentBlock = Anthropic.Beta.BetaContentBlock;
 const PROVIDER = 'anthropic';
 /** Tool rounds per user message before giving up. */
 const MAX_STEPS = 12;
+/** Times a paused server-tool turn (web search) is resumed before giving up. */
+const MAX_CONTINUATIONS = 4;
 // If a safety classifier declines, the API retries on a fallback model in the same call.
 const FALLBACK: { betas: Anthropic.Beta.AnthropicBeta[]; fallbacks: 'default' } = {
   betas: ['server-side-fallback-2026-07-01'],
@@ -105,6 +110,38 @@ export class AnthropicProvider implements AIProvider {
       throw new HttpError(422, 'Couldn’t read policy details from this document. Enter them by hand instead.');
     }
     return normalizeExtraction(response.parsed_output);
+  }
+
+  async estimatePropertyValue(address: string): Promise<PropertyEstimate> {
+    const messages: MessageParam[] = [{ role: 'user', content: valuationPrompt(address, localDate()) }];
+    for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
+      const response = await this.client.beta.messages
+        .parse({
+          model: this.model,
+          max_tokens: 16000,
+          ...FALLBACK,
+          output_config: { effort: 'medium', format: betaZodOutputFormat(ValuationSchema) },
+          tools: [
+            // Units need more searching: one page per site for the exact unit, then comparables.
+            { type: 'web_search_20260209', name: 'web_search', max_uses: 16 },
+            { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 8 },
+          ],
+          messages,
+        })
+        .catch(toHttpError);
+
+      // Searching hit the server's step limit; send the turn back as is and it resumes.
+      if (response.stop_reason === 'pause_turn') {
+        messages.push({ role: 'assistant', content: response.content as Anthropic.Beta.BetaContentBlockParam[] });
+        continue;
+      }
+      if (response.stop_reason === 'refusal') throw new HttpError(422, 'The AI declined to look up this address.');
+      if (!response.parsed_output) throw new HttpError(422, 'Couldn’t put together an estimate. Enter the value by hand instead.');
+      const result = normalizeValuation(response.parsed_output, address);
+      if (!('value' in result)) throw new HttpError(422, result.warnings.join(' '));
+      return result;
+    }
+    throw new HttpError(504, 'Looking up the value took too long. Try again, or enter it by hand.');
   }
 
   async chat({ system, snapshot, history, userText, tools, onEvent, signal }: ChatTurnInput): Promise<ChatTurnResult> {

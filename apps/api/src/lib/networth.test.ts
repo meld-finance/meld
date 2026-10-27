@@ -19,6 +19,11 @@ describe('computeNetWorth', () => {
     expect(result.byType).toContainEqual({ type: 'mortgage', total: 300000 });
   });
 
+  it('counts only the owned share of manual assets', () => {
+    const result = computeNetWorth([], [{ value: 800000, ownershipPercent: 50 }, { value: 20000, ownershipPercent: null }]);
+    expect(result.assets).toBe(420000);
+  });
+
   it('treats missing balances as zero and omits manual when there are none', () => {
     const result = computeNetWorth([{ type: 'depository', currentBalance: null }], []);
     expect(result).toEqual({

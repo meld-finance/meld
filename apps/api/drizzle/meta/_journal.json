@@ -15,6 +15,13 @@
       "when": 1793070171807,
       "tag": "0001_perfect_prism",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793122208612,
+      "tag": "0002_property_valuation",
+      "breakpoints": true
     }
   ]
 }

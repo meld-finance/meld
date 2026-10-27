@@ -55,13 +55,21 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_accounts',
       description:
-        'All linked and manual accounts that count toward totals: name, institution, type (depository, credit, investment, loan, mortgage), subtype (checking, 401k, roth, ...), and balances. Balances on credit, loan and mortgage accounts are amounts owed. Also returns manually entered assets such as a home or car.',
+        'All linked and manual accounts that count toward totals: name, institution, type (depository, credit, investment, loan, mortgage), subtype (checking, 401k, roth, ...), and balances. Balances on credit, loan and mortgage accounts are amounts owed. Also returns manually entered assets such as a home or car; `value` is the full market value and `ownershipPercent` the user’s share (null = 100%), and only the share counts toward net worth.',
       input: z.object({}),
       label: () => 'Checked accounts and balances',
       run: async () => {
         const [list, manual] = await Promise.all([
           listAccounts(db, eq(accounts.hidden, false)),
-          db.select({ kind: manualAssets.kind, name: manualAssets.name, value: manualAssets.value, valueAsOf: manualAssets.valueAsOf }).from(manualAssets),
+          db
+            .select({
+              kind: manualAssets.kind,
+              name: manualAssets.name,
+              value: manualAssets.value,
+              ownershipPercent: manualAssets.ownershipPercent,
+              valueAsOf: manualAssets.valueAsOf,
+            })
+            .from(manualAssets),
         ]);
         return {
           accounts: list.map((a) => ({
