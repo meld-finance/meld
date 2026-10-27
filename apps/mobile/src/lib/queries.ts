@@ -17,6 +17,7 @@ import type {
   NetWorthPoint,
   NetWorthSummary,
   PolicyExtraction,
+  PropertyEstimate,
   PlaidItemSummary,
   SyncResult,
   TransactionPage,
@@ -107,6 +108,14 @@ export function useSaveManualAsset() {
         ? api<ManualAsset>(`/manual-assets/${id}`, { method: 'PATCH', body: JSON.stringify(input) })
         : api<ManualAsset>('/manual-assets', { method: 'POST', body: JSON.stringify(input) }),
     onSuccess: invalidate,
+  });
+}
+
+/** Looks up a rough market value for an address (takes a minute or two). */
+export function useEstimatePropertyValue() {
+  return useMutation({
+    mutationFn: (address: string) =>
+      api<PropertyEstimate>('/manual-assets/estimate', { method: 'POST', body: JSON.stringify({ address }) }),
   });
 }
 

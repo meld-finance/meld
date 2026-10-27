@@ -1,6 +1,7 @@
-import { ManualAssetInput, type ManualAsset } from '@meld/shared';
+import { ManualAssetInput, PropertyEstimateRequest, type ManualAsset } from '@meld/shared';
 import { asc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
+import { requireAI } from '../ai/provider';
 import { manualAssets } from '../db/schema';
 import { HttpError, IdParams, parse } from '../lib/http';
 import { recordSnapshot } from '../services/overview';
@@ -13,12 +14,21 @@ const columns = {
   value: manualAssets.value,
   valueAsOf: manualAssets.valueAsOf,
   notes: manualAssets.notes,
+  address: manualAssets.address,
+  ownershipPercent: manualAssets.ownershipPercent,
+  valuationSources: manualAssets.valuationSources,
 };
 
-export async function registerManualAssetRoutes(app: FastifyInstance, { db }: AppDeps) {
+export async function registerManualAssetRoutes(app: FastifyInstance, { db, ai }: AppDeps) {
   app.get('/manual-assets', async () =>
     (await db.select(columns).from(manualAssets).orderBy(asc(manualAssets.name))) as ManualAsset[],
   );
+
+  /** Rough market value from real estate sites; the app fills the form with it and nothing is saved. */
+  app.post('/manual-assets/estimate', async (req) => {
+    const { address } = parse(PropertyEstimateRequest, req.body);
+    return requireAI(ai).estimatePropertyValue(address);
+  });
 
   app.post('/manual-assets', async (req) => {
     const input = parse(ManualAssetInput, req.body);

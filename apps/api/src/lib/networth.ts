@@ -1,9 +1,10 @@
-import { isLiabilityType, type AccountType, type NetWorthSummary } from '@meld/shared';
+import { isLiabilityType, ownedValue, type AccountType, type NetWorthSummary } from '@meld/shared';
 
 type BalanceInput = { type: AccountType; currentBalance: number | null };
-type ManualInput = { value: number };
+type ManualInput = { value: number; ownershipPercent?: number | null };
 
 /**
+ * Manual assets count only your ownership share.
  * Plaid reports liabilities (credit, loans, mortgages) as positive amounts owed,
  * so they're summed separately and subtracted.
  */
@@ -18,7 +19,7 @@ export function computeNetWorth(accounts: BalanceInput[], manualAssets: ManualIn
     if (isLiabilityType(a.type)) liabilities += balance;
     else assets += balance;
   }
-  const manualTotal = manualAssets.reduce((sum, m) => sum + m.value, 0);
+  const manualTotal = manualAssets.reduce((sum, m) => sum + ownedValue(m), 0);
   if (manualAssets.length) byType.set('manual', manualTotal);
   assets += manualTotal;
 

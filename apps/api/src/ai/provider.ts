@@ -1,4 +1,4 @@
-import type { InsurancePolicyInput } from '@meld/shared';
+import type { InsurancePolicyInput, PropertyEstimate } from '@meld/shared';
 import type { Env } from '../env';
 import { HttpError } from '../lib/http';
 import { AnthropicProvider } from './anthropic';
@@ -51,6 +51,8 @@ export interface AIProvider {
   readonly name: string;
   /** Reads an insurance policy PDF into a draft for the user to review. */
   extractInsurancePolicy(pdf: Buffer): Promise<ExtractedPolicy>;
+  /** Looks up a property's market value on real estate sites. */
+  estimatePropertyValue(address: string): Promise<PropertyEstimate>;
   /** Answers one user message, calling tools as needed and streaming text through onEvent. */
   chat(input: ChatTurnInput): Promise<ChatTurnResult>;
 }
