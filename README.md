@@ -68,7 +68,7 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 - The **Ask** tab answers questions about your money: spending, debt payoff, investments, tax moves, insurance gaps. Answers stream in and conversations are saved.
 - The AI looks things up with read-only tools (accounts, transactions, totals by merchant or category, cash flow, budgets, holdings, investment activity, loan terms, insurance, profile). It can't change anything. Each new conversation also starts with a short snapshot of your balances and profile.
 - Add your income, filing status, state, age and employer benefits under **Ask → Profile** for better tax and insurance answers.
-- Uses Claude (`ANTHROPIC_MODEL`, default `claude-opus-5-5`; property value lookups use the faster `ANTHROPIC_LOOKUP_MODEL`, default `claude-haiku-5-5`) through a provider interface in `apps/api/src/ai/provider.ts`, so other providers can be added.
+- Uses Claude through a provider interface in `apps/api/src/ai/provider.ts`, so other providers can be added. Chat uses `ANTHROPIC_CHAT_MODEL` (default `claude-sonnet-5-5`), property value lookups `ANTHROPIC_LOOKUP_MODEL` (default `claude-haiku-5-5`), and policy PDF extraction `ANTHROPIC_MODEL` (default `claude-opus-5-5`).
 - Privacy: your question and the data the AI looks up are sent to Anthropic. Long digit runs (account, card and policy numbers) are masked first.
 
 ## Common commands
