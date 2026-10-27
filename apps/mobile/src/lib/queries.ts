@@ -7,10 +7,13 @@ import type {
   BudgetUpsert,
   CashflowMonth,
   CategorySpend,
+  InsurancePolicy,
+  InsurancePolicyInput,
   ManualAsset,
   ManualAssetInput,
   NetWorthPoint,
   NetWorthSummary,
+  PolicyExtraction,
   PlaidItemSummary,
   SyncResult,
   TransactionPage,
@@ -34,6 +37,7 @@ export const keys = {
   spending: (month: string) => ['spending', month] as const,
   budgets: (month: string) => ['budgets', month] as const,
   manualAssets: ['manual-assets'] as const,
+  insurance: ['insurance'] as const,
 };
 
 export function useNetWorth() {
@@ -210,4 +214,48 @@ export function useUpdateTransaction() {
         [['transactions'], ['cashflow'], ['spending'], ['budgets']].map((queryKey) => qc.invalidateQueries({ queryKey })),
       ),
   });
+}
+
+export function useInsurancePolicies() {
+  return useQuery({ queryKey: keys.insurance, queryFn: () => api<InsurancePolicy[]>('/insurance') });
+}
+
+export function useInsurancePolicy(id: string | undefined) {
+  return useQuery({
+    queryKey: [...keys.insurance, id],
+    queryFn: () => api<InsurancePolicy>(`/insurance/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useSavePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: InsurancePolicyInput }) =>
+      api<InsurancePolicy>(id ? `/insurance/${id}` : '/insurance', {
+        method: id ? 'PUT' : 'POST',
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.insurance }),
+  });
+}
+
+export function useDeletePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/insurance/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.insurance }),
+  });
+}
+
+/** Uploads a policy PDF and returns a draft to review; nothing is saved yet. */
+export function useExtractPolicy() {
+  return useMutation({
+    mutationFn: (form: FormData) => api<PolicyExtraction>('/insurance/extract', { method: 'POST', body: form }),
+  });
+}
+
+/** Drops an uploaded document whose draft was abandoned. */
+export function discardDocument(documentId: string) {
+  return api(`/documents/${documentId}`, { method: 'DELETE' }).catch(() => undefined);
 }

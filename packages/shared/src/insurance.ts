@@ -10,8 +10,18 @@ export const InsurancePolicyType = z.enum([
 ]);
 export type InsurancePolicyType = z.infer<typeof InsurancePolicyType>;
 
+export const isLifePolicy = (t: InsurancePolicyType) => t.startsWith('life_');
+export const isDisabilityPolicy = (t: InsurancePolicyType) => t.startsWith('disability_');
+
 export const PremiumFrequency = z.enum(['monthly', 'quarterly', 'semiannual', 'annual']);
 export type PremiumFrequency = z.infer<typeof PremiumFrequency>;
+
+export const PAYMENTS_PER_YEAR: Record<PremiumFrequency, number> = {
+  monthly: 12,
+  quarterly: 4,
+  semiannual: 2,
+  annual: 1,
+};
 
 export const Beneficiary = z.object({
   name: z.string(),
@@ -24,35 +34,90 @@ export type Beneficiary = z.infer<typeof Beneficiary>;
 /** Fields the user (or PDF extraction) provides for a policy. */
 export const InsurancePolicyInput = z.object({
   type: InsurancePolicyType,
-  carrier: z.string(),
-  policyNumberMask: z.string().nullable(),
+  carrier: z.string().trim().min(1),
+  /** Last 4 characters only; full policy numbers are never stored. */
+  policyNumberMask: z.string().max(4).nullable(),
   insuredName: z.string().nullable(),
   /** Death benefit for life; monthly benefit for disability. */
-  coverageAmount: z.number().nullable(),
+  coverageAmount: z.number().nonnegative().nullable(),
   /** Disability: percent of income replaced. */
-  benefitPercentOfIncome: z.number().nullable(),
-  premiumAmount: z.number().nullable(),
+  benefitPercentOfIncome: z.number().min(0).max(100).nullable(),
+  premiumAmount: z.number().nonnegative().nullable(),
   premiumFrequency: PremiumFrequency.nullable(),
-  effectiveDate: z.string().nullable(),
+  effectiveDate: z.iso.date().nullable(),
   /** Term life end date. */
-  termEndDate: z.string().nullable(),
+  termEndDate: z.iso.date().nullable(),
   /** Disability: days before benefits begin. */
-  eliminationPeriodDays: z.number().int().nullable(),
+  eliminationPeriodDays: z.number().int().nonnegative().nullable(),
   /** Disability: e.g. "2 years", "to age 65". */
   benefitPeriod: z.string().nullable(),
   ownOccupation: z.boolean().nullable(),
   employerProvided: z.boolean().nullable(),
   /** Whole/universal life cash value. */
-  cashValue: z.number().nullable(),
+  cashValue: z.number().nonnegative().nullable(),
   beneficiaries: z.array(Beneficiary),
   notes: z.string().nullable(),
+  /** The uploaded policy document this was entered from, if any. */
+  documentId: z.uuid().nullable(),
 });
 export type InsurancePolicyInput = z.infer<typeof InsurancePolicyInput>;
 
 export const InsurancePolicy = InsurancePolicyInput.extend({
-  id: z.string().uuid(),
-  documentId: z.string().uuid().nullable(),
+  id: z.uuid(),
+  documentFilename: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 export type InsurancePolicy = z.infer<typeof InsurancePolicy>;
+
+/** Draft returned from PDF extraction, for the user to review before saving. */
+export type PolicyExtraction = {
+  documentId: string;
+  filename: string;
+  /** Fields read from the document; documentId is already set. */
+  draft: InsurancePolicyInput;
+  /** Things the model was unsure about or couldn't find. */
+  warnings: string[];
+};
+
+export function annualPremium(p: Pick<InsurancePolicyInput, 'premiumAmount' | 'premiumFrequency'>): number | null {
+  if (p.premiumAmount === null || p.premiumFrequency === null) return null;
+  return p.premiumAmount * PAYMENTS_PER_YEAR[p.premiumFrequency];
+}
+
+/** Term life whose end date has passed no longer pays out. */
+export function isLapsed(p: Pick<InsurancePolicyInput, 'type' | 'termEndDate'>, today: string): boolean {
+  return p.type === 'life_term' && p.termEndDate !== null && p.termEndDate < today;
+}
+
+export type InsuranceTotals = {
+  lifeCoverage: number;
+  /** Monthly disability benefit; short- and long-term counted separately. */
+  shortTermDisabilityMonthly: number;
+  longTermDisabilityMonthly: number;
+  annualPremiums: number;
+};
+
+export function insuranceTotals(policies: InsurancePolicyInput[], today: string): InsuranceTotals {
+  const totals: InsuranceTotals = {
+    lifeCoverage: 0,
+    shortTermDisabilityMonthly: 0,
+    longTermDisabilityMonthly: 0,
+    annualPremiums: 0,
+  };
+  for (const p of policies) {
+    if (isLapsed(p, today)) continue;
+    const coverage = p.coverageAmount ?? 0;
+    if (isLifePolicy(p.type)) totals.lifeCoverage += coverage;
+    if (p.type === 'disability_short') totals.shortTermDisabilityMonthly += coverage;
+    if (p.type === 'disability_long') totals.longTermDisabilityMonthly += coverage;
+    totals.annualPremiums += annualPremium(p) ?? 0;
+  }
+  return totals;
+}
+
+/** Keeps only the last 4 alphanumeric characters of a policy number. */
+export function maskPolicyNumber(value: string | null | undefined): string | null {
+  const chars = (value ?? '').replace(/[^A-Za-z0-9]/g, '');
+  return chars ? chars.slice(-4) : null;
+}

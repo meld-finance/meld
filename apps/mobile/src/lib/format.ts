@@ -10,6 +10,13 @@ export function formatCurrency(amount: number | null, currency = 'USD'): string 
   return fmt.format(amount);
 }
 
+const wholeCurrency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+/** $1,500,000 — for large round figures like coverage amounts. */
+export function formatWholeCurrency(amount: number | null): string {
+  return amount === null ? '—' : wholeCurrency.format(amount);
+}
+
 const compactCurrency = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',

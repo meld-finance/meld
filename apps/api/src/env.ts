@@ -26,6 +26,9 @@ const EnvSchema = z.object({
   AI_PROVIDER: z.enum(['anthropic']).default('anthropic'),
   ANTHROPIC_API_KEY: z.string().default(''),
   ANTHROPIC_MODEL: z.string().default('claude-opus-5-5'),
+
+  /** Uploaded documents; defaults to <repo>/data/documents. */
+  DOCUMENTS_DIR: z.string().default(''),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
