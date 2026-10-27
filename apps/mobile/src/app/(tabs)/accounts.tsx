@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Card } from '@/components/card';
 import { ManualAssets } from '@/components/manual-assets';
 import { PlaidLinkButton } from '@/components/plaid-link-button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { confirm } from '@/lib/confirm';
@@ -58,13 +58,13 @@ export default function AccountsScreen() {
         </ThemedText>
       ) : items.data.length === 0 ? (
         <>
-          <ThemedView type="backgroundElement" style={styles.card}>
+          <Card style={styles.card}>
             <ThemedText type="smallBold">Link your first account</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               Connect banks, credit cards, brokerages and loans through Plaid. Meld only reads balances and
               transactions; it can’t move money.
             </ThemedText>
-          </ThemedView>
+          </Card>
           <ManualAssets />
         </>
       ) : (
@@ -96,7 +96,7 @@ function AccountGroup({ label, accounts, showTotal = true }: { label: string; ac
   const total = accounts.reduce((sum, a) => sum + (a.currentBalance ?? 0), 0);
   const liability = isLiabilityType(accounts[0]!.type);
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <Card style={styles.card}>
       <View style={styles.row}>
         <ThemedText type="smallBold">{label}</ThemedText>
         {/* Plaid reports liabilities as positive amounts owed. */}
@@ -126,7 +126,7 @@ function AccountGroup({ label, accounts, showTotal = true }: { label: string; ac
           <ThemedText>{formatCurrency(a.currentBalance, a.currency)} ›</ThemedText>
         </Pressable>
       ))}
-    </ThemedView>
+    </Card>
   );
 }
 
@@ -170,7 +170,7 @@ function ConnectionRow({
   }
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <Card style={styles.card}>
       <View style={styles.row}>
         <View style={styles.shrink}>
           <ThemedText type="smallBold">{name}</ThemedText>
@@ -198,7 +198,7 @@ function ConnectionRow({
           <Button label="Remove" variant="danger" size="small" loading={remove.isPending} onPress={removeItem} />
         </View>
       </View>
-    </ThemedView>
+    </Card>
   );
 }
 

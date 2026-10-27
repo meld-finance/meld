@@ -16,6 +16,14 @@ export const LiabilityDetails = z.object({
 });
 export type LiabilityDetails = z.infer<typeof LiabilityDetails>;
 
+/** A visible account's loan or card terms, as listed by `/liabilities`. */
+export const LiabilitySummary = LiabilityDetails.extend({
+  accountId: z.uuid(),
+  accountName: z.string(),
+  balance: z.number().nullable(),
+});
+export type LiabilitySummary = z.infer<typeof LiabilitySummary>;
+
 export type PayoffEstimate = { months: number; totalInterest: number };
 
 /**

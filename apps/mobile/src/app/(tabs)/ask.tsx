@@ -8,9 +8,10 @@ import { Chip } from '@/components/chip';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useStartChat } from '@/hooks/use-start-chat';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/lib/format';
-import { useChatSessions, useCreateChatSession, useProfile } from '@/lib/queries';
+import { useChatSessions, useProfile } from '@/lib/queries';
 
 const SUGGESTIONS = [
   'How am I doing overall?',
@@ -26,26 +27,17 @@ export default function AskScreen() {
   const theme = useTheme();
   const sessions = useChatSessions();
   const profile = useProfile();
-  const create = useCreateChatSession();
+  const chat = useStartChat();
   const [question, setQuestion] = useState('');
 
-  function ask(text: string) {
-    const q = text.trim();
-    if (!q || create.isPending) return;
-    create.mutate(undefined, {
-      onSuccess: (session) => {
-        setQuestion('');
-        router.push({ pathname: '/chat/[id]', params: { id: session.id, q } });
-      },
-    });
-  }
+  const ask = (text: string) => chat.start(text, () => setQuestion(''));
 
   const p = profile.data;
   const profileEmpty = p && !p.annualGrossIncome && !p.filingStatus && !p.state && !p.birthYear;
 
   return (
     <Screen
-      title="Ask"
+      title="Assistant"
       actions={<Button label="Profile" variant="secondary" size="small" onPress={() => router.push('/profile')} />}>
       <Card
         title="Ask about your finances"
@@ -61,10 +53,10 @@ export default function AskScreen() {
           multiline={false}
         />
         <View style={styles.row}>
-          <Button label="Ask" disabled={!question.trim()} loading={create.isPending} onPress={() => ask(question)} />
-          {create.isError && (
+          <Button label="Ask" disabled={!question.trim()} loading={chat.isPending} onPress={() => ask(question)} />
+          {chat.error && (
             <ThemedText type="small" themeColor="negative" style={styles.shrink}>
-              {create.error.message}
+              {chat.error.message}
             </ThemedText>
           )}
         </View>

@@ -7,14 +7,14 @@ export default function TabLayout() {
   return (
     <NativeTabs
       backgroundColor={theme.background}
-      indicatorColor={theme.backgroundElement}
+      indicatorColor={theme.backgroundSelected}
       labelStyle={{ selected: { color: theme.text } }}>
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Overview</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="ask">
-        <NativeTabs.Trigger.Label>Ask</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Assistant</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="sparkles" md="auto_awesome" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="accounts">
