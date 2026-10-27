@@ -5,31 +5,63 @@ const csv = z
   .default('')
   .transform((s) => s.split(',').map((v) => v.trim()).filter(Boolean));
 
-const EnvSchema = z.object({
-  DATABASE_URL: z.string().url(),
-  API_PORT: z.coerce.number().default(4000),
-  CORS_ORIGINS: csv,
+const PlaidEnv = z.enum(['sandbox', 'production']);
 
-  APP_PASSPHRASE: z.string().min(8, 'APP_PASSPHRASE must be at least 8 characters'),
-  SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
-  ENCRYPTION_KEY: z
-    .string()
-    .refine((k) => Buffer.from(k, 'base64').length === 32, 'ENCRYPTION_KEY must be 32 bytes, base64-encoded'),
+const EnvSchema = z
+  .object({
+    /** One database per Plaid environment, so sandbox and real data never mix. */
+    SANDBOX_DATABASE_URL: z.url().optional(),
+    PRODUCTION_DATABASE_URL: z.url().optional(),
+    /** Overrides the per-environment URL (tests point this at the test DB). */
+    DATABASE_URL: z.url().optional(),
+    API_PORT: z.coerce.number().default(4000),
+    CORS_ORIGINS: csv,
 
-  PLAID_CLIENT_ID: z.string().default(''),
-  PLAID_SECRET: z.string().default(''),
-  PLAID_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
-  PLAID_PRODUCTS: csv,
-  PLAID_OPTIONAL_PRODUCTS: csv,
-  PLAID_COUNTRY_CODES: csv,
+    APP_PASSPHRASE: z.string().min(8, 'APP_PASSPHRASE must be at least 8 characters'),
+    SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
+    ENCRYPTION_KEY: z
+      .string()
+      .refine((k) => Buffer.from(k, 'base64').length === 32, 'ENCRYPTION_KEY must be 32 bytes, base64-encoded'),
 
-  AI_PROVIDER: z.enum(['anthropic']).default('anthropic'),
-  ANTHROPIC_API_KEY: z.string().default(''),
-  ANTHROPIC_MODEL: z.string().default('claude-opus-5-5'),
+    PLAID_CLIENT_ID: z.string().default(''),
+    /** One secret per environment, so switching is just PLAID_ENV. */
+    PLAID_SANDBOX_SECRET: z.string().default(''),
+    PLAID_PRODUCTION_SECRET: z.string().default(''),
+    PLAID_ENV: PlaidEnv.default('sandbox'),
+    PLAID_PRODUCTS: csv,
+    PLAID_OPTIONAL_PRODUCTS: csv,
+    PLAID_COUNTRY_CODES: csv,
 
-  /** Uploaded documents; defaults to <repo>/data/documents. */
-  DOCUMENTS_DIR: z.string().default(''),
-});
+    AI_PROVIDER: z.enum(['anthropic']).default('anthropic'),
+    ANTHROPIC_API_KEY: z.string().default(''),
+    ANTHROPIC_MODEL: z.string().default('claude-opus-5-5'),
+
+    /** Uploaded documents; defaults to <repo>/data/documents. */
+    DOCUMENTS_DIR: z.string().default(''),
+  })
+  .transform((env, ctx) => {
+    const DATABASE_URL = env.DATABASE_URL ?? databaseUrlFor(env, env.PLAID_ENV);
+    if (!DATABASE_URL) {
+      ctx.addIssue({ code: 'custom', path: [databaseUrlKey(env.PLAID_ENV)], message: `required when PLAID_ENV=${env.PLAID_ENV}` });
+      return z.NEVER;
+    }
+    return { ...env, DATABASE_URL };
+  });
+
+type PlaidEnv = z.infer<typeof PlaidEnv>;
+type DatabaseUrls = { SANDBOX_DATABASE_URL?: string; PRODUCTION_DATABASE_URL?: string };
+
+const databaseUrlKey = (plaidEnv: PlaidEnv) =>
+  plaidEnv === 'production' ? 'PRODUCTION_DATABASE_URL' : 'SANDBOX_DATABASE_URL';
+
+function databaseUrlFor(urls: DatabaseUrls, plaidEnv: PlaidEnv): string | undefined {
+  return urls[databaseUrlKey(plaidEnv)];
+}
+
+/** Every per-environment database configured in `source`, for migrations and test guards. */
+export function configuredDatabaseUrls(source: NodeJS.ProcessEnv = process.env): string[] {
+  return PlaidEnv.options.map((e) => databaseUrlFor(source, e)).filter((u): u is string => !!u);
+}
 
 export type Env = z.infer<typeof EnvSchema>;
 

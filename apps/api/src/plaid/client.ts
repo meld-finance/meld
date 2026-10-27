@@ -8,7 +8,7 @@ export function createPlaidClient(env: Env): PlaidApi {
       baseOptions: {
         headers: {
           'PLAID-CLIENT-ID': env.PLAID_CLIENT_ID,
-          'PLAID-SECRET': env.PLAID_SECRET,
+          'PLAID-SECRET': env.PLAID_ENV === 'production' ? env.PLAID_PRODUCTION_SECRET : env.PLAID_SANDBOX_SECRET,
         },
       },
     }),

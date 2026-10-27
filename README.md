@@ -25,7 +25,8 @@ packages/shared Zod schemas + types shared by app and API
 npm install
 cp .env.example .env          # then fill in secrets (see comments in the file)
 npm run db:up                 # start Postgres in Docker (localhost only)
-npm run db:migrate            # apply migrations
+docker compose exec db createdb -U meld meld_sandbox   # once: the sandbox database
+npm run db:migrate            # apply migrations to both databases
 npm run dev                   # API on :4000, Expo web on :8081
 ```
 
@@ -38,7 +39,7 @@ Generate secrets with `openssl rand -base64 32` (`SESSION_SECRET` and `ENCRYPTIO
 Use **Accounts → Link account** in the web app. Accounts and balances sync immediately; transaction history (up to 2 years) arrives over the next minute or so and is fetched automatically. Every linked connection also re-syncs every 6 hours while the API is running, or on demand with **Refresh**.
 
 - **Sandbox** (`PLAID_ENV=sandbox`): pick any institution and sign in with `user_good` / `pass_good`.
-- **Real accounts** (`PLAID_ENV=production`): needs Plaid production (or limited production) access and production secrets.
+- **Real accounts** (`PLAID_ENV=production`): needs Plaid production access (or a Trial plan); set `PLAID_PRODUCTION_SECRET`. Each environment has its own secret and its own database (`SANDBOX_DATABASE_URL`, `PRODUCTION_DATABASE_URL`), so sandbox data never mixes with real data. Switching is just `PLAID_ENV` plus an API restart.
 - If a bank needs you to sign in again, the connection shows **Reconnect**, which reopens Plaid Link in update mode.
 - Linking on iOS/Android arrives with the mobile phase; use the web app until then.
 
@@ -77,7 +78,7 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 | `npm run dev` | API + Expo web together |
 | `npm run dev:api` / `npm run dev:web` | Run one side only |
 | `npm run db:generate` | Create a migration after editing `apps/api/src/db/schema.ts` |
-| `npm run db:migrate` | Apply migrations |
+| `npm run db:migrate` | Apply migrations to the sandbox and production databases |
 | `npm run typecheck` | Typecheck all packages |
 | `npm test` | Run tests (DB tests use `TEST_DATABASE_URL`; create it once with `docker compose exec db createdb -U meld meld_test`) |
 
