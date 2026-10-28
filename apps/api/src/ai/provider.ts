@@ -1,8 +1,9 @@
-import type { InsurancePolicyInput, PropertyEstimate } from '@meld/shared';
+import type { InsurancePolicyInput, PropertyEstimate, SecurityProfile } from '@meld/shared';
 import type { Env } from '../env';
 import { HttpError } from '../lib/http';
 import { AnthropicProvider } from './anthropic';
 import type { ChatTool } from './chat-tools';
+import type { SecurityDescription } from './security-profiles';
 
 export type ExtractedPolicy = {
   draft: Omit<InsurancePolicyInput, 'documentId'>;
@@ -53,6 +54,8 @@ export interface AIProvider {
   extractInsurancePolicy(pdf: Buffer): Promise<ExtractedPolicy>;
   /** Looks up a property's market value on real estate sites. */
   estimatePropertyValue(address: string): Promise<PropertyEstimate>;
+  /** Estimates what each security holds, by input position; null for one it doesn't recognize. */
+  profileSecurities(securities: SecurityDescription[]): Promise<(SecurityProfile | null)[]>;
   /** Answers one user message, calling tools as needed and streaming text through onEvent. */
   chat(input: ChatTurnInput): Promise<ChatTurnResult>;
 }

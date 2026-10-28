@@ -1,4 +1,4 @@
-import type { ValuationSource } from '@meld/shared';
+import type { SecurityProfile, ValuationSource } from '@meld/shared';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -142,8 +142,15 @@ export const securities = pgTable('securities', {
   tickerSymbol: text('ticker_symbol'),
   name: text('name'),
   type: text('type'),
+  subtype: text('subtype'),
+  /** Plaid's sector and industry, for individual stocks. */
+  sector: text('sector'),
+  industry: text('industry'),
   closePrice: numeric('close_price', { precision: 18, scale: 6, mode: 'number' }),
   closePriceAsOf: date('close_price_as_of'),
+  /** What the security holds, from an AI lookup; null with `profiledAt` set means it wasn't recognized. */
+  profile: jsonb('profile').$type<SecurityProfile>(),
+  profiledAt: timestamp('profiled_at', { withTimezone: true }),
   ...timestamps,
 });
 

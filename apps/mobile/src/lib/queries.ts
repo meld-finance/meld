@@ -2,6 +2,7 @@ import type {
   Account,
   AccountDetail,
   AccountUpdate,
+  InvestmentIncome,
   InvestmentsSummary,
   BudgetStatus,
   BudgetUpsert,
@@ -23,6 +24,7 @@ import type {
   NetWorthPoint,
   NetWorthSummary,
   PolicyExtraction,
+  ProfileResult,
   PropertyEstimate,
   PlaidItemSummary,
   SyncResult,
@@ -178,6 +180,19 @@ export function useAccountDetail(id: string) {
 
 export function useInvestments() {
   return useQuery({ queryKey: ['investments'], queryFn: () => api<InvestmentsSummary>('/investments') });
+}
+
+export function useInvestmentIncome() {
+  return useQuery({ queryKey: ['investments', 'income'], queryFn: () => api<InvestmentIncome>('/investments/income') });
+}
+
+/** Asks the AI what's inside held funds that haven't been looked at yet. */
+export function useProfileSecurities() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<ProfileResult>('/investments/profile', { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['investments'] }),
+  });
 }
 
 export function useLiabilities() {

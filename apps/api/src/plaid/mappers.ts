@@ -61,6 +61,9 @@ export function toSecurityRow(s: PlaidSecurity): typeof securities.$inferInsert 
     name: s.name,
     // Plaid's type wins: it flags some non-cash assets (e.g. BTC) as cash equivalents.
     type: s.type ?? (s.is_cash_equivalent ? 'cash' : null),
+    subtype: s.subtype ?? null,
+    sector: s.sector,
+    industry: s.industry,
     closePrice: s.close_price,
     closePriceAsOf: s.close_price_as_of,
   };

@@ -1,4 +1,4 @@
-import { estimatePayoff, taxTreatment } from '@meld/shared';
+import { CASH_PROFILE, estimatePayoff, lookThrough, normalizeWeights, taxTreatment, type SecurityProfile } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
 
 describe('estimatePayoff', () => {
@@ -38,5 +38,42 @@ describe('taxTreatment', () => {
     ['something new', 'unknown'],
   ] as const)('%s → %s', (subtype, expected) => {
     expect(taxTreatment(subtype)).toBe(expected);
+  });
+});
+
+describe('normalizeWeights', () => {
+  it('scales weights to sum to 1 and drops unusable ones', () => {
+    expect(normalizeWeights({ a: 30, b: 10, c: -5, d: Number.NaN })).toEqual({ a: 0.75, b: 0.25 });
+    expect(normalizeWeights({ a: 0 })).toEqual({});
+  });
+});
+
+describe('lookThrough', () => {
+  const balanced: SecurityProfile = {
+    category: 'Balanced',
+    assetClasses: { us_stocks: 0.4, intl_stocks: 0.2, bonds: 0.4 },
+    sectors: { technology: 0.5, financials: 0.5 },
+    regions: { united_states: 2, europe: 1 },
+    bondTypes: {},
+  };
+
+  it('splits each holding into what it holds', () => {
+    const e = lookThrough([
+      { value: 1000, profile: balanced },
+      { value: 500, profile: CASH_PROFILE },
+      { value: 250, profile: null },
+    ]);
+    expect(e.total).toBe(1750);
+    expect(e.unclassified).toBe(250);
+    expect(e.assetClasses).toEqual({ us_stocks: 400, intl_stocks: 200, bonds: 400, cash: 500 });
+    expect(e.stocks).toBeCloseTo(600);
+    expect(e.sectors.technology).toBeCloseTo(300);
+    expect(e.sectors.financials).toBeCloseTo(300);
+    expect(e.regions.united_states).toBeCloseTo(400);
+    expect(e.regions.europe).toBeCloseTo(200);
+    expect(e.regionsKnown).toBeCloseTo(600);
+    // The fund's bond split is unknown.
+    expect(e.bonds).toBe(400);
+    expect(e.bondTypesKnown).toBe(0);
   });
 });

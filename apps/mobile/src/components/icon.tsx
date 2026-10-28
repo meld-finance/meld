@@ -86,6 +86,18 @@ const ICONS = {
   chevronDown: <Path d="m6 9 6 6 6-6" />,
   chevronLeft: <Path d="m15 6-6 6 6 6" />,
   chevronRight: <Path d="m9 6 6 6-6 6" />,
+  search: (
+    <>
+      <Circle cx={11} cy={11} r={7} />
+      <Path d="m20 20-3.5-3.5" />
+    </>
+  ),
+  info: (
+    <>
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="M12 11v5M12 8h.01" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof ICONS;
