@@ -1,6 +1,6 @@
 import type { NetWorthPoint } from '@meld/shared';
 import { Link } from 'expo-router';
-import { Platform, Pressable, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { BudgetMeter } from '@/components/charts/budget-meter';
@@ -28,6 +28,7 @@ import {
   useSpending,
 } from '@/lib/queries';
 import { upcomingPayments } from '@/lib/upcoming';
+import { useContentWidth } from '@/lib/chat-panel';
 
 /** Days of net-worth history the home chart covers ("vs. last 6 months"). */
 const HISTORY_DAYS = 183;
@@ -40,7 +41,7 @@ function greeting(hour = new Date().getHours()) {
 
 export default function HomeScreen() {
   const { logout } = useAuth();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const month = currentMonth();
   const profile = useProfile();
   const netWorth = useNetWorth();

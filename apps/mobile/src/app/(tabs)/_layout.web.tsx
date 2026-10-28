@@ -4,12 +4,14 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { ChatPanel } from '@/components/chat/chat-panel';
 import { Icon, type IconName } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
+import { ChatPanelProvider, useChatPanel } from '@/lib/chat-panel';
 import { useProfile } from '@/lib/queries';
 
 /** Below this window width the sidebar collapses to an icon rail. */
@@ -17,7 +19,18 @@ const COMPACT_BELOW = 1000;
 
 // Web: a left sidebar instead of a bottom tab bar. Keep the order in step with _layout.tsx.
 export default function TabLayout() {
+  return (
+    <ChatPanelProvider>
+      <TabNavigator />
+    </ChatPanelProvider>
+  );
+}
+
+function TabNavigator() {
   const compact = useWindowDimensions().width < COMPACT_BELOW;
+  const panel = useChatPanel();
+  // Hidden rather than unmounted, so the page keeps its scroll and state under an expanded chat.
+  const pageHidden = !!panel?.chat && panel.expanded;
   return (
     <Tabs style={styles.root}>
       {/* TabTriggers must be the sidebar's direct children so Tabs can discover them. */}
@@ -50,10 +63,11 @@ export default function TabLayout() {
           </TabTrigger>
         </Sidebar>
       </TabList>
-      <ThemedView style={styles.main}>
+      <ThemedView style={[styles.main, pageHidden && styles.hidden]}>
         <TopBar />
         <TabSlot style={styles.main} />
       </ThemedView>
+      <ChatPanel />
     </Tabs>
   );
 }
@@ -190,6 +204,7 @@ function Logo() {
 const styles = StyleSheet.create({
   root: { flex: 1, flexDirection: 'row' },
   main: { flex: 1 },
+  hidden: { display: 'none' },
   sidebar: {
     width: 248,
     borderRightWidth: 1,

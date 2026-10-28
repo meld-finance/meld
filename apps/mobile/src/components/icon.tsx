@@ -87,6 +87,9 @@ const ICONS = {
   chevronDown: <Path d="m6 9 6 6 6-6" />,
   chevronLeft: <Path d="m15 6-6 6 6 6" />,
   chevronRight: <Path d="m9 6 6 6-6 6" />,
+  close: <Path d="M18 6 6 18M6 6l12 12" />,
+  expand: <Path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />,
+  collapse: <Path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />,
   search: (
     <>
       <Circle cx={11} cy={11} r={7} />

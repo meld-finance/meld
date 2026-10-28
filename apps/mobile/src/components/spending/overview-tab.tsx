@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Pressable, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { InsightsPanel, QuickQuestions } from '@/components/cashflow/insights-panel';
@@ -28,6 +28,7 @@ import {
 } from '@/lib/cashflow';
 import { currentMonth, shiftMonth } from '@/lib/format';
 import { useCashflowPeriod, useSpendingByMonth } from '@/lib/queries';
+import { useContentWidth } from '@/lib/chat-panel';
 
 /** Months of history in the stacked chart. */
 const HISTORY_MONTHS = 12;
@@ -38,7 +39,7 @@ const NOTES_MIN_WIDTH = 900;
 
 /** Cash flow for a period: totals, trends, and where spending went. */
 export function OverviewTab({ header }: { header: ReactNode }) {
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const [mode, setMode] = useState<PeriodMode>('ytd');
   const [month, setMonth] = useState(currentMonth);
   const p = periodFor(mode, month);

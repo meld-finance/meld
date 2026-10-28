@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useStartChat } from '@/hooks/use-start-chat';
 import { useTheme } from '@/hooks/use-theme';
+import { useChatPanel } from '@/lib/chat-panel';
 import { formatRelativeTime } from '@/lib/format';
 import { useChatSessions, useProfile } from '@/lib/queries';
 
@@ -28,6 +29,8 @@ export default function AskScreen() {
   const sessions = useChatSessions();
   const profile = useProfile();
   const chat = useStartChat();
+  const panel = useChatPanel();
+  const openChat = (id: string) => (panel ? panel.open(id) : router.push({ pathname: '/chat/[id]', params: { id } }));
   const [question, setQuestion] = useState('');
 
   const ask = (text: string) => chat.start(text, () => setQuestion(''));
@@ -82,7 +85,7 @@ export default function AskScreen() {
           {sessions.data.map((s) => (
             <Pressable
               key={s.id}
-              onPress={() => router.push({ pathname: '/chat/[id]', params: { id: s.id } })}
+              onPress={() => openChat(s.id)}
               style={({ pressed }) => [styles.session, pressed && styles.pressed]}>
               <ThemedText numberOfLines={1} style={styles.shrink}>
                 {s.title ?? 'Untitled conversation'}
