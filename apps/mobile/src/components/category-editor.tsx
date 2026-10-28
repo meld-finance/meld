@@ -71,6 +71,12 @@ function EditorBody({ transaction, onClose }: { transaction: Transaction; onClos
   return (
     <ThemedView style={[styles.sheet, { borderColor: theme.border }]}>
       <ThemedText type="smallBold">{transaction.merchantName ?? transaction.name}</ThemedText>
+      {/* Plaid's merchant match can be wrong; show what the bank actually sent. */}
+      {transaction.merchantName && transaction.merchantName !== transaction.name && (
+        <ThemedText type="small" themeColor="textSecondary" selectable>
+          {transaction.name}
+        </ThemedText>
+      )}
       <ThemedText type="small" themeColor="textSecondary">
         {formatDate(transaction.date)} · {formatCurrency(Math.abs(transaction.amount), transaction.currency)} ·{' '}
         {transaction.accountName}
