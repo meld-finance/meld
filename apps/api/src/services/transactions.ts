@@ -85,7 +85,7 @@ export async function queryTransactions(db: Db, q: z.output<typeof TransactionQu
       .from(transactions)
       .innerJoin(accounts, eq(accounts.id, transactions.accountId))
       .where(where)
-      .orderBy(desc(transactions.date), desc(transactions.createdAt))
+      .orderBy(desc(transactions.date), desc(transactions.createdAt), desc(transactions.id))
       .limit(q.limit)
       .offset(q.offset),
     db.select({ total: count() }).from(transactions).innerJoin(accounts, eq(accounts.id, transactions.accountId)).where(where),
