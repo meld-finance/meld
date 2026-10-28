@@ -18,7 +18,7 @@ export function Chip({ label, selected, onPress }: { label: string; selected?: b
           opacity: pressed ? 0.7 : 1,
         },
       ]}>
-      <ThemedText type="small" style={{ color: selected ? '#ffffff' : theme.text }} numberOfLines={1}>
+      <ThemedText type="small" style={{ color: selected ? '#ffffff' : theme.text }}>
         {label}
       </ThemedText>
     </Pressable>
@@ -26,5 +26,6 @@ export function Chip({ label, selected, onPress }: { label: string; selected?: b
 }
 
 const styles = StyleSheet.create({
-  chip: { paddingVertical: Spacing.one, paddingHorizontal: Spacing.three, borderRadius: Spacing.four },
+  // Long labels wrap rather than run past a narrow container.
+  chip: { maxWidth: '100%', paddingVertical: Spacing.one, paddingHorizontal: Spacing.three, borderRadius: Spacing.four },
 });

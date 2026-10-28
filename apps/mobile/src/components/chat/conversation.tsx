@@ -1,4 +1,4 @@
-import type { ChatMessageView, ChatModelOption } from '@meld/shared';
+import type { ChatMessageView } from '@meld/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 
 import { Button } from '@/components/button';
-import { Dropdown } from '@/components/dropdown';
+import { ModelPicker, privacyNote } from '@/components/chat/model-picker';
 import { Markdown } from '@/components/markdown';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -175,27 +175,13 @@ export function Conversation({ id, initialQuestion, onInitialSent, header }: Pro
         )}
       </View>
       <View style={styles.footer}>
-        {chatModel.models.length > 1 && chatModel.current && (
-          <Dropdown
-            accessibilityLabel="Model"
-            openUp
-            options={chatModel.models.map((m) => ({ value: m.id, label: m.note ? `${m.label} · ${m.note}` : m.label }))}
-            value={chatModel.current.id}
-            onChange={chatModel.choose}
-          />
-        )}
+        <ModelPicker openUp />
         <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
           {privacyNote(chatModel.current)} Not professional financial, tax or legal advice.
         </ThemedText>
       </View>
     </>
   );
-}
-
-function privacyNote(model: ChatModelOption | null) {
-  if (model?.local) return 'Answered by a model on this computer; your data stays here.';
-  if (model?.provider === 'ollama') return 'Questions and the data needed to answer them are sent to your Ollama server.';
-  return 'Questions and the data needed to answer them are sent to Anthropic.';
 }
 
 function Message({ message: m }: { message: ChatMessageView }) {
