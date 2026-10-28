@@ -8,6 +8,7 @@ import { HttpError, IdParams, parse } from '../lib/http';
 import { getLiability, listAccounts, listLiabilities, listHoldings } from '../services/accounts';
 import { getInvestmentIncome, getInvestmentsSummary, profileSecurities } from '../services/investments';
 import { recordSnapshot } from '../services/overview';
+import { getInvestmentPerformance } from '../services/performance';
 import type { AppDeps } from '../server';
 
 export async function registerAccountRoutes(app: FastifyInstance, { db, ai }: AppDeps) {
@@ -38,6 +39,7 @@ export async function registerAccountRoutes(app: FastifyInstance, { db, ai }: Ap
 
   app.get('/investments', () => getInvestmentsSummary(db, ai));
   app.get('/investments/income', () => getInvestmentIncome(db));
+  app.get('/investments/performance', () => getInvestmentPerformance(db));
   app.post('/investments/profile', () => profileSecurities(db, requireAI(ai)));
 
   app.get('/liabilities', () => listLiabilities(db));

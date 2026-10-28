@@ -163,6 +163,14 @@ export const securities = pgTable('securities', {
   ...timestamps,
 });
 
+/** Daily closing prices per ticker from a public market data source, for valuing holdings in the past. */
+export const priceHistory = pgTable('price_history', {
+  ticker: text('ticker').primaryKey(),
+  /** Close by date (YYYY-MM-DD); null when the source doesn't know the ticker. */
+  closes: jsonb('closes').$type<Record<string, number>>(),
+  fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull(),
+});
+
 export const holdings = pgTable(
   'holdings',
   {

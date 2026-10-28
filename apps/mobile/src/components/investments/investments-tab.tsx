@@ -9,30 +9,33 @@ import { ExposureTab } from '@/components/investments/exposure-tab';
 import { HoldingsTab } from '@/components/investments/holdings-tab';
 import { IncomeTab } from '@/components/investments/income-tab';
 import { OverviewTab } from '@/components/investments/overview-tab';
+import { PerformanceTab } from '@/components/investments/performance-tab';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useAccents } from '@/hooks/use-accents';
 import { useTabParam } from '@/hooks/use-tab-param';
 import { useTheme } from '@/hooks/use-theme';
-import { useInvestmentIncome, useInvestments, useProfileSecurities } from '@/lib/queries';
+import { useInvestmentIncome, useInvestmentPerformance, useInvestments, useProfileSecurities } from '@/lib/queries';
 
 const VIEWS = [
   { value: 'overview', label: 'Overview' },
+  { value: 'performance', label: 'Performance' },
   { value: 'exposure', label: 'Exposure' },
   { value: 'income', label: 'Income' },
   { value: 'holdings', label: 'Holdings' },
 ] as const;
 
-/** The portfolio across investment accounts, in four views. */
+/** The portfolio across investment accounts, in five views. */
 export function InvestmentsTab({ header }: { header: ReactNode }) {
   const [view, setView] = useTabParam(VIEWS, 'view');
 
   const investments = useInvestments();
   const income = useInvestmentIncome();
+  const performance = useInvestmentPerformance(view === 'performance');
   const data = investments.data;
-  const refreshing = investments.isRefetching || income.isRefetching;
-  const onRefresh = () => void Promise.all([investments.refetch(), income.refetch()]);
+  const refreshing = investments.isRefetching || income.isRefetching || performance.isRefetching;
+  const onRefresh = () => void Promise.all([investments.refetch(), income.refetch(), ...(view === 'performance' ? [performance.refetch()] : [])]);
 
   const content = investments.isPending ? (
     <ThemedText themeColor="textSecondary">Loading…</ThemedText>
@@ -49,6 +52,14 @@ export function InvestmentsTab({ header }: { header: ReactNode }) {
     <>
       <LookupStatus data={data!} />
       {view === 'overview' && <OverviewTab data={data!} onShowExposure={() => setView('exposure')} />}
+      {view === 'performance' &&
+        (performance.isPending ? (
+          <ThemedText themeColor="textSecondary">Loading… (the first visit fetches price history)</ThemedText>
+        ) : performance.isError ? (
+          <ThemedText themeColor="negative">Couldn’t load performance: {performance.error.message}</ThemedText>
+        ) : (
+          <PerformanceTab data={performance.data} />
+        ))}
       {view === 'exposure' && <ExposureTab data={data!} />}
       {view === 'income' &&
         (income.isPending ? (

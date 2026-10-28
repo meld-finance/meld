@@ -4,6 +4,7 @@ import type {
   BalanceSnapshot,
   AccountUpdate,
   InvestmentIncome,
+  InvestmentPerformance,
   InvestmentsSummary,
   BudgetStatus,
   BudgetUpsert,
@@ -217,6 +218,15 @@ export function useInvestments() {
 
 export function useInvestmentIncome() {
   return useQuery({ queryKey: ['investments', 'income'], queryFn: () => api<InvestmentIncome>('/investments/income') });
+}
+
+/** Off until wanted: the first load of the day fetches price history. */
+export function useInvestmentPerformance(enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: ['investments', 'performance'],
+    queryFn: () => api<InvestmentPerformance>('/investments/performance'),
+  });
 }
 
 /** Asks the AI what's inside held funds that haven't been looked at yet. */
