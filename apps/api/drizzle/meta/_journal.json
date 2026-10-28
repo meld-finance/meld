@@ -85,6 +85,13 @@
       "when": 1793159350654,
       "tag": "0011_retirement_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793160342409,
+      "tag": "0012_retirement_properties",
+      "breakpoints": true
     }
   ]
 }

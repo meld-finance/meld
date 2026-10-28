@@ -1,6 +1,6 @@
 import { EMPTY_RETIREMENT_PLAN } from '@meld/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { accounts, transactions } from '../db/schema';
+import { accounts, liabilities, manualAssets, transactions } from '../db/schema';
 import { setupTestDb, testDatabaseUrl } from '../test/db';
 import { saveProfile } from './profile';
 import { getRetirement, saveRetirementPlan } from './retirement';
@@ -74,10 +74,39 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
     expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({ currentAge: 40, annualSpending: 3000, annualIncome: 180000 });
   });
 
-  it('saves assumptions and accounts you leave out', async () => {
-    await saveRetirementPlan(ctx.db, { ...EMPTY_RETIREMENT_PLAN, retirementAge: 60, expectedReturn: 4.5, excludedAccountIds: [ids.house] });
+  it('lists homes at your share and mortgages with your share of balance and payment', async () => {
+    const [mortgage] = await ctx.db
+      .insert(accounts)
+      .values({ source: 'manual', name: 'Rental mortgage', type: 'mortgage', currentBalance: 300000, ownershipPercent: 50 })
+      .returning({ id: accounts.id });
+    await ctx.db.insert(liabilities).values({ accountId: mortgage!.id, kind: 'mortgage', interestRatePct: 6.5, minimumPayment: 2400 });
+    await ctx.db.insert(manualAssets).values([
+      { kind: 'home', name: 'Rental', value: 800000, ownershipPercent: 50 },
+      { kind: 'home', name: 'Home', value: 1200000 },
+      { kind: 'vehicle', name: 'Car', value: 30000 },
+    ]);
     const r = await getRetirement(ctx.db, TODAY);
-    expect(r.plan).toMatchObject({ retirementAge: 60, expectedReturn: 4.5, excludedAccountIds: [ids.house] });
+    expect(r.properties.map((p) => [p.name, p.value])).toEqual([
+      ['Home', 1200000],
+      ['Rental', 400000],
+    ]);
+    expect(r.mortgages).toEqual([
+      expect.objectContaining({ id: mortgage!.id, balance: 150000, interestRatePct: 6.5, monthlyPayment: 1200 }),
+    ]);
+  });
+
+  it('saves assumptions and accounts you leave out', async () => {
+    const properties = [{ assetId: ids.house, sellAge: 70, mortgageAccountId: null, netRentAnnual: 18000 }];
+    await saveRetirementPlan(ctx.db, {
+      ...EMPTY_RETIREMENT_PLAN,
+      retirementAge: 60,
+      expectedReturn: 4.5,
+      sellingCostPercent: 7,
+      excludedAccountIds: [ids.house],
+      properties,
+    });
+    const r = await getRetirement(ctx.db, TODAY);
+    expect(r.plan).toMatchObject({ retirementAge: 60, expectedReturn: 4.5, sellingCostPercent: 7, excludedAccountIds: [ids.house], properties });
     expect(r.accounts.find((a) => a.id === ids.house)).toMatchObject({ included: false, excludedReason: 'user' });
     // Saving again replaces the row.
     await saveRetirementPlan(ctx.db, EMPTY_RETIREMENT_PLAN);
