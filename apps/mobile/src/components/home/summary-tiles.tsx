@@ -41,7 +41,7 @@ function buildTiles(summary: NetWorthSummary, accounts: Account[], policies: Ins
       caption: plural(count('investment'), 'account'),
       icon: 'chart',
       accent: 'purple',
-      href: '/investments',
+      href: { pathname: '/accounts', params: { tab: 'investments' } },
     },
     {
       label: 'Mortgages & Loans',

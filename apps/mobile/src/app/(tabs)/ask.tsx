@@ -36,9 +36,7 @@ export default function AskScreen() {
   const profileEmpty = p && !p.annualGrossIncome && !p.filingStatus && !p.state && !p.birthYear;
 
   return (
-    <Screen
-      title="Ask Meld"
-      actions={<Button label="Profile" variant="secondary" size="small" onPress={() => router.push('/profile')} />}>
+    <Screen title="Ask Meld">
       <Card
         title="Ask about your finances"
         subtitle="Answers use your accounts, transactions, investments, loans, insurance and budget.">
@@ -71,8 +69,8 @@ export default function AskScreen() {
         <Card>
           <ThemedText type="small">
             For tax and insurance questions, add your income, filing status, state and age to your{' '}
-            <ThemedText type="small" themeColor="tint" onPress={() => router.push('/profile')}>
-              profile
+            <ThemedText type="small" themeColor="tint" onPress={() => router.push({ pathname: '/plan', params: { tab: 'profile' } })}>
+              profile under Plan
             </ThemedText>
             .
           </ThemedText>

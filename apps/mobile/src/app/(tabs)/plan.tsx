@@ -1,43 +1,38 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
+import { RefreshControl } from 'react-native';
 
 import { Button } from '@/components/button';
 import { InsuranceTab } from '@/components/plan/insurance-tab';
+import { ProfileTab } from '@/components/plan/profile-tab';
 import { Screen } from '@/components/screen';
-import { ThemedText } from '@/components/themed-text';
-import { UnderlineTabs } from '@/components/underline-tabs';
-import { Spacing } from '@/constants/theme';
+import { TabbedHeader } from '@/components/tabbed-header';
+import { useTabParam } from '@/hooks/use-tab-param';
 import { useInsurancePolicies } from '@/lib/queries';
 
-// Retirement and other planning tools join Insurance here as they arrive.
-const TABS = [{ value: 'insurance', label: 'Insurance' }] as const;
-type Tab = (typeof TABS)[number]['value'];
+// Retirement and other planning tools join these as they arrive.
+const TABS = [
+  { value: 'insurance', label: 'Insurance' },
+  { value: 'profile', label: 'Profile' },
+] as const;
 
 export default function PlanScreen() {
-  const params = useLocalSearchParams<{ tab?: string }>();
-  const tab: Tab = TABS.some((t) => t.value === params.tab) ? (params.tab as Tab) : 'insurance';
-  const setTab = (next: Tab) => router.setParams({ tab: next === 'insurance' ? undefined : next });
-
+  const [tab, setTab] = useTabParam(TABS);
   const policies = useInsurancePolicies();
 
   return (
     <Screen refreshControl={<RefreshControl refreshing={policies.isRefetching} onRefresh={() => void policies.refetch()} />}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <ThemedText type="subtitle">Plan</ThemedText>
-          {tab === 'insurance' && (
-            <Button label="Add policy" size="small" onPress={() => router.push('/insurance/new')} />
-          )}
-        </View>
-        <ThemedText themeColor="textSecondary">Make sure you and your family are covered, today and later.</ThemedText>
-      </View>
-      <UnderlineTabs options={[...TABS]} value={tab} onChange={setTab} />
+      <TabbedHeader
+        title="Plan"
+        description="Make sure you and your family are covered, today and later."
+        options={[...TABS]}
+        value={tab}
+        onChange={setTab}
+        actions={
+          tab === 'insurance' && <Button label="Add policy" size="small" onPress={() => router.push('/insurance/new')} />
+        }
+      />
       {tab === 'insurance' && <InsuranceTab policies={policies} />}
+      {tab === 'profile' && <ProfileTab />}
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  header: { gap: Spacing.one },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },
-});

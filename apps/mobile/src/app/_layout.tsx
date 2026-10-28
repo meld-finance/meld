@@ -26,7 +26,6 @@ function RootNavigator() {
         <Stack.Screen name="account/[id]" />
         <Stack.Screen name="insurance/[id]" />
         <Stack.Screen name="chat/[id]" />
-        <Stack.Screen name="profile" />
         <Stack.Screen name="category/[category]" />
         <Stack.Screen name="rules" />
       </Stack.Protected>

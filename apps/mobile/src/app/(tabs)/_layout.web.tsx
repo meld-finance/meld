@@ -38,24 +38,9 @@ export default function TabLayout() {
               Accounts
             </NavItem>
           </TabTrigger>
-          <TabTrigger name="cashflow" href="/cashflow" asChild>
+          <TabTrigger name="spending" href="/spending" asChild>
             <NavItem icon="barChart" compact={compact}>
-              Cash Flow
-            </NavItem>
-          </TabTrigger>
-          <TabTrigger name="transactions" href="/transactions" asChild>
-            <NavItem icon="receipt" compact={compact}>
-              Transactions
-            </NavItem>
-          </TabTrigger>
-          <TabTrigger name="budget" href="/budget" asChild>
-            <NavItem icon="pie" compact={compact}>
-              Budgets
-            </NavItem>
-          </TabTrigger>
-          <TabTrigger name="investments" href="/investments" asChild>
-            <NavItem icon="chart" compact={compact}>
-              Investments
+              Spending
             </NavItem>
           </TabTrigger>
           <TabTrigger name="plan" href="/plan" asChild>
@@ -84,10 +69,6 @@ function Sidebar({ compact, children, style: _style, ...props }: TabListProps & 
         {!compact && <ThemedText style={styles.brandText}>meld</ThemedText>}
       </View>
       <View style={styles.nav}>{children}</View>
-      <View style={[styles.divider, { backgroundColor: theme.border }]} />
-      <NavItem icon="user" compact={compact} onPress={() => router.push('/profile')}>
-        Profile
-      </NavItem>
       {!compact && (
         <ThemedText type="small" themeColor="textSecondary" style={styles.tagline}>
           All your money.{'\n'}All your goals. One place.
@@ -166,7 +147,7 @@ function TopBar() {
               icon="user"
               onPress={() => {
                 setOpen(false);
-                router.push('/profile');
+                router.push({ pathname: '/plan', params: { tab: 'profile' } });
               }}>
               Profile
             </MenuItem>
@@ -237,7 +218,6 @@ const styles = StyleSheet.create({
   },
   navItemCompact: { paddingHorizontal: Spacing.three, gap: 0 },
   navTextActive: { fontWeight: 600 },
-  divider: { height: 1, marginVertical: Spacing.three, marginHorizontal: Spacing.two, alignSelf: 'stretch' },
   tagline: { marginTop: 'auto', paddingHorizontal: Spacing.two },
   topBar: {
     flexDirection: 'row',

@@ -1,9 +1,9 @@
 import type { InvestmentsSummary } from '@meld/shared';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
+import { Segmented } from '@/components/cashflow/segmented';
 import { Icon } from '@/components/icon';
 import { ExposureTab } from '@/components/investments/exposure-tab';
 import { HoldingsTab } from '@/components/investments/holdings-tab';
@@ -11,24 +11,22 @@ import { IncomeTab } from '@/components/investments/income-tab';
 import { OverviewTab } from '@/components/investments/overview-tab';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { UnderlineTabs } from '@/components/underline-tabs';
 import { Spacing } from '@/constants/theme';
 import { useAccents } from '@/hooks/use-accents';
+import { useTabParam } from '@/hooks/use-tab-param';
 import { useTheme } from '@/hooks/use-theme';
 import { useInvestmentIncome, useInvestments, useProfileSecurities } from '@/lib/queries';
 
-const TABS = [
+const VIEWS = [
   { value: 'overview', label: 'Overview' },
   { value: 'exposure', label: 'Exposure' },
   { value: 'income', label: 'Income' },
   { value: 'holdings', label: 'Holdings' },
 ] as const;
-type Tab = (typeof TABS)[number]['value'];
 
-export default function InvestmentsScreen() {
-  const params = useLocalSearchParams<{ tab?: string }>();
-  const tab: Tab = TABS.some((t) => t.value === params.tab) ? (params.tab as Tab) : 'overview';
-  const setTab = (next: Tab) => router.setParams({ tab: next === 'overview' ? undefined : next });
+/** The portfolio across investment accounts, in four views. */
+export function InvestmentsTab({ header }: { header: ReactNode }) {
+  const [view, setView] = useTabParam(VIEWS, 'view');
 
   const investments = useInvestments();
   const income = useInvestmentIncome();
@@ -50,9 +48,9 @@ export default function InvestmentsScreen() {
   ) : (
     <>
       <LookupStatus data={data!} />
-      {tab === 'overview' && <OverviewTab data={data!} onShowExposure={() => setTab('exposure')} />}
-      {tab === 'exposure' && <ExposureTab data={data!} />}
-      {tab === 'income' &&
+      {view === 'overview' && <OverviewTab data={data!} onShowExposure={() => setView('exposure')} />}
+      {view === 'exposure' && <ExposureTab data={data!} />}
+      {view === 'income' &&
         (income.isPending ? (
           <ThemedText themeColor="textSecondary">Loading…</ThemedText>
         ) : income.isError ? (
@@ -60,17 +58,16 @@ export default function InvestmentsScreen() {
         ) : (
           <IncomeTab income={income.data} summary={data!} />
         ))}
-      {tab === 'holdings' && <HoldingsTab data={data!} />}
+      {view === 'holdings' && <HoldingsTab data={data!} />}
     </>
   );
 
   return (
     <Screen wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-      <View style={styles.header}>
-        <ThemedText type="subtitle">Investments</ThemedText>
-        <ThemedText themeColor="textSecondary">A complete view of your portfolio, with insights for today and your tomorrow.</ThemedText>
+      {header}
+      <View style={styles.views}>
+        <Segmented options={[...VIEWS]} value={view} onChange={setView} />
       </View>
-      <UnderlineTabs options={[...TABS]} value={tab} onChange={setTab} />
       {content}
     </Screen>
   );
@@ -123,7 +120,7 @@ function LookupStatus({ data }: { data: InvestmentsSummary }) {
 }
 
 const styles = StyleSheet.create({
-  header: { gap: Spacing.one },
+  views: { flexDirection: 'row' },
   status: {
     flexDirection: 'row',
     alignItems: 'center',
