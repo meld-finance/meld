@@ -7,6 +7,8 @@ import {
   projectRetirement,
   resolvePlan,
   RetirementPlan,
+  SIMULATION_DEFAULTS,
+  simulateRetirement,
   formatFullRetirementAge,
   socialSecurityAtFullAge,
   TransactionQuery,
@@ -291,7 +293,7 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_retirement_plan',
       description:
-        'The user’s retirement plan from Plan → Retirement: their assumptions (with which ones are Meld’s defaults), the investment accounts counted toward retirement and those left out (education/custodial accounts always; others by the user’s choice), properties the user plans to sell to fund retirement (`assumptions.sales`: sale age, net proceeds after appreciation, selling costs and the mortgage left, and net rent per year until the sale), and a year-by-year projection. All amounts are in today’s dollars with an after-inflation return. `needed` is the balance at retirement age that lasts to life expectancy, `gap` is needed minus projected (≤ 0 means on track), and `extraMonthly` is the added monthly contribution that closes the gap. `socialSecurity` gives the yearly benefit at full retirement age (from the user’s statement, or estimated from profile income when `estimated`); `assumptions.socialSecurityAnnual` is what’s received from the claiming age after the early or delayed adjustment. `annualSpending` is today’s yearly spending; each year’s spending adds the `spendingChanges` under way at that age (signed, from `startAge` up to but not including `endAge`, e.g. kids leaving home or a mortgage paid off; when `childId` names a child from the profile, the ages are that child’s, e.g. a child leaving home at 18; `monthly` only says the user entered it per month, `annualChange` is always yearly) and then falls `spendingDeclinePercent` a year after 75. `spendingChanges` in a what-if replaces the saved list. `projection.spendingAtRetirement` is spending in the first year of retirement. Pass any of the optional inputs to try a what-if scenario without changing the saved plan.',
+        'The user’s retirement plan from Plan → Retirement: their assumptions (with which ones are Meld’s defaults), the investment accounts counted toward retirement and those left out (education/custodial accounts always; others by the user’s choice), properties the user plans to sell to fund retirement (`assumptions.sales`: sale age, net proceeds after appreciation, selling costs and the mortgage left, and net rent per year until the sale), and a year-by-year projection. All amounts are in today’s dollars with an after-inflation return. `needed` is the balance at retirement age that lasts to life expectancy, `gap` is needed minus projected (≤ 0 means on track), and `extraMonthly` is the added monthly contribution that closes the gap. `socialSecurity` gives the yearly benefit at full retirement age (from the user’s statement, or estimated from profile income when `estimated`); `assumptions.socialSecurityAnnual` is what’s received from the claiming age after the early or delayed adjustment. `annualSpending` is today’s yearly spending; each year’s spending adds the `spendingChanges` under way at that age (signed, from `startAge` up to but not including `endAge`, e.g. kids leaving home or a mortgage paid off; when `childId` names a child from the profile, the ages are that child’s, e.g. a child leaving home at 18; `monthly` only says the user entered it per month, `annualChange` is always yearly) and then falls `spendingDeclinePercent` a year after 75. `spendingChanges` in a what-if replaces the saved list. `projection.spendingAtRetirement` is spending in the first year of retirement. Pass any of the optional inputs to try a what-if scenario without changing the saved plan. The plan is the user’s active scenario (`scenario`); `otherScenarios` names the other saved versions they’ve made on Plan → Retirement. `monteCarlo` runs the plan with random yearly returns (lognormal, averaging the expected return, with `volatility` percent standard deviation): `successRate` is the share of trials where the money lasts to life expectancy, and `atRetirement` gives the 10th, 50th and 90th percentile balance at retirement age.',
       input: RetirementPlan.pick({
         retirementAge: true,
         annualContribution: true,
@@ -311,8 +313,11 @@ export function createChatTools(db: Db): ChatTool[] {
         const resolved = resolvePlan(plan, summary);
         if (!resolved.inputs) return { missing: resolved.missing, accounts: summary.accounts };
         const projection = projectRetirement(resolved.inputs);
+        const simulation = simulateRetirement(resolved.inputs, SIMULATION_DEFAULTS);
         const { excludedAccountIds: _e, ...saved } = summary.plan;
         return {
+          scenario: summary.scenario.name,
+          otherScenarios: summary.scenarios.filter((s) => !s.active).map((s) => s.name),
           assumptions: resolved.inputs,
           socialSecurity: {
             ...socialSecurityAtFullAge(plan, summary.defaults, resolved.inputs.retirementAge),
@@ -323,6 +328,13 @@ export function createChatTools(db: Db): ChatTool[] {
             .map(([k]) => k),
           whatIf: Object.keys(whatIf).length ? whatIf : undefined,
           accounts: summary.accounts.map(({ id: _id, ...a }) => a),
+          monteCarlo: {
+            trials: SIMULATION_DEFAULTS.trials,
+            volatility: SIMULATION_DEFAULTS.volatility,
+            successRate: Math.round(simulation.successRate * 1000) / 1000,
+            atRetirement: { p10: simulation.atRetirement.p10, p50: simulation.atRetirement.p50, p90: simulation.atRetirement.p90 },
+            medianDepletionAge: simulation.medianDepletionAge,
+          },
           projection: {
             ...projection,
             // Every five years keeps the result short; the last point shows what's left at the end.

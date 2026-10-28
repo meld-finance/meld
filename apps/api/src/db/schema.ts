@@ -1,4 +1,13 @@
-import type { Child, PropertySale, SecurityProfile, SpendingChange, ValuationSource, VehicleDetails } from '@meld/shared';
+import type {
+  Child,
+  RetirementInputs,
+  RetirementPlan,
+  SecurityProfile,
+  SimulationResult,
+  SimulationSettings,
+  ValuationSource,
+  VehicleDetails,
+} from '@meld/shared';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -314,30 +323,30 @@ export const userProfile = pgTable('user_profile', {
   ...timestamps,
 });
 
-/** Single-row table holding retirement assumptions; nulls fall back to defaults. */
-export const retirementPlan = pgTable('retirement_plan', {
-  id: integer('id').primaryKey().default(1),
-  retirementAge: integer('retirement_age'),
-  lifeExpectancy: integer('life_expectancy'),
-  annualContribution: money('annual_contribution'),
-  /** Percent per year, after inflation. */
-  expectedReturn: numeric('expected_return', { precision: 5, scale: 2, mode: 'number' }),
-  annualSpending: money('annual_spending'),
-  socialSecurityAnnual: money('social_security_annual'),
-  socialSecurityAge: integer('social_security_age'),
-  pensionAnnual: money('pension_annual'),
-  otherSavings: money('other_savings'),
-  /** Percent per year, after inflation. */
-  propertyAppreciation: numeric('property_appreciation', { precision: 5, scale: 2, mode: 'number' }),
-  sellingCostPercent: numeric('selling_cost_percent', { precision: 5, scale: 2, mode: 'number' }),
-  excludedAccountIds: jsonb('excluded_account_ids').$type<string[]>().notNull().default([]),
-  /** PropertySale[]: the properties counted, each with its sale age, mortgage and rent. */
-  properties: jsonb('properties').$type<PropertySale[]>().notNull().default([]),
-  /** Percent per year after 75. */
-  spendingDeclinePercent: numeric('spending_decline_percent', { precision: 5, scale: 2, mode: 'number' }),
-  /** SpendingChange[]: changes to yearly spending by age. */
-  spendingChanges: jsonb('spending_changes').$type<SpendingChange[]>().notNull().default([]),
-  ...timestamps,
+/** Named versions of the retirement plan; exactly one is active once any exist. */
+export const retirementScenarios = pgTable(
+  'retirement_scenarios',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    active: boolean('active').notNull().default(false),
+    /** RetirementPlan; read over EMPTY_RETIREMENT_PLAN so fields added later still parse. */
+    plan: jsonb('plan').$type<RetirementPlan>().notNull(),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex('retirement_scenarios_active_idx').on(t.active).where(sql`${t.active}`)],
+);
+
+/** Saved Monte Carlo runs: a snapshot of the inputs on the day they ran, and what they found. */
+export const retirementSimulations = pgTable('retirement_simulations', {
+  id: id(),
+  scenarioId: uuid('scenario_id')
+    .notNull()
+    .references(() => retirementScenarios.id, { onDelete: 'cascade' }),
+  settings: jsonb('settings').$type<SimulationSettings>().notNull(),
+  inputs: jsonb('inputs').$type<RetirementInputs>().notNull(),
+  result: jsonb('result').$type<SimulationResult>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 // --- AI chat ----------------------------------------------------------------

@@ -28,8 +28,13 @@ import type {
   ProfileResult,
   PropertyEstimate,
   PlaidItemSummary,
+  CreateScenario,
   RetirementPlan,
+  RetirementScenario,
   RetirementSummary,
+  SavedSimulation,
+  SimulationSettings,
+  UpdateScenario,
   SyncResult,
   TransactionPage,
   TransactionQuery,
@@ -38,7 +43,7 @@ import type {
   VehicleDetails,
   VehicleEstimate,
 } from '@meld/shared';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from './api';
 
@@ -66,6 +71,9 @@ export const keys = {
   chatSession: (id: string) => ['chat', 'sessions', id] as const,
   profile: ['profile'] as const,
   retirement: ['retirement'] as const,
+  /** null is the active scenario. */
+  retirementScenario: (id: string | null) => ['retirement', 'scenario', id ?? 'active'] as const,
+  simulations: (scenarioId: string) => ['retirement', 'simulations', scenarioId] as const,
 };
 
 export function useNetWorth() {
@@ -427,15 +435,75 @@ export function useSaveProfile() {
   });
 }
 
-export function useRetirement() {
-  return useQuery({ queryKey: keys.retirement, queryFn: () => api<RetirementSummary>('/retirement') });
+/** A scenario's plan and summary; the active scenario when `scenarioId` is null. */
+export function useRetirement(scenarioId: string | null = null) {
+  return useQuery({
+    queryKey: keys.retirementScenario(scenarioId),
+    queryFn: () => api<RetirementSummary>(scenarioId ? `/retirement?scenario=${scenarioId}` : '/retirement'),
+    // Switching scenarios keeps the last one on screen until the next arrives.
+    placeholderData: keepPreviousData,
+  });
 }
 
-export function useSaveRetirementPlan() {
+export function useSaveRetirementPlan(scenarioId: string | null = null) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (plan: RetirementPlan) => api<RetirementSummary>('/retirement', { method: 'PUT', body: JSON.stringify(plan) }),
-    onSuccess: (saved) => qc.setQueryData(keys.retirement, saved),
+    mutationFn: (plan: RetirementPlan) =>
+      api<RetirementSummary>(scenarioId ? `/retirement?scenario=${scenarioId}` : '/retirement', { method: 'PUT', body: JSON.stringify(plan) }),
+    onSuccess: (saved) => {
+      qc.setQueryData(keys.retirementScenario(scenarioId), saved);
+      // Every summary lists every scenario's plan for comparing.
+      void qc.invalidateQueries({ queryKey: keys.retirement, predicate: (q) => q.queryKey[2] !== (scenarioId ?? 'active') });
+    },
+  });
+}
+
+export function useCreateScenario() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateScenario) => api<RetirementScenario>('/retirement/scenarios', { method: 'POST', body: JSON.stringify(input) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.retirement }),
+  });
+}
+
+export function useUpdateScenario() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: UpdateScenario & { id: string }) =>
+      api<RetirementScenario>(`/retirement/scenarios/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.retirement }),
+  });
+}
+
+export function useDeleteScenario() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/retirement/scenarios/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.retirement }),
+  });
+}
+
+export function useSimulations(scenarioId: string) {
+  return useQuery({
+    queryKey: keys.simulations(scenarioId),
+    queryFn: () => api<SavedSimulation[]>(`/retirement/scenarios/${scenarioId}/simulations`),
+  });
+}
+
+export function useRunSimulation(scenarioId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (settings: SimulationSettings) =>
+      api<SavedSimulation>(`/retirement/scenarios/${scenarioId}/simulations`, { method: 'POST', body: JSON.stringify(settings) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.simulations(scenarioId) }),
+  });
+}
+
+export function useDeleteSimulation(scenarioId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api(`/retirement/simulations/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.simulations(scenarioId) }),
   });
 }
 

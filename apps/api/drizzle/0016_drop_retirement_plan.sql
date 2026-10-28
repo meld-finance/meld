@@ -1,0 +1,1 @@
+DROP TABLE "retirement_plan" CASCADE;

@@ -1,9 +1,18 @@
 import { EMPTY_RETIREMENT_PLAN } from '@meld/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { accounts, liabilities, manualAssets, transactions } from '../db/schema';
+import { accounts, liabilities, manualAssets, retirementSimulations, transactions } from '../db/schema';
 import { setupTestDb, testDatabaseUrl } from '../test/db';
 import { saveProfile } from './profile';
-import { getRetirement, saveRetirementPlan } from './retirement';
+import {
+  createScenario,
+  deleteScenario,
+  getRetirement,
+  listScenarios,
+  listSimulations,
+  runSimulation,
+  saveRetirementPlan,
+  updateScenario,
+} from './retirement';
 
 const TODAY = '2026-10-15';
 
@@ -125,5 +134,81 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
     // Saving again replaces the row.
     await saveRetirementPlan(ctx.db, EMPTY_RETIREMENT_PLAN);
     expect((await getRetirement(ctx.db, TODAY)).plan).toEqual(EMPTY_RETIREMENT_PLAN);
+  });
+
+  it('starts with one active scenario, "My plan"', async () => {
+    const r = await getRetirement(ctx.db, TODAY);
+    expect(r.scenario).toEqual({ id: expect.any(String), name: 'My plan', active: true });
+    expect(r.scenarios).toEqual([{ ...r.scenario, plan: EMPTY_RETIREMENT_PLAN }]);
+    expect(await listScenarios(ctx.db)).toHaveLength(1);
+  });
+
+  it('keeps a plan per scenario, and the active one is the default', async () => {
+    const mine = (await getRetirement(ctx.db, TODAY)).scenario;
+    await saveRetirementPlan(ctx.db, { ...EMPTY_RETIREMENT_PLAN, retirementAge: 65, excludedAccountIds: [ids.house] });
+    const early = await createScenario(ctx.db, { name: 'Retire at 60', copyFrom: mine.id });
+    expect(early.active).toBe(false);
+    // A copy starts from the plan it copies, then goes its own way.
+    expect((await getRetirement(ctx.db, TODAY, early.id)).plan).toMatchObject({ retirementAge: 65, excludedAccountIds: [ids.house] });
+    await saveRetirementPlan(ctx.db, { ...EMPTY_RETIREMENT_PLAN, retirementAge: 60 }, early.id);
+
+    const r = await getRetirement(ctx.db, TODAY, early.id);
+    expect(r.scenario).toEqual({ id: early.id, name: 'Retire at 60', active: false });
+    expect(r.plan.retirementAge).toBe(60);
+    expect(r.accounts.find((a) => a.id === ids.house)?.included).toBe(true);
+    expect((await getRetirement(ctx.db, TODAY)).plan.retirementAge).toBe(65);
+    expect(r.scenarios.map((s) => [s.name, s.plan.retirementAge])).toEqual([
+      ['My plan', 65],
+      ['Retire at 60', 60],
+    ]);
+    const blank = await createScenario(ctx.db, { name: 'Blank', copyFrom: null });
+    expect((await getRetirement(ctx.db, TODAY, blank.id)).plan).toEqual(EMPTY_RETIREMENT_PLAN);
+  });
+
+  it('keeps exactly one scenario active', async () => {
+    const mine = (await getRetirement(ctx.db, TODAY)).scenario;
+    const other = await createScenario(ctx.db, { name: 'Other', copyFrom: null });
+    await updateScenario(ctx.db, other.id, { active: true, name: 'Renamed' });
+    expect((await listScenarios(ctx.db)).map((s) => [s.id, s.name, s.active])).toEqual([
+      [mine.id, 'My plan', false],
+      [other.id, 'Renamed', true],
+    ]);
+    expect((await getRetirement(ctx.db, TODAY)).scenario.id).toBe(other.id);
+  });
+
+  it('won’t delete the last scenario, and deleting the active one makes another active', async () => {
+    const mine = (await getRetirement(ctx.db, TODAY)).scenario;
+    await expect(deleteScenario(ctx.db, mine.id)).rejects.toThrow('Keep at least one scenario');
+    const other = await createScenario(ctx.db, { name: 'Other', copyFrom: null });
+    await deleteScenario(ctx.db, mine.id);
+    expect(await listScenarios(ctx.db)).toEqual([expect.objectContaining({ id: other.id, active: true })]);
+  });
+
+  it('saves a simulation with the inputs it ran on, and drops it with its scenario', async () => {
+    const mine = (await getRetirement(ctx.db, TODAY)).scenario;
+    await expect(runSimulation(ctx.db, mine.id, { trials: 100, volatility: 12, seed: 1 }, TODAY)).rejects.toThrow('birth year');
+    await saveProfile(ctx.db, {
+      displayName: null,
+      birthYear: 1986,
+      filingStatus: null,
+      state: null,
+      dependents: null,
+      children: [],
+      annualGrossIncome: null,
+      occupation: null,
+      employerBenefits: null,
+      goals: null,
+    });
+    const other = await createScenario(ctx.db, { name: 'Other', copyFrom: mine.id });
+    const run = await runSimulation(ctx.db, other.id, { trials: 100, volatility: 12, seed: 1 }, TODAY);
+    expect(run.inputs).toMatchObject({ currentAge: 40, startingBalance: 270000, annualSpending: 3000 });
+    expect(run.result.successRate).toBe(1);
+    expect(run.result.bands[0]).toMatchObject({ age: 40, p50: 270000 });
+    expect(await listSimulations(ctx.db, other.id)).toEqual([run]);
+    expect(await listSimulations(ctx.db, mine.id)).toEqual([]);
+
+    await updateScenario(ctx.db, other.id, { active: true });
+    await deleteScenario(ctx.db, other.id);
+    expect(await ctx.db.select().from(retirementSimulations)).toEqual([]);
   });
 });
