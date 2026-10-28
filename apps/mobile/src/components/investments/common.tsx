@@ -39,20 +39,22 @@ export function StatTile({
   change,
 }: {
   label: string;
-  value: number;
+  /** A number is shown as whole dollars. */
+  value: number | string;
   caption?: string;
   change?: { previous: number; against: string };
 }) {
   const theme = useTheme();
-  const pct = change ? percentChange(value, change.previous) : null;
-  const up = change ? value >= change.previous : true;
+  const amount = typeof value === 'number' ? value : 0;
+  const pct = change ? percentChange(amount, change.previous) : null;
+  const up = change ? amount >= change.previous : true;
   return (
     <View style={[styles.tile, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
       <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>
       <ThemedText style={styles.value} numberOfLines={1}>
-        {formatWholeCurrency(value)}
+        {typeof value === 'number' ? formatWholeCurrency(value) : value}
       </ThemedText>
       {change && pct !== null ? (
         <View style={styles.change}>
