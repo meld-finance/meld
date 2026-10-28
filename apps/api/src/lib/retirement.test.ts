@@ -9,8 +9,11 @@ import {
   remainingLoanBalance,
   resolvePlan,
   saleProceeds,
+  simulateRetirement,
   spendingAt,
+  withPlan,
   type Child,
+  type RetirementAccount,
   type RetirementInputs,
 } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
@@ -286,5 +289,83 @@ describe('Social Security', () => {
     expect(estimateSocialSecurityMonthly(150_000, 65, true)).toBe(5492);
     // At high pay the wage base caps one earner, so one earner plus spouse is lower.
     expect(estimateSocialSecurityMonthly(400_000, 65, true)).toBe(Math.round(1.5 * 4369.46));
+  });
+});
+
+describe('simulateRetirement', () => {
+  const settings = { trials: 500, volatility: 12, seed: 7 };
+
+  it('matches the projection when returns never vary', () => {
+    for (const inputs of [base, { ...base, annualSpending: 30_000 }]) {
+      const p = projectRetirement(inputs);
+      const sim = simulateRetirement(inputs, { ...settings, trials: 100, volatility: 0 });
+      expect(sim.successRate).toBe(p.depletionAge === null ? 1 : 0);
+      expect(sim.medianDepletionAge).toBe(p.depletionAge);
+      expect(sim.bands.map((b) => ({ age: b.age, balance: b.p10 }))).toEqual(p.points);
+      expect(sim.bands.map((b) => b.p90)).toEqual(p.points.map((x) => x.balance));
+      expect(sim.atRetirement.p50).toBe(p.atRetirement);
+    }
+  });
+
+  it('gives the same result for the same seed, and a different one for another', () => {
+    expect(simulateRetirement(base, settings)).toEqual(simulateRetirement(base, settings));
+    expect(simulateRetirement(base, { ...settings, seed: 8 }).bands).not.toEqual(simulateRetirement(base, settings).bands);
+  });
+
+  it('succeeds less often as spending rises', () => {
+    const rate = (annualSpending: number) => simulateRetirement({ ...base, startingBalance: 500_000, annualSpending }, settings).successRate;
+    expect(rate(20_000)).toBeGreaterThan(rate(40_000));
+    expect(rate(40_000)).toBeGreaterThan(rate(60_000));
+    expect(rate(20_000)).toBeLessThanOrEqual(1);
+    expect(rate(1_000_000)).toBe(0);
+  });
+
+  it('averages the expected return', () => {
+    // A year of growth only: the mean balance after it is 100k × (1 + expected return).
+    const sim = simulateRetirement({ ...base, currentAge: 64, retirementAge: 65, lifeExpectancy: 65 }, { ...settings, trials: 10_000 });
+    const after = sim.bands[1]!;
+    expect(after.p50).toBeLessThan(105_000); // lognormal: the median sits below the mean
+    expect(after.p50).toBeGreaterThan(102_000);
+    expect(after.p90 - after.p10).toBeGreaterThan(25_000); // about ±1.28 × 12% × 100k
+    expect(after.p90 - after.p10).toBeLessThan(35_000);
+  });
+
+  it('orders the percentiles and widens with time', () => {
+    const sim = simulateRetirement(base, settings);
+    for (const b of sim.bands) {
+      expect(b.p10).toBeLessThanOrEqual(b.p25);
+      expect(b.p25).toBeLessThanOrEqual(b.p50);
+      expect(b.p50).toBeLessThanOrEqual(b.p75);
+      expect(b.p75).toBeLessThanOrEqual(b.p90);
+    }
+    const spread = (age: number) => {
+      const b = sim.bands.find((x) => x.age === age)!;
+      return b.p90 - b.p10;
+    };
+    expect(spread(60)).toBeGreaterThan(spread(45));
+    expect(sim.endingBalance).toEqual(expect.objectContaining({ p50: sim.bands.at(-1)!.p50 }));
+  });
+});
+
+describe('withPlan', () => {
+  const account = (id: string, excludedReason: RetirementAccount['excludedReason']): RetirementAccount => ({
+    id,
+    name: id,
+    institutionName: null,
+    subtype: excludedReason === 'education' ? '529' : '401k',
+    taxTreatment: 'unknown',
+    value: 1000,
+    included: excludedReason === null,
+    excludedReason,
+  });
+
+  it('counts accounts as another plan does, leaving education accounts out', () => {
+    const summary = { accounts: [account('a', 'user'), account('b', null), account('c', 'education')] };
+    const counted = withPlan(summary, { excludedAccountIds: ['b', 'c'] }).accounts;
+    expect(counted.map((a) => [a.id, a.included, a.excludedReason])).toEqual([
+      ['a', true, null],
+      ['b', false, 'user'],
+      ['c', false, 'education'],
+    ]);
   });
 });

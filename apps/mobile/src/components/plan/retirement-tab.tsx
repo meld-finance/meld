@@ -31,7 +31,9 @@ import { Chip } from '@/components/chip';
 import { RetirementProjection } from '@/components/charts/retirement-projection';
 import { Dropdown } from '@/components/dropdown';
 import { InsightCallout, StatTile, TileRow } from '@/components/investments/common';
+import { MonteCarlo } from '@/components/plan/monte-carlo';
 import { Field, Input, Row } from '@/components/plan/profile-tab';
+import { ScenarioBar, ScenarioCompare } from '@/components/plan/scenarios';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -125,16 +127,37 @@ const SSA_ACCOUNT_URL = 'https://www.ssa.gov/myaccount/';
 
 /** Projection, gap and assumptions for retirement, in today's dollars. */
 export function RetirementTab({ onShowProfile }: { onShowProfile: () => void }) {
-  const retirement = useRetirement();
+  // null is the active scenario.
+  const [scenarioId, setScenarioId] = useState<string | null>(null);
+  const retirement = useRetirement(scenarioId);
   if (retirement.isPending) return <ThemedText themeColor="textSecondary">Loading…</ThemedText>;
   if (retirement.isError) {
     return <ThemedText themeColor="negative">Couldn’t load your retirement plan: {retirement.error.message}</ThemedText>;
   }
-  return <RetirementPlanner summary={retirement.data} onShowProfile={onShowProfile} />;
+  return (
+    // A new scenario starts its drafts afresh.
+    <RetirementPlanner
+      key={retirement.data.scenario.id}
+      summary={retirement.data}
+      scenarioId={scenarioId}
+      onSelectScenario={setScenarioId}
+      onShowProfile={onShowProfile}
+    />
+  );
 }
 
-function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSummary; onShowProfile: () => void }) {
-  const save = useSaveRetirementPlan();
+function RetirementPlanner({
+  summary,
+  scenarioId,
+  onSelectScenario,
+  onShowProfile,
+}: {
+  summary: RetirementSummary;
+  scenarioId: string | null;
+  onSelectScenario: (id: string | null) => void;
+  onShowProfile: () => void;
+}) {
+  const save = useSaveRetirementPlan(scenarioId);
   const [text, setText] = useState(() => Object.fromEntries(FIELDS.map((f) => [f, toText(f, summary.plan[f])])) as Record<NumberField, string>);
   const [properties, setProperties] = useState<Record<string, PropertyDraft>>(() =>
     Object.fromEntries(
@@ -334,6 +357,8 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
 
   return (
     <>
+      <ScenarioBar summary={summary} dirty={dirty} onSelect={onSelectScenario} />
+
       <ThemedText type="small" themeColor="textSecondary">
         Everything is in today’s dollars: returns are after inflation, so a dollar here buys what a dollar buys now.
       </ThemedText>
@@ -380,6 +405,10 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
               }
               action="Ask Meld"
             />
+            <MonteCarlo scenarioId={summary.scenario.id} inputs={resolved.inputs} dirty={dirty} />
+            {summary.scenarios.length > 1 && (
+              <ScenarioCompare summary={summary} draft={draft} dirty={dirty} onSelect={onSelectScenario} />
+            )}
           </View>
         )}
 

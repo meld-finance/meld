@@ -132,7 +132,35 @@ export const RetirementMortgage = z.object({
 });
 export type RetirementMortgage = z.infer<typeof RetirementMortgage>;
 
+/** A named version of the plan. One is active: the one Ask Meld and the rest of Meld use. */
+export const RetirementScenario = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  active: z.boolean(),
+});
+export type RetirementScenario = z.infer<typeof RetirementScenario>;
+
+export const ScenarioName = z.string().trim().min(1).max(60);
+
+export const CreateScenario = z.object({
+  name: ScenarioName,
+  /** A scenario whose plan to copy; empty starts from scratch. */
+  copyFrom: z.string().uuid().nullable().default(null),
+});
+export type CreateScenario = z.infer<typeof CreateScenario>;
+
+export const UpdateScenario = z.object({
+  name: ScenarioName.optional(),
+  /** Only true: making another scenario active is how this one stops being. */
+  active: z.literal(true).optional(),
+});
+export type UpdateScenario = z.infer<typeof UpdateScenario>;
+
 export const RetirementSummary = z.object({
+  /** The scenario `plan` belongs to. */
+  scenario: RetirementScenario,
+  /** Every scenario with its plan, oldest first, for comparing. */
+  scenarios: z.array(RetirementScenario.extend({ plan: RetirementPlan })),
   plan: RetirementPlan,
   /** What Meld fills in when a field is left empty; null when it can't tell. */
   defaults: z.object({
@@ -213,6 +241,19 @@ export type MissingInput = 'birth year' | 'retirement spending';
 export type ResolvedPlan = { inputs: RetirementInputs | null; missing: MissingInput[] };
 
 type SummaryParts = Pick<RetirementSummary, 'defaults' | 'accounts' | 'properties' | 'mortgages'>;
+
+/** The summary's accounts as another scenario's plan counts them. */
+export function withPlan<T extends Pick<RetirementSummary, 'accounts'>>(summary: T, plan: Pick<RetirementPlan, 'excludedAccountIds'>): T {
+  const excluded = new Set(plan.excludedAccountIds);
+  return {
+    ...summary,
+    accounts: summary.accounts.map((a) => {
+      if (a.excludedReason === 'education') return a;
+      const out = excluded.has(a.id);
+      return { ...a, included: !out, excludedReason: out ? 'user' : null };
+    }),
+  };
+}
 
 /** Counted balance: included accounts plus other savings. */
 export function retirementBalance(summary: Pick<RetirementSummary, 'accounts'>, plan: Pick<RetirementPlan, 'otherSavings'>) {
@@ -347,6 +388,17 @@ function withdrawalAt(i: RetirementInputs, age: number) {
 }
 
 /**
+ * One year from `age` to the next, at return `r`. Before retirement the balance grows, then the year's
+ * contribution and rent go in; in retirement the year's withdrawal comes out first and the rest grows.
+ * `short` when the balance can't cover the withdrawal. Sales are added by the caller at the start of a year.
+ */
+function stepYear(i: RetirementInputs, age: number, balance: number, r: number): { balance: number; short: boolean } {
+  if (age < i.retirementAge) return { balance: balance * (1 + r) + i.annualContribution + rentAt(i, age), short: false };
+  const need = withdrawalAt(i, age);
+  return { balance: Math.max(0, balance - need) * (1 + r), short: need > balance + 0.005 };
+}
+
+/**
  * Year-by-year projection in today's dollars. A property sold at an age adds its proceeds at the start
  * of that year. Before retirement, a year's growth is followed by that year's contribution and rent; in
  * retirement, the year's withdrawal comes out first and the rest grows.
@@ -364,13 +416,9 @@ export function projectRetirement(i: RetirementInputs): RetirementProjection {
     points.push({ age, balance: Math.round(balance) });
     if (age === start) atRetirement = balance;
     if (age === i.lifeExpectancy) break;
-    if (age < i.retirementAge) {
-      balance = balance * (1 + r) + i.annualContribution + rentAt(i, age);
-    } else {
-      const need = withdrawalAt(i, age);
-      if (need > balance + 0.005 && depletionAge === null) depletionAge = age;
-      balance = Math.max(0, balance - need) * (1 + r);
-    }
+    const step = stepYear(i, age, balance, r);
+    if (step.short && depletionAge === null) depletionAge = age;
+    balance = step.balance;
   }
 
   // Present value at retirement of each year's withdrawal, less sales after retirement, mirroring the loop.
@@ -403,6 +451,133 @@ export function projectRetirement(i: RetirementInputs): RetirementProjection {
     gap,
     extraMonthly,
     depletionAge,
+  };
+}
+
+// --- Monte Carlo -------------------------------------------------------------
+
+export const SimulationSettings = z.object({
+  trials: z.number().int().min(100).max(10_000),
+  /** Standard deviation of yearly returns, in percent. */
+  volatility: z.number().min(0).max(40),
+  /** The same seed and inputs always give the same result. */
+  seed: z.number().int().min(0).max(0xffffffff),
+});
+export type SimulationSettings = z.infer<typeof SimulationSettings>;
+
+export const SIMULATION_DEFAULTS: SimulationSettings = {
+  trials: 1000,
+  /** Roughly a stock-heavy mix; about 6–8 for a balanced one. */
+  volatility: 12,
+  seed: 1,
+};
+
+export const Percentiles = z.object({
+  p10: z.number(),
+  p25: z.number(),
+  p50: z.number(),
+  p75: z.number(),
+  p90: z.number(),
+});
+export type Percentiles = z.infer<typeof Percentiles>;
+
+export const SimulationResult = z.object({
+  /** Share of trials, 0–1, where the money covers every year's spending to life expectancy. */
+  successRate: z.number(),
+  /** Balance at the start of each age across trials, like RetirementProjection['points']. */
+  bands: z.array(Percentiles.extend({ age: z.number() })),
+  /** Balance on reaching retirement age. */
+  atRetirement: Percentiles,
+  /** Balance left at life expectancy. */
+  endingBalance: Percentiles,
+  /** Median first age the money runs short, among trials where it does; null if none do. */
+  medianDepletionAge: z.number().nullable(),
+});
+export type SimulationResult = z.infer<typeof SimulationResult>;
+
+/** A saved run: what it was given and what it found, as of the day it ran. */
+export type SavedSimulation = {
+  id: string;
+  scenarioId: string;
+  settings: SimulationSettings;
+  inputs: RetirementInputs;
+  result: SimulationResult;
+  createdAt: string;
+};
+
+/** Seeded uniform numbers in [0, 1) (mulberry32). */
+function random(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Standard normal numbers from uniform ones (Box–Muller). */
+function normal(uniform: () => number) {
+  return () => Math.sqrt(-2 * Math.log(1 - uniform())) * Math.cos(2 * Math.PI * uniform());
+}
+
+/** Linear-interpolated percentile of sorted values. */
+function percentile(sorted: Float64Array, q: number) {
+  const at = (sorted.length - 1) * q;
+  const lo = Math.floor(at);
+  const hi = Math.min(lo + 1, sorted.length - 1);
+  return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (at - lo);
+}
+
+function percentiles(values: Float64Array): Percentiles {
+  const sorted = values.slice().sort();
+  const p = (q: number) => Math.round(percentile(sorted, q));
+  return { p10: p(0.1), p25: p(0.25), p50: p(0.5), p75: p(0.75), p90: p(0.9) };
+}
+
+/**
+ * Runs the projection many times with a random return each year. Returns are lognormal with an average
+ * of `expectedReturn` and a standard deviation of about `volatility`, so a run of bad years early in
+ * retirement shows up the way it does in real markets. With no volatility it matches projectRetirement.
+ */
+export function simulateRetirement(i: RetirementInputs, settings: SimulationSettings): SimulationResult {
+  const m = i.expectedReturn / 100;
+  // Lognormal with mean m and standard deviation s: ln(1+R) ~ N(μ, σ²).
+  const s = settings.volatility / 100;
+  const sigma = Math.sqrt(Math.log(1 + (s / (1 + m)) ** 2));
+  const mu = Math.log(1 + m) - sigma ** 2 / 2;
+  const z = normal(random(settings.seed));
+  const draw = sigma === 0 ? () => m : () => Math.exp(mu + sigma * z()) - 1;
+
+  const years = i.lifeExpectancy - i.currentAge + 1;
+  const start = Math.max(i.retirementAge, i.currentAge);
+  // balances[y][t]: balance at the start of year y in trial t.
+  const balances = Array.from({ length: years }, () => new Float64Array(settings.trials));
+  const depletions: number[] = [];
+
+  for (let t = 0; t < settings.trials; t++) {
+    let balance = i.startingBalance;
+    let depleted: number | null = null;
+    for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
+      balance += salesAt(i, age);
+      balances[age - i.currentAge]![t] = balance;
+      if (age === i.lifeExpectancy) break;
+      const step = stepYear(i, age, balance, draw());
+      if (step.short && depleted === null) depleted = age;
+      balance = step.balance;
+    }
+    if (depleted !== null) depletions.push(depleted);
+  }
+
+  const bands = balances.map((b, y) => ({ age: i.currentAge + y, ...percentiles(b) }));
+  depletions.sort((a, b) => a - b);
+  return {
+    successRate: 1 - depletions.length / settings.trials,
+    bands,
+    atRetirement: percentiles(balances[start - i.currentAge]!),
+    endingBalance: percentiles(balances[years - 1]!),
+    medianDepletionAge: depletions.length ? depletions[Math.floor((depletions.length - 1) / 2)]! : null,
   };
 }
 
