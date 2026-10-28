@@ -120,6 +120,13 @@
       "when": 1793198640142,
       "tag": "0016_drop_retirement_plan",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793208072428,
+      "tag": "0017_price_history",
+      "breakpoints": true
     }
   ]
 }

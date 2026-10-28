@@ -21,6 +21,7 @@ import { localDate } from '../lib/networth';
 import { listAccounts, listLiabilities } from '../services/accounts';
 import { listPolicies } from '../services/insurance';
 import { getInvestmentsSummary } from '../services/investments';
+import { getInvestmentPerformance } from '../services/performance';
 import {
   getBudgetStatus,
   getCashflow,
@@ -244,6 +245,17 @@ export function createChatTools(db: Db): ChatTool[] {
             unrealizedGain: h.value !== null && h.costBasis !== null ? Math.round((h.value - h.costBasis) * 100) / 100 : null,
           })),
         };
+      },
+    }),
+    tool({
+      name: 'get_investment_performance',
+      description:
+        'How investments grew, with deposits and withdrawals kept apart from market gains, for 1 month, 3 months, year to date, 1 year, all history (up to 2 years) and each calendar year, in total and by account. `gain` is what markets, dividends and interest earned (end − start − contributions + withdrawals); `return` is the time-weighted return as a fraction and `annualized` its yearly rate (periods of a year or more). Values before `estimatedBefore` are estimated from transactions and market prices; holdings in `approximated` lack market prices, and accounts in `limitedHistory` have little transaction history, so treat those figures as rough. Values are the user\'s ownership share.',
+      input: z.object({}),
+      label: () => 'Checked investment performance',
+      run: async () => {
+        const { points: _points, ...performance } = await getInvestmentPerformance(db);
+        return performance;
       },
     }),
     tool({

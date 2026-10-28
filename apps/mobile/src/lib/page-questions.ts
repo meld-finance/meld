@@ -36,6 +36,7 @@ const BY_PAGE: Record<string, PageQuestions> = {
     page: 'your investments',
     questions: [
       'Is my asset allocation right for my age?',
+      'How much of my portfolio growth came from markets vs. my own contributions?',
       'Am I too concentrated in any single stock or sector?',
       'Any tax-loss harvesting opportunities in my portfolio?',
       'Are my fund fees reasonable?',

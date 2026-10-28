@@ -242,3 +242,57 @@ export const InvestmentIncome = z.object({
   byAccount: z.array(IncomeTotals.extend({ accountId: z.string().uuid(), accountName: z.string() })),
 });
 export type InvestmentIncome = z.infer<typeof InvestmentIncome>;
+
+// --- Performance ----------------------------------------------------------------
+
+/** What came from markets vs. what you put in or took out, over one stretch of time. */
+export const PerformanceTotals = z.object({
+  startValue: z.number(),
+  endValue: z.number(),
+  /** Money added: deposits, contributions and shares transferred in. */
+  contributions: z.number(),
+  /** Money taken out, as a positive number. */
+  withdrawals: z.number(),
+  /** endValue − startValue − (contributions − withdrawals): what markets, dividends and interest earned. */
+  gain: z.number(),
+  /** Time-weighted return as a fraction (0.1 = 10%): growth with the timing and size of deposits taken out. */
+  return: z.number().nullable(),
+});
+export type PerformanceTotals = z.infer<typeof PerformanceTotals>;
+
+export const PerformancePeriod = PerformanceTotals.extend({
+  /** 1m, 3m, ytd, 1y, all, or a calendar year like 2025. */
+  key: z.string(),
+  label: z.string(),
+  start: z.string(),
+  end: z.string(),
+  /** The return as a yearly rate; null for stretches under a year. */
+  annualized: z.number().nullable(),
+  byAccount: z.array(PerformanceTotals.extend({ accountId: z.string().uuid(), accountName: z.string() })),
+});
+export type PerformancePeriod = z.infer<typeof PerformancePeriod>;
+
+export const PerformancePoint = z.object({
+  date: z.string(),
+  value: z.number(),
+  /** Net money in (+) or out (−) that day. */
+  flow: z.number(),
+  /** Growth of $1 invested at the start, from time-weighted returns. */
+  index: z.number(),
+});
+export type PerformancePoint = z.infer<typeof PerformancePoint>;
+
+/** Investment growth separated from deposits and withdrawals, at your ownership share. */
+export const InvestmentPerformance = z.object({
+  asOf: z.string(),
+  /** Daily, oldest first. */
+  points: z.array(PerformancePoint),
+  periods: z.array(PerformancePeriod),
+  /** Values before this date are estimated from transactions and market prices; from it on they're recorded balances. */
+  estimatedBefore: z.string().nullable(),
+  /** Holdings with no market price history, valued from prices in their own transactions instead. */
+  approximated: z.array(z.string()),
+  /** Accounts whose transactions start well after the rest (or never do); earlier values assume no trades or deposits. */
+  limitedHistory: z.array(z.object({ accountName: z.string(), since: z.string().nullable() })),
+});
+export type InvestmentPerformance = z.infer<typeof InvestmentPerformance>;
