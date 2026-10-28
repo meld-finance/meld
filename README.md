@@ -83,7 +83,7 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts a
 
 ## Ask Meld (AI chat)
 
-- **Ask Meld** answers questions about your money: spending, debt payoff, investments, tax moves, insurance gaps. Answers stream in and conversations are saved. On web it's a panel that opens beside whatever page you're on (Ask Meld in the sidebar), with suggestions and recent conversations; on phones it's the Ask Meld tab.
+- **Ask Meld** answers questions about your money: spending, debt payoff, investments, tax moves, insurance gaps. Answers stream in and conversations are saved. The Ask Meld page lists past conversations. On web, the sparkle button next to your name opens a chat panel beside the page you're on, with questions about that page.
 - The AI looks things up with read-only tools (accounts, transactions, totals by merchant or category, cash flow, budgets, holdings, investment activity, loan terms, insurance, profile). It can't change anything. Each new conversation also starts with a short snapshot of your balances and profile.
 - Add your income, filing status, state, age and employer benefits under **Plan → Profile** (also in the account menu on web) for better tax and insurance answers.
 - Uses Claude through a provider interface in `apps/api/src/ai/provider.ts`, so other providers can be added. Chat defaults to `ANTHROPIC_CHAT_MODEL` (default `claude-sonnet-5-5`), property value lookups use `ANTHROPIC_LOOKUP_MODEL` (default `claude-haiku-5-5`), and policy PDF extraction `ANTHROPIC_MODEL` (default `claude-opus-5-5`).
