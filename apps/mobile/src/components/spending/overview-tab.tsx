@@ -103,6 +103,7 @@ export function OverviewTab({ header }: { header: ReactNode }) {
               data!.categories.filter((c) => c.amount > 0),
               slots,
             )}
+            others={data!.categories.filter((c) => c.amount > 0 && !slots.has(c.category))}
             total={data!.spending}
             slots={slots}
             periodLabel={p.label}
