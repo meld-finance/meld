@@ -30,7 +30,7 @@ function TabNavigator() {
   const compact = useWindowDimensions().width < COMPACT_BELOW;
   const panel = useChatPanel();
   // Hidden rather than unmounted, so the page keeps its scroll and state under an expanded chat.
-  const pageHidden = !!panel?.chat && panel.expanded;
+  const pageHidden = !!panel?.isOpen && panel.expanded;
   return (
     <Tabs style={styles.root}>
       {/* TabTriggers must be the sidebar's direct children so Tabs can discover them. */}
@@ -41,11 +41,15 @@ function TabNavigator() {
               Home
             </NavItem>
           </TabTrigger>
-          <TabTrigger name="ask" href="/ask" asChild>
-            <NavItem icon="sparkles" compact={compact}>
-              Ask Meld
-            </NavItem>
-          </TabTrigger>
+          {/* Ask Meld is the chat panel on web; the hidden trigger keeps /ask routable (it opens the panel). */}
+          <TabTrigger name="ask" href="/ask" style={styles.hidden} />
+          <NavItem
+            icon="sparkles"
+            compact={compact}
+            isFocused={!!panel?.isOpen}
+            onPress={() => (panel?.isOpen ? panel.close() : panel?.openHome())}>
+            Ask Meld
+          </NavItem>
           <TabTrigger name="accounts" href="/accounts" asChild>
             <NavItem icon="wallet" compact={compact}>
               Accounts

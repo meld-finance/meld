@@ -1,10 +1,10 @@
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useAccents } from '@/hooks/use-accents';
+import { useOpenAsk } from '@/hooks/use-open-ask';
 import { useStartChat } from '@/hooks/use-start-chat';
 import { useTheme } from '@/hooks/use-theme';
 import type { Insight } from '@/lib/cashflow';
@@ -14,6 +14,7 @@ export function InsightsPanel({ insights, style }: { insights: Insight[]; style?
   const theme = useTheme();
   const accents = useAccents();
   const chat = useStartChat();
+  const openAsk = useOpenAsk();
 
   return (
     <View style={[styles.panel, { backgroundColor: accents.blue.bg, borderColor: theme.border }, style]}>
@@ -66,7 +67,7 @@ export function InsightsPanel({ insights, style }: { insights: Insight[]; style?
 
       <Pressable
         accessibilityRole="link"
-        onPress={() => router.push('/ask')}
+        onPress={openAsk}
         style={({ hovered, pressed }) => [
           styles.askButton,
           { backgroundColor: theme.backgroundElement, borderColor: hovered ? accents.blue.fg : theme.border },
