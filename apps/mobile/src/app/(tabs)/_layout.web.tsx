@@ -15,7 +15,7 @@ import { useProfile } from '@/lib/queries';
 /** Below this window width the sidebar collapses to an icon rail. */
 const COMPACT_BELOW = 1000;
 
-// Web: a left sidebar instead of a bottom tab bar.
+// Web: a left sidebar instead of a bottom tab bar. Keep the order in step with _layout.tsx.
 export default function TabLayout() {
   const compact = useWindowDimensions().width < COMPACT_BELOW;
   return (
@@ -26,6 +26,11 @@ export default function TabLayout() {
           <TabTrigger name="index" href="/" asChild>
             <NavItem icon="home" compact={compact}>
               Home
+            </NavItem>
+          </TabTrigger>
+          <TabTrigger name="ask" href="/ask" asChild>
+            <NavItem icon="sparkles" compact={compact}>
+              Ask Meld
             </NavItem>
           </TabTrigger>
           <TabTrigger name="accounts" href="/accounts" asChild>
@@ -43,24 +48,19 @@ export default function TabLayout() {
               Transactions
             </NavItem>
           </TabTrigger>
+          <TabTrigger name="budget" href="/budget" asChild>
+            <NavItem icon="pie" compact={compact}>
+              Budgets
+            </NavItem>
+          </TabTrigger>
           <TabTrigger name="investments" href="/investments" asChild>
             <NavItem icon="chart" compact={compact}>
               Investments
             </NavItem>
           </TabTrigger>
-          <TabTrigger name="budget" href="/budget" asChild>
-            <NavItem icon="pie" compact={compact}>
-              Budget
-            </NavItem>
-          </TabTrigger>
-          <TabTrigger name="insurance" href="/insurance" asChild>
-            <NavItem icon="shield" compact={compact}>
-              Insurance
-            </NavItem>
-          </TabTrigger>
-          <TabTrigger name="ask" href="/ask" asChild>
-            <NavItem icon="sparkles" compact={compact}>
-              Assistant
+          <TabTrigger name="plan" href="/plan" asChild>
+            <NavItem icon="flag" compact={compact}>
+              Plan
             </NavItem>
           </TabTrigger>
         </Sidebar>

@@ -71,7 +71,7 @@ function buildTiles(summary: NetWorthSummary, accounts: Account[], policies: Ins
         (policies.length ? plural(policies.length, 'policy', 'policies') : 'Add a policy'),
       icon: 'shield',
       accent: 'teal',
-      href: '/insurance',
+      href: '/plan',
     });
   }
 

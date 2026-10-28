@@ -10,16 +10,14 @@ import {
   type InsurancePolicy,
 } from '@meld/shared';
 import { router } from 'expo-router';
-import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Button } from '@/components/button';
 import { Card } from '@/components/card';
-import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { formatCurrency, formatDate, formatWholeCurrency } from '@/lib/format';
 import { FREQUENCY_SUFFIX, POLICY_TYPE_LABELS } from '@/lib/insurance';
-import { useInsurancePolicies } from '@/lib/queries';
+import type { useInsurancePolicies } from '@/lib/queries';
 
 const GROUPS: { label: string; match: (p: InsurancePolicy) => boolean }[] = [
   { label: 'Life', match: (p) => isLifePolicy(p.type) },
@@ -29,43 +27,37 @@ const GROUPS: { label: string; match: (p: InsurancePolicy) => boolean }[] = [
 
 const today = () => new Date().toLocaleDateString('en-CA');
 
-export default function InsuranceScreen() {
-  const policies = useInsurancePolicies();
-  const add = <Button label="Add policy" size="small" onPress={() => router.push('/insurance/new')} />;
-
+/** Life and disability coverage, totals first. The Plan screen owns the query and the Add button. */
+export function InsuranceTab({ policies }: { policies: ReturnType<typeof useInsurancePolicies> }) {
+  if (policies.isPending) return <ThemedText themeColor="textSecondary">Loading…</ThemedText>;
+  if (policies.isError) {
+    return <ThemedText themeColor="negative">Couldn’t load policies: {policies.error.message}</ThemedText>;
+  }
+  if (policies.data.length === 0) {
+    return (
+      <Card title="No policies yet">
+        <ThemedText type="small" themeColor="textSecondary">
+          Add your life and disability insurance, including coverage through work, so Meld can include it in your
+          financial picture. Upload a policy PDF or benefits summary to fill in the details automatically, or enter them
+          by hand.
+        </ThemedText>
+      </Card>
+    );
+  }
   return (
-    <Screen
-      title="Insurance"
-      actions={add}
-      refreshControl={<RefreshControl refreshing={policies.isRefetching} onRefresh={() => void policies.refetch()} />}>
-      {policies.isPending ? (
-        <ThemedText themeColor="textSecondary">Loading…</ThemedText>
-      ) : policies.isError ? (
-        <ThemedText themeColor="negative">Couldn’t load policies: {policies.error.message}</ThemedText>
-      ) : policies.data.length === 0 ? (
-        <Card title="No policies yet">
-          <ThemedText type="small" themeColor="textSecondary">
-            Add your life and disability insurance, including coverage through work, so Meld can include it in your
-            financial picture. Upload a policy PDF or benefits summary to fill in the details automatically, or enter
-            them by hand.
-          </ThemedText>
-        </Card>
-      ) : (
-        <>
-          <Totals policies={policies.data} />
-          {GROUPS.map(({ label, match }) => {
-            const group = policies.data.filter(match);
-            return group.length ? (
-              <Card key={label} title={label}>
-                {group.map((p) => (
-                  <PolicyRow key={p.id} policy={p} />
-                ))}
-              </Card>
-            ) : null;
-          })}
-        </>
-      )}
-    </Screen>
+    <>
+      <Totals policies={policies.data} />
+      {GROUPS.map(({ label, match }) => {
+        const group = policies.data.filter(match);
+        return group.length ? (
+          <Card key={label} title={label}>
+            {group.map((p) => (
+              <PolicyRow key={p.id} policy={p} />
+            ))}
+          </Card>
+        ) : null;
+      })}
+    </>
   );
 }
 

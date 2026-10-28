@@ -45,11 +45,11 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 
 ## Overview & budgets
 
-- **Net worth** = linked balances + manual assets (home, vehicles; add them on the Accounts tab) − credit, loan and mortgage balances. Meld records one snapshot per day (after each sync and every 6 hours), so the trend line starts after the second day.
+- **Net worth** = linked balances + manual assets (home, vehicles; add them on the Accounts tab) + life insurance cash surrender value − credit, loan and mortgage balances. Meld records one snapshot per day (after each sync and every 6 hours), so the trend line starts after the second day.
 - **Cash flow** counts cash and credit card accounts only. Transfers between your accounts and credit card payments are excluded, so card purchases aren't double counted. Income is anything categorized `INCOME`; spending is everything else, net of refunds. Recategorize a transaction to change where it counts.
 - **Drill into a category** by tapping it on the Cash Flow tab (Spending Breakdown, Top Movers, Where You Spend the Most): spending by subcategory and merchant against a year earlier, and the transactions behind it. Subcategories are Plaid's detailed categories (e.g. Groceries vs. Restaurants under Food and drink) unless you set your own.
 - **Recategorize** by tapping any transaction: pick a category and subcategory, or type new ones. Turn on **Always categorize matching transactions this way** to create a rule: new transactions whose merchant or description contains the text you give are categorized as they sync, and optionally past matches you haven't changed by hand are updated too. The longest matching pattern wins, and a hand edit always overrides a rule. Manage rules from **Transactions → Rules**; deleting one puts its transactions back to their original category.
-- **Budgets** are monthly targets per category, set on the Budget tab.
+- **Budgets** are monthly targets per category, set on the Budgets page.
 
 ## Investments & loans
 
@@ -60,18 +60,20 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 - **Hide from totals** on an account's page excludes it from net worth, cash flow, budgets and lists (e.g. a closed or duplicate account). Hidden accounts are listed at the bottom of the Accounts tab.
 - Full account numbers that Plaid returns for loans are dropped before storage.
 
-## Insurance
+## Plan: insurance
 
-- Add life and disability policies on the **Insurance** tab, including coverage through work. The tab totals your life coverage, monthly disability benefit and yearly premiums. Term policies past their end date aren't counted.
+- **Plan** is for protecting and planning ahead; it starts with insurance, and retirement planning will join it.
+- Add life and disability policies under **Plan → Insurance**, including coverage through work. It totals your life coverage, monthly disability benefit and yearly premiums. Term policies past their end date aren't counted.
+- Whole and universal life policies count toward net worth at their surrender value, and are listed under **Insurance cash value** on the Accounts tab, which links back to each policy.
 - **Upload PDF** on the Add policy page sends a policy, certificate or benefits summary to the AI provider (Claude by default), which fills in the form and flags anything it inferred or couldn't find. Nothing is saved until you check the fields and press **Save**. Needs `ANTHROPIC_API_KEY`.
 - Uploaded PDFs are stored in `data/documents/` (gitignored; change with `DOCUMENTS_DIR`). A PDF is deleted with its policy, when you cancel the draft, or after a day if it was never saved.
 - Only the last 4 characters of policy numbers are stored.
 
-## Ask (AI chat)
+## Ask Meld (AI chat)
 
-- The **Ask** tab answers questions about your money: spending, debt payoff, investments, tax moves, insurance gaps. Answers stream in and conversations are saved.
+- The **Ask Meld** tab answers questions about your money: spending, debt payoff, investments, tax moves, insurance gaps. Answers stream in and conversations are saved.
 - The AI looks things up with read-only tools (accounts, transactions, totals by merchant or category, cash flow, budgets, holdings, investment activity, loan terms, insurance, profile). It can't change anything. Each new conversation also starts with a short snapshot of your balances and profile.
-- Add your income, filing status, state, age and employer benefits under **Ask → Profile** for better tax and insurance answers.
+- Add your income, filing status, state, age and employer benefits under **Ask Meld → Profile** (also in the account menu) for better tax and insurance answers.
 - Uses Claude through a provider interface in `apps/api/src/ai/provider.ts`, so other providers can be added. Chat uses `ANTHROPIC_CHAT_MODEL` (default `claude-sonnet-5-5`), property value lookups `ANTHROPIC_LOOKUP_MODEL` (default `claude-haiku-5-5`), and policy PDF extraction `ANTHROPIC_MODEL` (default `claude-opus-5-5`).
 - Privacy: your question and the data the AI looks up are sent to Anthropic. Long digit runs (account, card and policy numbers) are masked first.
 

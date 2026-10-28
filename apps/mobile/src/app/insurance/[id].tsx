@@ -15,7 +15,7 @@ import { pickPdf } from '@/lib/pick-pdf';
 import { POLICY_TYPE_LABELS } from '@/lib/insurance';
 import { discardDocument, useDeletePolicy, useExtractPolicy, useInsurancePolicy, useSavePolicy } from '@/lib/queries';
 
-const goBack = () => (router.canGoBack() ? router.back() : router.replace('/insurance'));
+const goBack = () => (router.canGoBack() ? router.back() : router.replace('/plan'));
 
 export default function PolicyScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
