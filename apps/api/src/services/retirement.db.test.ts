@@ -59,11 +59,11 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
   });
 
   it('defaults age from the profile and spending from the last 12 full months', async () => {
-    expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({ currentAge: null, annualSpending: 3000, annualIncome: null });
+    expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({ currentAge: null, birthYear: null, married: false, annualSpending: 3000, annualIncome: null });
     await saveProfile(ctx.db, {
       displayName: null,
       birthYear: 1986,
-      filingStatus: null,
+      filingStatus: 'married_joint',
       state: null,
       dependents: null,
       annualGrossIncome: 180000,
@@ -71,7 +71,13 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
       employerBenefits: null,
       goals: null,
     });
-    expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({ currentAge: 40, annualSpending: 3000, annualIncome: 180000 });
+    expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({
+      currentAge: 40,
+      birthYear: 1986,
+      married: true,
+      annualSpending: 3000,
+      annualIncome: 180000,
+    });
   });
 
   it('lists homes at your share and mortgages with your share of balance and payment', async () => {

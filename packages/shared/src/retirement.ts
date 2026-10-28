@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { TaxTreatment } from './investments';
 import { remainingLoanBalance } from './liabilities';
+import { claimingFactor, estimateSocialSecurityMonthly } from './social-security';
 
 /** A property you plan to sell to help fund retirement. Properties not listed aren't counted. */
 export const PropertySale = z.object({
@@ -27,7 +28,9 @@ export const RetirementPlan = z.object({
   expectedReturn: z.number().min(-5).max(15).nullable(),
   /** Yearly spending in retirement. */
   annualSpending: z.number().nonnegative().nullable(),
+  /** Yearly benefit at full retirement age (the statement's figure); empty estimates it from income. */
   socialSecurityAnnual: z.number().nonnegative().nullable(),
+  /** When you claim; the benefit shrinks before full retirement age and grows after, up to 70. */
   socialSecurityAge: z.number().int().min(62).max(70).nullable(),
   pensionAnnual: z.number().nonnegative().nullable(),
   /** Savings outside investment accounts that you'll put toward retirement, e.g. earmarked cash. */
@@ -109,6 +112,9 @@ export const RetirementSummary = z.object({
   defaults: z.object({
     /** From the profile's birth year. */
     currentAge: z.number().nullable(),
+    birthYear: z.number().nullable(),
+    /** Married, from the filing status: the Social Security estimate counts a spouse. */
+    married: z.boolean(),
     /** Spending over the last 12 months of cash flow. */
     annualSpending: z.number().nullable(),
     /** Household gross income from the profile. */
@@ -150,11 +156,23 @@ export type RetirementInputs = {
   /** Percent, after inflation. */
   expectedReturn: number;
   annualSpending: number;
+  /** Yearly, as received from the claiming age. */
   socialSecurityAnnual: number;
   socialSecurityAge: number;
   pensionAnnual: number;
   sales: SaleEvent[];
 };
+
+/** Social Security at full retirement age, yearly: from the plan, else estimated from income. */
+export function socialSecurityAtFullAge(
+  plan: Pick<RetirementPlan, 'socialSecurityAnnual'>,
+  defaults: Pick<RetirementSummary['defaults'], 'annualIncome' | 'married'>,
+  retirementAge: number,
+): { annual: number; estimated: boolean } {
+  if (plan.socialSecurityAnnual !== null) return { annual: plan.socialSecurityAnnual, estimated: false };
+  if (!defaults.annualIncome) return { annual: 0, estimated: false };
+  return { annual: 12 * estimateSocialSecurityMonthly(defaults.annualIncome, retirementAge, defaults.married), estimated: true };
+}
 
 export type MissingInput = 'birth year' | 'retirement spending';
 
@@ -186,16 +204,18 @@ export function saleProceeds(
 
 /** Fills empty fields from defaults; null inputs when age or spending can't be known. */
 export function resolvePlan(plan: RetirementPlan, summary: SummaryParts): ResolvedPlan {
-  const currentAge = summary.defaults.currentAge;
+  const { currentAge, birthYear } = summary.defaults;
   const annualSpending = plan.annualSpending ?? summary.defaults.annualSpending;
   const missing: MissingInput[] = [
-    ...(currentAge === null ? (['birth year'] as const) : []),
+    ...(currentAge === null || birthYear === null ? (['birth year'] as const) : []),
     ...(annualSpending === null ? (['retirement spending'] as const) : []),
   ];
-  if (currentAge === null || annualSpending === null) return { inputs: null, missing };
+  if (currentAge === null || birthYear === null || annualSpending === null) return { inputs: null, missing };
   const retirementAge = plan.retirementAge ?? Math.max(RETIREMENT_DEFAULTS.retirementAge, currentAge);
   const appreciation = plan.propertyAppreciation ?? RETIREMENT_DEFAULTS.propertyAppreciation;
   const sellingCost = plan.sellingCostPercent ?? RETIREMENT_DEFAULTS.sellingCostPercent;
+  const socialSecurityAge = plan.socialSecurityAge ?? RETIREMENT_DEFAULTS.socialSecurityAge;
+  const fullSocialSecurity = socialSecurityAtFullAge(plan, summary.defaults, retirementAge).annual;
 
   const sales = plan.properties.flatMap((p): SaleEvent[] => {
     // A property or mortgage removed since the plan was saved drops out.
@@ -223,8 +243,8 @@ export function resolvePlan(plan: RetirementPlan, summary: SummaryParts): Resolv
       annualContribution: plan.annualContribution ?? 0,
       expectedReturn: plan.expectedReturn ?? RETIREMENT_DEFAULTS.expectedReturn,
       annualSpending,
-      socialSecurityAnnual: plan.socialSecurityAnnual ?? 0,
-      socialSecurityAge: plan.socialSecurityAge ?? RETIREMENT_DEFAULTS.socialSecurityAge,
+      socialSecurityAnnual: Math.round(fullSocialSecurity * claimingFactor(birthYear, socialSecurityAge)),
+      socialSecurityAge,
       pensionAnnual: plan.pensionAnnual ?? 0,
       sales,
     },

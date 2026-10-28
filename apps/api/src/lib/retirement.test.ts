@@ -1,5 +1,8 @@
 import {
+  claimingFactor,
   EMPTY_RETIREMENT_PLAN,
+  estimateSocialSecurityMonthly,
+  fullRetirementAgeMonths,
   isEducationAccount,
   projectRetirement,
   remainingLoanBalance,
@@ -126,7 +129,7 @@ describe('resolvePlan', () => {
   const RENTAL = '00000000-0000-4000-8000-000000000001';
   const LOAN = '00000000-0000-4000-8000-000000000002';
   const summary = {
-    defaults: { currentAge: 40, annualSpending: 72_000, annualIncome: 150_000 },
+    defaults: { currentAge: 40, birthYear: 1986, married: false, annualSpending: 72_000, annualIncome: 150_000 },
     accounts: [
       { value: 50_000, included: true },
       { value: 9_000, included: false },
@@ -158,8 +161,20 @@ describe('resolvePlan', () => {
     expect(now.inputs!.sales[0]!.age).toBe(40);
   });
 
+  it('estimates Social Security from income when blank, and adjusts for the claiming age', () => {
+    // 150k a year → AIME 12,500 → PIA 3,938/mo at 67.
+    expect(resolvePlan(EMPTY_RETIREMENT_PLAN, summary).inputs!.socialSecurityAnnual).toBe(47_256);
+    expect(resolvePlan({ ...EMPTY_RETIREMENT_PLAN, socialSecurityAge: 62 }, summary).inputs!.socialSecurityAnnual).toBe(33_079);
+    // A statement figure wins over the estimate; 70 is 24% more.
+    const typed = { ...EMPTY_RETIREMENT_PLAN, socialSecurityAnnual: 30_000, socialSecurityAge: 70 };
+    expect(resolvePlan(typed, summary).inputs!.socialSecurityAnnual).toBe(37_200);
+    // No income and nothing typed counts none.
+    const noIncome = { ...summary, defaults: { ...summary.defaults, annualIncome: null } };
+    expect(resolvePlan(EMPTY_RETIREMENT_PLAN, noIncome).inputs!.socialSecurityAnnual).toBe(0);
+  });
+
   it('reports what it can’t default', () => {
-    const r = resolvePlan(EMPTY_RETIREMENT_PLAN, { ...summary, defaults: { currentAge: null, annualSpending: null, annualIncome: null } });
+    const r = resolvePlan(EMPTY_RETIREMENT_PLAN, { ...summary, defaults: { currentAge: null, birthYear: null, married: false, annualSpending: null, annualIncome: null } });
     expect(r).toEqual({ inputs: null, missing: ['birth year', 'retirement spending'] });
   });
 });
@@ -168,5 +183,32 @@ describe('isEducationAccount', () => {
   it('matches college and custodial accounts only', () => {
     expect(['529', 'UTMA', 'ugma', 'education savings account', 'resp'].every(isEducationAccount)).toBe(true);
     expect(['roth', '401k', 'brokerage', 'hsa', null].some((s) => isEducationAccount(s))).toBe(false);
+  });
+});
+
+describe('Social Security', () => {
+  it('raises full retirement age two months a year from 1955 to 1960', () => {
+    expect([1950, 1954, 1955, 1957, 1959, 1960, 1990].map(fullRetirementAgeMonths)).toEqual([792, 792, 794, 798, 802, 804, 804]);
+  });
+
+  it('cuts the benefit for claiming early and raises it for waiting', () => {
+    expect(claimingFactor(1960, 62)).toBeCloseTo(0.7); // 36 months at 5/9% + 24 at 5/12%
+    expect(claimingFactor(1960, 67)).toBe(1);
+    expect(claimingFactor(1960, 70)).toBeCloseTo(1.24);
+    expect(claimingFactor(1954, 62)).toBeCloseTo(0.75);
+  });
+
+  it('estimates from pay, capped at the wage base and scaled by years worked', () => {
+    expect(estimateSocialSecurityMonthly(150_000, 65, false)).toBe(3938);
+    expect(estimateSocialSecurityMonthly(500_000, 65, false)).toBe(4369); // pay above 184,500 isn't counted
+    expect(estimateSocialSecurityMonthly(150_000, 40, false)).toBe(2803); // 18 of 35 years
+    expect(estimateSocialSecurityMonthly(0, 65, false)).toBe(0);
+  });
+
+  it('takes the lower of one earner with a spousal benefit and two equal earners for a couple', () => {
+    // One earner: 1.5 × 3,938.21; two earners at 75k: 2 × 2,745.88.
+    expect(estimateSocialSecurityMonthly(150_000, 65, true)).toBe(5492);
+    // At high pay the wage base caps one earner, so one earner plus spouse is lower.
+    expect(estimateSocialSecurityMonthly(400_000, 65, true)).toBe(Math.round(1.5 * 4369.46));
   });
 });
