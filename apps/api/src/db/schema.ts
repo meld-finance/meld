@@ -1,4 +1,4 @@
-import type { SecurityProfile, ValuationSource, VehicleDetails } from '@meld/shared';
+import type { PropertySale, SecurityProfile, ValuationSource, VehicleDetails } from '@meld/shared';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -325,7 +325,12 @@ export const retirementPlan = pgTable('retirement_plan', {
   socialSecurityAge: integer('social_security_age'),
   pensionAnnual: money('pension_annual'),
   otherSavings: money('other_savings'),
+  /** Percent per year, after inflation. */
+  propertyAppreciation: numeric('property_appreciation', { precision: 5, scale: 2, mode: 'number' }),
+  sellingCostPercent: numeric('selling_cost_percent', { precision: 5, scale: 2, mode: 'number' }),
   excludedAccountIds: jsonb('excluded_account_ids').$type<string[]>().notNull().default([]),
+  /** PropertySale[]: the properties counted, each with its sale age, mortgage and rent. */
+  properties: jsonb('properties').$type<PropertySale[]>().notNull().default([]),
   ...timestamps,
 });
 

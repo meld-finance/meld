@@ -1,8 +1,21 @@
 import { z } from 'zod';
 import { TaxTreatment } from './investments';
+import { remainingLoanBalance } from './liabilities';
+
+/** A property you plan to sell to help fund retirement. Properties not listed aren't counted. */
+export const PropertySale = z.object({
+  /** A manual asset of kind `home`. */
+  assetId: z.string().uuid(),
+  sellAge: z.number().int().min(18).max(120),
+  /** The mortgage on it, paid off from the sale. */
+  mortgageAccountId: z.string().uuid().nullable(),
+  /** Rent minus costs per year until the sale; negative if it costs more than it earns. */
+  netRentAnnual: z.number().nullable(),
+});
+export type PropertySale = z.infer<typeof PropertySale>;
 
 /**
- * Retirement assumptions. Every field is optional: null means "use the default" (see
+ * Retirement assumptions. Every number is optional: null means "use the default" (see
  * RETIREMENT_DEFAULTS and RetirementSummary['defaults']). Amounts are yearly, in today's dollars.
  */
 export const RetirementPlan = z.object({
@@ -19,8 +32,13 @@ export const RetirementPlan = z.object({
   pensionAnnual: z.number().nonnegative().nullable(),
   /** Savings outside investment accounts that you'll put toward retirement, e.g. earmarked cash. */
   otherSavings: z.number().nonnegative().nullable(),
+  /** Yearly rise in property values after inflation, in percent. */
+  propertyAppreciation: z.number().min(-5).max(10).nullable(),
+  /** Agent fees and closing costs on a sale, as a percent of the price. */
+  sellingCostPercent: z.number().min(0).max(20).nullable(),
   /** Investment accounts you've left out (e.g. saving for a house). */
   excludedAccountIds: z.array(z.string().uuid()),
+  properties: z.array(PropertySale),
 });
 export type RetirementPlan = z.infer<typeof RetirementPlan>;
 
@@ -34,7 +52,10 @@ export const EMPTY_RETIREMENT_PLAN: RetirementPlan = {
   socialSecurityAge: null,
   pensionAnnual: null,
   otherSavings: null,
+  propertyAppreciation: null,
+  sellingCostPercent: null,
   excludedAccountIds: [],
+  properties: [],
 };
 
 export const RETIREMENT_DEFAULTS = {
@@ -42,6 +63,9 @@ export const RETIREMENT_DEFAULTS = {
   lifeExpectancy: 95,
   expectedReturn: 5,
   socialSecurityAge: 67,
+  /** Roughly the long-run rise in US home prices above inflation. */
+  propertyAppreciation: 1,
+  sellingCostPercent: 6,
 } as const;
 
 export const RetirementAccount = z.object({
@@ -58,6 +82,27 @@ export const RetirementAccount = z.object({
 });
 export type RetirementAccount = z.infer<typeof RetirementAccount>;
 
+export const RetirementProperty = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  address: z.string().nullable(),
+  /** Your share of today's value. */
+  value: z.number(),
+});
+export type RetirementProperty = z.infer<typeof RetirementProperty>;
+
+export const RetirementMortgage = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  institutionName: z.string().nullable(),
+  /** Your share of what's owed. */
+  balance: z.number(),
+  interestRatePct: z.number().nullable(),
+  /** Your share of the monthly payment; may include escrow. */
+  monthlyPayment: z.number().nullable(),
+});
+export type RetirementMortgage = z.infer<typeof RetirementMortgage>;
+
 export const RetirementSummary = z.object({
   plan: RetirementPlan,
   /** What Meld fills in when a field is left empty; null when it can't tell. */
@@ -71,6 +116,10 @@ export const RetirementSummary = z.object({
   }),
   /** Visible investment accounts, largest first. */
   accounts: z.array(RetirementAccount),
+  /** Homes entered on the Accounts tab, largest first. */
+  properties: z.array(RetirementProperty),
+  /** Visible mortgage accounts, to pair with a property. */
+  mortgages: z.array(RetirementMortgage),
 });
 export type RetirementSummary = z.infer<typeof RetirementSummary>;
 
@@ -80,6 +129,16 @@ const EDUCATION = new Set(['529', 'education savings account', 'coverdell', 'cov
 export function isEducationAccount(subtype: string | null): boolean {
   return !!subtype && EDUCATION.has(subtype.toLowerCase());
 }
+
+/** A property sale as the projection sees it. */
+export type SaleEvent = {
+  name: string;
+  age: number;
+  /** Your share of the price after appreciation and selling costs, less the mortgage left. */
+  proceeds: number;
+  /** Net rent each year until the sale. */
+  netRentAnnual: number;
+};
 
 /** Everything the projection needs, with defaults filled in. */
 export type RetirementInputs = {
@@ -94,6 +153,7 @@ export type RetirementInputs = {
   socialSecurityAnnual: number;
   socialSecurityAge: number;
   pensionAnnual: number;
+  sales: SaleEvent[];
 };
 
 export type MissingInput = 'birth year' | 'retirement spending';
@@ -101,13 +161,31 @@ export type MissingInput = 'birth year' | 'retirement spending';
 /** `inputs` is null exactly when something in `missing` can't be defaulted. */
 export type ResolvedPlan = { inputs: RetirementInputs | null; missing: MissingInput[] };
 
+type SummaryParts = Pick<RetirementSummary, 'defaults' | 'accounts' | 'properties' | 'mortgages'>;
+
 /** Counted balance: included accounts plus other savings. */
 export function retirementBalance(summary: Pick<RetirementSummary, 'accounts'>, plan: Pick<RetirementPlan, 'otherSavings'>) {
   return summary.accounts.filter((a) => a.included).reduce((sum, a) => sum + a.value, 0) + (plan.otherSavings ?? 0);
 }
 
+/**
+ * Net proceeds of selling a property `years` from now. The price is in today's dollars; the mortgage
+ * left is in future dollars, which overstates it a little and keeps the estimate conservative.
+ */
+export function saleProceeds(
+  property: Pick<RetirementProperty, 'value'>,
+  mortgage: Pick<RetirementMortgage, 'balance' | 'interestRatePct' | 'monthlyPayment'> | null,
+  years: number,
+  appreciationPct: number,
+  sellingCostPct: number,
+): number {
+  const price = property.value * (1 + appreciationPct / 100) ** years;
+  const owed = mortgage ? remainingLoanBalance(mortgage.balance, mortgage.interestRatePct, mortgage.monthlyPayment, years * 12) : 0;
+  return Math.round(price * (1 - sellingCostPct / 100) - owed);
+}
+
 /** Fills empty fields from defaults; null inputs when age or spending can't be known. */
-export function resolvePlan(plan: RetirementPlan, summary: Pick<RetirementSummary, 'defaults' | 'accounts'>): ResolvedPlan {
+export function resolvePlan(plan: RetirementPlan, summary: SummaryParts): ResolvedPlan {
   const currentAge = summary.defaults.currentAge;
   const annualSpending = plan.annualSpending ?? summary.defaults.annualSpending;
   const missing: MissingInput[] = [
@@ -116,6 +194,25 @@ export function resolvePlan(plan: RetirementPlan, summary: Pick<RetirementSummar
   ];
   if (currentAge === null || annualSpending === null) return { inputs: null, missing };
   const retirementAge = plan.retirementAge ?? Math.max(RETIREMENT_DEFAULTS.retirementAge, currentAge);
+  const appreciation = plan.propertyAppreciation ?? RETIREMENT_DEFAULTS.propertyAppreciation;
+  const sellingCost = plan.sellingCostPercent ?? RETIREMENT_DEFAULTS.sellingCostPercent;
+
+  const sales = plan.properties.flatMap((p): SaleEvent[] => {
+    // A property or mortgage removed since the plan was saved drops out.
+    const property = summary.properties.find((x) => x.id === p.assetId);
+    if (!property) return [];
+    const mortgage = summary.mortgages.find((m) => m.id === p.mortgageAccountId) ?? null;
+    const age = Math.max(p.sellAge, currentAge);
+    return [
+      {
+        name: property.name,
+        age,
+        proceeds: saleProceeds(property, mortgage, age - currentAge, appreciation, sellingCost),
+        netRentAnnual: p.netRentAnnual ?? 0,
+      },
+    ];
+  });
+
   return {
     inputs: {
       currentAge,
@@ -129,17 +226,20 @@ export function resolvePlan(plan: RetirementPlan, summary: Pick<RetirementSummar
       socialSecurityAnnual: plan.socialSecurityAnnual ?? 0,
       socialSecurityAge: plan.socialSecurityAge ?? RETIREMENT_DEFAULTS.socialSecurityAge,
       pensionAnnual: plan.pensionAnnual ?? 0,
+      sales,
     },
     missing: [],
   };
 }
 
 export type RetirementProjection = {
-  /** Balance at the start of each age, from today's age to life expectancy. */
+  /** Balance at the start of each age (after any sale that year), from today's age to life expectancy. */
   points: { age: number; balance: number }[];
+  /** Property sales within the plan, by age. */
+  sales: { name: string; age: number; proceeds: number }[];
   /** Projected balance on reaching retirement age. */
   atRetirement: number;
-  /** Balance needed at retirement age for the money to last to life expectancy. */
+  /** Balance needed at retirement age for the money to last to life expectancy, after later sales. */
   needed: number;
   /** needed − atRetirement; zero or less means on track. */
   gap: number;
@@ -149,41 +249,54 @@ export type RetirementProjection = {
   depletionAge: number | null;
 };
 
-/** Spending the portfolio must cover at an age, after Social Security and pension. */
+/** Net rent in a year from properties not yet sold. */
+function rentAt(i: RetirementInputs, age: number) {
+  return i.sales.reduce((sum, s) => sum + (age < s.age ? s.netRentAnnual : 0), 0);
+}
+
+/** Proceeds from properties sold at an age. */
+function salesAt(i: RetirementInputs, age: number) {
+  return i.sales.reduce((sum, s) => sum + (s.age === age ? s.proceeds : 0), 0);
+}
+
+/** Spending the portfolio must cover at an age, after Social Security, pension and rent. */
 function withdrawalAt(i: RetirementInputs, age: number) {
-  const income = i.pensionAnnual + (age >= i.socialSecurityAge ? i.socialSecurityAnnual : 0);
+  const income = i.pensionAnnual + (age >= i.socialSecurityAge ? i.socialSecurityAnnual : 0) + rentAt(i, age);
   return Math.max(0, i.annualSpending - income);
 }
 
 /**
- * Year-by-year projection in today's dollars. Before retirement, a year's growth is followed by that
- * year's contribution; in retirement, the year's withdrawal comes out first and the rest grows.
+ * Year-by-year projection in today's dollars. A property sold at an age adds its proceeds at the start
+ * of that year. Before retirement, a year's growth is followed by that year's contribution and rent; in
+ * retirement, the year's withdrawal comes out first and the rest grows.
  */
 export function projectRetirement(i: RetirementInputs): RetirementProjection {
   const r = i.expectedReturn / 100;
+  const start = Math.max(i.retirementAge, i.currentAge);
   const points: RetirementProjection['points'] = [];
   let balance = i.startingBalance;
   let atRetirement = i.startingBalance;
   let depletionAge: number | null = null;
 
   for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
+    balance += salesAt(i, age);
     points.push({ age, balance: Math.round(balance) });
-    if (age === i.retirementAge) atRetirement = balance;
+    if (age === start) atRetirement = balance;
     if (age === i.lifeExpectancy) break;
     if (age < i.retirementAge) {
-      balance = balance * (1 + r) + i.annualContribution;
+      balance = balance * (1 + r) + i.annualContribution + rentAt(i, age);
     } else {
       const need = withdrawalAt(i, age);
       if (need > balance + 0.005 && depletionAge === null) depletionAge = age;
       balance = Math.max(0, balance - need) * (1 + r);
     }
   }
-  if (i.retirementAge <= i.currentAge) atRetirement = i.startingBalance;
 
-  // Present value at retirement of each year's withdrawal, mirroring the loop above.
-  const start = Math.max(i.retirementAge, i.currentAge);
+  // Present value at retirement of each year's withdrawal, less sales after retirement, mirroring the loop.
   let needed = 0;
-  for (let age = start; age < i.lifeExpectancy; age++) needed += withdrawalAt(i, age) / (1 + r) ** (age - start);
+  for (let age = start; age < i.lifeExpectancy; age++) {
+    needed += (withdrawalAt(i, age) - (age > start ? salesAt(i, age) : 0)) / (1 + r) ** (age - start);
+  }
 
   // Whole dollars, with what's needed rounded up so saving exactly that much is enough.
   const neededDollars = Math.max(0, Math.ceil(needed - 0.005));
@@ -199,6 +312,10 @@ export function projectRetirement(i: RetirementInputs): RetirementProjection {
 
   return {
     points,
+    sales: i.sales
+      .filter((s) => s.age < i.lifeExpectancy)
+      .map(({ name, age, proceeds }) => ({ name, age, proceeds }))
+      .sort((a, b) => a.age - b.age),
     atRetirement: atRetirementDollars,
     needed: neededDollars,
     gap,

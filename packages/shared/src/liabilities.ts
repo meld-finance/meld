@@ -54,3 +54,22 @@ export function estimatePayoff(
   }
   return { months, totalInterest: Math.round(interest * 100) / 100 };
 }
+
+/**
+ * What's left on a loan after `months` of fixed payments, with monthly compounding. Without a rate or
+ * payment it assumes no paydown; a payment that doesn't cover interest leaves the balance as is.
+ */
+export function remainingLoanBalance(
+  balance: number,
+  annualRatePct: number | null,
+  monthlyPayment: number | null,
+  months: number,
+): number {
+  if (balance <= 0) return 0;
+  if (annualRatePct === null || !monthlyPayment || monthlyPayment <= 0 || months <= 0) return balance;
+  const r = annualRatePct / 100 / 12;
+  if (monthlyPayment <= balance * r) return balance;
+  if (r === 0) return Math.max(0, balance - monthlyPayment * months);
+  const grown = (1 + r) ** months;
+  return Math.max(0, balance * grown - (monthlyPayment * (grown - 1)) / r);
+}

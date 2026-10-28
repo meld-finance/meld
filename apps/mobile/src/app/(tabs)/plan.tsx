@@ -24,7 +24,7 @@ export default function PlanScreen() {
   const refresh = () => void Promise.all([policies.refetch(), retirement.refetch()]);
 
   return (
-    <Screen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
+    <Screen wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
       <TabbedHeader
         title="Plan"
         description="Plan for retirement and make sure you and your family are covered."

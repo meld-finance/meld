@@ -1,4 +1,12 @@
-import { EMPTY_RETIREMENT_PLAN, isEducationAccount, projectRetirement, resolvePlan, type RetirementInputs } from '@meld/shared';
+import {
+  EMPTY_RETIREMENT_PLAN,
+  isEducationAccount,
+  projectRetirement,
+  remainingLoanBalance,
+  resolvePlan,
+  saleProceeds,
+  type RetirementInputs,
+} from '@meld/shared';
 import { describe, expect, it } from 'vitest';
 
 const base: RetirementInputs = {
@@ -12,6 +20,7 @@ const base: RetirementInputs = {
   socialSecurityAnnual: 0,
   socialSecurityAge: 67,
   pensionAnnual: 0,
+  sales: [],
 };
 
 describe('projectRetirement', () => {
@@ -66,18 +75,87 @@ describe('projectRetirement', () => {
   });
 });
 
+describe('property sales', () => {
+  it('adds proceeds before retirement to the balance at retirement', () => {
+    const withSale = projectRetirement({ ...base, expectedReturn: 0, sales: [{ name: 'Condo', age: 60, proceeds: 300_000, netRentAnnual: 10_000 }] });
+    // 100k + 300k sale + 20 years of 10k rent (ages 40–59).
+    expect(withSale.atRetirement).toBe(600_000);
+    expect(withSale.points.find((p) => p.age === 60)!.balance).toBe(600_000);
+  });
+
+  it('counts a sale after retirement against what is needed, and rent until then against spending', () => {
+    const plain = projectRetirement({ ...base, expectedReturn: 0 });
+    const sale = { name: 'Rental', age: 70, proceeds: 250_000, netRentAnnual: 20_000 };
+    const p = projectRetirement({ ...base, expectedReturn: 0, sales: [sale] });
+    // 5 years of rent (65–69) and the sale both come off what's needed.
+    expect(p.needed).toBe(plain.needed - 5 * 20_000 - 250_000);
+    expect(p.sales).toEqual([{ name: 'Rental', age: 70, proceeds: 250_000 }]);
+  });
+
+  it('lasts exactly to life expectancy with a later sale when the balance matches what is needed', () => {
+    const sales = [{ name: 'Rental', age: 75, proceeds: 400_000, netRentAnnual: 0 }];
+    const needed = projectRetirement({ ...base, currentAge: 65, startingBalance: 0, sales }).needed;
+    const p = projectRetirement({ ...base, currentAge: 65, startingBalance: needed, sales });
+    expect(p.gap).toBe(0);
+    expect(p.depletionAge).toBeNull();
+    expect(p.points.at(-1)!.balance).toBeLessThan(10);
+  });
+
+  it('nets out appreciation, selling costs and the mortgage left', () => {
+    // 10 years at 2%: 400k → 487,598; less 5% → 463,218; less 100k owed with no terms.
+    expect(saleProceeds({ value: 400_000 }, { balance: 100_000, interestRatePct: null, monthlyPayment: null }, 10, 2, 5)).toBe(363_218);
+    expect(saleProceeds({ value: 400_000 }, null, 0, 1, 6)).toBe(376_000);
+  });
+});
+
+describe('remainingLoanBalance', () => {
+  it('amortizes a standard mortgage', () => {
+    // 30y at 6% on 200k ($1,199.10/mo): after 10 years, what's left is the remaining 240 payments' value.
+    expect(remainingLoanBalance(200_000, 6, 1199.1, 120)).toBeCloseTo(1199.1 * ((1 - 1.005 ** -240) / 0.005), 0);
+    expect(remainingLoanBalance(200_000, 6, 1199.1, 400)).toBe(0);
+  });
+
+  it('assumes no paydown without terms, or when the payment only covers interest', () => {
+    expect(remainingLoanBalance(100_000, null, 1000, 60)).toBe(100_000);
+    expect(remainingLoanBalance(100_000, 12, 1000, 60)).toBe(100_000);
+    expect(remainingLoanBalance(10_000, 0, 1000, 4)).toBe(6000);
+  });
+});
+
 describe('resolvePlan', () => {
+  const RENTAL = '00000000-0000-4000-8000-000000000001';
+  const LOAN = '00000000-0000-4000-8000-000000000002';
   const summary = {
     defaults: { currentAge: 40, annualSpending: 72_000, annualIncome: 150_000 },
     accounts: [
       { value: 50_000, included: true },
       { value: 9_000, included: false },
     ],
+    properties: [{ id: RENTAL, name: 'Rental', address: null, value: 500_000 }],
+    mortgages: [{ id: LOAN, name: 'Mortgage', institutionName: null, balance: 200_000, interestRatePct: null, monthlyPayment: null }],
   } as Parameters<typeof resolvePlan>[1];
 
   it('fills defaults and counts only included accounts plus other savings', () => {
     const r = resolvePlan({ ...EMPTY_RETIREMENT_PLAN, otherSavings: 5_000 }, summary);
     expect(r.inputs).toMatchObject({ retirementAge: 65, lifeExpectancy: 95, expectedReturn: 5, annualSpending: 72_000, startingBalance: 55_000 });
+  });
+
+  it('turns counted properties into sales, at no earlier than today', () => {
+    const r = resolvePlan(
+      {
+        ...EMPTY_RETIREMENT_PLAN,
+        propertyAppreciation: 0,
+        properties: [
+          { assetId: RENTAL, sellAge: 70, mortgageAccountId: LOAN, netRentAnnual: 12_000 },
+          { assetId: '00000000-0000-4000-8000-000000000099', sellAge: 70, mortgageAccountId: null, netRentAnnual: null }, // deleted
+        ],
+      },
+      summary,
+    );
+    // 500k less 6% selling costs, less the 200k mortgage (no terms, so no paydown).
+    expect(r.inputs!.sales).toEqual([{ name: 'Rental', age: 70, proceeds: 270_000, netRentAnnual: 12_000 }]);
+    const now = resolvePlan({ ...EMPTY_RETIREMENT_PLAN, properties: [{ assetId: RENTAL, sellAge: 30, mortgageAccountId: null, netRentAnnual: null }] }, summary);
+    expect(now.inputs!.sales[0]!.age).toBe(40);
   });
 
   it('reports what it can’t default', () => {

@@ -19,7 +19,16 @@ const TICKS = 5;
 const TOOLTIP_WIDTH = 150;
 
 /** Projected balance by age: savings grow to the dashed retirement line, then are drawn down. */
-export function RetirementProjection({ points, retirementAge }: { points: Projection['points']; retirementAge: number }) {
+export function RetirementProjection({
+  points,
+  retirementAge,
+  sales = [],
+}: {
+  points: Projection['points'];
+  retirementAge: number;
+  /** Property sales, marked on the line where the balance steps up. */
+  sales?: Projection['sales'];
+}) {
   const theme = useTheme();
   const viz = useVizColors();
   const [width, setWidth] = useState(0);
@@ -46,6 +55,8 @@ export function RetirementProjection({ points, retirementAge }: { points: Projec
   const shown = active ?? (retireIndex >= 0 ? retireIndex : points.length - 1);
   const point = points[shown]!;
   const year = new Date().getFullYear() + (point.age - points[0]!.age);
+  const salesShown = sales.filter((s) => s.age === point.age);
+  const saleIndex = (age: number) => points.findIndex((p) => p.age === age);
 
   return (
     <View style={styles.row}>
@@ -83,6 +94,20 @@ export function RetirementProjection({ points, retirementAge }: { points: Projec
               )}
               <Path d={line} stroke={viz.trend} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
               {active !== null && <Line x1={x(shown)} x2={x(shown)} y1={0} y2={HEIGHT} stroke={viz.axis} strokeWidth={1} />}
+              {sales.map((s) => {
+                const i = saleIndex(s.age);
+                return i < 0 ? null : (
+                  <Circle
+                    key={`${s.name}-${s.age}`}
+                    cx={x(i)}
+                    cy={y(points[i]!.balance)}
+                    r={4}
+                    fill={theme.backgroundElement}
+                    stroke={viz.trend}
+                    strokeWidth={2}
+                  />
+                );
+              })}
               <Circle cx={x(shown)} cy={y(point.balance)} r={5} fill={viz.trend} stroke={theme.backgroundElement} strokeWidth={2} />
             </Svg>
           )}
@@ -107,6 +132,11 @@ export function RetirementProjection({ points, retirementAge }: { points: Projec
                 Age {point.age} · {year}
               </ThemedText>
               <ThemedText type="smallBold">{formatWholeCurrency(point.balance)}</ThemedText>
+              {salesShown.map((s) => (
+                <ThemedText key={s.name} type="small" themeColor="textSecondary">
+                  Sell {s.name}: +{formatCompactCurrency(s.proceeds)}
+                </ThemedText>
+              ))}
             </ThemedView>
           )}
           {/* Hit targets: one slice per year, wider than the mark itself. */}
@@ -120,7 +150,10 @@ export function RetirementProjection({ points, retirementAge }: { points: Projec
                   onHoverOut={() => setActive(null)}
                   onPressIn={() => setActive(i)}
                   onPressOut={() => setActive(null)}
-                  accessibilityLabel={`Age ${p.age}: ${formatWholeCurrency(p.balance)}`}
+                  accessibilityLabel={[
+                    `Age ${p.age}: ${formatWholeCurrency(p.balance)}`,
+                    ...sales.filter((s) => s.age === p.age).map((s) => `sells ${s.name} for ${formatWholeCurrency(s.proceeds)}`),
+                  ].join(', ')}
                 />
               ))}
             </View>
