@@ -9,6 +9,7 @@ const EMPTY: UserProfile = {
   filingStatus: null,
   state: null,
   dependents: null,
+  children: [],
   annualGrossIncome: null,
   occupation: null,
   employerBenefits: null,

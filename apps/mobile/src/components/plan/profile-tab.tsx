@@ -1,4 +1,4 @@
-import { FilingStatus, type UserProfile } from '@meld/shared';
+import { Child, FilingStatus, type UserProfile } from '@meld/shared';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
@@ -41,6 +41,13 @@ export function ProfileTab() {
 const str = (v: number | string | null) => (v === null ? '' : String(v));
 const int = (s: string) => (s.trim() ? Number(s.replace(/[$,\s]/g, '')) : null);
 
+/** One child, as typed: age rather than birth year, which is what's stored. */
+type ChildDraft = { id: string; name: string; age: string };
+
+const newChildId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+
+const thisYear = new Date().getFullYear();
+
 function ProfileForm({ initial }: { initial: UserProfile }) {
   const save = useSaveProfile();
   const [displayName, setDisplayName] = useState(str(initial.displayName));
@@ -52,8 +59,12 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
   const [occupation, setOccupation] = useState(str(initial.occupation));
   const [benefits, setBenefits] = useState(str(initial.employerBenefits));
   const [goals, setGoals] = useState(str(initial.goals));
+  const [children, setChildren] = useState<ChildDraft[]>(() =>
+    initial.children.map((c) => ({ id: c.id, name: str(c.name), age: String(Math.max(0, thisYear - c.birthYear)) })),
+  );
   const [saved, setSaved] = useState(false);
 
+  const text = (s: string) => s.trim() || null;
   const numbers = { birthYear: int(birthYear), dependents: int(dependents), annualGrossIncome: int(income) };
   const invalid = {
     birthYear: numbers.birthYear !== null && !(Number.isInteger(numbers.birthYear) && numbers.birthYear > 1900 && numbers.birthYear <= new Date().getFullYear()),
@@ -61,8 +72,13 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
     annualGrossIncome: numbers.annualGrossIncome !== null && !(Number.isFinite(numbers.annualGrossIncome) && numbers.annualGrossIncome >= 0),
     state: !!state.trim() && !/^[A-Za-z]{2}$/.test(state.trim()),
   };
-  const valid = !Object.values(invalid).some(Boolean);
-  const text = (s: string) => s.trim() || null;
+  const draftChildren = children.map((c) => ({ id: c.id, name: text(c.name), birthYear: thisYear - (int(c.age) ?? NaN) }));
+  const invalidChildren = draftChildren.map((c) => !Child.safeParse(c).success || c.birthYear > thisYear);
+  const valid = !Object.values(invalid).some(Boolean) && !invalidChildren.some(Boolean);
+
+  function setChild(id: string, change: Partial<ChildDraft>) {
+    setChildren((all) => all.map((c) => (c.id === id ? { ...c, ...change } : c)));
+  }
 
   function submit() {
     if (!valid) return;
@@ -74,6 +90,7 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
         filingStatus,
         state: text(state)?.toUpperCase() ?? null,
         dependents: numbers.dependents,
+        children: draftChildren,
         annualGrossIncome: numbers.annualGrossIncome,
         occupation: text(occupation),
         employerBenefits: text(benefits),
@@ -97,6 +114,38 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
         <Field label="Occupation">
           <Input value={occupation} onChangeText={setOccupation} placeholder="Used for disability insurance questions" />
         </Field>
+      </Card>
+
+      <Card title="Children" subtitle="Their ages let Plan time spending on kids, like when they leave home or start college.">
+        {children.map((c, i) => (
+          <View key={c.id} style={styles.child}>
+            <View style={styles.grow}>
+              <Row>
+                <Field label="Name">
+                  <Input value={c.name} onChangeText={(name) => setChild(c.id, { name })} placeholder={`Child ${i + 1}`} maxLength={60} />
+                </Field>
+                <Field label="Age" invalid={invalidChildren[i]}>
+                  <Input value={c.age} onChangeText={(age) => setChild(c.id, { age })} keyboardType="number-pad" inputMode="numeric" maxLength={3} />
+                </Field>
+              </Row>
+            </View>
+            <Button
+              label="Remove"
+              variant="secondary"
+              size="small"
+              onPress={() => setChildren((all) => all.filter((x) => x.id !== c.id))}
+              accessibilityLabel={`Remove ${c.name || `child ${i + 1}`}`}
+            />
+          </View>
+        ))}
+        <View style={styles.buttons}>
+          <Button
+            label="Add a child"
+            variant="secondary"
+            size="small"
+            onPress={() => setChildren((all) => [...all, { id: newChildId(), name: '', age: '' }])}
+          />
+        </View>
       </Card>
 
       <Card title="Taxes">
@@ -188,4 +237,6 @@ const styles = StyleSheet.create({
   input: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   multiline: { minHeight: 72, textAlignVertical: 'top' },
   buttons: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  child: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.three },
+  grow: { flex: 1 },
 });

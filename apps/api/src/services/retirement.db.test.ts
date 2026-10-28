@@ -59,13 +59,14 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
   });
 
   it('defaults age from the profile and spending from the last 12 full months', async () => {
-    expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({ currentAge: null, birthYear: null, married: false, annualSpending: 3000, annualIncome: null, dependents: null });
+    expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({ currentAge: null, birthYear: null, married: false, annualSpending: 3000, annualIncome: null, children: [] });
     await saveProfile(ctx.db, {
       displayName: null,
       birthYear: 1986,
       filingStatus: 'married_joint',
       state: null,
       dependents: 2,
+      children: [{ id: 'k1', name: 'Mia', birthYear: 2016 }],
       annualGrossIncome: 180000,
       occupation: null,
       employerBenefits: null,
@@ -77,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
       married: true,
       annualSpending: 3000,
       annualIncome: 180000,
-      dependents: 2,
+      children: [{ id: 'k1', name: 'Mia', birthYear: 2016 }],
     });
   });
 
@@ -104,7 +105,10 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
 
   it('saves assumptions and accounts you leave out', async () => {
     const properties = [{ assetId: ids.house, sellAge: 70, mortgageAccountId: null, netRentAnnual: 18000 }];
-    const spendingChanges = [{ label: 'Kids leave home', startAge: 58, endAge: null, annualChange: -20000 }];
+    const spendingChanges = [
+      { label: 'Kids leave home', childId: null, startAge: 58, endAge: null, annualChange: -20000, monthly: false },
+      { label: 'Mia leaves home', childId: 'k1', startAge: 18, endAge: null, annualChange: -24000, monthly: true },
+    ];
     await saveRetirementPlan(ctx.db, {
       ...EMPTY_RETIREMENT_PLAN,
       retirementAge: 60,
