@@ -92,6 +92,13 @@
       "when": 1793160342409,
       "tag": "0012_retirement_properties",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793168163063,
+      "tag": "0013_retirement_spending",
+      "breakpoints": true
     }
   ]
 }

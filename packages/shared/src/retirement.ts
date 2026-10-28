@@ -15,6 +15,17 @@ export const PropertySale = z.object({
 });
 export type PropertySale = z.infer<typeof PropertySale>;
 
+/** A change to yearly spending over a span of ages, e.g. kids leaving home or a mortgage paid off. */
+export const SpendingChange = z.object({
+  label: z.string().trim().min(1).max(60),
+  startAge: z.number().int().min(18).max(120),
+  /** The first age it no longer applies; null if it never ends. */
+  endAge: z.number().int().min(18).max(120).nullable(),
+  /** Added to yearly spending, in today's dollars; negative for spending less. */
+  annualChange: z.number(),
+});
+export type SpendingChange = z.infer<typeof SpendingChange>;
+
 /**
  * Retirement assumptions. Every number is optional: null means "use the default" (see
  * RETIREMENT_DEFAULTS and RetirementSummary['defaults']). Amounts are yearly, in today's dollars.
@@ -26,8 +37,10 @@ export const RetirementPlan = z.object({
   annualContribution: z.number().nonnegative().nullable(),
   /** Yearly return after inflation, in percent. */
   expectedReturn: z.number().min(-5).max(15).nullable(),
-  /** Yearly spending in retirement. */
+  /** Yearly spending today; spending changes and the slowdown with age adjust it from there. */
   annualSpending: z.number().nonnegative().nullable(),
+  /** How much less you spend each year after SPENDING_DECLINE_AGE, in percent. */
+  spendingDeclinePercent: z.number().min(0).max(5).nullable(),
   /** Yearly benefit at full retirement age (the statement's figure); empty estimates it from income. */
   socialSecurityAnnual: z.number().nonnegative().nullable(),
   /** When you claim; the benefit shrinks before full retirement age and grows after, up to 70. */
@@ -42,6 +55,7 @@ export const RetirementPlan = z.object({
   /** Investment accounts you've left out (e.g. saving for a house). */
   excludedAccountIds: z.array(z.string().uuid()),
   properties: z.array(PropertySale),
+  spendingChanges: z.array(SpendingChange),
 });
 export type RetirementPlan = z.infer<typeof RetirementPlan>;
 
@@ -51,6 +65,7 @@ export const EMPTY_RETIREMENT_PLAN: RetirementPlan = {
   annualContribution: null,
   expectedReturn: null,
   annualSpending: null,
+  spendingDeclinePercent: null,
   socialSecurityAnnual: null,
   socialSecurityAge: null,
   pensionAnnual: null,
@@ -59,6 +74,7 @@ export const EMPTY_RETIREMENT_PLAN: RetirementPlan = {
   sellingCostPercent: null,
   excludedAccountIds: [],
   properties: [],
+  spendingChanges: [],
 };
 
 export const RETIREMENT_DEFAULTS = {
@@ -69,7 +85,12 @@ export const RETIREMENT_DEFAULTS = {
   /** Roughly the long-run rise in US home prices above inflation. */
   propertyAppreciation: 1,
   sellingCostPercent: 6,
+  /** Households 75 and older spend about a fifth less than those 65–74 (BLS Consumer Expenditure Survey). */
+  spendingDeclinePercent: 1,
 } as const;
+
+/** The age spending starts to slow. */
+export const SPENDING_DECLINE_AGE = 75;
 
 export const RetirementAccount = z.object({
   id: z.string().uuid(),
@@ -119,6 +140,8 @@ export const RetirementSummary = z.object({
     annualSpending: z.number().nullable(),
     /** Household gross income from the profile. */
     annualIncome: z.number().nullable(),
+    /** From the profile, to suggest when spending on kids ends. */
+    dependents: z.number().nullable(),
   }),
   /** Visible investment accounts, largest first. */
   accounts: z.array(RetirementAccount),
@@ -155,7 +178,11 @@ export type RetirementInputs = {
   annualContribution: number;
   /** Percent, after inflation. */
   expectedReturn: number;
+  /** Today's; see spendingAt. */
   annualSpending: number;
+  spendingChanges: SpendingChange[];
+  /** Percent a year after SPENDING_DECLINE_AGE. */
+  spendingDeclinePercent: number;
   /** Yearly, as received from the claiming age. */
   socialSecurityAnnual: number;
   socialSecurityAge: number;
@@ -243,6 +270,8 @@ export function resolvePlan(plan: RetirementPlan, summary: SummaryParts): Resolv
       annualContribution: plan.annualContribution ?? 0,
       expectedReturn: plan.expectedReturn ?? RETIREMENT_DEFAULTS.expectedReturn,
       annualSpending,
+      spendingChanges: plan.spendingChanges,
+      spendingDeclinePercent: plan.spendingDeclinePercent ?? RETIREMENT_DEFAULTS.spendingDeclinePercent,
       socialSecurityAnnual: Math.round(fullSocialSecurity * claimingFactor(birthYear, socialSecurityAge)),
       socialSecurityAge,
       pensionAnnual: plan.pensionAnnual ?? 0,
@@ -257,6 +286,8 @@ export type RetirementProjection = {
   points: { age: number; balance: number }[];
   /** Property sales within the plan, by age. */
   sales: { name: string; age: number; proceeds: number }[];
+  /** Yearly spending in the first year of retirement. */
+  spendingAtRetirement: number;
   /** Projected balance on reaching retirement age. */
   atRetirement: number;
   /** Balance needed at retirement age for the money to last to life expectancy, after later sales. */
@@ -279,10 +310,23 @@ function salesAt(i: RetirementInputs, age: number) {
   return i.sales.reduce((sum, s) => sum + (s.age === age ? s.proceeds : 0), 0);
 }
 
+/** Yearly spending at an age: today's, plus the changes under way, slowing after SPENDING_DECLINE_AGE. */
+export function spendingAt(
+  i: Pick<RetirementInputs, 'annualSpending' | 'spendingChanges' | 'spendingDeclinePercent'>,
+  age: number,
+): number {
+  const changes = i.spendingChanges.reduce(
+    (sum, c) => sum + (age >= c.startAge && (c.endAge === null || age < c.endAge) ? c.annualChange : 0),
+    0,
+  );
+  const slowdown = (1 - i.spendingDeclinePercent / 100) ** Math.max(0, age - SPENDING_DECLINE_AGE);
+  return Math.max(0, i.annualSpending + changes) * slowdown;
+}
+
 /** Spending the portfolio must cover at an age, after Social Security, pension and rent. */
 function withdrawalAt(i: RetirementInputs, age: number) {
   const income = i.pensionAnnual + (age >= i.socialSecurityAge ? i.socialSecurityAnnual : 0) + rentAt(i, age);
-  return Math.max(0, i.annualSpending - income);
+  return Math.max(0, spendingAt(i, age) - income);
 }
 
 /**
@@ -336,10 +380,29 @@ export function projectRetirement(i: RetirementInputs): RetirementProjection {
       .filter((s) => s.age < i.lifeExpectancy)
       .map(({ name, age, proceeds }) => ({ name, age, proceeds }))
       .sort((a, b) => a.age - b.age),
+    spendingAtRetirement: Math.round(spendingAt(i, start)),
     atRetirement: atRetirementDollars,
     needed: neededDollars,
     gap,
     extraMonthly,
     depletionAge,
   };
+}
+
+/**
+ * The age a mortgage is paid off on its current payment, given today's age; null without terms, or
+ * when the payment never pays it down.
+ */
+export function mortgagePayoffAge(
+  mortgage: Pick<RetirementMortgage, 'balance' | 'interestRatePct' | 'monthlyPayment'>,
+  currentAge: number,
+): number | null {
+  const { balance, interestRatePct, monthlyPayment } = mortgage;
+  if (balance <= 0) return currentAge;
+  if (interestRatePct === null || !monthlyPayment || monthlyPayment <= (balance * interestRatePct) / 1200) return null;
+  // Whole years: the first birthday by which it's gone, capped at 50 years out.
+  for (let years = 1; years <= 50; years++) {
+    if (remainingLoanBalance(balance, interestRatePct, monthlyPayment, years * 12) < 1) return currentAge + years;
+  }
+  return null;
 }
