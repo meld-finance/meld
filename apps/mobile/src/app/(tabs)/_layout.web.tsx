@@ -14,6 +14,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { ChatPanelProvider, useChatPanel } from '@/lib/chat-panel';
 import { useProfile } from '@/lib/queries';
+import { useThemePref, type ThemePref } from '@/lib/theme-pref';
 
 /** Below this window width the sidebar collapses to an icon rail. */
 const COMPACT_BELOW = 1000;
@@ -84,11 +85,67 @@ function Sidebar({ compact, children, style: _style, ...props }: TabListProps & 
         {!compact && <ThemedText style={styles.brandText}>meld</ThemedText>}
       </View>
       <View style={styles.nav}>{children}</View>
-      {!compact && (
-        <ThemedText type="small" themeColor="textSecondary" style={styles.tagline}>
-          All your money.{'\n'}All your goals. One place.
-        </ThemedText>
-      )}
+      <View style={[styles.footer, compact && styles.footerCompact]}>
+        {!compact && (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.tagline}>
+            All your money.{'\n'}All your goals. One place.
+          </ThemedText>
+        )}
+        <ThemeToggle compact={compact} />
+      </View>
+    </View>
+  );
+}
+
+const THEME_OPTIONS: { value: ThemePref; icon: IconName; label: string }[] = [
+  { value: 'system', icon: 'monitor', label: 'Match system' },
+  { value: 'light', icon: 'sun', label: 'Light' },
+  { value: 'dark', icon: 'moon', label: 'Dark' },
+];
+
+/** Light, dark, or the device's scheme. Compact, one button steps through them. */
+function ThemeToggle({ compact }: { compact: boolean }) {
+  const theme = useTheme();
+  const [pref, setPref] = useThemePref();
+  if (compact) {
+    const i = THEME_OPTIONS.findIndex((o) => o.value === pref);
+    const current = THEME_OPTIONS[i]!;
+    const next = THEME_OPTIONS[(i + 1) % THEME_OPTIONS.length]!;
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Theme: ${current.label}. Switch to ${next.label}`}
+        onPress={() => setPref(next.value)}
+        style={({ hovered, pressed }) => [
+          styles.themeOption,
+          hovered && { backgroundColor: theme.backgroundSelected },
+          pressed && styles.pressed,
+        ]}>
+        <Icon name={current.icon} size={18} themeColor="textSecondary" />
+      </Pressable>
+    );
+  }
+  return (
+    <View accessibilityRole="radiogroup" style={[styles.themeToggle, { borderColor: theme.border }]}>
+      {THEME_OPTIONS.map((o) => {
+        const selected = o.value === pref;
+        return (
+          <Pressable
+            key={o.value}
+            accessibilityRole="radio"
+            accessibilityLabel={o.label}
+            accessibilityState={{ selected }}
+            onPress={() => setPref(o.value)}
+            style={({ hovered, pressed }) => [
+              styles.themeOption,
+              styles.themeOptionWide,
+              selected ? { backgroundColor: theme.backgroundSelected } : hovered && { backgroundColor: theme.background },
+              pressed && styles.pressed,
+            ]}>
+            <Icon name={o.icon} size={16} themeColor={selected ? 'tint' : 'textSecondary'} />
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -247,7 +304,12 @@ const styles = StyleSheet.create({
   },
   navItemCompact: { paddingHorizontal: Spacing.three, gap: 0 },
   navTextActive: { fontWeight: 600 },
-  tagline: { marginTop: 'auto', paddingHorizontal: Spacing.two },
+  footer: { marginTop: 'auto', gap: Spacing.three },
+  footerCompact: { alignItems: 'center' },
+  tagline: { paddingHorizontal: Spacing.two },
+  themeToggle: { flexDirection: 'row', borderWidth: 1, borderRadius: Spacing.five, padding: Spacing.half, gap: Spacing.half },
+  themeOption: { padding: Spacing.two, borderRadius: Spacing.five, alignItems: 'center' },
+  themeOptionWide: { flex: 1 },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

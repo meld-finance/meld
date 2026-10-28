@@ -38,6 +38,12 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  // Web: native controls and scrollbars follow the chosen scheme, not just the OS.
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.colorScheme = colorScheme === 'dark' || colorScheme === 'light' ? colorScheme : 'light dark';
+    }
+  }, [colorScheme]);
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <QueryClientProvider client={queryClient}>
