@@ -18,7 +18,7 @@ export default function RulesScreen() {
   const [editing, setEditing] = useState<CategoryRule | null>(null);
 
   const back = (
-    <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/transactions'))}>
+    <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace({ pathname: '/spending', params: { tab: 'transactions' } }))}>
       <ThemedText type="linkPrimary">‹ Back</ThemedText>
     </Pressable>
   );

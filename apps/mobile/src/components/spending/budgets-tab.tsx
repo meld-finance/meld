@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -12,7 +12,8 @@ import { confirm } from '@/lib/confirm';
 import { currentMonth, formatCategory, formatCurrency, formatMonth, shiftMonth } from '@/lib/format';
 import { useBudgets, useDeleteBudget, useSpending, useUpsertBudget } from '@/lib/queries';
 
-export default function BudgetScreen() {
+/** Monthly targets per category, against what was spent. */
+export function BudgetsTab({ header }: { header: ReactNode }) {
   const [month, setMonth] = useState(currentMonth);
   const [editing, setEditing] = useState<string | null>(null);
   const budgets = useBudgets(month);
@@ -25,23 +26,21 @@ export default function BudgetScreen() {
   const totalSpent = budgets.data?.reduce((s, b) => s + b.spent, 0) ?? 0;
 
   return (
-    <Screen
-      title="Budgets"
-      actions={
-        <View style={styles.monthNav}>
-          <Button label="‹" variant="secondary" size="small" onPress={() => setMonth(shiftMonth(month, -1))} />
-          <ThemedText type="smallBold" style={styles.monthLabel}>
-            {formatMonth(month, true)}
-          </ThemedText>
-          <Button
-            label="›"
-            variant="secondary"
-            size="small"
-            disabled={isCurrent}
-            onPress={() => setMonth(shiftMonth(month, 1))}
-          />
-        </View>
-      }>
+    <Screen wide>
+      {header}
+      <View style={styles.monthNav}>
+        <Button label="‹" variant="secondary" size="small" onPress={() => setMonth(shiftMonth(month, -1))} />
+        <ThemedText type="smallBold" style={styles.monthLabel}>
+          {formatMonth(month, true)}
+        </ThemedText>
+        <Button
+          label="›"
+          variant="secondary"
+          size="small"
+          disabled={isCurrent}
+          onPress={() => setMonth(shiftMonth(month, 1))}
+        />
+      </View>
       {budgets.isPending || spending.isPending ? (
         <ThemedText themeColor="textSecondary">Loading…</ThemedText>
       ) : budgets.isError || spending.isError ? (

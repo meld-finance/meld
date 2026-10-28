@@ -1,12 +1,10 @@
 import { FilingStatus, type UserProfile } from '@meld/shared';
-import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Chip } from '@/components/chip';
-import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -20,19 +18,13 @@ const FILING_LABELS: Record<FilingStatus, string> = {
   qualifying_widow: 'Qualifying surviving spouse',
 };
 
-const goBack = () => (router.canGoBack() ? router.back() : router.replace('/ask'));
-
-export default function ProfileScreen() {
+/** About you, taxes, benefits and goals: the inputs Ask Meld and future planning tools use. */
+export function ProfileTab() {
   const profile = useProfile();
-  const back = (
-    <Pressable onPress={goBack}>
-      <ThemedText type="linkPrimary">‹ Back</ThemedText>
-    </Pressable>
-  );
   return (
-    <Screen title="Profile" actions={back}>
+    <>
       <ThemedText type="small" themeColor="textSecondary">
-        Used by Ask for tax, retirement and insurance questions. Every field is optional; leave out anything you’d
+        Used by Ask Meld for tax, retirement and insurance questions. Every field is optional; leave out anything you’d
         rather not share.
       </ThemedText>
       {profile.isPending ? (
@@ -42,7 +34,7 @@ export default function ProfileScreen() {
       ) : (
         <ProfileForm initial={profile.data} />
       )}
-    </Screen>
+    </>
   );
 }
 

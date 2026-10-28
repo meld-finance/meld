@@ -14,7 +14,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { formatCategory, formatCurrency, formatDate, formatSubcategory } from '@/lib/format';
 import { useAccounts, useCategories, useTransactions } from '@/lib/queries';
 
-export default function TransactionsScreen() {
+/** Every transaction, searchable and filterable, with recategorizing. */
+export function TransactionsTab({ header }: { header: ReactNode }) {
   const theme = useTheme();
   const params = useLocalSearchParams<{ accountId?: string }>();
   const [search, setSearch] = useState('');
@@ -39,22 +40,21 @@ export default function TransactionsScreen() {
   const total = query.data?.pages[0]?.total ?? 0;
 
   return (
-    <Screen
-      title="Transactions"
-      scroll={false}
-      actions={
+    <Screen wide scroll={false}>
+      {header}
+      <View style={styles.searchRow}>
+        <TextInput
+          style={[styles.search, styles.grow, { color: theme.text, backgroundColor: theme.backgroundElement }]}
+          placeholder="Search merchant or description"
+          placeholderTextColor={theme.textSecondary}
+          value={search}
+          onChangeText={setSearch}
+          clearButtonMode="while-editing"
+        />
         <Link href="/rules">
           <ThemedText type="linkPrimary">Rules</ThemedText>
         </Link>
-      }>
-      <TextInput
-        style={[styles.search, { color: theme.text, backgroundColor: theme.backgroundElement }]}
-        placeholder="Search merchant or description"
-        placeholderTextColor={theme.textSecondary}
-        value={search}
-        onChangeText={setSearch}
-        clearButtonMode="while-editing"
-      />
+      </View>
 
       <FilterRow>
         <Chip label="All accounts" selected={!accountId} onPress={() => setAccountId(undefined)} />
@@ -157,6 +157,7 @@ function TransactionRow({ transaction: t, onPress }: { transaction: Transaction;
 }
 
 const styles = StyleSheet.create({
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   search: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + Spacing.one },
   // Without flexGrow: 0 a horizontal ScrollView stretches to fill the column.
   filterScroll: { flexGrow: 0 },

@@ -32,7 +32,7 @@ export default function CategoryScreen() {
   const name = formatCategory(category);
 
   const back = (
-    <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/cashflow'))}>
+    <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/spending'))}>
       <ThemedText type="linkPrimary">‹ Cash Flow</ThemedText>
     </Pressable>
   );

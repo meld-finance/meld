@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, RefreshControl, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { Card } from '@/components/card';
@@ -36,7 +36,8 @@ const SIDE_PANEL_MIN_WIDTH = 1280;
 /** Below this the Top Movers notes column is dropped. */
 const NOTES_MIN_WIDTH = 900;
 
-export default function CashflowScreen() {
+/** Cash flow for a period: totals, trends, and where spending went. */
+export function OverviewTab({ header }: { header: ReactNode }) {
   const { width } = useWindowDimensions();
   const [mode, setMode] = useState<PeriodMode>('ytd');
   const [month, setMonth] = useState(currentMonth);
@@ -49,34 +50,23 @@ export default function CashflowScreen() {
   const onRefresh = () => void Promise.all([period.refetch(), history.refetch()]);
   const sidePanel = width >= SIDE_PANEL_MIN_WIDTH;
 
-  const header = (
-    <View style={styles.header}>
-      <View style={styles.headerText}>
-        <ThemedText type="smallBold" themeColor="textSecondary" style={styles.eyebrow}>
-          CASH FLOW
-        </ThemedText>
-        <ThemedText type="subtitle">Your spending, at a glance</ThemedText>
-        <ThemedText themeColor="textSecondary">
-          See where your money goes, how it changes over time, and what’s driving the biggest shifts.
-        </ThemedText>
-      </View>
-      <View style={styles.controls}>
-        <Segmented
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: 'month', label: 'Monthly' },
-            { value: 'lastYear', label: String(year - 1) },
-            { value: 'ytd', label: `YTD ${year}` },
-          ]}
-        />
-        <DateRange
-          from={p.from}
-          to={p.to}
-          onPrev={mode === 'month' ? () => setMonth(shiftMonth(month, -1)) : undefined}
-          onNext={mode === 'month' && month < currentMonth() ? () => setMonth(shiftMonth(month, 1)) : undefined}
-        />
-      </View>
+  const controls = (
+    <View style={styles.controls}>
+      <Segmented
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: 'month', label: 'Monthly' },
+          { value: 'lastYear', label: String(year - 1) },
+          { value: 'ytd', label: `YTD ${year}` },
+        ]}
+      />
+      <DateRange
+        from={p.from}
+        to={p.to}
+        onPrev={mode === 'month' ? () => setMonth(shiftMonth(month, -1)) : undefined}
+        onNext={mode === 'month' && month < currentMonth() ? () => setMonth(shiftMonth(month, 1)) : undefined}
+      />
     </View>
   );
 
@@ -123,7 +113,7 @@ export default function CashflowScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               No spending in this period.
             </ThemedText>
-            <Link href="/transactions">
+            <Link href={{ pathname: '/spending', params: { tab: 'transactions' } }}>
               <ThemedText type="small" themeColor="tint">
                 Transactions →
               </ThemedText>
@@ -163,6 +153,7 @@ export default function CashflowScreen() {
   return (
     <Screen wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       {header}
+      {controls}
       {sidePanel ? (
         <View style={styles.split}>
           <View style={styles.main}>{dashboard}</View>
@@ -208,16 +199,6 @@ function Arrow({ icon, label, onPress }: { icon: 'chevronLeft' | 'chevronRight';
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-    marginBottom: Spacing.two,
-  },
-  headerText: { flexShrink: 1, flexBasis: 420, flexGrow: 1, gap: Spacing.one },
-  eyebrow: { letterSpacing: 1 },
   controls: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three },
   range: {
     flexDirection: 'row',

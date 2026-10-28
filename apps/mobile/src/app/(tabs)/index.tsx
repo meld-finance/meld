@@ -116,7 +116,7 @@ export default function HomeScreen() {
         title="Cash flow"
         subtitle="Last 6 months · excludes transfers and card payments"
         action={
-          <Link href="/cashflow">
+          <Link href="/spending">
             <ThemedText type="small" themeColor="tint">
               Details →
             </ThemedText>
@@ -134,7 +134,7 @@ export default function HomeScreen() {
           title={`Spending in ${formatMonth(month)}`}
           style={styles.column}
           action={
-            <Link href="/transactions">
+            <Link href={{ pathname: '/spending', params: { tab: 'transactions' } }}>
               <ThemedText type="small" themeColor="tint">
                 Transactions →
               </ThemedText>
@@ -153,7 +153,7 @@ export default function HomeScreen() {
           title="Budgets"
           style={styles.column}
           action={
-            <Link href="/budget">
+            <Link href={{ pathname: '/spending', params: { tab: 'budgets' } }}>
               <ThemedText type="small" themeColor="tint">
                 Manage →
               </ThemedText>
@@ -173,7 +173,7 @@ export default function HomeScreen() {
               ))
           ) : (
             <ThemedText type="small" themeColor="textSecondary">
-              No budgets yet. Set monthly targets under Budgets.
+              No budgets yet. Set monthly targets under Spending → Budgets.
             </ThemedText>
           )}
         </Card>

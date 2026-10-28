@@ -101,7 +101,7 @@ export default function AccountDetailScreen() {
 
       <Card>
         <View style={styles.actions}>
-          <Link href={{ pathname: '/transactions', params: { accountId: account.id } }}>
+          <Link href={{ pathname: '/spending', params: { tab: 'transactions', accountId: account.id } }}>
             <ThemedText type="linkPrimary">View transactions →</ThemedText>
           </Link>
           <Button
