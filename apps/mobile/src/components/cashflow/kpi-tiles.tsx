@@ -1,12 +1,12 @@
 import type { CashflowPeriod } from '@meld/shared';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon, type IconName } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useAccents } from '@/hooks/use-accents';
 import { useTheme } from '@/hooks/use-theme';
-import { formatPercent, percentChange, type Period } from '@/lib/cashflow';
+import { formatPercent, openCategory, percentChange, type Period } from '@/lib/cashflow';
 import { formatWholeCurrency } from '@/lib/format';
 
 type Kpi = {
@@ -17,6 +17,8 @@ type Kpi = {
   accent: Accent;
   /** Spending going down is the good direction. */
   lowerIsBetter?: boolean;
+  /** Opens the breakdown behind the number. */
+  onPress?: () => void;
 };
 
 export function KpiTiles({ period, p }: { period: CashflowPeriod; p: Period }) {
@@ -24,7 +26,14 @@ export function KpiTiles({ period, p }: { period: CashflowPeriod; p: Period }) {
   const previousNet = period.previousIncome - period.previousSpending;
   const kpis: Kpi[] = [
     { label: 'Total Spending', value: period.spending, previous: period.previousSpending, icon: 'card', accent: 'blue', lowerIsBetter: true },
-    { label: 'Total Income', value: period.income, previous: period.previousIncome, icon: 'wallet', accent: 'green' },
+    {
+      label: 'Total Income',
+      value: period.income,
+      previous: period.previousIncome,
+      icon: 'wallet',
+      accent: 'green',
+      onPress: () => openCategory('INCOME', p),
+    },
     { label: 'Net Cash Flow', value: net, previous: previousNet, icon: 'barChart', accent: 'purple' },
   ];
   return (
@@ -46,7 +55,15 @@ function KpiTile({ kpi, comparison }: { kpi: Kpi; comparison: string }) {
   const good = kpi.lowerIsBetter ? !up : up;
 
   return (
-    <View style={[styles.tile, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+    <Pressable
+      accessibilityRole={kpi.onPress ? 'button' : undefined}
+      disabled={!kpi.onPress}
+      onPress={kpi.onPress}
+      style={({ pressed }) => [
+        styles.tile,
+        { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+        pressed && styles.pressed,
+      ]}>
       <View style={[styles.badge, { backgroundColor: accent.bg }]}>
         <Icon name={kpi.icon} size={24} color={accent.fg} />
       </View>
@@ -72,8 +89,13 @@ function KpiTile({ kpi, comparison }: { kpi: Kpi; comparison: string }) {
             </ThemedText>
           </>
         )}
+        {kpi.onPress && (
+          <ThemedText type="small" themeColor="tint">
+            See breakdown →
+          </ThemedText>
+        )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -94,4 +116,5 @@ const styles = StyleSheet.create({
   value: { fontSize: 28, lineHeight: 36, fontWeight: 700, letterSpacing: -0.4 },
   change: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   caption: { fontSize: 13 },
+  pressed: { opacity: 0.7 },
 });
