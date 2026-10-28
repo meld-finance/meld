@@ -154,7 +154,7 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
   );
 }
 
-function Field({ label, invalid, children }: { label: string; invalid?: boolean; children: ReactNode }) {
+export function Field({ label, invalid, children }: { label: string; invalid?: boolean; children: ReactNode }) {
   return (
     <View style={styles.field}>
       <ThemedText type="small" themeColor={invalid ? 'negative' : 'textSecondary'}>
@@ -166,11 +166,11 @@ function Field({ label, invalid, children }: { label: string; invalid?: boolean;
   );
 }
 
-function Row({ children }: { children: ReactNode }) {
+export function Row({ children }: { children: ReactNode }) {
   return <View style={styles.row}>{children}</View>;
 }
 
-function Input({ style, ...props }: TextInputProps) {
+export function Input({ style, ...props }: TextInputProps) {
   const theme = useTheme();
   return (
     <TextInput

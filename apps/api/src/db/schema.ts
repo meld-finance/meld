@@ -312,6 +312,23 @@ export const userProfile = pgTable('user_profile', {
   ...timestamps,
 });
 
+/** Single-row table holding retirement assumptions; nulls fall back to defaults. */
+export const retirementPlan = pgTable('retirement_plan', {
+  id: integer('id').primaryKey().default(1),
+  retirementAge: integer('retirement_age'),
+  lifeExpectancy: integer('life_expectancy'),
+  annualContribution: money('annual_contribution'),
+  /** Percent per year, after inflation. */
+  expectedReturn: numeric('expected_return', { precision: 5, scale: 2, mode: 'number' }),
+  annualSpending: money('annual_spending'),
+  socialSecurityAnnual: money('social_security_annual'),
+  socialSecurityAge: integer('social_security_age'),
+  pensionAnnual: money('pension_annual'),
+  otherSavings: money('other_savings'),
+  excludedAccountIds: jsonb('excluded_account_ids').$type<string[]>().notNull().default([]),
+  ...timestamps,
+});
+
 // --- AI chat ----------------------------------------------------------------
 
 export const chatSessions = pgTable('chat_sessions', {

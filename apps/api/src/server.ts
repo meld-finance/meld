@@ -16,6 +16,7 @@ import { registerManualAssetRoutes } from './routes/manual-assets';
 import { registerOverviewRoutes } from './routes/overview';
 import { registerPlaidRoutes } from './routes/plaid';
 import { registerProfileRoutes } from './routes/profile';
+import { registerRetirementRoutes } from './routes/retirement';
 import { registerTransactionRoutes } from './routes/transactions';
 import type { DocumentStorage } from './storage';
 
@@ -78,6 +79,7 @@ export async function buildServer(deps: AppDeps) {
   await registerManualAssetRoutes(app, deps);
   await registerInsuranceRoutes(app, deps);
   await registerProfileRoutes(app, deps);
+  await registerRetirementRoutes(app, deps);
   await registerChatRoutes(app, deps);
 
   return app;

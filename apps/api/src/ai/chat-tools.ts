@@ -1,4 +1,14 @@
-import { currentValue, estimatePayoff, insuranceTotals, lookThrough, Month, TransactionQuery } from '@meld/shared';
+import {
+  currentValue,
+  estimatePayoff,
+  insuranceTotals,
+  lookThrough,
+  Month,
+  projectRetirement,
+  resolvePlan,
+  RetirementPlan,
+  TransactionQuery,
+} from '@meld/shared';
 import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db } from '../db/client';
@@ -15,6 +25,7 @@ import {
   getSpendingByCategory,
 } from '../services/overview';
 import { getProfile } from '../services/profile';
+import { getRetirement } from '../services/retirement';
 import { listCategories, queryTransactions, totalsByMerchant } from '../services/transactions';
 
 /**
@@ -274,6 +285,37 @@ export function createChatTools(db: Db): ChatTool[] {
       input: z.object({}),
       label: () => 'Checked your profile',
       run: () => getProfile(db),
+    }),
+    tool({
+      name: 'get_retirement_plan',
+      description:
+        'The user’s retirement plan from Plan → Retirement: their assumptions (with which ones are Meld’s defaults), the investment accounts counted toward retirement and those left out (education/custodial accounts always; others by the user’s choice), and a year-by-year projection. All amounts are in today’s dollars with an after-inflation return. `needed` is the balance at retirement age that lasts to life expectancy, `gap` is needed minus projected (≤ 0 means on track), and `extraMonthly` is the added monthly contribution that closes the gap. Pass any of the optional inputs to try a what-if scenario without changing the saved plan.',
+      input: RetirementPlan.pick({ retirementAge: true, annualContribution: true, annualSpending: true, expectedReturn: true })
+        .partial()
+        .describe('Optional what-if overrides; omit to use the saved plan'),
+      label: (input) => (Object.keys(input).length ? 'Ran a retirement what-if' : 'Checked your retirement plan'),
+      run: async (overrides) => {
+        const summary = await getRetirement(db);
+        const whatIf = Object.fromEntries(Object.entries(overrides).filter(([, v]) => v !== undefined && v !== null));
+        const plan = { ...summary.plan, ...whatIf };
+        const resolved = resolvePlan(plan, summary);
+        if (!resolved.inputs) return { missing: resolved.missing, accounts: summary.accounts };
+        const projection = projectRetirement(resolved.inputs);
+        const { excludedAccountIds: _e, ...saved } = summary.plan;
+        return {
+          assumptions: resolved.inputs,
+          defaulted: Object.entries(saved)
+            .filter(([k, v]) => v === null && !(k in whatIf))
+            .map(([k]) => k),
+          whatIf: Object.keys(whatIf).length ? whatIf : undefined,
+          accounts: summary.accounts.map(({ id: _id, ...a }) => a),
+          projection: {
+            ...projection,
+            // Every five years keeps the result short; the last point shows what's left at the end.
+            points: projection.points.filter((p, i, all) => i % 5 === 0 || i === all.length - 1),
+          },
+        };
+      },
     }),
   ];
 }

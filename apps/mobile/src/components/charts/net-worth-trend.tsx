@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 
+import { zeroBasedScale } from '@/components/charts/scale';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -16,13 +17,6 @@ const END_PAD_X = 6; // room for the end dot
 const Y_AXIS_WIDTH = 52;
 const TICKS = 5;
 const TOOLTIP_WIDTH = 150;
-
-/** Round step (1, 2, 2.5 or 5 × 10ⁿ) so `count` ticks cover `span`. */
-function niceStep(span: number, count: number) {
-  const raw = span / count;
-  const pow = 10 ** Math.floor(Math.log10(raw));
-  return ([1, 2, 2.5, 5, 10].find((m) => m * pow >= raw) ?? 10) * pow;
-}
 
 /** Index of the first point in each calendar month, for x-axis labels. */
 function monthStarts(points: NetWorthPoint[]) {
@@ -50,12 +44,7 @@ export function NetWorthTrend({ points }: { points: NetWorthPoint[] }) {
 
   const values = points.map((p) => p.netWorth);
   // Anchor at zero (or below, if net worth dipped negative) so the area reads as magnitude.
-  const lo = Math.min(0, ...values);
-  const hi = Math.max(...values);
-  const step = niceStep(hi - lo || Math.abs(hi) || 1, TICKS - 1);
-  const min = Math.floor(lo / step) * step;
-  const max = Math.max(Math.ceil(hi / step) * step, min + step);
-  const ticks = Array.from({ length: Math.round((max - min) / step) + 1 }, (_, i) => min + i * step);
+  const { min, max, ticks } = zeroBasedScale(values, TICKS);
 
   const plotW = Math.max(width - END_PAD_X * 2, 1);
   const x = (i: number) => END_PAD_X + (i / (points.length - 1)) * plotW;

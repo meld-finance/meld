@@ -45,7 +45,7 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 
 ## Overview & budgets
 
-The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts and Investments), **Spending** (Overview, Transactions, Budgets) and **Plan** (Insurance, Profile).
+The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts and Investments), **Spending** (Overview, Transactions, Budgets) and **Plan** (Retirement, Insurance, Profile).
 
 
 - **Net worth** = linked balances + manual assets (home, vehicles; add them on the Accounts tab) + life insurance cash surrender value − credit, loan and mortgage balances. Meld records one snapshot per day (after each sync and every 6 hours), so the trend line starts after the second day.
@@ -63,9 +63,16 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts a
 - **Hide from totals** on an account's page excludes it from net worth, cash flow, budgets and lists (e.g. a closed or duplicate account). Hidden accounts are listed at the bottom of the Accounts tab.
 - Full account numbers that Plaid returns for loans are dropped before storage.
 
+## Plan: retirement
+
+- **Plan → Retirement** projects your savings to retirement age, compares that with what you'll need for your money to last to the age you plan for, and shows the gap and the extra monthly saving that closes it. The chart shows your balance by age, growing until you retire and drawn down after.
+- Everything is in **today's dollars**: the return is after inflation (5% by default), and spending, contributions, Social Security and pension are today's amounts. Social Security counts from the age you set (67 by default).
+- Every visible investment account counts at your ownership share, except 529, Coverdell, UTMA/UGMA and other education or custodial accounts. Turn off any account you're saving for something else (a down payment, say), and add cash set aside for retirement as **Other savings**.
+- Empty fields use suggestions: age from your profile's birth year, retirement at 65, planning to 95, and spending from your last 12 full months of cash flow. Edits update the projection as you type; **Save assumptions** keeps them.
+- Ask Meld can read the plan and try what-ifs ("what if I retire at 60?") without changing what you saved.
+
 ## Plan: insurance
 
-- **Plan** is for protecting and planning ahead; it starts with insurance, and retirement planning will join it.
 - Add life and disability policies under **Plan → Insurance**, including coverage through work. It totals your life coverage, monthly disability benefit and yearly premiums. Term policies past their end date aren't counted.
 - Whole and universal life policies count toward net worth at their surrender value, and are listed under **Insurance cash value** on the Accounts tab, which links back to each policy.
 - **Upload PDF** on the Add policy page sends a policy, certificate or benefits summary to the AI provider (Claude by default), which fills in the form and flags anything it inferred or couldn't find. Nothing is saved until you check the fields and press **Save**. Needs `ANTHROPIC_API_KEY`.

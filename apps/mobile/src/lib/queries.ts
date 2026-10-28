@@ -28,6 +28,8 @@ import type {
   ProfileResult,
   PropertyEstimate,
   PlaidItemSummary,
+  RetirementPlan,
+  RetirementSummary,
   SyncResult,
   TransactionPage,
   TransactionQuery,
@@ -63,6 +65,7 @@ export const keys = {
   chatSessions: ['chat', 'sessions'] as const,
   chatSession: (id: string) => ['chat', 'sessions', id] as const,
   profile: ['profile'] as const,
+  retirement: ['retirement'] as const,
 };
 
 export function useNetWorth() {
@@ -281,6 +284,7 @@ function useInvalidateFinancialData() {
       qc.invalidateQueries({ queryKey: ['spending'] }),
       qc.invalidateQueries({ queryKey: ['budgets'] }),
       qc.invalidateQueries({ queryKey: ['investments'] }),
+      qc.invalidateQueries({ queryKey: keys.retirement }),
     ]);
 }
 
@@ -415,7 +419,23 @@ export function useSaveProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (profile: UserProfile) => api<UserProfile>('/profile', { method: 'PUT', body: JSON.stringify(profile) }),
-    onSuccess: (saved) => qc.setQueryData(keys.profile, saved),
+    onSuccess: (saved) => {
+      qc.setQueryData(keys.profile, saved);
+      // Retirement defaults come from the profile's birth year and income.
+      void qc.invalidateQueries({ queryKey: keys.retirement });
+    },
+  });
+}
+
+export function useRetirement() {
+  return useQuery({ queryKey: keys.retirement, queryFn: () => api<RetirementSummary>('/retirement') });
+}
+
+export function useSaveRetirementPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (plan: RetirementPlan) => api<RetirementSummary>('/retirement', { method: 'PUT', body: JSON.stringify(plan) }),
+    onSuccess: (saved) => qc.setQueryData(keys.retirement, saved),
   });
 }
 
