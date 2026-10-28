@@ -19,6 +19,7 @@ import { useCategoryDetail, useTransactions } from '@/lib/queries';
 
 /** Merchants listed before the rest are left to the transaction list. */
 const TOP_MERCHANTS = 10;
+const INCOME = 'INCOME';
 
 /** One cash-flow category over a period: where it went by subcategory and merchant, and the transactions behind it. */
 export default function CategoryScreen() {
@@ -30,6 +31,7 @@ export default function CategoryScreen() {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const detail = useCategoryDetail(category, from, to);
   const name = formatCategory(category);
+  const income = category === INCOME;
 
   const back = (
     <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/spending'))}>
@@ -48,15 +50,16 @@ export default function CategoryScreen() {
         <ThemedText themeColor="negative">Couldn’t load {name.toLowerCase()}: {detail.error.message}</ThemedText>
       ) : (
         <>
-          <Summary detail={detail.data} comparison={comparison} />
+          <Summary detail={detail.data} comparison={comparison} income={income} />
           {detail.data.subcategories.length > 0 && (
             <Subcategories
               detail={detail.data}
+              income={income}
               selected={subcategory}
               onSelect={(s) => setSubcategory(s === subcategory ? undefined : s)}
             />
           )}
-          {detail.data.merchants.length > 0 && <Merchants detail={detail.data} />}
+          {detail.data.merchants.length > 0 && <Merchants detail={detail.data} income={income} />}
         </>
       )}
       <Transactions
@@ -72,31 +75,32 @@ export default function CategoryScreen() {
   );
 }
 
-function Change({ amount, previous }: { amount: number; previous: number }) {
+function Change({ amount, previous, income }: { amount: number; previous: number; income: boolean }) {
   if (amount === previous) return null;
   const pct = percentChange(amount, previous);
   const up = amount > previous;
-  // Spending up is the unfavorable direction.
+  // Spending up is the unfavorable direction; income up is the favorable one.
+  const good = income ? up : !up;
   return (
     <View style={styles.change}>
-      <Icon name={up ? 'arrowUp' : 'arrowDown'} size={12} themeColor={up ? 'negative' : 'positive'} strokeWidth={2.25} />
-      <ThemedText type="small" themeColor={up ? 'negative' : 'positive'}>
+      <Icon name={up ? 'arrowUp' : 'arrowDown'} size={12} themeColor={good ? 'positive' : 'negative'} strokeWidth={2.25} />
+      <ThemedText type="small" themeColor={good ? 'positive' : 'negative'}>
         {pct === null ? 'New' : formatPercent(pct)}
       </ThemedText>
     </View>
   );
 }
 
-function Summary({ detail, comparison }: { detail: CategoryDetail; comparison: string }) {
+function Summary({ detail, comparison, income }: { detail: CategoryDetail; comparison: string; income: boolean }) {
   const diff = detail.amount - detail.previous;
   return (
     <Card>
       <ThemedText type="small" themeColor="textSecondary">
-        Spent
+        {income ? 'Received' : 'Spent'}
       </ThemedText>
       <View style={styles.summaryRow}>
         <ThemedText type="title">{formatWholeCurrency(detail.amount)}</ThemedText>
-        <Change amount={detail.amount} previous={detail.previous} />
+        <Change amount={detail.amount} previous={detail.previous} income={income} />
       </View>
       <ThemedText type="small" themeColor="textSecondary">
         {formatWholeCurrency(detail.previous)} in {comparison}
@@ -108,10 +112,12 @@ function Summary({ detail, comparison }: { detail: CategoryDetail; comparison: s
 
 function Subcategories({
   detail,
+  income,
   selected,
   onSelect,
 }: {
   detail: CategoryDetail;
+  income: boolean;
   selected?: string;
   onSelect: (subcategory: string) => void;
 }) {
@@ -119,7 +125,7 @@ function Subcategories({
   const viz = useVizColors();
   const max = Math.max(...detail.subcategories.map((s) => s.amount), 1);
   return (
-    <Card title="By Subcategory" subtitle="Tap one to filter the transactions below">
+    <Card title={income ? 'By Type' : 'By Subcategory'} subtitle="Tap one to filter the transactions below">
       {detail.subcategories.map((s) => {
         const key = s.subcategory;
         const active = key !== null && key === selected;
@@ -129,7 +135,7 @@ function Subcategories({
               <ThemedText type={active ? 'smallBold' : 'small'} style={styles.grow} numberOfLines={1}>
                 {formatSubcategory(key, detail.category)}
               </ThemedText>
-              <Change amount={s.amount} previous={s.previous} />
+              <Change amount={s.amount} previous={s.previous} income={income} />
               <ThemedText type="smallBold" style={styles.numeric}>
                 {formatWholeCurrency(s.amount)}
               </ThemedText>
@@ -162,11 +168,11 @@ function Subcategories({
   );
 }
 
-function Merchants({ detail }: { detail: CategoryDetail }) {
+function Merchants({ detail, income }: { detail: CategoryDetail; income: boolean }) {
   const theme = useTheme();
   const top = detail.merchants.slice(0, TOP_MERCHANTS);
   return (
-    <Card title="Top Merchants" subtitle={`${top.length} of ${detail.merchants.length} by amount`}>
+    <Card title={income ? 'By Source' : 'Top Merchants'} subtitle={`${top.length} of ${detail.merchants.length} by amount`}>
       <View>
         {top.map((m) => (
           <View key={m.merchant} style={[styles.merchantRow, { borderColor: theme.border }]}>
@@ -178,7 +184,7 @@ function Merchants({ detail }: { detail: CategoryDetail }) {
                 {m.count === 1 ? '1 transaction' : `${m.count} transactions`} · {formatWholeCurrency(m.previous)} before
               </ThemedText>
             </View>
-            <Change amount={m.amount} previous={m.previous} />
+            <Change amount={m.amount} previous={m.previous} income={income} />
             <ThemedText type="smallBold" style={styles.numeric}>
               {formatWholeCurrency(m.amount)}
             </ThemedText>

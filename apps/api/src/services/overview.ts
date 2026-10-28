@@ -293,21 +293,25 @@ export async function getCashflowPeriod(db: Db, from: string, to: string): Promi
   };
 }
 
-/** One category's spending by subcategory and merchant over [from, to] and the same dates a year earlier. */
+/**
+ * One category's spending by subcategory and merchant over [from, to] and the same dates a year earlier.
+ * For income, amounts are money received, by source.
+ */
 export async function getCategoryDetail(db: Db, category: string, from: string, to: string): Promise<CategoryDetail> {
   const previousFrom = shiftYears(from, -1);
   const previousTo = shiftYears(to, -1);
   const inCurrent = and(gte(transactions.date, from), lte(transactions.date, to));
   const inPrevious = and(gte(transactions.date, previousFrom), lte(transactions.date, previousTo));
   const merchant = sql<string>`coalesce(${transactions.merchantName}, ${transactions.name})`;
+  // Plaid: positive = money out. Income is reported as a positive number.
+  const amount = category === INCOME ? sql`-${ownedAmount}` : ownedAmount;
 
   const rows = await db
     .select({
       subcategory: effectiveSubcategory,
       merchant,
-      // Plaid: positive = money out.
-      amount: sql<number>`coalesce(sum(${ownedAmount}) filter (where ${inCurrent}), 0)::float8`,
-      previous: sql<number>`coalesce(sum(${ownedAmount}) filter (where ${inPrevious}), 0)::float8`,
+      amount: sql<number>`coalesce(sum(${amount}) filter (where ${inCurrent}), 0)::float8`,
+      previous: sql<number>`coalesce(sum(${amount}) filter (where ${inPrevious}), 0)::float8`,
       count: sql<number>`(count(*) filter (where ${inCurrent}))::int`,
     })
     .from(transactions)

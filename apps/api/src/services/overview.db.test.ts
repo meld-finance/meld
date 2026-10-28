@@ -184,6 +184,30 @@ describe.skipIf(!testDatabaseUrl)('overview queries (Postgres)', () => {
     ]);
   });
 
+  it('drills into income as money received, by source', async () => {
+    const [checking] = await ctx.db.select({ id: accounts.id }).from(accounts).where(eq(accounts.name, 'Checking'));
+    const income = { accountId: checking!.id, plaidCategoryPrimary: 'INCOME' };
+    await ctx.db.insert(transactions).values([
+      { ...income, date: '2026-10-15', amount: -3000, name: 'ACME PAYROLL', plaidCategoryDetailed: 'INCOME_WAGES' },
+      { ...income, date: '2026-10-20', amount: -12.5, name: 'Interest', plaidCategoryDetailed: 'INCOME_INTEREST_EARNED' },
+      { ...income, date: '2025-10-15', amount: -2800, name: 'ACME PAYROLL', plaidCategoryDetailed: 'INCOME_WAGES' },
+    ]);
+
+    const detail = await getCategoryDetail(ctx.db, 'INCOME', '2026-10-01', '2026-10-31');
+    expect(detail).toMatchObject({ amount: 6012.5, previous: 2800 });
+    expect(detail.subcategories).toEqual([
+      { subcategory: 'INCOME_WAGES', amount: 3000, previous: 2800 },
+      // The base fixture's paycheck has no subcategory.
+      { subcategory: null, amount: 3000, previous: 0 },
+      { subcategory: 'INCOME_INTEREST_EARNED', amount: 12.5, previous: 0 },
+    ]);
+    expect(detail.merchants.map((m) => [m.merchant, m.amount])).toEqual([
+      ['ACME PAYROLL', 3000],
+      ['INCOME', 3000],
+      ['Interest', 12.5],
+    ]);
+  });
+
   it('reports budget progress, including budgets with no spending', async () => {
     await ctx.db.insert(budgets).values([
       { category: 'FOOD_AND_DRINK', monthlyTarget: 300 },
