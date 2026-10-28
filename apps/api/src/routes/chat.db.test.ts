@@ -1,4 +1,4 @@
-import type { ChatSessionDetail, ChatStreamEvent } from '@meld/shared';
+import type { ChatModelList, ChatSessionDetail, ChatStreamEvent } from '@meld/shared';
 import type { PlaidApi } from 'plaid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { maskNumbers } from '../ai/chat-tools';
@@ -50,6 +50,10 @@ describe('toViews', () => {
 function fakeProvider(calls: ChatTurnInput[]): AIProvider {
   return {
     name: 'fake',
+    listChatModels: async () => [
+      { model: 'big', label: 'Big', note: null, local: false },
+      { model: 'small', label: 'Small', note: 'Cheap', local: false },
+    ],
     extractInsurancePolicy: () => Promise.reject(new Error('not used')),
     estimatePropertyValue: () => Promise.reject(new Error('not used')),
     estimateVehicleValue: () => Promise.reject(new Error('not used')),
@@ -87,7 +91,7 @@ describe.skipIf(!testDatabaseUrl)('chat routes (Postgres)', () => {
 
   beforeAll(async () => {
     ctx = await setupTestDb();
-    const env = loadEnv({ ...process.env, DATABASE_URL: testDatabaseUrl });
+    const env = loadEnv({ ...process.env, DATABASE_URL: testDatabaseUrl, OLLAMA_URL: '' });
     const plaid = {} as PlaidApi;
     app = await buildServer({
       env,
@@ -122,6 +126,7 @@ describe.skipIf(!testDatabaseUrl)('chat routes (Postgres)', () => {
     expect(done.message).toMatchObject({ role: 'assistant', text: 'Hello there', lookups: ['Checked accounts'] });
     expect(done.title).toBe('How am I doing?');
     expect(calls[0]!.snapshot).toContain('Snapshot of the person');
+    expect(calls[0]!.model).toBe('big');
 
     await send('And next month?');
     expect(calls[1]!.history.map((m) => m.content.native)).toEqual(['How am I doing?', 'call', 'result', 'answer']);
@@ -138,6 +143,25 @@ describe.skipIf(!testDatabaseUrl)('chat routes (Postgres)', () => {
     expect(list).toHaveLength(1);
     await app.inject({ method: 'DELETE', url: `/chat/sessions/${session.id}`, headers });
     expect((await app.inject({ method: 'GET', url: '/chat/sessions', headers })).json()).toEqual([]);
+  });
+
+  it('lists chat models and answers with the one picked', async () => {
+    const list = (await app.inject({ method: 'GET', url: '/chat/models', headers })).json<ChatModelList>();
+    expect(list.defaultId).toBe('fake:big');
+    expect(list.models.map((m) => [m.id, m.label, m.note])).toEqual([
+      ['fake:big', 'Big', null],
+      ['fake:small', 'Small', 'Cheap'],
+    ]);
+
+    const session = (await app.inject({ method: 'POST', url: '/chat/sessions', headers })).json();
+    const send = (model: string) =>
+      app.inject({ method: 'POST', url: `/chat/sessions/${session.id}/messages`, headers, payload: { text: 'Hi', model } });
+    await send('fake:small');
+    expect(calls.at(-1)!.model).toBe('small');
+
+    const unknown = await send('fake:huge');
+    expect(unknown.statusCode).toBe(400);
+    expect(calls).toHaveLength(1);
   });
 
   it('saves and validates the profile', async () => {

@@ -66,6 +66,27 @@ export function maskNumbers(value: unknown): unknown {
   );
 }
 
+/** Tool rounds per user message before giving up. */
+export const MAX_TOOL_ROUNDS = 12;
+
+/** Validates and runs one tool call; failures go back to the model as an error result. */
+export async function runTool(tool: ChatTool | undefined, input: unknown): Promise<{ content: string; isError: boolean }> {
+  if (!tool) return { content: 'Unknown tool.', isError: true };
+  const parsed = tool.input.safeParse(input);
+  if (!parsed.success) return { content: `Invalid input: ${z.prettifyError(parsed.error)}`, isError: true };
+  try {
+    return { content: JSON.stringify(maskNumbers(await tool.run(parsed.data))), isError: false };
+  } catch {
+    return { content: 'The lookup failed. Answer with what you have, or try different input.', isError: true };
+  }
+}
+
+/** What the app shows for a tool call, e.g. "Checked spending for 2026-10". */
+export function toolLabel(tool: ChatTool | undefined, name: string, input: unknown): string {
+  const parsed = tool?.input.safeParse(input);
+  return tool && parsed?.success ? tool.label(parsed.data) : name;
+}
+
 export function createChatTools(db: Db): ChatTool[] {
   return [
     tool({

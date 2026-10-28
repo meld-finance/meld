@@ -11,10 +11,12 @@ type Props<T extends string> = {
   value: T;
   onChange: (value: T) => void;
   accessibilityLabel: string;
+  /** Open the list upward, for a select near the bottom of the screen. */
+  openUp?: boolean;
 };
 
 /** A compact select: the current choice, opening a list of options below it. */
-export function Dropdown<T extends string>({ options, value, onChange, accessibilityLabel }: Props<T>) {
+export function Dropdown<T extends string>({ options, value, onChange, accessibilityLabel, openUp }: Props<T>) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.value === value) ?? options[0];
@@ -37,7 +39,7 @@ export function Dropdown<T extends string>({ options, value, onChange, accessibi
         <Icon name="chevronDown" size={16} themeColor="textSecondary" />
       </Pressable>
       {open && (
-        <View style={[styles.menu, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        <View style={[styles.menu, openUp ? styles.menuUp : styles.menuDown, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
           {options.map((o) => (
             <Pressable
               key={o.value}
@@ -78,11 +80,9 @@ const styles = StyleSheet.create({
   label: { flex: 1 },
   menu: {
     position: 'absolute',
-    top: '100%',
     right: 0,
     minWidth: '100%',
     maxWidth: 320,
-    marginTop: Spacing.one,
     borderWidth: 1,
     borderRadius: Spacing.two,
     paddingVertical: Spacing.one,
@@ -92,5 +92,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
+  menuDown: { top: '100%', marginTop: Spacing.one },
+  menuUp: { bottom: '100%', marginBottom: Spacing.one },
   option: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
 });

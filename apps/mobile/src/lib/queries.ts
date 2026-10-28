@@ -15,6 +15,7 @@ import type {
   CategoryRuleCreate,
   CategoryRuleResult,
   CategorySpend,
+  ChatModelList,
   ChatSessionDetail,
   ChatSessionSummary,
   InsurancePolicy,
@@ -67,6 +68,7 @@ export const keys = {
   budgets: (month: string) => ['budgets', month] as const,
   manualAssets: ['manual-assets'] as const,
   insurance: ['insurance'] as const,
+  chatModels: ['chat', 'models'] as const,
   chatSessions: ['chat', 'sessions'] as const,
   chatSession: (id: string) => ['chat', 'sessions', id] as const,
   profile: ['profile'] as const,
@@ -505,6 +507,10 @@ export function useDeleteSimulation(scenarioId: string) {
     mutationFn: (id: string) => api(`/retirement/simulations/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.simulations(scenarioId) }),
   });
+}
+
+export function useChatModels() {
+  return useQuery({ queryKey: keys.chatModels, queryFn: () => api<ChatModelList>('/chat/models'), staleTime: 60_000 });
 }
 
 export function useChatSessions() {

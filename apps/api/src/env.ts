@@ -1,9 +1,11 @@
 import { z } from 'zod';
 
-const csv = z
-  .string()
-  .default('')
-  .transform((s) => s.split(',').map((v) => v.trim()).filter(Boolean));
+const list = (fallback: string) =>
+  z
+    .string()
+    .default(fallback)
+    .transform((s) => s.split(',').map((v) => v.trim()).filter(Boolean));
+const csv = list('');
 
 const PlaidEnv = z.enum(['sandbox', 'production']);
 
@@ -37,8 +39,17 @@ const EnvSchema = z
     ANTHROPIC_MODEL: z.string().default('claude-opus-5-5'),
     /** Chat runs many tool rounds per message over a long history, so it's the largest cost. */
     ANTHROPIC_CHAT_MODEL: z.string().default('claude-sonnet-5-5'),
+    /** Other Claude models offered in the Ask model picker. */
+    ANTHROPIC_CHAT_MODELS: list('claude-opus-5-5,claude-sonnet-5-5,claude-haiku-5-5'),
     /** Property value lookups are a chain of web searches; a fast model finishes them several times sooner. */
     ANTHROPIC_LOOKUP_MODEL: z.string().default('claude-haiku-5-5'),
+
+    /** Ollama server for local chat models, e.g. http://127.0.0.1:11434; empty turns it off. */
+    OLLAMA_URL: z.union([z.url(), z.literal('')]).default(''),
+    /** Models offered in the picker; empty lists every installed model that supports tool calling. */
+    OLLAMA_CHAT_MODELS: csv,
+    /** Context window to request. Ollama's default is too small for the system prompt, snapshot and tools. */
+    OLLAMA_CONTEXT_LENGTH: z.coerce.number().int().positive().default(32768),
 
     /** Uploaded documents; defaults to <repo>/data/documents. */
     DOCUMENTS_DIR: z.string().default(''),

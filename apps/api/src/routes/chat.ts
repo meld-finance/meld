@@ -1,5 +1,6 @@
 import {
   ChatSendRequest,
+  type ChatModelList,
   type ChatMessageView,
   type ChatSessionDetail,
   type ChatSessionSummary,
@@ -7,9 +8,10 @@ import {
 } from '@meld/shared';
 import { asc, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
+import { createChatModels } from '../ai/chat-models';
 import { createChatTools } from '../ai/chat-tools';
 import { buildSnapshot, SYSTEM_PROMPT } from '../ai/prompt';
-import { requireAI, type ChatTurnResult, type StoredChatMessage } from '../ai/provider';
+import type { ChatTurnResult, StoredChatMessage } from '../ai/provider';
 import { chatMessages, chatSessions } from '../db/schema';
 import { HttpError, IdParams, parse } from '../lib/http';
 import type { AppDeps } from '../server';
@@ -63,8 +65,9 @@ function titleFrom(text: string) {
   return line.length > 60 ? `${line.slice(0, 57).trimEnd()}…` : line;
 }
 
-export async function registerChatRoutes(app: FastifyInstance, { db, ai }: AppDeps) {
+export async function registerChatRoutes(app: FastifyInstance, { env, db, ai }: AppDeps) {
   const tools = createChatTools(db);
+  const chatModels = createChatModels(env, ai);
 
   async function loadSession(id: string) {
     const session = await db.query.chatSessions.findFirst({ where: eq(chatSessions.id, id) });
@@ -83,8 +86,10 @@ export async function registerChatRoutes(app: FastifyInstance, { db, ai }: AppDe
     (await db.select(summaryColumns).from(chatSessions).orderBy(desc(chatSessions.updatedAt)).limit(100)).map(toSummary),
   );
 
+  app.get('/chat/models', (): Promise<ChatModelList> => chatModels.list());
+
   app.post('/chat/sessions', async () => {
-    requireAI(ai);
+    await chatModels.resolve(undefined);
     const [row] = await db
       .insert(chatSessions)
       .values({ context: await buildSnapshot(db) })
@@ -106,8 +111,8 @@ export async function registerChatRoutes(app: FastifyInstance, { db, ai }: AppDe
 
   /** Streams the answer as server-sent events (see ChatStreamEvent). */
   app.post('/chat/sessions/:id/messages', async (req, reply) => {
-    const provider = requireAI(ai);
-    const { text } = parse(ChatSendRequest, req.body);
+    const { text, model: modelId } = parse(ChatSendRequest, req.body);
+    const { provider, model } = await chatModels.resolve(modelId);
     const session = await loadSession(parse(IdParams, req.params).id);
     const history = (await loadMessages(session.id)).map((r) => ({
       role: r.role,
@@ -134,6 +139,7 @@ export async function registerChatRoutes(app: FastifyInstance, { db, ai }: AppDe
 
     try {
       const result = await provider.chat({
+        model,
         system: SYSTEM_PROMPT,
         snapshot: session.context ?? (await buildSnapshot(db)),
         history,

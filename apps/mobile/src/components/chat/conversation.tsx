@@ -1,4 +1,4 @@
-import type { ChatMessageView } from '@meld/shared';
+import type { ChatMessageView, ChatModelOption } from '@meld/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -13,11 +13,13 @@ import {
 } from 'react-native';
 
 import { Button } from '@/components/button';
+import { Dropdown } from '@/components/dropdown';
 import { Markdown } from '@/components/markdown';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useChatModel } from '@/lib/chat-model';
 import { streamChatMessage } from '@/lib/chat-stream';
 import { keys, useChatSession } from '@/lib/queries';
 
@@ -38,6 +40,7 @@ export function Conversation({ id, initialQuestion, onInitialSent, header }: Pro
   const theme = useTheme();
   const qc = useQueryClient();
   const session = useChatSession(id);
+  const chatModel = useChatModel();
   const [input, setInput] = useState('');
   const [pending, setPending] = useState<Pending | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -55,6 +58,7 @@ export function Conversation({ id, initialQuestion, onInitialSent, header }: Pro
       await streamChatMessage(
         id,
         question,
+        chatModel.current?.id ?? null,
         (event) => {
           switch (event.type) {
             case 'text':
@@ -170,12 +174,28 @@ export function Conversation({ id, initialQuestion, onInitialSent, header }: Pro
           <Button label="Send" disabled={!input.trim()} onPress={() => void send(input)} />
         )}
       </View>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
-        Questions and the data needed to answer them are sent to Anthropic. Not professional financial, tax or legal
-        advice.
-      </ThemedText>
+      <View style={styles.footer}>
+        {chatModel.models.length > 1 && chatModel.current && (
+          <Dropdown
+            accessibilityLabel="Model"
+            openUp
+            options={chatModel.models.map((m) => ({ value: m.id, label: m.note ? `${m.label} · ${m.note}` : m.label }))}
+            value={chatModel.current.id}
+            onChange={chatModel.choose}
+          />
+        )}
+        <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+          {privacyNote(chatModel.current)} Not professional financial, tax or legal advice.
+        </ThemedText>
+      </View>
     </>
   );
+}
+
+function privacyNote(model: ChatModelOption | null) {
+  if (model?.local) return 'Answered by a model on this computer; your data stays here.';
+  if (model?.provider === 'ollama') return 'Questions and the data needed to answer them are sent to your Ollama server.';
+  return 'Questions and the data needed to answer them are sent to Anthropic.';
 }
 
 function Message({ message: m }: { message: ChatMessageView }) {
@@ -237,5 +257,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two + Spacing.one,
   },
-  note: { ...chatColumn, paddingHorizontal: Spacing.four, paddingVertical: Spacing.two },
+  footer: {
+    ...chatColumn,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+  },
+  note: { flex: 1, minWidth: 200 },
 });

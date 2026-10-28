@@ -28,6 +28,7 @@ const PDF = Buffer.from('%PDF-1.7\nfake policy\n%%EOF');
 
 const fakeAI: AIProvider = {
   name: 'fake',
+  listChatModels: async () => [],
   async extractInsurancePolicy() {
     return {
       draft: {

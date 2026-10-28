@@ -4,19 +4,17 @@ import type { PropertyEstimate, SecurityProfile, VehicleDetails, VehicleEstimate
 import { z } from 'zod';
 import { HttpError } from '../lib/http';
 import { localDate } from '../lib/networth';
-import { maskNumbers, type ChatTool } from './chat-tools';
+import { MAX_TOOL_ROUNDS, runTool, toolLabel, type ChatTool } from './chat-tools';
 import { EXTRACTION_PROMPT, ExtractionSchema, normalizeExtraction } from './insurance-extraction';
 import { normalizeValuation, valuationPrompt, ValuationSchema } from './property-valuation';
 import { normalizeVehicleValuation, vehicleValuationPrompt, VehicleValuationSchema } from './vehicle-valuation';
 import { normalizeProfiles, ProfilesSchema, profilesPrompt, type SecurityDescription } from './security-profiles';
-import type { AIProvider, ChatTurnInput, ChatTurnResult, ExtractedPolicy, StoredChatMessage } from './provider';
+import type { AIProvider, ChatModelInfo, ChatTurnInput, ChatTurnResult, ExtractedPolicy, StoredChatMessage } from './provider';
 
 type MessageParam = Anthropic.Beta.BetaMessageParam;
 type ContentBlock = Anthropic.Beta.BetaContentBlock;
 
 const PROVIDER = 'anthropic';
-/** Tool rounds per user message before giving up. */
-const MAX_STEPS = 12;
 /** Times a paused server-tool turn (web search) is resumed before giving up. */
 const MAX_CONTINUATIONS = 4;
 // If a safety classifier declines, the API retries on a fallback model in the same call.
@@ -63,28 +61,36 @@ function toParam(m: StoredChatMessage): MessageParam | null {
   return m.content.display ? { role: m.role, content: m.content.display.text } : null;
 }
 
-async function runTool(tool: ChatTool | undefined, input: unknown): Promise<{ content: string; isError: boolean }> {
-  if (!tool) return { content: 'Unknown tool.', isError: true };
-  const parsed = tool.input.safeParse(input);
-  if (!parsed.success) return { content: `Invalid input: ${z.prettifyError(parsed.error)}`, isError: true };
-  try {
-    return { content: JSON.stringify(maskNumbers(await tool.run(parsed.data))), isError: false };
-  } catch {
-    return { content: 'The lookup failed. Answer with what you have, or try different input.', isError: true };
-  }
-}
+/** Picker labels for known chat models; others show their model ID. */
+const CHAT_MODEL_INFO: Record<string, { label: string; note: string }> = {
+  'claude-opus-5-5': { label: 'Claude Opus 5.5', note: 'Most capable' },
+  'claude-sonnet-5-5': { label: 'Claude Sonnet 5.5', note: 'Balanced' },
+  'claude-haiku-5-5': { label: 'Claude Haiku 5.5', note: 'Lowest cost' },
+};
 
 export class AnthropicProvider implements AIProvider {
   readonly name = PROVIDER;
   private client: Anthropic;
+  private chatModels: string[];
 
+  /** `chatModels` are offered in the Ask picker; the first is the default. */
   constructor(
     apiKey: string,
     private model: string,
-    private chatModel: string,
     private lookupModel: string,
+    chatModels: string[],
   ) {
     this.client = new Anthropic({ apiKey });
+    this.chatModels = [...new Set(chatModels)];
+  }
+
+  async listChatModels(): Promise<ChatModelInfo[]> {
+    return this.chatModels.map((model) => ({
+      model,
+      label: CHAT_MODEL_INFO[model]?.label ?? model,
+      note: CHAT_MODEL_INFO[model]?.note ?? null,
+      local: false,
+    }));
   }
 
   async extractInsurancePolicy(pdf: Buffer): Promise<ExtractedPolicy> {
@@ -178,7 +184,7 @@ export class AnthropicProvider implements AIProvider {
     return normalizeProfiles(response.parsed_output, securities.length);
   }
 
-  async chat({ system, snapshot, history, userText, tools, onEvent, signal }: ChatTurnInput): Promise<ChatTurnResult> {
+  async chat({ model, system, snapshot, history, userText, tools, onEvent, signal }: ChatTurnInput): Promise<ChatTurnResult> {
     const toolDefs = tools.map(toToolDefinition);
     const toolsByName = new Map(tools.map((t) => [t.name, t]));
     const userContent: Anthropic.Beta.BetaContentBlockParam[] = [{ type: 'text', text: userText }];
@@ -191,10 +197,10 @@ export class AnthropicProvider implements AIProvider {
     ];
     let streamedText = false;
 
-    for (let step = 0; step < MAX_STEPS; step++) {
+    for (let step = 0; step < MAX_TOOL_ROUNDS; step++) {
       const stream = this.client.beta.messages.stream(
         {
-          model: this.chatModel,
+          model,
           max_tokens: 64000,
           ...FALLBACK,
           output_config: { effort: 'high' },
@@ -227,11 +233,7 @@ export class AnthropicProvider implements AIProvider {
         throw new HttpError(502, 'The answer was cut off. Try a narrower question.');
       }
 
-      const lookups = toolUses.map((u) => {
-        const t = toolsByName.get(u.name);
-        const parsed = t?.input.safeParse(u.input);
-        return t && parsed?.success ? t.label(parsed.data) : u.name;
-      });
+      const lookups = toolUses.map((u) => toolLabel(toolsByName.get(u.name), u.name, u.input));
       const assistantContent = message.content as Anthropic.Beta.BetaContentBlockParam[];
       messages.push({ role: 'assistant', content: assistantContent });
       stored.push({
