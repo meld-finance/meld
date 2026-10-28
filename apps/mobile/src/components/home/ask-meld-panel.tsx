@@ -15,7 +15,7 @@ const SUGGESTIONS = [
   'How does my insurance coverage look?',
 ];
 
-export function AskMeldPanel({ style }: { style?: object }) {
+export function AskMeldPanel({ style, suggestions = SUGGESTIONS }: { style?: object; suggestions?: string[] }) {
   const theme = useTheme();
   const accent = useAccents().blue;
   const chat = useStartChat();
@@ -63,7 +63,7 @@ export function AskMeldPanel({ style }: { style?: object }) {
       )}
 
       <View style={styles.suggestions}>
-        {SUGGESTIONS.map((s) => (
+        {suggestions.map((s) => (
           <Pressable
             key={s}
             onPress={() => ask(s)}

@@ -25,6 +25,16 @@ export const NetWorthPoint = z.object({
 });
 export type NetWorthPoint = z.infer<typeof NetWorthPoint>;
 
+/** Balances as of an earlier date, to show how things have changed since. */
+export const BalanceSnapshot = z.object({
+  date: z.string(),
+  netWorth: z.number(),
+  byType: NetWorthSummary.shape.byType,
+  /** Your share of each account, manual asset and policy cash value, by id; null in older snapshots. */
+  balances: z.record(z.string(), z.number()).nullable(),
+});
+export type BalanceSnapshot = z.infer<typeof BalanceSnapshot>;
+
 export const CashflowMonth = z.object({
   month: Month,
   income: z.number(),

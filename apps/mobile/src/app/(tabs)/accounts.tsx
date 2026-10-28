@@ -15,7 +15,7 @@ export default function AccountsScreen() {
   const header = (actions?: ReactNode) => (
     <TabbedHeader
       title="Accounts"
-      description="Everything you own and owe, and how your investments are doing."
+      description="All your financial accounts in one place: link them, manage them, and see how your money is doing."
       options={[...TABS]}
       value={tab}
       onChange={setTab}

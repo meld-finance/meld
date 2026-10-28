@@ -13,6 +13,7 @@ import {
   getSpendingByMonth,
   monthRange,
   recentMonths,
+  getSnapshotAsOf,
   recordSnapshot,
   shiftYears,
 } from './overview';
@@ -228,5 +229,25 @@ describe.skipIf(!testDatabaseUrl)('overview queries (Postgres)', () => {
       { date: '2026-10-14', assets: 25000, liabilities: 800, netWorth: 24200 },
       { date: '2026-10-15', assets: 425000, liabilities: 800, netWorth: 424200 },
     ]);
+  });
+
+  it('compares against the latest snapshot on or before a date, per item', async () => {
+    expect(await getSnapshotAsOf(ctx.db, '2026-10-15')).toBeNull();
+    const [house] = await ctx.db
+      .insert(manualAssets)
+      .values({ kind: 'home', name: 'House', value: 400000, ownershipPercent: 50 })
+      .returning({ id: manualAssets.id });
+    await recordSnapshot(ctx.db, '2026-09-10');
+    await ctx.db.update(accounts).set({ currentBalance: 6000 }).where(eq(accounts.name, 'Checking'));
+    await recordSnapshot(ctx.db, '2026-10-15');
+
+    const snapshot = await getSnapshotAsOf(ctx.db, '2026-09-27');
+    const [checking] = await ctx.db.select({ id: accounts.id }).from(accounts).where(eq(accounts.name, 'Checking'));
+    expect(snapshot?.date).toBe('2026-09-10');
+    expect(snapshot?.byType).toContainEqual({ type: 'depository', total: 5000 });
+    expect(snapshot?.balances?.[checking!.id]).toBe(5000);
+    expect(snapshot?.balances?.[house!.id]).toBe(200000);
+    // Hidden accounts aren't tracked.
+    expect(Object.keys(snapshot?.balances ?? {})).toHaveLength(4);
   });
 });

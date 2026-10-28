@@ -281,8 +281,10 @@ export const balanceSnapshots = pgTable(
     totalAssets: money('total_assets').notNull(),
     totalLiabilities: money('total_liabilities').notNull(),
     netWorth: money('net_worth').notNull(),
-    /** Per-account balances on that date. */
+    /** Balance totals per account type on that date (NetWorthSummary['byType']). */
     breakdown: jsonb('breakdown'),
+    /** Your share of each account, manual asset and policy cash value on that date, by id. */
+    balances: jsonb('balances').$type<Record<string, number>>(),
     ...timestamps,
   },
   (t) => [uniqueIndex('balance_snapshots_date_idx').on(t.date)],
