@@ -4,10 +4,12 @@ import {
   estimateSocialSecurityMonthly,
   fullRetirementAgeMonths,
   isEducationAccount,
+  mortgagePayoffAge,
   projectRetirement,
   remainingLoanBalance,
   resolvePlan,
   saleProceeds,
+  spendingAt,
   type RetirementInputs,
 } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
@@ -20,6 +22,8 @@ const base: RetirementInputs = {
   annualContribution: 0,
   expectedReturn: 5,
   annualSpending: 60_000,
+  spendingChanges: [],
+  spendingDeclinePercent: 0,
   socialSecurityAnnual: 0,
   socialSecurityAge: 67,
   pensionAnnual: 0,
@@ -111,6 +115,54 @@ describe('property sales', () => {
   });
 });
 
+describe('spending over time', () => {
+  const flat = { ...base, expectedReturn: 0 };
+
+  it('applies a change from its start age, so one before retirement lowers every withdrawal', () => {
+    const kids = { label: 'Kids leave home', startAge: 55, endAge: null, annualChange: -20_000 };
+    const p = projectRetirement({ ...flat, spendingChanges: [kids] });
+    expect(p.needed).toBe(30 * 40_000);
+    expect(p.spendingAtRetirement).toBe(40_000);
+  });
+
+  it('applies a change with an end age only inside its window', () => {
+    const travel = { label: 'Travel', startAge: 65, endAge: 70, annualChange: 15_000 };
+    expect(projectRetirement({ ...flat, spendingChanges: [travel] }).needed).toBe(30 * 60_000 + 5 * 15_000);
+    expect(spendingAt({ ...flat, spendingChanges: [travel] }, 70)).toBe(60_000);
+  });
+
+  it('never spends less than nothing', () => {
+    expect(spendingAt({ ...flat, spendingChanges: [{ label: 'Cut', startAge: 40, endAge: null, annualChange: -90_000 }] }, 70)).toBe(0);
+  });
+
+  it('slows spending each year after 75', () => {
+    const slow = { ...flat, annualSpending: 100_000, spendingDeclinePercent: 1 };
+    expect(spendingAt(slow, 75)).toBe(100_000);
+    expect(Math.round(spendingAt(slow, 85))).toBe(90_438); // 100k · 0.99¹⁰
+    expect(projectRetirement(slow).needed).toBeLessThan(projectRetirement({ ...slow, spendingDeclinePercent: 0 }).needed);
+  });
+
+  it('lasts exactly to life expectancy with changes and the slowdown', () => {
+    const i = {
+      ...base,
+      spendingDeclinePercent: 1,
+      spendingChanges: [{ label: 'Mortgage paid off', startAge: 70, endAge: null, annualChange: -18_000 }],
+    };
+    const needed = projectRetirement(i).needed;
+    const p = projectRetirement({ ...i, currentAge: 65, startingBalance: needed });
+    expect(p.gap).toBe(0);
+    expect(p.depletionAge).toBeNull();
+    expect(p.points.at(-1)!.balance).toBeLessThan(10);
+  });
+
+  it('finds the age a mortgage is paid off', () => {
+    // 30y at 6% on 200k is $1,199.10/mo: paid off in the 30th year.
+    expect(mortgagePayoffAge({ balance: 200_000, interestRatePct: 6, monthlyPayment: 1199.11 }, 40)).toBe(70);
+    expect(mortgagePayoffAge({ balance: 200_000, interestRatePct: null, monthlyPayment: 1200 }, 40)).toBeNull();
+    expect(mortgagePayoffAge({ balance: 200_000, interestRatePct: 6, monthlyPayment: 1000 }, 40)).toBeNull();
+  });
+});
+
 describe('remainingLoanBalance', () => {
   it('amortizes a standard mortgage', () => {
     // 30y at 6% on 200k ($1,199.10/mo): after 10 years, what's left is the remaining 240 payments' value.
@@ -129,7 +181,7 @@ describe('resolvePlan', () => {
   const RENTAL = '00000000-0000-4000-8000-000000000001';
   const LOAN = '00000000-0000-4000-8000-000000000002';
   const summary = {
-    defaults: { currentAge: 40, birthYear: 1986, married: false, annualSpending: 72_000, annualIncome: 150_000 },
+    defaults: { currentAge: 40, birthYear: 1986, married: false, annualSpending: 72_000, annualIncome: 150_000, dependents: null },
     accounts: [
       { value: 50_000, included: true },
       { value: 9_000, included: false },
@@ -174,7 +226,7 @@ describe('resolvePlan', () => {
   });
 
   it('reports what it can’t default', () => {
-    const r = resolvePlan(EMPTY_RETIREMENT_PLAN, { ...summary, defaults: { currentAge: null, birthYear: null, married: false, annualSpending: null, annualIncome: null } });
+    const r = resolvePlan(EMPTY_RETIREMENT_PLAN, { ...summary, defaults: { currentAge: null, birthYear: null, married: false, annualSpending: null, annualIncome: null, dependents: null } });
     expect(r).toEqual({ inputs: null, missing: ['birth year', 'retirement spending'] });
   });
 });

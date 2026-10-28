@@ -59,13 +59,13 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
   });
 
   it('defaults age from the profile and spending from the last 12 full months', async () => {
-    expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({ currentAge: null, birthYear: null, married: false, annualSpending: 3000, annualIncome: null });
+    expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({ currentAge: null, birthYear: null, married: false, annualSpending: 3000, annualIncome: null, dependents: null });
     await saveProfile(ctx.db, {
       displayName: null,
       birthYear: 1986,
       filingStatus: 'married_joint',
       state: null,
-      dependents: null,
+      dependents: 2,
       annualGrossIncome: 180000,
       occupation: null,
       employerBenefits: null,
@@ -77,6 +77,7 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
       married: true,
       annualSpending: 3000,
       annualIncome: 180000,
+      dependents: 2,
     });
   });
 
@@ -103,6 +104,7 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
 
   it('saves assumptions and accounts you leave out', async () => {
     const properties = [{ assetId: ids.house, sellAge: 70, mortgageAccountId: null, netRentAnnual: 18000 }];
+    const spendingChanges = [{ label: 'Kids leave home', startAge: 58, endAge: null, annualChange: -20000 }];
     await saveRetirementPlan(ctx.db, {
       ...EMPTY_RETIREMENT_PLAN,
       retirementAge: 60,
@@ -110,9 +112,11 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
       sellingCostPercent: 7,
       excludedAccountIds: [ids.house],
       properties,
+      spendingDeclinePercent: 1.5,
+      spendingChanges,
     });
     const r = await getRetirement(ctx.db, TODAY);
-    expect(r.plan).toMatchObject({ retirementAge: 60, expectedReturn: 4.5, sellingCostPercent: 7, excludedAccountIds: [ids.house], properties });
+    expect(r.plan).toMatchObject({ retirementAge: 60, expectedReturn: 4.5, sellingCostPercent: 7, excludedAccountIds: [ids.house], properties, spendingDeclinePercent: 1.5, spendingChanges });
     expect(r.accounts.find((a) => a.id === ids.house)).toMatchObject({ included: false, excludedReason: 'user' });
     // Saving again replaces the row.
     await saveRetirementPlan(ctx.db, EMPTY_RETIREMENT_PLAN);

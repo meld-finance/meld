@@ -93,6 +93,7 @@ export async function getRetirement(db: Db, today = localDate()): Promise<Retire
       married: profile.filingStatus === 'married_joint' || profile.filingStatus === 'married_separate',
       annualSpending: spending > 0 ? Math.round(spending) : null,
       annualIncome: profile.annualGrossIncome,
+      dependents: profile.dependents,
     },
     accounts: retirementAccounts,
     properties: homes.map((h) => ({ id: h.id, name: h.name, address: h.address, value: ownedValue(h, new Date(`${today}T00:00:00`)) })),

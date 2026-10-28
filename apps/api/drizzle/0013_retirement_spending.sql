@@ -1,0 +1,2 @@
+ALTER TABLE "retirement_plan" ADD COLUMN "spending_decline_percent" numeric(5, 2);--> statement-breakpoint
+ALTER TABLE "retirement_plan" ADD COLUMN "spending_changes" jsonb DEFAULT '[]'::jsonb NOT NULL;

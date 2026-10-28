@@ -2,6 +2,7 @@ import {
   claimingFactor,
   formatFullRetirementAge,
   fullRetirementAgeMonths,
+  mortgagePayoffAge,
   projectRetirement,
   PropertySale,
   resolvePlan,
@@ -11,6 +12,9 @@ import {
   retirementBalance,
   saleProceeds,
   socialSecurityAtFullAge,
+  SPENDING_DECLINE_AGE,
+  SpendingChange,
+  spendingAt,
   type RetirementAccount,
   type RetirementInputs,
   type RetirementProjection as Projection,
@@ -39,14 +43,15 @@ const TAX_LABELS: Record<TaxTreatment, string | null> = {
   unknown: null,
 };
 
-/** The plan's numbers, typed in as text; accounts and properties have their own controls. */
-type NumberField = Exclude<keyof RetirementPlan, 'excludedAccountIds' | 'properties'>;
+/** The plan's numbers, typed in as text; accounts, properties and spending changes have their own controls. */
+type NumberField = Exclude<keyof RetirementPlan, 'excludedAccountIds' | 'properties' | 'spendingChanges'>;
 const FIELDS: NumberField[] = [
   'retirementAge',
   'lifeExpectancy',
   'annualContribution',
   'expectedReturn',
   'annualSpending',
+  'spendingDeclinePercent',
   'socialSecurityAnnual',
   'socialSecurityAge',
   'pensionAnnual',
@@ -57,6 +62,15 @@ const FIELDS: NumberField[] = [
 
 /** One property's controls, as typed. */
 type PropertyDraft = { on: boolean; sellAge: string; mortgageAccountId: string | null; rent: string };
+
+/** One spending change, as typed; `key` keeps rows stable while editing. */
+type ChangeDraft = { key: number; label: string; startAge: string; endAge: string; amount: string };
+
+const KIDS_LABEL = 'Kids leave home';
+const MORTGAGE_LABEL = 'Mortgage paid off';
+
+/** A one-tap spending change; age and amount may be left for the user. */
+type Suggestion = { id: string; label: string; startAge: number | null; annualChange: number | null; caption: string };
 
 /** Dropdown value for "no mortgage". */
 const NO_MORTGAGE = 'none';
@@ -71,6 +85,20 @@ const sameSales = (a: PropertySale[], b: PropertySale[]) => {
     );
   return key(a) === key(b);
 };
+
+const sameChanges = (a: SpendingChange[], b: SpendingChange[]) => {
+  const key = (list: SpendingChange[]) => JSON.stringify(list.map((c) => [c.label, c.startAge, c.endAge, c.annualChange]));
+  return key(a) === key(b);
+};
+
+let nextChangeKey = 0;
+const changeDraft = (c: Partial<SpendingChange>): ChangeDraft => ({
+  key: nextChangeKey++,
+  label: c.label ?? '',
+  startAge: str(c.startAge ?? null),
+  endAge: str(c.endAge ?? null),
+  amount: str(c.annualChange ?? null),
+});
 
 const str = (v: number | null) => (v === null ? '' : String(v));
 const num = (s: string) => (s.trim() ? Number(s.replace(/[$,%\s]/g, '')) : null);
@@ -110,6 +138,7 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
       }),
     ),
   );
+  const [changes, setChanges] = useState<ChangeDraft[]>(() => summary.plan.spendingChanges.map(changeDraft));
   const [saved, setSaved] = useState(false);
 
   // Each field is checked against the shared schema, so the form and the API agree on limits.
@@ -141,18 +170,37 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
     const bad = invalidProperty(s.assetId);
     return !bad.sellAge && !bad.rent;
   });
-  const valid = !Object.values(invalid).some(Boolean) && validProperties.length === draftProperties.length;
+  const draftChanges = changes.map((c) => ({
+    label: c.label.trim(),
+    startAge: num(c.startAge) ?? NaN,
+    endAge: num(c.endAge),
+    annualChange: num(c.amount) ?? NaN,
+  }));
+  const invalidChanges = draftChanges.map((c) => ({
+    label: !SpendingChange.shape.label.safeParse(c.label).success,
+    startAge: !SpendingChange.shape.startAge.safeParse(c.startAge).success,
+    endAge: !SpendingChange.shape.endAge.safeParse(c.endAge).success || (c.endAge !== null && c.endAge <= c.startAge),
+    annualChange: !SpendingChange.shape.annualChange.safeParse(c.annualChange).success,
+  }));
+  const validChanges = draftChanges.filter((_, i) => !Object.values(invalidChanges[i]!).some(Boolean));
+  const valid =
+    !Object.values(invalid).some(Boolean) &&
+    validProperties.length === draftProperties.length &&
+    validChanges.length === draftChanges.length;
 
   // Live: the tiles and chart follow what's typed, falling back to the saved plan for anything invalid.
   const draft: RetirementPlan = {
     ...summary.plan,
     ...Object.fromEntries(FIELDS.map((f) => [f, invalid[f] ? summary.plan[f] : values[f]])),
     properties: validProperties,
+    spendingChanges: validChanges,
   };
   const resolved = resolvePlan(draft, summary);
   const projection = resolved.inputs && projectRetirement(resolved.inputs);
   const dirty =
-    FIELDS.some((f) => values[f] !== summary.plan[f]) || !sameSales(draftProperties, summary.plan.properties);
+    FIELDS.some((f) => values[f] !== summary.plan[f]) ||
+    !sameSales(draftProperties, summary.plan.properties) ||
+    !sameChanges(draftChanges, summary.plan.spendingChanges);
 
   function set(field: NumberField) {
     return (value: string) => {
@@ -172,10 +220,28 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
     });
   }
 
+  function setChange(key: number, change: Partial<ChangeDraft>) {
+    setSaved(false);
+    setChanges((all) => all.map((c) => (c.key === key ? { ...c, ...change } : c)));
+  }
+
+  function addChange(c: Partial<SpendingChange>) {
+    setSaved(false);
+    setChanges((all) => [...all, changeDraft(c)]);
+  }
+
+  function removeChange(key: number) {
+    setSaved(false);
+    setChanges((all) => all.filter((c) => c.key !== key));
+  }
+
   function submit() {
     if (!valid) return;
     setSaved(false);
-    save.mutate({ ...summary.plan, ...values, properties: draftProperties }, { onSuccess: () => setSaved(true) });
+    save.mutate(
+      { ...summary.plan, ...values, properties: draftProperties, spendingChanges: draftChanges },
+      { onSuccess: () => setSaved(true) },
+    );
   }
 
   function toggleAccount(account: RetirementAccount, include: boolean) {
@@ -190,6 +256,32 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
     resolved.inputs && income
       ? socialSecurityAtFullAge({ socialSecurityAnnual: null }, d, resolved.inputs.retirementAge).annual
       : null;
+
+  // Changes Meld can see coming, offered until one with the same label is added.
+  const labels = new Set(changes.map((c) => c.label.trim()));
+  const sold = new Set(draft.properties.map((s) => s.mortgageAccountId));
+  const suggestions: Suggestion[] = [
+    ...(d.dependents && !labels.has(KIDS_LABEL)
+      ? [{ id: 'kids', label: KIDS_LABEL, startAge: null, annualChange: null, caption: KIDS_LABEL }]
+      : []),
+    ...(resolved.inputs
+      ? summary.mortgages.flatMap((m): Suggestion[] => {
+          const age = mortgagePayoffAge(m, resolved.inputs!.currentAge);
+          const label = summary.mortgages.length > 1 ? `${MORTGAGE_LABEL}: ${m.name}` : MORTGAGE_LABEL;
+          if (age === null || age <= resolved.inputs!.currentAge || !m.monthlyPayment || sold.has(m.id) || labels.has(label)) return [];
+          return [
+            {
+              id: m.id,
+              label,
+              startAge: age,
+              annualChange: -Math.round(m.monthlyPayment * 12),
+              caption: `${label} at ${age} · −${formatWholeCurrency(m.monthlyPayment)}/mo`,
+            },
+          ];
+        })
+      : []),
+  ];
+
   const saveRow = (
     <>
       {save.isError && <ThemedText themeColor="negative">{save.error.message}</ThemedText>}
@@ -229,8 +321,8 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
           )}
           {resolved.missing.includes('retirement spending') && (
             <ThemedText type="small" themeColor="textSecondary">
-              Enter what you expect to spend each year in retirement below. Once you have a year of transactions, Meld
-              suggests your current spending.
+              Enter what you spend each year below. Once you have a year of transactions, Meld suggests your current
+              spending.
             </ThemedText>
           )}
         </Card>
@@ -282,7 +374,7 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
                 inputMode="decimal"
               />
             </Field>
-            <Field label="Spending per year in retirement" invalid={invalid.annualSpending}>
+            <Field label="Spending per year, today" invalid={invalid.annualSpending}>
               <Input
                 value={text.annualSpending}
                 onChangeText={set('annualSpending')}
@@ -329,6 +421,69 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
       </View>
 
       <View style={styles.columns}>
+        <Card
+          title="Spending over time"
+          subtitle="Start from today’s spending and add what will change: kids leaving home, a mortgage paid off, college, travel."
+          style={styles.column}>
+          {suggestions.length > 0 && (
+            <View style={styles.buttons}>
+              {suggestions.map((s) => (
+                <Button
+                  key={s.id}
+                  label={`+ ${s.caption}`}
+                  variant="secondary"
+                  size="small"
+                  onPress={() => addChange({ label: s.label, startAge: s.startAge ?? undefined, annualChange: s.annualChange ?? undefined })}
+                />
+              ))}
+            </View>
+          )}
+          {changes.map((c, i) => {
+            const bad = invalidChanges[i]!;
+            return (
+              <View key={c.key} style={styles.property}>
+                <View style={styles.row}>
+                  <View style={styles.shrink}>
+                    <Field label="What changes" invalid={bad.label}>
+                      <Input value={c.label} onChangeText={(label) => setChange(c.key, { label })} placeholder="e.g. Kids leave home" maxLength={60} />
+                    </Field>
+                  </View>
+                  <Button label="Remove" variant="secondary" size="small" onPress={() => removeChange(c.key)} accessibilityLabel={`Remove ${c.label || 'spending change'}`} />
+                </View>
+                <Row>
+                  <Field label="From age" invalid={bad.startAge}>
+                    <Input value={c.startAge} onChangeText={(startAge) => setChange(c.key, { startAge })} keyboardType="number-pad" inputMode="numeric" maxLength={3} />
+                  </Field>
+                  <Field label="Until age" invalid={bad.endAge}>
+                    <Input value={c.endAge} onChangeText={(endAge) => setChange(c.key, { endAge })} placeholder="For good" keyboardType="number-pad" inputMode="numeric" maxLength={3} />
+                  </Field>
+                  <Field label="Change per year" invalid={bad.annualChange}>
+                    <Input value={c.amount} onChangeText={(amount) => setChange(c.key, { amount })} placeholder="−$ for less, $ for more" keyboardType="numbers-and-punctuation" inputMode="decimal" />
+                  </Field>
+                </Row>
+              </View>
+            );
+          })}
+          <View style={styles.buttons}>
+            <Button label="Add a change" variant="secondary" size="small" onPress={() => addChange({})} />
+          </View>
+          <Field label={`Spending falls each year after ${SPENDING_DECLINE_AGE}, %`} invalid={invalid.spendingDeclinePercent}>
+            <Input
+              value={text.spendingDeclinePercent}
+              onChangeText={set('spendingDeclinePercent')}
+              placeholder={`${RETIREMENT_DEFAULTS.spendingDeclinePercent} · 0 to keep it flat`}
+              keyboardType="decimal-pad"
+              inputMode="decimal"
+            />
+          </Field>
+          <ThemedText type="small" themeColor="textSecondary">
+            People tend to spend less as they age: households over 75 spend about a fifth less than those 65 to 74, even
+            with higher health costs.
+          </ThemedText>
+          {resolved.inputs && <SpendingPath inputs={resolved.inputs} />}
+          {saveRow}
+        </Card>
+
         <Accounts summary={summary} otherSavings={draft.otherSavings} onToggle={toggleAccount} disabled={save.isPending} />
 
         <Card
@@ -436,6 +591,18 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
         </Card>
       </View>
     </>
+  );
+}
+
+/** Spending at a few ages, to check the changes add up. */
+function SpendingPath({ inputs }: { inputs: RetirementInputs }) {
+  const start = Math.max(inputs.retirementAge, inputs.currentAge);
+  const ages = [start, ...[75, 85].filter((a) => a > start && a < inputs.lifeExpectancy)];
+  return (
+    <ThemedText type="small" themeColor="textSecondary">
+      Spending per year in today’s dollars:{' '}
+      {ages.map((a, i) => `${i === 0 ? 'about ' : ''}${formatWholeCurrency(Math.round(spendingAt(inputs, a)))} at ${a}`).join(', ')}.
+    </ThemedText>
   );
 }
 
