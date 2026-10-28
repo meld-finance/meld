@@ -10,7 +10,7 @@ const DOCK_MIN_WIDTH = 1100;
 type Chat = { id: string; question?: string };
 
 type ChatPanel = {
-  /** Whether the panel is showing; with no `chat` it shows the start view and recent conversations. */
+  /** Whether the panel is showing; with no `chat` it shows questions about the current page. */
   isOpen: boolean;
   chat: Chat | null;
   /** Covering the page rather than docked beside it. */
@@ -18,7 +18,7 @@ type ChatPanel = {
   /** Whether the window is wide enough to dock at all. */
   canDock: boolean;
   open: (id: string, question?: string) => void;
-  /** Opens the panel's start view. */
+  /** Opens the panel's start view: questions about the current page. */
   openHome: () => void;
   /** Leaves the conversation for the start view, keeping the panel open. */
   back: () => void;
@@ -28,7 +28,7 @@ type ChatPanel = {
 
 const ChatPanelContext = createContext<ChatPanel | null>(null);
 
-/** Web: Ask Meld lives in a panel beside the current page instead of on a page of its own. */
+/** Web: lets Ask Meld open beside the current page instead of navigating away from it. */
 export function ChatPanelProvider({ children }: { children: ReactNode }) {
   const canDock = useWindowDimensions().width >= DOCK_MIN_WIDTH;
   const [isOpen, setIsOpen] = useState(false);

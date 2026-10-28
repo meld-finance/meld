@@ -9,6 +9,7 @@ import { Icon, type IconName } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useAccents } from '@/hooks/use-accents';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { ChatPanelProvider, useChatPanel } from '@/lib/chat-panel';
@@ -41,15 +42,11 @@ function TabNavigator() {
               Home
             </NavItem>
           </TabTrigger>
-          {/* Ask Meld is the chat panel on web; the hidden trigger keeps /ask routable (it opens the panel). */}
-          <TabTrigger name="ask" href="/ask" style={styles.hidden} />
-          <NavItem
-            icon="sparkles"
-            compact={compact}
-            isFocused={!!panel?.isOpen}
-            onPress={() => (panel?.isOpen ? panel.close() : panel?.openHome())}>
-            Ask Meld
-          </NavItem>
+          <TabTrigger name="ask" href="/ask" asChild>
+            <NavItem icon="sparkles" compact={compact}>
+              Ask Meld
+            </NavItem>
+          </TabTrigger>
           <TabTrigger name="accounts" href="/accounts" asChild>
             <NavItem icon="wallet" compact={compact}>
               Accounts
@@ -126,6 +123,8 @@ function NavItem({ icon, compact, children, isFocused, ref: _ref, ...props }: Na
 
 function TopBar() {
   const theme = useTheme();
+  const accent = useAccents().blue;
+  const panel = useChatPanel();
   const { logout } = useAuth();
   const profile = useProfile();
   const [open, setOpen] = useState(false);
@@ -139,6 +138,17 @@ function TopBar() {
 
   return (
     <View style={styles.topBar}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Ask Meld about this page"
+        onPress={() => (panel?.isOpen ? panel.close() : panel?.openHome())}
+        style={({ hovered, pressed }) => [
+          styles.askButton,
+          { borderColor: hovered ? accent.fg : theme.border, backgroundColor: theme.backgroundElement },
+          pressed && styles.pressed,
+        ]}>
+        <Icon name="sparkles" size={18} color={accent.fg} />
+      </Pressable>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Account menu"
@@ -241,9 +251,19 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: Spacing.two,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
     zIndex: 10,
+  },
+  askButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   userButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.one },
   avatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },

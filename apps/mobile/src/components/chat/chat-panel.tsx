@@ -1,8 +1,7 @@
-import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { AskStart } from '@/components/chat/ask-start';
-import { chatColumn, Conversation } from '@/components/chat/conversation';
+import { Conversation } from '@/components/chat/conversation';
+import { PanelStart } from '@/components/chat/panel-start';
 import { Icon, type IconName } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -11,7 +10,7 @@ import { useAccents } from '@/hooks/use-accents';
 import { useTheme } from '@/hooks/use-theme';
 import { CHAT_PANEL_WIDTH, useChatPanel } from '@/lib/chat-panel';
 
-/** Ask Meld beside the page (or expanded over it): the start view, or the open conversation. */
+/** Ask Meld beside the page (or expanded over it): questions about that page, or the open conversation. */
 export function ChatPanel() {
   const panel = useChatPanel();
   const theme = useTheme();
@@ -22,7 +21,7 @@ export function ChatPanel() {
   const header = (title: string) => (
     <View style={[styles.header, { borderColor: theme.border }]}>
       {chat ? (
-        <HeaderButton icon="chevronLeft" label="All conversations" onPress={panel.back} />
+        <HeaderButton icon="chevronLeft" label="New question" onPress={panel.back} />
       ) : (
         <View style={styles.icon}>
           <Icon name="sparkles" size={18} color={accent.fg} />
@@ -53,20 +52,12 @@ export function ChatPanel() {
           header={({ title }) => header(title)}
         />
       ) : (
-        <Start header={header('Ask Meld')} />
+        <>
+          {header('Ask Meld')}
+          <PanelStart />
+        </>
       )}
     </ThemedView>
-  );
-}
-
-function Start({ header }: { header: ReactNode }) {
-  return (
-    <>
-      {header}
-      <ScrollView style={styles.fill} contentContainerStyle={styles.start}>
-        <AskStart />
-      </ScrollView>
-    </>
   );
 }
 
@@ -102,8 +93,6 @@ const styles = StyleSheet.create({
   title: { flex: 1 },
   // Lines up with the back button that takes its place in a conversation.
   icon: { padding: Spacing.two },
-  fill: { flex: 1 },
-  start: { ...chatColumn, padding: Spacing.four, gap: Spacing.four },
   headerButton: { padding: Spacing.two, borderRadius: Spacing.two },
   pressed: { opacity: 0.7 },
 });
