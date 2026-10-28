@@ -1,6 +1,6 @@
 import { positionsBySecurity, type Holding, type InvestmentsSummary } from '@meld/shared';
 import { useState } from 'react';
-import { StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { Dropdown } from '@/components/dropdown';
@@ -11,6 +11,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatWholeCurrency } from '@/lib/format';
 import { formatShare, gainPercent, holdingCategory } from '@/lib/investments';
+import { useContentWidth } from '@/lib/chat-panel';
 
 const ALL = 'all';
 /** Below this window width the table drops to security, value and gain. */
@@ -24,7 +25,7 @@ function matches(h: Holding, search: string): boolean {
 
 export function HoldingsTab({ data }: { data: InvestmentsSummary }) {
   const theme = useTheme();
-  const wide = useWindowDimensions().width >= TABLE_MIN_WIDTH;
+  const wide = useContentWidth() >= TABLE_MIN_WIDTH;
   const [account, setAccount] = useState(ALL);
   const [search, setSearch] = useState('');
   const shown = data.holdings.filter((h) => (account === ALL || h.accountId === account) && matches(h, search));
