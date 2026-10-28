@@ -96,6 +96,15 @@ const BY_PAGE: Record<string, PageQuestions> = {
       'What tax bracket am I in, and what does that mean for me?',
     ],
   },
+  '/plan?tax': {
+    page: 'your tax estimate',
+    questions: [
+      'What are the biggest moves to lower my taxes this year?',
+      'Which losses should I harvest before year-end?',
+      'Should I do a Roth conversion or a backdoor Roth this year?',
+      'Am I withholding enough to avoid owing in April?',
+    ],
+  },
 };
 
 /** What the page being looked at is about, and questions to start a chat about it. */

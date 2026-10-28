@@ -5,6 +5,7 @@ import type {
   SecurityProfile,
   SimulationResult,
   SimulationSettings,
+  TaxSettings,
   ValuationSource,
   VehicleDetails,
 } from '@meld/shared';
@@ -328,6 +329,14 @@ export const userProfile = pgTable('user_profile', {
   occupation: text('occupation'),
   employerBenefits: text('employer_benefits'),
   goals: text('goals'),
+  ...timestamps,
+});
+
+/** Tax inputs Meld can't see in synced accounts, one row per tax year. */
+export const taxSettings = pgTable('tax_settings', {
+  year: integer('year').primaryKey(),
+  /** TaxSettings; read over EMPTY_TAX_SETTINGS so fields added later still parse. */
+  settings: jsonb('settings').$type<TaxSettings>().notNull(),
   ...timestamps,
 });
 

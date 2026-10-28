@@ -10,3 +10,5 @@ export * from './profile';
 export * from './transactions';
 export * from './retirement';
 export * from './social-security';
+export * from './tax';
+export * from './tax-tables';
