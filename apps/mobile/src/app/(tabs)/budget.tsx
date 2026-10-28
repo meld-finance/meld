@@ -26,7 +26,7 @@ export default function BudgetScreen() {
 
   return (
     <Screen
-      title="Budget"
+      title="Budgets"
       actions={
         <View style={styles.monthNav}>
           <Button label="‹" variant="secondary" size="small" onPress={() => setMonth(shiftMonth(month, -1))} />

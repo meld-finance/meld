@@ -128,7 +128,7 @@ export function HoldingsTab({ data }: { data: InvestmentsSummary }) {
 
       {topCount > 0 && (
         <InsightCallout
-          title="AI Assistant"
+          title="Ask Meld"
           body={`Your top ${topCount} holdings make up ${formatShare(top, data.totalValue)} of your portfolio. Want to know whether that’s a concentration risk?`}
           question={`My top ${topCount} holdings make up ${formatShare(top, data.totalValue)} of my portfolio. Is that a concentration risk, and what would you change?`}
           action="Ask about it"

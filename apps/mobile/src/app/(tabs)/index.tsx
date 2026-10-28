@@ -173,7 +173,7 @@ export default function HomeScreen() {
               ))
           ) : (
             <ThemedText type="small" themeColor="textSecondary">
-              No budgets yet. Set monthly targets on the Budget tab.
+              No budgets yet. Set monthly targets under Budgets.
             </ThemedText>
           )}
         </Card>

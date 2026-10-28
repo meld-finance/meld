@@ -50,6 +50,7 @@ const ICONS = {
       <Path d="M21 12A9 9 0 0 0 12 3v9h9Z" />
     </>
   ),
+  flag: <Path d="M5 21V4M5 4c5-3 9 3 14 0v10c-5 3-9-3-14 0" />,
   shield: <Path d="M12 21.5s8-3.5 8-10V5l-8-3-8 3v6.5c0 6.5 8 10 8 10Z" />,
   sparkles: (
     <>

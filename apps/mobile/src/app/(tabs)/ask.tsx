@@ -37,7 +37,7 @@ export default function AskScreen() {
 
   return (
     <Screen
-      title="Assistant"
+      title="Ask Meld"
       actions={<Button label="Profile" variant="secondary" size="small" onPress={() => router.push('/profile')} />}>
       <Card
         title="Ask about your finances"

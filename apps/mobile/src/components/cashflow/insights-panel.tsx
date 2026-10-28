@@ -74,7 +74,7 @@ export function InsightsPanel({ insights, style }: { insights: Insight[]; style?
         ]}>
         <Icon name="message" size={20} color={accents.blue.fg} />
         <ThemedText type="smallBold" style={[styles.askText, { color: accents.blue.fg }]}>
-          Ask the AI Assistant
+          Ask Meld
         </ThemedText>
         <Icon name="arrowRight" size={18} color={accents.blue.fg} />
       </Pressable>

@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { InsuranceCashValue } from '@/components/insurance-cash-value';
 import { ManualAssets } from '@/components/manual-assets';
 import { PlaidLinkButton } from '@/components/plaid-link-button';
 import { Screen } from '@/components/screen';
@@ -66,6 +67,7 @@ export default function AccountsScreen() {
             </ThemedText>
           </Card>
           <ManualAssets />
+          <InsuranceCashValue />
         </>
       ) : (
         <>
@@ -75,6 +77,7 @@ export default function AccountsScreen() {
           })}
 
           <ManualAssets />
+          <InsuranceCashValue />
 
           {hidden.length > 0 && (
             <AccountGroup label="Hidden from totals" accounts={hidden} showTotal={false} />
