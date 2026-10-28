@@ -147,6 +147,7 @@ describe.skipIf(!testDatabaseUrl)('chat routes (Postgres)', () => {
       filingStatus: 'married_joint',
       state: 'ca',
       dependents: 2,
+      children: [{ id: 'k1', name: 'Sam', birthYear: 2019 }],
       annualGrossIncome: 240000,
       occupation: 'Engineer',
       employerBenefits: '401k match 4%',

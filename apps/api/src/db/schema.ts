@@ -1,4 +1,4 @@
-import type { PropertySale, SecurityProfile, SpendingChange, ValuationSource, VehicleDetails } from '@meld/shared';
+import type { Child, PropertySale, SecurityProfile, SpendingChange, ValuationSource, VehicleDetails } from '@meld/shared';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -305,6 +305,8 @@ export const userProfile = pgTable('user_profile', {
   filingStatus: text('filing_status'),
   state: text('state'),
   dependents: integer('dependents'),
+  /** Child[]: each child's birth year. */
+  children: jsonb('children').$type<Child[]>().notNull().default([]),
   annualGrossIncome: money('annual_gross_income'),
   occupation: text('occupation'),
   employerBenefits: text('employer_benefits'),

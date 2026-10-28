@@ -1,0 +1,1 @@
+ALTER TABLE "user_profile" ADD COLUMN "children" jsonb DEFAULT '[]'::jsonb NOT NULL;

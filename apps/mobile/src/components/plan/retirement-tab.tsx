@@ -1,4 +1,5 @@
 import {
+  childName,
   claimingFactor,
   formatFullRetirementAge,
   fullRetirementAgeMonths,
@@ -26,6 +27,7 @@ import { Linking, StyleSheet, Switch, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { Chip } from '@/components/chip';
 import { RetirementProjection } from '@/components/charts/retirement-projection';
 import { Dropdown } from '@/components/dropdown';
 import { InsightCallout, StatTile, TileRow } from '@/components/investments/common';
@@ -63,14 +65,23 @@ const FIELDS: NumberField[] = [
 /** One property's controls, as typed. */
 type PropertyDraft = { on: boolean; sellAge: string; mortgageAccountId: string | null; rent: string };
 
-/** One spending change, as typed; `key` keeps rows stable while editing. */
-type ChangeDraft = { key: number; label: string; startAge: string; endAge: string; amount: string };
+/** One spending change, as typed; `key` keeps rows stable while editing, and `amount` is per month when `monthly`. */
+type ChangeDraft = {
+  key: number;
+  label: string;
+  childId: string | null;
+  startAge: string;
+  endAge: string;
+  amount: string;
+  monthly: boolean;
+};
 
-const KIDS_LABEL = 'Kids leave home';
 const MORTGAGE_LABEL = 'Mortgage paid off';
+/** The age kids are assumed to leave home; the user changes it per child. */
+const LEAVE_HOME_AGE = 18;
 
-/** A one-tap spending change; age and amount may be left for the user. */
-type Suggestion = { id: string; label: string; startAge: number | null; annualChange: number | null; caption: string };
+/** A one-tap set of spending changes; ages and amounts may be left for the user. */
+type Suggestion = { id: string; caption: string; changes: Partial<SpendingChange>[] };
 
 /** Dropdown value for "no mortgage". */
 const NO_MORTGAGE = 'none';
@@ -87,7 +98,8 @@ const sameSales = (a: PropertySale[], b: PropertySale[]) => {
 };
 
 const sameChanges = (a: SpendingChange[], b: SpendingChange[]) => {
-  const key = (list: SpendingChange[]) => JSON.stringify(list.map((c) => [c.label, c.startAge, c.endAge, c.annualChange]));
+  const key = (list: SpendingChange[]) =>
+    JSON.stringify(list.map((c) => [c.label, c.childId, c.startAge, c.endAge, c.annualChange, c.monthly]));
   return key(a) === key(b);
 };
 
@@ -95,9 +107,11 @@ let nextChangeKey = 0;
 const changeDraft = (c: Partial<SpendingChange>): ChangeDraft => ({
   key: nextChangeKey++,
   label: c.label ?? '',
+  childId: c.childId ?? null,
   startAge: str(c.startAge ?? null),
   endAge: str(c.endAge ?? null),
-  amount: str(c.annualChange ?? null),
+  amount: str(c.annualChange === undefined ? null : c.monthly ? Math.round((c.annualChange / 12) * 100) / 100 : c.annualChange),
+  monthly: c.monthly ?? false,
 });
 
 const str = (v: number | null) => (v === null ? '' : String(v));
@@ -172,9 +186,11 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
   });
   const draftChanges = changes.map((c) => ({
     label: c.label.trim(),
+    childId: c.childId,
     startAge: num(c.startAge) ?? NaN,
     endAge: num(c.endAge),
-    annualChange: num(c.amount) ?? NaN,
+    annualChange: (num(c.amount) ?? NaN) * (c.monthly ? 12 : 1),
+    monthly: c.monthly,
   }));
   const invalidChanges = draftChanges.map((c) => ({
     label: !SpendingChange.shape.label.safeParse(c.label).success,
@@ -225,9 +241,17 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
     setChanges((all) => all.map((c) => (c.key === key ? { ...c, ...change } : c)));
   }
 
-  function addChange(c: Partial<SpendingChange>) {
+  /** Switches between per month and per year, keeping the amount the same. */
+  function setMonthly(c: ChangeDraft, monthly: boolean) {
+    if (monthly === c.monthly) return;
+    const amount = num(c.amount);
+    const converted = amount === null || !Number.isFinite(amount) ? c.amount : String(Math.round((monthly ? amount / 12 : amount * 12) * 100) / 100);
+    setChange(c.key, { monthly, amount: converted });
+  }
+
+  function addChanges(list: Partial<SpendingChange>[]) {
     setSaved(false);
-    setChanges((all) => [...all, changeDraft(c)]);
+    setChanges((all) => [...all, ...list.map(changeDraft)]);
   }
 
   function removeChange(key: number) {
@@ -260,9 +284,18 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
   // Changes Meld can see coming, offered until one with the same label is added.
   const labels = new Set(changes.map((c) => c.label.trim()));
   const sold = new Set(draft.properties.map((s) => s.mortgageAccountId));
+  const leaving = d.children
+    .map((k) => ({ childId: k.id, label: `${childName(d.children, k.id)} leaves home` }))
+    .filter((c) => !changes.some((x) => x.childId === c.childId && x.label.trim() === c.label));
   const suggestions: Suggestion[] = [
-    ...(d.dependents && !labels.has(KIDS_LABEL)
-      ? [{ id: 'kids', label: KIDS_LABEL, startAge: null, annualChange: null, caption: KIDS_LABEL }]
+    ...(leaving.length
+      ? [
+          {
+            id: 'kids',
+            caption: `${d.children.length > 1 ? 'Kids leave' : `${childName(d.children, leaving[0]!.childId)} leaves`} home at ${LEAVE_HOME_AGE}`,
+            changes: leaving.map((c) => ({ ...c, startAge: LEAVE_HOME_AGE })),
+          },
+        ]
       : []),
     ...(resolved.inputs
       ? summary.mortgages.flatMap((m): Suggestion[] => {
@@ -272,10 +305,8 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
           return [
             {
               id: m.id,
-              label,
-              startAge: age,
-              annualChange: -Math.round(m.monthlyPayment * 12),
               caption: `${label} at ${age} · −${formatWholeCurrency(m.monthlyPayment)}/mo`,
+              changes: [{ label, startAge: age, annualChange: -Math.round(m.monthlyPayment * 12), monthly: true }],
             },
           ];
         })
@@ -423,7 +454,7 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
       <View style={styles.columns}>
         <Card
           title="Spending over time"
-          subtitle="Start from today’s spending and add what will change: kids leaving home, a mortgage paid off, college, travel."
+          subtitle="Start from today’s spending and add what will change: kids leaving home, a mortgage paid off, college, travel. Add your children on Profile to time changes by their ages."
           style={styles.column}>
           {suggestions.length > 0 && (
             <View style={styles.buttons}>
@@ -433,7 +464,7 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
                   label={`+ ${s.caption}`}
                   variant="secondary"
                   size="small"
-                  onPress={() => addChange({ label: s.label, startAge: s.startAge ?? undefined, annualChange: s.annualChange ?? undefined })}
+                  onPress={() => addChanges(s.changes)}
                 />
               ))}
             </View>
@@ -450,6 +481,26 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
                   </View>
                   <Button label="Remove" variant="secondary" size="small" onPress={() => removeChange(c.key)} accessibilityLabel={`Remove ${c.label || 'spending change'}`} />
                 </View>
+                {(d.children.length > 0 || c.childId !== null) && (
+                  <Field label="Ages are">
+                    <View style={styles.chips}>
+                      <Chip label="Yours" selected={c.childId === null} onPress={() => setChange(c.key, { childId: null })} />
+                      {d.children.map((k) => (
+                        <Chip
+                          key={k.id}
+                          label={childName(d.children, k.id)}
+                          selected={c.childId === k.id}
+                          onPress={() => setChange(c.key, { childId: k.id })}
+                        />
+                      ))}
+                    </View>
+                    {c.childId !== null && !d.children.some((k) => k.id === c.childId) && (
+                      <ThemedText type="small" themeColor="negative">
+                        This child is no longer on your profile, so the change is left out.
+                      </ThemedText>
+                    )}
+                  </Field>
+                )}
                 <Row>
                   <Field label="From age" invalid={bad.startAge}>
                     <Input value={c.startAge} onChangeText={(startAge) => setChange(c.key, { startAge })} keyboardType="number-pad" inputMode="numeric" maxLength={3} />
@@ -457,15 +508,19 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
                   <Field label="Until age" invalid={bad.endAge}>
                     <Input value={c.endAge} onChangeText={(endAge) => setChange(c.key, { endAge })} placeholder="For good" keyboardType="number-pad" inputMode="numeric" maxLength={3} />
                   </Field>
-                  <Field label="Change per year" invalid={bad.annualChange}>
+                  <Field label={c.monthly ? 'Change per month' : 'Change per year'} invalid={bad.annualChange}>
                     <Input value={c.amount} onChangeText={(amount) => setChange(c.key, { amount })} placeholder="−$ for less, $ for more" keyboardType="numbers-and-punctuation" inputMode="decimal" />
                   </Field>
                 </Row>
+                <View style={styles.chips}>
+                  <Chip label="Per month" selected={c.monthly} onPress={() => setMonthly(c, true)} />
+                  <Chip label="Per year" selected={!c.monthly} onPress={() => setMonthly(c, false)} />
+                </View>
               </View>
             );
           })}
           <View style={styles.buttons}>
-            <Button label="Add a change" variant="secondary" size="small" onPress={() => addChange({})} />
+            <Button label="Add a change" variant="secondary" size="small" onPress={() => addChanges([{}])} />
           </View>
           <Field label={`Spending falls each year after ${SPENDING_DECLINE_AGE}, %`} invalid={invalid.spendingDeclinePercent}>
             <Input
@@ -791,6 +846,7 @@ const styles = StyleSheet.create({
   column: { flexGrow: 1, flexBasis: 420, minWidth: 0 },
   main: { flexGrow: 3, flexBasis: 560, gap: Spacing.three },
   property: { gap: Spacing.two },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   shrink: { flex: 1, flexShrink: 1 },
   total: { paddingTop: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth },

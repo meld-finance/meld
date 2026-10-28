@@ -10,6 +10,7 @@ import {
   resolvePlan,
   saleProceeds,
   spendingAt,
+  type Child,
   type RetirementInputs,
 } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
@@ -119,20 +120,20 @@ describe('spending over time', () => {
   const flat = { ...base, expectedReturn: 0 };
 
   it('applies a change from its start age, so one before retirement lowers every withdrawal', () => {
-    const kids = { label: 'Kids leave home', startAge: 55, endAge: null, annualChange: -20_000 };
+    const kids = { label: 'Kids leave home', childId: null, startAge: 55, endAge: null, annualChange: -20_000, monthly: false };
     const p = projectRetirement({ ...flat, spendingChanges: [kids] });
     expect(p.needed).toBe(30 * 40_000);
     expect(p.spendingAtRetirement).toBe(40_000);
   });
 
   it('applies a change with an end age only inside its window', () => {
-    const travel = { label: 'Travel', startAge: 65, endAge: 70, annualChange: 15_000 };
+    const travel = { label: 'Travel', childId: null, startAge: 65, endAge: 70, annualChange: 15_000, monthly: false };
     expect(projectRetirement({ ...flat, spendingChanges: [travel] }).needed).toBe(30 * 60_000 + 5 * 15_000);
     expect(spendingAt({ ...flat, spendingChanges: [travel] }, 70)).toBe(60_000);
   });
 
   it('never spends less than nothing', () => {
-    expect(spendingAt({ ...flat, spendingChanges: [{ label: 'Cut', startAge: 40, endAge: null, annualChange: -90_000 }] }, 70)).toBe(0);
+    expect(spendingAt({ ...flat, spendingChanges: [{ label: 'Cut', childId: null, startAge: 40, endAge: null, annualChange: -90_000, monthly: false }] }, 70)).toBe(0);
   });
 
   it('slows spending each year after 75', () => {
@@ -146,7 +147,7 @@ describe('spending over time', () => {
     const i = {
       ...base,
       spendingDeclinePercent: 1,
-      spendingChanges: [{ label: 'Mortgage paid off', startAge: 70, endAge: null, annualChange: -18_000 }],
+      spendingChanges: [{ label: 'Mortgage paid off', childId: null, startAge: 70, endAge: null, annualChange: -18_000, monthly: false }],
     };
     const needed = projectRetirement(i).needed;
     const p = projectRetirement({ ...i, currentAge: 65, startingBalance: needed });
@@ -181,7 +182,7 @@ describe('resolvePlan', () => {
   const RENTAL = '00000000-0000-4000-8000-000000000001';
   const LOAN = '00000000-0000-4000-8000-000000000002';
   const summary = {
-    defaults: { currentAge: 40, birthYear: 1986, married: false, annualSpending: 72_000, annualIncome: 150_000, dependents: null },
+    defaults: { currentAge: 40, birthYear: 1986, married: false, annualSpending: 72_000, annualIncome: 150_000, children: [] as Child[] },
     accounts: [
       { value: 50_000, included: true },
       { value: 9_000, included: false },
@@ -225,8 +226,31 @@ describe('resolvePlan', () => {
     expect(resolvePlan(EMPTY_RETIREMENT_PLAN, noIncome).inputs!.socialSecurityAnnual).toBe(0);
   });
 
+  it('moves changes that follow a child to your ages, dropping those for a child no longer listed', () => {
+    const kids = [
+      { id: 'mia', name: 'Mia', birthYear: 2016 },
+      { id: 'leo', name: null, birthYear: 2020 },
+    ];
+    const plan = {
+      ...EMPTY_RETIREMENT_PLAN,
+      spendingChanges: [
+        { label: 'Mia leaves home', childId: 'mia', startAge: 18, endAge: null, annualChange: -12_000, monthly: false },
+        { label: 'Leo’s college', childId: 'leo', startAge: 18, endAge: 22, annualChange: 30_000, monthly: false },
+        { label: 'Gone', childId: 'old', startAge: 18, endAge: null, annualChange: -5_000, monthly: false },
+        { label: 'Travel', childId: null, startAge: 65, endAge: 70, annualChange: 10_000, monthly: true },
+      ],
+    };
+    const r = resolvePlan(plan, { ...summary, defaults: { ...summary.defaults, children: kids } });
+    // Born 1986: Mia turns 18 when you're 48; Leo is at college from your 52 to 56.
+    expect(r.inputs!.spendingChanges.map((c) => [c.label, c.childId, c.startAge, c.endAge])).toEqual([
+      ['Mia leaves home', null, 48, null],
+      ['Leo’s college', null, 52, 56],
+      ['Travel', null, 65, 70],
+    ]);
+  });
+
   it('reports what it can’t default', () => {
-    const r = resolvePlan(EMPTY_RETIREMENT_PLAN, { ...summary, defaults: { currentAge: null, birthYear: null, married: false, annualSpending: null, annualIncome: null, dependents: null } });
+    const r = resolvePlan(EMPTY_RETIREMENT_PLAN, { ...summary, defaults: { currentAge: null, birthYear: null, married: false, annualSpending: null, annualIncome: null, children: [] } });
     expect(r).toEqual({ inputs: null, missing: ['birth year', 'retirement spending'] });
   });
 });

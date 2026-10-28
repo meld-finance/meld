@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { TaxTreatment } from './investments';
 import { remainingLoanBalance } from './liabilities';
+import { Child } from './profile';
 import { claimingFactor, estimateSocialSecurityMonthly } from './social-security';
 
 /** A property you plan to sell to help fund retirement. Properties not listed aren't counted. */
@@ -18,11 +19,15 @@ export type PropertySale = z.infer<typeof PropertySale>;
 /** A change to yearly spending over a span of ages, e.g. kids leaving home or a mortgage paid off. */
 export const SpendingChange = z.object({
   label: z.string().trim().min(1).max(60),
-  startAge: z.number().int().min(18).max(120),
+  /** Whose ages startAge and endAge are: a child's id from the profile, or null for yours. */
+  childId: z.string().min(1).max(40).nullable().default(null),
+  startAge: z.number().int().min(0).max(120),
   /** The first age it no longer applies; null if it never ends. */
-  endAge: z.number().int().min(18).max(120).nullable(),
+  endAge: z.number().int().min(0).max(120).nullable(),
   /** Added to yearly spending, in today's dollars; negative for spending less. */
   annualChange: z.number(),
+  /** Entered per month; annualChange is still yearly. */
+  monthly: z.boolean().default(false),
 });
 export type SpendingChange = z.infer<typeof SpendingChange>;
 
@@ -140,8 +145,8 @@ export const RetirementSummary = z.object({
     annualSpending: z.number().nullable(),
     /** Household gross income from the profile. */
     annualIncome: z.number().nullable(),
-    /** From the profile, to suggest when spending on kids ends. */
-    dependents: z.number().nullable(),
+    /** From the profile, for spending changes that follow a child's age. */
+    children: z.array(Child),
   }),
   /** Visible investment accounts, largest first. */
   accounts: z.array(RetirementAccount),
@@ -180,6 +185,7 @@ export type RetirementInputs = {
   expectedReturn: number;
   /** Today's; see spendingAt. */
   annualSpending: number;
+  /** In your ages: changes that follow a child are converted. */
   spendingChanges: SpendingChange[];
   /** Percent a year after SPENDING_DECLINE_AGE. */
   spendingDeclinePercent: number;
@@ -270,7 +276,7 @@ export function resolvePlan(plan: RetirementPlan, summary: SummaryParts): Resolv
       annualContribution: plan.annualContribution ?? 0,
       expectedReturn: plan.expectedReturn ?? RETIREMENT_DEFAULTS.expectedReturn,
       annualSpending,
-      spendingChanges: plan.spendingChanges,
+      spendingChanges: inYourAges(plan.spendingChanges, summary.defaults.children, birthYear),
       spendingDeclinePercent: plan.spendingDeclinePercent ?? RETIREMENT_DEFAULTS.spendingDeclinePercent,
       socialSecurityAnnual: Math.round(fullSocialSecurity * claimingFactor(birthYear, socialSecurityAge)),
       socialSecurityAge,
@@ -279,6 +285,17 @@ export function resolvePlan(plan: RetirementPlan, summary: SummaryParts): Resolv
     },
     missing: [],
   };
+}
+
+/** Changes that follow a child, moved to your ages; those for a child no longer in the profile drop out. */
+export function inYourAges(changes: SpendingChange[], children: Child[], birthYear: number): SpendingChange[] {
+  return changes.flatMap((c) => {
+    if (c.childId === null) return [c];
+    const child = children.find((k) => k.id === c.childId);
+    if (!child) return [];
+    const shift = child.birthYear - birthYear;
+    return [{ ...c, childId: null, startAge: c.startAge + shift, endAge: c.endAge === null ? null : c.endAge + shift }];
+  });
 }
 
 export type RetirementProjection = {
