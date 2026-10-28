@@ -1,98 +1,137 @@
-import type { Holding, TaxTreatment } from '@meld/shared';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import type { InvestmentsSummary } from '@meld/shared';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
-import { RankedBars, type RankedRow } from '@/components/charts/ranked-bars';
-import { HoldingsList } from '@/components/holdings-list';
+import { Icon } from '@/components/icon';
+import { ExposureTab } from '@/components/investments/exposure-tab';
+import { HoldingsTab } from '@/components/investments/holdings-tab';
+import { IncomeTab } from '@/components/investments/income-tab';
+import { OverviewTab } from '@/components/investments/overview-tab';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { UnderlineTabs } from '@/components/underline-tabs';
 import { Spacing } from '@/constants/theme';
-import { formatCurrency } from '@/lib/format';
-import { useInvestments } from '@/lib/queries';
+import { useAccents } from '@/hooks/use-accents';
+import { useTheme } from '@/hooks/use-theme';
+import { useInvestmentIncome, useInvestments, useProfileSecurities } from '@/lib/queries';
 
-const SECURITY_LABELS: Record<string, string> = {
-  cash: 'Cash',
-  equity: 'Stocks',
-  etf: 'ETFs',
-  'mutual fund': 'Mutual funds',
-  'fixed income': 'Bonds',
-  derivative: 'Options',
-  cryptocurrency: 'Crypto',
-  loan: 'Loans',
-};
-
-const TAX_LABELS: Record<TaxTreatment, string> = {
-  taxable: 'Taxable',
-  tax_deferred: 'Tax-deferred',
-  tax_free: 'Tax-free',
-  unknown: 'Unclassified',
-};
-
-function sumBy(holdings: Holding[], keyOf: (h: Holding) => string, labelOf: (key: string) => string): RankedRow[] {
-  const totals = new Map<string, number>();
-  for (const h of holdings) totals.set(keyOf(h), (totals.get(keyOf(h)) ?? 0) + (h.value ?? 0));
-  return [...totals].map(([key, amount]) => ({ key, label: labelOf(key), amount }));
-}
+const TABS = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'exposure', label: 'Exposure' },
+  { value: 'income', label: 'Income' },
+  { value: 'holdings', label: 'Holdings' },
+] as const;
+type Tab = (typeof TABS)[number]['value'];
 
 export default function InvestmentsScreen() {
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const tab: Tab = TABS.some((t) => t.value === params.tab) ? (params.tab as Tab) : 'overview';
+  const setTab = (next: Tab) => router.setParams({ tab: next === 'overview' ? undefined : next });
+
   const investments = useInvestments();
+  const income = useInvestmentIncome();
   const data = investments.data;
+  const refreshing = investments.isRefetching || income.isRefetching;
+  const onRefresh = () => void Promise.all([investments.refetch(), income.refetch()]);
+
+  const content = investments.isPending ? (
+    <ThemedText themeColor="textSecondary">Loading…</ThemedText>
+  ) : investments.isError ? (
+    <ThemedText themeColor="negative">Couldn’t load investments: {investments.error.message}</ThemedText>
+  ) : !data!.holdings.length ? (
+    <Card title="No holdings yet">
+      <ThemedText type="small" themeColor="textSecondary">
+        Link a brokerage or retirement account to see holdings here. Accounts linked before investments were enabled may
+        need to be removed and linked again.
+      </ThemedText>
+    </Card>
+  ) : (
+    <>
+      <LookupStatus data={data!} />
+      {tab === 'overview' && <OverviewTab data={data!} onShowExposure={() => setTab('exposure')} />}
+      {tab === 'exposure' && <ExposureTab data={data!} />}
+      {tab === 'income' &&
+        (income.isPending ? (
+          <ThemedText themeColor="textSecondary">Loading…</ThemedText>
+        ) : income.isError ? (
+          <ThemedText themeColor="negative">Couldn’t load income: {income.error.message}</ThemedText>
+        ) : (
+          <IncomeTab income={income.data} summary={data!} />
+        ))}
+      {tab === 'holdings' && <HoldingsTab data={data!} />}
+    </>
+  );
 
   return (
-    <Screen
-      title="Investments"
-      refreshControl={<RefreshControl refreshing={investments.isRefetching} onRefresh={() => void investments.refetch()} />}>
-      {investments.isPending ? (
-        <ThemedText themeColor="textSecondary">Loading…</ThemedText>
-      ) : investments.isError ? (
-        <ThemedText themeColor="negative">Couldn’t load investments: {investments.error.message}</ThemedText>
-      ) : !data!.holdings.length ? (
-        <Card title="No holdings yet">
-          <ThemedText type="small" themeColor="textSecondary">
-            Link a brokerage or retirement account to see holdings here. Accounts linked before investments were
-            enabled may need to be removed and linked again.
-          </ThemedText>
-        </Card>
-      ) : (
-        <>
-          <Card>
-            <ThemedText type="small" themeColor="textSecondary">
-              Total invested
-            </ThemedText>
-            <ThemedText type="title">{formatCurrency(data!.totalValue)}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {data!.holdings.length} holdings · values as reported by your institutions
-            </ThemedText>
-          </Card>
-
-          <View style={styles.columns}>
-            <Card title="By asset type" style={styles.column}>
-              <RankedBars
-                rows={sumBy(data!.holdings, (h) => h.securityType ?? 'other', (k) => SECURITY_LABELS[k] ?? 'Other')}
-                showShare
-              />
-            </Card>
-            <Card
-              title="By tax treatment"
-              subtitle="Tax-deferred: 401k, IRA · Tax-free: Roth, HSA, 529"
-              style={styles.column}>
-              <RankedBars
-                rows={sumBy(data!.holdings, (h) => h.taxTreatment, (k) => TAX_LABELS[k as TaxTreatment])}
-                showShare
-              />
-            </Card>
-          </View>
-
-          <Card title="Holdings" subtitle="Gain/loss is value minus cost basis, where your institution reports it.">
-            <HoldingsList holdings={data!.holdings} showAccount />
-          </Card>
-        </>
-      )}
+    <Screen wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      <View style={styles.header}>
+        <ThemedText type="subtitle">Investments</ThemedText>
+        <ThemedText themeColor="textSecondary">A complete view of your portfolio, with insights for today and your tomorrow.</ThemedText>
+      </View>
+      <UnderlineTabs options={[...TABS]} value={tab} onChange={setTab} />
+      {content}
     </Screen>
   );
 }
 
+/**
+ * Looks inside funds that haven't been looked at yet, once per visit, and says so while it runs.
+ * Without AI set up, explains why some of the portfolio isn't broken down.
+ */
+function LookupStatus({ data }: { data: InvestmentsSummary }) {
+  const theme = useTheme();
+  const accent = useAccents().blue;
+  const profile = useProfileSecurities();
+  const attempted = useRef(false);
+  const { unprofiled, canProfile } = data;
+
+  useEffect(() => {
+    if (unprofiled > 0 && canProfile && !attempted.current) {
+      attempted.current = true;
+      profile.mutate();
+    }
+  }, [unprofiled, canProfile, profile]);
+
+  if (profile.isPending) {
+    return (
+      <View style={[styles.status, { backgroundColor: accent.bg, borderColor: theme.border }]}>
+        <ActivityIndicator size="small" color={accent.fg} />
+        <ThemedText type="small">Looking inside your funds to see what they hold…</ThemedText>
+      </View>
+    );
+  }
+  if (!unprofiled) return null;
+  return (
+    <View style={[styles.status, { backgroundColor: accent.bg, borderColor: theme.border }]}>
+      <Icon name="info" size={18} color={accent.fg} />
+      <ThemedText type="small" style={styles.statusText}>
+        {canProfile
+          ? `${unprofiled} ${unprofiled === 1 ? 'holding hasn’t' : 'holdings haven’t'} been broken down yet${profile.error ? `: ${profile.error.message}` : '.'}`
+          : 'Breaking funds down by sector and region uses the AI assistant. Add ANTHROPIC_API_KEY to .env and restart the API.'}
+      </ThemedText>
+      {canProfile && (
+        <Pressable accessibilityRole="button" onPress={() => profile.mutate()} style={({ pressed }) => pressed && styles.pressed}>
+          <ThemedText type="smallBold" style={{ color: accent.fg }}>
+            Try again
+          </ThemedText>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  columns: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
-  column: { flexGrow: 1, flexBasis: 320 },
+  header: { gap: Spacing.one },
+  status: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+    borderWidth: 1,
+  },
+  statusText: { flex: 1 },
+  pressed: { opacity: 0.7 },
 });

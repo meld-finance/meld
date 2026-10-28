@@ -1,11 +1,12 @@
-import { estimatePayoff, insuranceTotals, Month, TransactionQuery } from '@meld/shared';
+import { estimatePayoff, insuranceTotals, lookThrough, Month, TransactionQuery } from '@meld/shared';
 import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db } from '../db/client';
 import { accounts, investmentTransactions, manualAssets, securities } from '../db/schema';
 import { localDate } from '../lib/networth';
-import { getInvestmentsSummary, listAccounts, listLiabilities } from '../services/accounts';
+import { listAccounts, listLiabilities } from '../services/accounts';
 import { listPolicies } from '../services/insurance';
+import { getInvestmentsSummary } from '../services/investments';
 import {
   getBudgetStatus,
   getCashflow,
@@ -174,13 +175,23 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_holdings',
       description:
-        'Investment holdings across brokerage and retirement accounts: security, quantity, price, value, cost basis (for gains/losses), account, and tax treatment (taxable, tax_deferred, tax_free).',
+        'Investment holdings across brokerage and retirement accounts: security, quantity, price, value, cost basis (for gains/losses), account, and tax treatment (taxable, tax_deferred, tax_free). Also the portfolio\'s approximate look-through exposure (inside funds) by asset class, stock sector, stock region and bond type, in dollars, and each holding\'s category. Values are the user\'s ownership share.',
       input: z.object({}),
       label: () => 'Checked investment holdings',
       run: async () => {
-        const summary = await getInvestmentsSummary(db);
+        const summary = await getInvestmentsSummary(db, null);
+        const e = lookThrough(summary.holdings);
+        const dollars = (w: Partial<Record<string, number>>) =>
+          Object.fromEntries(Object.entries(w).map(([k, v]) => [k, Math.round(v!)]));
         return {
           totalValue: summary.totalValue,
+          exposure: {
+            assetClasses: dollars(e.assetClasses),
+            notLookedUp: Math.round(e.unclassified),
+            stockSectors: dollars(e.sectors),
+            stockRegions: dollars(e.regions),
+            bondTypes: dollars(e.bondTypes),
+          },
           holdings: summary.holdings.map((h) => ({
             account: h.accountName,
             accountSubtype: h.accountSubtype,
@@ -188,6 +199,7 @@ export function createChatTools(db: Db): ChatTool[] {
             ticker: h.ticker,
             name: h.name,
             type: h.securityType,
+            category: h.profile?.category ?? null,
             quantity: h.quantity,
             price: h.price,
             value: h.value,

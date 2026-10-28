@@ -54,6 +54,8 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 ## Investments & loans
 
 - Holdings (with cost basis and gain/loss), investment transactions (2 years), and loan/card details (rate, payment, due date, escrow) sync with every refresh when the institution supports Plaid's Investments and Liabilities products.
+- **Investments** has four tabs. **Overview**: totals, asset allocation and accounts. **Exposure**: sector, region and bond-type breakdowns plus your largest positions. **Income**: dividends, interest and reinvestment from investment transactions, with yield. **Holdings**: every position, filterable by account or search. All count only your ownership share of joint accounts.
+- **Look-through exposure** (what's inside your funds) is an AI estimate from each fund's published allocation, looked up once per security when you open Investments and refreshed every 90 days. It needs `ANTHROPIC_API_KEY`; only tickers and fund names are sent.
 - Tap any account for details. Loans and cards show a payoff estimate at the current payment.
 - **Hide from totals** on an account's page excludes it from net worth, cash flow, budgets and lists (e.g. a closed or duplicate account). Hidden accounts are listed at the bottom of the Accounts tab.
 - Full account numbers that Plaid returns for loans are dropped before storage.

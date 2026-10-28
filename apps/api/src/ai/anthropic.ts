@@ -1,12 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import type { PropertyEstimate } from '@meld/shared';
+import type { PropertyEstimate, SecurityProfile } from '@meld/shared';
 import { z } from 'zod';
 import { HttpError } from '../lib/http';
 import { localDate } from '../lib/networth';
 import { maskNumbers, type ChatTool } from './chat-tools';
 import { EXTRACTION_PROMPT, ExtractionSchema, normalizeExtraction } from './insurance-extraction';
 import { normalizeValuation, valuationPrompt, ValuationSchema } from './property-valuation';
+import { normalizeProfiles, ProfilesSchema, profilesPrompt, type SecurityDescription } from './security-profiles';
 import type { AIProvider, ChatTurnInput, ChatTurnResult, ExtractedPolicy, StoredChatMessage } from './provider';
 
 type MessageParam = Anthropic.Beta.BetaMessageParam;
@@ -145,6 +146,22 @@ export class AnthropicProvider implements AIProvider {
       return result;
     }
     throw new HttpError(504, 'Looking up the value took too long. Try again, or enter it by hand.');
+  }
+
+  async profileSecurities(securities: SecurityDescription[]): Promise<(SecurityProfile | null)[]> {
+    const response = await this.client.beta.messages
+      .parse({
+        model: this.lookupModel,
+        max_tokens: 16000,
+        ...FALLBACK,
+        // Fund make-up is reference knowledge; no search needed for approximate weights.
+        output_config: { effort: 'low', format: betaZodOutputFormat(ProfilesSchema) },
+        messages: [{ role: 'user', content: profilesPrompt(securities) }],
+      })
+      .catch(toHttpError);
+    if (response.stop_reason === 'refusal') throw new HttpError(422, 'The AI declined to look up these holdings.');
+    if (!response.parsed_output) throw new HttpError(422, 'Couldn’t work out what these holdings contain. Try again later.');
+    return normalizeProfiles(response.parsed_output, securities.length);
   }
 
   async chat({ system, snapshot, history, userText, tools, onEvent, signal }: ChatTurnInput): Promise<ChatTurnResult> {

@@ -1,4 +1,4 @@
-import { taxTreatment, type Account, type Holding, type InvestmentsSummary, type LiabilityDetails, type LiabilityKind, type LiabilitySummary } from '@meld/shared';
+import { CASH_PROFILE, taxTreatment, type Account, type Holding, type LiabilityDetails, type LiabilityKind, type LiabilitySummary } from '@meld/shared';
 import { asc, desc, eq, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, holdings, institutions, liabilities, securities } from '../db/schema';
@@ -37,6 +37,7 @@ export async function listHoldings(db: Db, where: SQL): Promise<Holding[]> {
     .select({
       id: holdings.id,
       accountId: holdings.accountId,
+      securityId: holdings.securityId,
       accountName: accounts.name,
       accountSubtype: accounts.subtype,
       ticker: securities.tickerSymbol,
@@ -46,13 +47,18 @@ export async function listHoldings(db: Db, where: SQL): Promise<Holding[]> {
       price: sql<number | null>`coalesce(${holdings.institutionPrice}, ${securities.closePrice})`.mapWith(Number),
       value: holdings.institutionValue,
       costBasis: holdings.costBasis,
+      profile: securities.profile,
     })
     .from(holdings)
     .innerJoin(accounts, eq(accounts.id, holdings.accountId))
     .innerJoin(securities, eq(securities.id, holdings.securityId))
     .where(where)
     .orderBy(desc(holdings.institutionValue));
-  return rows.map((r) => ({ ...r, taxTreatment: taxTreatment(r.accountSubtype) }));
+  return rows.map((r) => ({
+    ...r,
+    taxTreatment: taxTreatment(r.accountSubtype),
+    profile: r.securityType === 'cash' ? CASH_PROFILE : r.profile,
+  }));
 }
 
 type LiabilityRow = typeof liabilities.$inferSelect;
@@ -89,12 +95,4 @@ export async function listLiabilities(db: Db): Promise<LiabilitySummary[]> {
     balance: r.balance,
     ...toLiabilityDetails(r.liability),
   }));
-}
-
-export async function getInvestmentsSummary(db: Db): Promise<InvestmentsSummary> {
-  const list = await listHoldings(db, eq(accounts.hidden, false));
-  return {
-    totalValue: Math.round(list.reduce((sum, h) => sum + (h.value ?? 0), 0) * 100) / 100,
-    holdings: list,
-  };
 }

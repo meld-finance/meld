@@ -52,6 +52,7 @@ function fakeProvider(calls: ChatTurnInput[]): AIProvider {
     name: 'fake',
     extractInsurancePolicy: () => Promise.reject(new Error('not used')),
     estimatePropertyValue: () => Promise.reject(new Error('not used')),
+    profileSecurities: () => Promise.reject(new Error('not used')),
     async chat(input) {
       calls.push(input);
       input.onEvent({ type: 'lookup', label: 'Checked accounts' });

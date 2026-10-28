@@ -1,20 +1,13 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
 
 import { Card } from '@/components/card';
+import { Donut } from '@/components/charts/donut';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useVizColors } from '@/hooks/use-viz-colors';
 import { categoryLabel, OTHER } from '@/lib/cashflow';
 import { formatWholeCurrency } from '@/lib/format';
-
-const SIZE = 184;
-const STROKE = 26;
-const RADIUS = (SIZE - STROKE) / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-/** Surface gap between neighboring slices, in px along the ring. */
-const GAP = 2;
 
 /** Share of the period's spending by category: a donut with the total inside, plus a value legend. */
 export function SpendingBreakdown({
@@ -38,39 +31,15 @@ export function SpendingBreakdown({
   const color = (category: string) => (category === OTHER ? viz.other : viz.categorical[slots.get(category)!]!);
   const sum = parts.reduce((s, p) => s + p.amount, 0) || 1;
 
-  const lengths = parts.map((p) => (p.amount / sum) * CIRCUMFERENCE);
-  const arcs = parts.map((p, i) => ({
-    ...p,
-    start: lengths.slice(0, i).reduce((s, l) => s + l, 0),
-    length: lengths[i]!,
-  }));
-
   return (
     <Card title="Spending Breakdown" subtitle={periodLabel} style={style}>
       <View style={styles.donutWrap}>
-        <Svg width={SIZE} height={SIZE}>
-          {arcs.map((a) => (
-            <Circle
-              key={a.category}
-              cx={SIZE / 2}
-              cy={SIZE / 2}
-              r={RADIUS}
-              fill="none"
-              stroke={color(a.category)}
-              strokeWidth={STROKE}
-              strokeDasharray={`${Math.max(a.length - (arcs.length > 1 ? GAP : 0), 0.5)} ${CIRCUMFERENCE}`}
-              strokeDashoffset={-a.start}
-              // Start at 12 o'clock and run clockwise.
-              transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
-            />
-          ))}
-        </Svg>
-        <View style={styles.center} pointerEvents="none">
+        <Donut parts={parts.map((p) => ({ key: p.category, amount: p.amount, color: color(p.category) }))}>
           <ThemedText style={styles.total}>{formatWholeCurrency(total)}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.caption}>
             Total Spending
           </ThemedText>
-        </View>
+        </Donut>
       </View>
 
       <View style={styles.legend}>
@@ -100,8 +69,7 @@ export function SpendingBreakdown({
 }
 
 const styles = StyleSheet.create({
-  donutWrap: { alignSelf: 'center', width: SIZE, height: SIZE },
-  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
+  donutWrap: { alignSelf: 'center' },
   total: { fontSize: 20, lineHeight: 26, fontWeight: 700 },
   caption: { fontSize: 12, lineHeight: 16 },
   legend: { gap: Spacing.two },
