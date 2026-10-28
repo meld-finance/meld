@@ -1,9 +1,16 @@
 import { usePathname } from 'expo-router';
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useWindowDimensions } from 'react-native';
 
-/** Width of the chat panel when docked beside the page. */
-export const CHAT_PANEL_WIDTH = 420;
+import { prefs } from './prefs';
+
+/** Default width of the chat panel when docked beside the page; dragging its edge resizes it. */
+const DEFAULT_PANEL_WIDTH = 420;
+const MIN_PANEL_WIDTH = 360;
+const MAX_PANEL_WIDTH = 900;
+/** Room left for the sidebar and page when the panel is dragged wide. */
+const PAGE_MIN_WIDTH = 248 + 480;
+const WIDTH_KEY = 'chatPanelWidth';
 /** Below this window width the panel always covers the page; docked, the page would be too cramped. */
 const DOCK_MIN_WIDTH = 1100;
 
@@ -17,6 +24,10 @@ type ChatPanel = {
   expanded: boolean;
   /** Whether the window is wide enough to dock at all. */
   canDock: boolean;
+  /** Docked width, kept within what the window allows. */
+  width: number;
+  /** Resizes the docked panel; `save` remembers the width for next time (on drag end, not every move). */
+  setWidth: (width: number, save?: boolean) => void;
   open: (id: string, question?: string) => void;
   /** Opens the panel's start view: questions about the current page. */
   openHome: () => void;
@@ -30,7 +41,16 @@ const ChatPanelContext = createContext<ChatPanel | null>(null);
 
 /** Web: lets Ask Meld open beside the current page instead of navigating away from it. */
 export function ChatPanelProvider({ children }: { children: ReactNode }) {
-  const canDock = useWindowDimensions().width >= DOCK_MIN_WIDTH;
+  const windowWidth = useWindowDimensions().width;
+  const canDock = windowWidth >= DOCK_MIN_WIDTH;
+  const [rawWidth, setRawWidth] = useState(DEFAULT_PANEL_WIDTH);
+  useEffect(() => {
+    void prefs.get(WIDTH_KEY).then((v) => {
+      const saved = Number(v);
+      if (v && Number.isFinite(saved)) setRawWidth(saved);
+    });
+  }, []);
+  const width = clampWidth(rawWidth, windowWidth);
   const [isOpen, setIsOpen] = useState(false);
   const [chat, setChat] = useState<Chat | null>(null);
   const pathname = usePathname();
@@ -43,6 +63,12 @@ export function ChatPanelProvider({ children }: { children: ReactNode }) {
       chat,
       expanded: expanded || !canDock,
       canDock,
+      width,
+      setWidth: (next, save) => {
+        const clamped = clampWidth(next, windowWidth);
+        setRawWidth(clamped);
+        if (save) void prefs.set(WIDTH_KEY, String(Math.round(clamped)));
+      },
       open: (id, question) => {
         setIsOpen(true);
         setChat({ id, question });
@@ -59,9 +85,14 @@ export function ChatPanelProvider({ children }: { children: ReactNode }) {
       },
       setExpanded: (expand) => setExpandedOn(expand ? pathname : null),
     }),
-    [isOpen, chat, expanded, canDock, pathname],
+    [isOpen, chat, expanded, canDock, width, windowWidth, pathname],
   );
   return <ChatPanelContext.Provider value={value}>{children}</ChatPanelContext.Provider>;
+}
+
+function clampWidth(width: number, windowWidth: number) {
+  const max = Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, windowWidth - PAGE_MIN_WIDTH));
+  return Math.min(Math.max(width, MIN_PANEL_WIDTH), max);
 }
 
 /** The chat panel, or null where there isn't one (native, and screens outside the tabs). */
@@ -73,5 +104,5 @@ export function useChatPanel() {
 export function useContentWidth() {
   const { width } = useWindowDimensions();
   const panel = useChatPanel();
-  return panel?.isOpen && !panel.expanded ? width - CHAT_PANEL_WIDTH : width;
+  return panel?.isOpen && !panel.expanded ? width - panel.width : width;
 }
