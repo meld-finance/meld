@@ -38,6 +38,8 @@ import type {
   SimulationSettings,
   UpdateScenario,
   SyncResult,
+  TaxPlan,
+  TaxSettings,
   TransactionPage,
   TransactionQuery,
   TransactionUpdate,
@@ -73,6 +75,7 @@ export const keys = {
   chatSessions: ['chat', 'sessions'] as const,
   chatSession: (id: string) => ['chat', 'sessions', id] as const,
   profile: ['profile'] as const,
+  tax: ['tax'] as const,
   retirement: ['retirement'] as const,
   /** null is the active scenario. */
   retirementScenario: (id: string | null) => ['retirement', 'scenario', id ?? 'active'] as const,
@@ -305,6 +308,7 @@ function useInvalidateFinancialData() {
       qc.invalidateQueries({ queryKey: ['budgets'] }),
       qc.invalidateQueries({ queryKey: ['investments'] }),
       qc.invalidateQueries({ queryKey: keys.retirement }),
+      qc.invalidateQueries({ queryKey: keys.tax }),
     ]);
 }
 
@@ -441,9 +445,29 @@ export function useSaveProfile() {
     mutationFn: (profile: UserProfile) => api<UserProfile>('/profile', { method: 'PUT', body: JSON.stringify(profile) }),
     onSuccess: (saved) => {
       qc.setQueryData(keys.profile, saved);
-      // Retirement defaults come from the profile's birth year and income.
+      // Retirement defaults and the tax estimate come from the profile.
       void qc.invalidateQueries({ queryKey: keys.retirement });
+      void qc.invalidateQueries({ queryKey: keys.tax });
     },
+  });
+}
+
+/** A year's tax estimate, inputs included. */
+export function useTaxPlan(year: number) {
+  return useQuery({
+    queryKey: [...keys.tax, year],
+    queryFn: () => api<TaxPlan>(`/tax?year=${year}`),
+    // Switching years keeps the last one on screen until the next arrives.
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useSaveTaxSettings(year: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (settings: TaxSettings) =>
+      api<TaxSettings>(`/tax/settings?year=${year}`, { method: 'PUT', body: JSON.stringify(settings) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...keys.tax, year] }),
   });
 }
 

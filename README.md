@@ -73,6 +73,35 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts a
 - **Properties** you'd sell to fund retirement can count too. Turn on a home from the Accounts tab and set the age you'd sell it, its mortgage, and net rent per year (rent minus costs). At that age your share of the price (grown 1% a year after inflation by default, less 6% selling costs) minus what's left on the mortgage joins your savings; rent counts as saving before retirement and as income after, until the sale. The mortgage balance is projected from its rate and payment; taxes on the gain aren't included.
 - Ask Meld can read the plan and try what-ifs ("what if I retire at 60?") without changing what you saved.
 
+## Plan: tax
+
+- **Plan → Tax** estimates this year's (or last year's) federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It's an estimate, not a return.
+- **Income** starts from your profile's household gross income and filing status. Pre-tax 401(k) deferrals and HSA contributions are projected from what your 401(k) and HSA accounts report. Dividends, interest and fund distributions come from taxable accounts and bank interest. The year is projected as this year so far plus whatever came in over the rest of last year, so December distributions count. A dividend's qualified share comes from what the fund holds: its stocks, apart from REITs.
+- **Realized gains** are rebuilt from buys and sells with average cost, because Plaid reports one cost basis per holding and no lots. Holding periods follow shares in the order they were bought. Enter your broker's figures to replace the estimate.
+- **Tax inputs** (per year, in `tax_settings`) cover what Meld can't see:
+  - self-employment profit
+  - other income
+  - withholding and estimated payments
+  - property tax and other itemized deductions
+  - HSA coverage
+  - whether you have a workplace plan
+  - a flat state rate for states without tables
+- **Tables:**
+  - Federal brackets, deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs. The 2025 figures include the One Big Beautiful Bill changes.
+  - California uses FTB's 2025 schedules (2026's aren't out yet), adding back HSA money and taxing gains as ordinary income.
+  - States without an income tax owe nothing.
+  - Tables live in `packages/shared/src/tax-tables.ts`; add a year there when the IRS and FTB publish it.
+- **Suggestions** are fixed rules, each with the estimated tax saved this year. They cover:
+  - tax-loss harvesting, with wash-sale warnings for purchases in the last 30 days in any account
+  - gain harvesting at 0%
+  - 401(k), HSA and IRA room
+  - a backdoor Roth, with a pro-rata warning when pre-tax IRAs have money in them
+  - a SEP IRA or solo 401(k) for self-employment income
+  - Roth conversion room in low brackets
+  - an underpayment warning
+
+  Tap one to ask Ask Meld about it.
+
 ## Plan: insurance
 
 - Add life and disability policies under **Plan → Insurance**, including coverage through work. It totals your life coverage, monthly disability benefit and yearly premiums. Term policies past their end date aren't counted.

@@ -56,13 +56,13 @@ export type PerformanceInput = {
   snapshots: { date: string; balances: Record<string, number> }[];
 };
 
-function addDays(date: string, days: number): string {
+export function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
 
-function daysBetween(from: string, to: string): number {
+export function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 
@@ -74,14 +74,14 @@ function shiftMonths(date: string, months: number): string {
 }
 
 /** Money market funds and currency are cash: worth their quantity, and moving between them isn't a flow. */
-function isCash(s: PerfSecurity | undefined): boolean {
+export function isCash(s: PerfSecurity | undefined): boolean {
   // Fidelity's core cash position is FCASH, typed as an equity.
   return !s || s.type === 'cash' || !!s.ticker?.startsWith('CUR:') || s.ticker === 'FCASH';
 }
 
 const SWEEP = /\bsweep\b/i;
 /** Fund distributions some institutions report as deposits; they're earnings, not money you added. */
-const EARNINGS = /dividend|interest|cap(ital)? gain|reinvest/i;
+export const EARNINGS = /dividend|interest|cap(ital)? gain|reinvest/i;
 
 /**
  * Same-day transfers within an account that cancel out (cash moving between core positions, share

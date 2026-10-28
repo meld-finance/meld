@@ -31,6 +31,7 @@ import {
 } from '../services/overview';
 import { getProfile } from '../services/profile';
 import { getRetirement } from '../services/retirement';
+import { getTaxPlan } from '../services/tax';
 import { listCategories, queryTransactions, totalsByMerchant } from '../services/transactions';
 
 /**
@@ -257,6 +258,14 @@ export function createChatTools(db: Db): ChatTool[] {
         const { points: _points, ...performance } = await getInvestmentPerformance(db);
         return performance;
       },
+    }),
+    tool({
+      name: 'get_tax_plan',
+      description:
+        'Meld’s estimate of a year’s federal and state income tax from Plan → Tax: projected full-year income (wages after pre-tax 401(k), self-employment, interest, ordinary and qualified dividends, net short- and long-term gains), federal AGI, deduction, taxable income, tax by part (ordinary, capital gains, NIIT, additional Medicare, self-employment, child tax credit), the federal bracket and room left in it, room for 0% long-term gains, state tax, total and effective rate, `marginalRate` (federal + state on the next $1,000), and `balanceDue` after projected withholding (null when withholding wasn’t entered). `detected` is what synced accounts show so far this year: paychecks, contractor deposits, investment income in taxable accounts, realized gains rebuilt by average cost (`realizedRough` means rough), contributions by account type and pre-tax IRA balances. `harvest` lists taxable holdings with unrealized losses and any purchase in the last 30 days (wash-sale risk). `suggestions` are rule-based moves with the estimated tax saved this year. `notes` say where figures rest on assumptions. `missing` lists profile fields needed for an estimate. An estimate, not a filed return.',
+      input: z.object({ year: z.number().int().min(2000).max(2100).optional().describe('Tax year; this year when left out') }),
+      label: ({ year }) => `Checked your ${year ?? 'current'} tax estimate`,
+      run: ({ year }) => getTaxPlan(db, year ?? Number(localDate().slice(0, 4))),
     }),
     tool({
       name: 'get_investment_transactions',

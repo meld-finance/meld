@@ -127,6 +127,13 @@
       "when": 1793208072428,
       "tag": "0017_price_history",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793210477227,
+      "tag": "0018_tax_settings",
+      "breakpoints": true
     }
   ]
 }
