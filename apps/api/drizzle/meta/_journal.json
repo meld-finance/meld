@@ -64,6 +64,13 @@
       "when": 1793147677602,
       "tag": "0008_security_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793157360467,
+      "tag": "0009_vehicle_valuation",
+      "breakpoints": true
     }
   ]
 }

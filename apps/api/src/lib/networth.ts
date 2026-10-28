@@ -1,10 +1,11 @@
 import { isLiabilityType, ownedBalance, ownedValue, type AccountType, type NetWorthSummary } from '@meld/shared';
 
 type BalanceInput = { type: AccountType; currentBalance: number | null; ownershipPercent?: number | null };
-type ManualInput = { value: number; ownershipPercent?: number | null };
+type ManualInput = Parameters<typeof ownedValue>[0];
 
 /**
- * Shared accounts and manual assets count only your ownership share. Life insurance counts at its
+ * Shared accounts and manual assets count only your ownership share; manual assets count at their
+ * depreciated current value. Life insurance counts at its
  * surrender value (already net of policy loans, so loans aren't a liability here).
  * Plaid reports liabilities (credit, loans, mortgages) as positive amounts owed,
  * so they're summed separately and subtracted.

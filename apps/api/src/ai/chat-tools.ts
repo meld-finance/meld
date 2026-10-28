@@ -1,4 +1,4 @@
-import { estimatePayoff, insuranceTotals, lookThrough, Month, TransactionQuery } from '@meld/shared';
+import { currentValue, estimatePayoff, insuranceTotals, lookThrough, Month, TransactionQuery } from '@meld/shared';
 import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db } from '../db/client';
@@ -56,7 +56,7 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_accounts',
       description:
-        'All linked and manual accounts that count toward totals: name, institution, type (depository, credit, investment, loan, mortgage), subtype (checking, 401k, roth, ...), and balances. Balances on credit, loan and mortgage accounts are amounts owed. `currentBalance` is the full account balance; on a jointly held account `ownershipPercent` is the user’s share (null = 100%), and only the share counts toward net worth, cash flow, spending and budgets. Also returns manually entered assets such as a home or car; `value` is the full market value and `ownershipPercent` the user’s share (null = 100%), and only the share counts toward net worth.',
+        'All linked and manual accounts that count toward totals: name, institution, type (depository, credit, investment, loan, mortgage), subtype (checking, 401k, roth, ...), and balances. Balances on credit, loan and mortgage accounts are amounts owed. `currentBalance` is the full account balance; on a jointly held account `ownershipPercent` is the user’s share (null = 100%), and only the share counts toward net worth, cash flow, spending and budgets. Also returns manually entered assets such as a home or car; `value` is the full market value today (after any yearly `depreciationPercent` since `valueAsOf`) and `ownershipPercent` the user’s share (null = 100%), and only the share counts toward net worth.',
       input: z.object({}),
       label: () => 'Checked accounts and balances',
       run: async () => {
@@ -69,6 +69,7 @@ export function createChatTools(db: Db): ChatTool[] {
               value: manualAssets.value,
               ownershipPercent: manualAssets.ownershipPercent,
               valueAsOf: manualAssets.valueAsOf,
+              depreciationPercent: manualAssets.depreciationPercent,
             })
             .from(manualAssets),
         ]);
@@ -86,7 +87,7 @@ export function createChatTools(db: Db): ChatTool[] {
             currency: a.currency,
             ownershipPercent: a.ownershipPercent,
           })),
-          manualAssets: manual,
+          manualAssets: manual.map((m) => ({ ...m, value: currentValue(m) })),
         };
       },
     }),

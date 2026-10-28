@@ -56,6 +56,7 @@ const fakeAI: AIProvider = {
     };
   },
   estimatePropertyValue: () => Promise.reject(new Error('not used')),
+  estimateVehicleValue: () => Promise.reject(new Error('not used')),
   profileSecurities: () => Promise.reject(new Error('not used')),
   chat: () => Promise.reject(new Error('not used')),
 };

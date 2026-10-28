@@ -1,4 +1,4 @@
-import { hasCashValue, insuranceTotals, isCashValueStale, netCashValue } from '@meld/shared';
+import { currentValue, hasCashValue, insuranceTotals, isCashValueStale, netCashValue } from '@meld/shared';
 import { eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, manualAssets } from '../db/schema';
@@ -41,7 +41,15 @@ export async function buildSnapshot(db: Db, today = localDate()): Promise<string
     getProfile(db),
     getNetWorth(db),
     listAccounts(db, eq(accounts.hidden, false)),
-    db.select({ kind: manualAssets.kind, name: manualAssets.name, value: manualAssets.value }).from(manualAssets),
+    db
+      .select({
+        kind: manualAssets.kind,
+        name: manualAssets.name,
+        value: manualAssets.value,
+        valueAsOf: manualAssets.valueAsOf,
+        depreciationPercent: manualAssets.depreciationPercent,
+      })
+      .from(manualAssets),
     listPolicies(db),
   ]);
   const snapshot = {
@@ -56,7 +64,7 @@ export async function buildSnapshot(db: Db, today = localDate()): Promise<string
       balance: round(a.currentBalance),
       ...(a.ownershipPercent !== null && { ownershipPercent: a.ownershipPercent }),
     })),
-    manualAssets: manual.map((m) => ({ ...m, value: round(m.value) })),
+    manualAssets: manual.map(({ kind, name, ...m }) => ({ kind, name, value: round(currentValue(m)) })),
     insurance: {
       totals: insuranceTotals(policies, today),
       policies: policies.map((p) => ({

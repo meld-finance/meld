@@ -1,12 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
-import type { PropertyEstimate, SecurityProfile } from '@meld/shared';
+import type { PropertyEstimate, SecurityProfile, VehicleDetails, VehicleEstimate } from '@meld/shared';
 import { z } from 'zod';
 import { HttpError } from '../lib/http';
 import { localDate } from '../lib/networth';
 import { maskNumbers, type ChatTool } from './chat-tools';
 import { EXTRACTION_PROMPT, ExtractionSchema, normalizeExtraction } from './insurance-extraction';
 import { normalizeValuation, valuationPrompt, ValuationSchema } from './property-valuation';
+import { normalizeVehicleValuation, vehicleValuationPrompt, VehicleValuationSchema } from './vehicle-valuation';
 import { normalizeProfiles, ProfilesSchema, profilesPrompt, type SecurityDescription } from './security-profiles';
 import type { AIProvider, ChatTurnInput, ChatTurnResult, ExtractedPolicy, StoredChatMessage } from './provider';
 
@@ -116,7 +117,22 @@ export class AnthropicProvider implements AIProvider {
   }
 
   async estimatePropertyValue(address: string): Promise<PropertyEstimate> {
-    const messages: MessageParam[] = [{ role: 'user', content: valuationPrompt(address, localDate()) }];
+    const raw = await this.searchAndParse(valuationPrompt(address, localDate()), ValuationSchema, 'look up this address');
+    const result = normalizeValuation(raw, address);
+    if (!('value' in result)) throw new HttpError(422, result.warnings.join(' '));
+    return result;
+  }
+
+  async estimateVehicleValue(vehicle: VehicleDetails): Promise<VehicleEstimate> {
+    const raw = await this.searchAndParse(vehicleValuationPrompt(vehicle, localDate()), VehicleValuationSchema, 'look up this vehicle');
+    const result = normalizeVehicleValuation(raw);
+    if (!('value' in result)) throw new HttpError(422, result.warnings.join(' '));
+    return result;
+  }
+
+  /** Runs a web-search lookup to a structured answer, resuming the turn when searching pauses it. */
+  private async searchAndParse<T>(prompt: string, schema: z.ZodType<T>, task: string): Promise<T> {
+    const messages: MessageParam[] = [{ role: 'user', content: prompt }];
     for (let i = 0; i <= MAX_CONTINUATIONS; i++) {
       const response = await this.client.beta.messages
         .parse({
@@ -124,8 +140,8 @@ export class AnthropicProvider implements AIProvider {
           max_tokens: 16000,
           ...FALLBACK,
           // Each search is a sequential step, so time grows with the budget. Most sites' pages either
-          // show up in the first few searches or not at all, and real estate pages often block fetches.
-          output_config: { effort: 'low', format: betaZodOutputFormat(ValuationSchema) },
+          // show up in the first few searches or not at all, and pricing pages often block fetches.
+          output_config: { effort: 'low', format: betaZodOutputFormat(schema) },
           tools: [
             { type: 'web_search_20260209', name: 'web_search', max_uses: 8 },
             { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: 2 },
@@ -139,11 +155,9 @@ export class AnthropicProvider implements AIProvider {
         messages.push({ role: 'assistant', content: response.content as Anthropic.Beta.BetaContentBlockParam[] });
         continue;
       }
-      if (response.stop_reason === 'refusal') throw new HttpError(422, 'The AI declined to look up this address.');
+      if (response.stop_reason === 'refusal') throw new HttpError(422, `The AI declined to ${task}.`);
       if (!response.parsed_output) throw new HttpError(422, 'Couldn’t put together an estimate. Enter the value by hand instead.');
-      const result = normalizeValuation(response.parsed_output, address);
-      if (!('value' in result)) throw new HttpError(422, result.warnings.join(' '));
-      return result;
+      return response.parsed_output;
     }
     throw new HttpError(504, 'Looking up the value took too long. Try again, or enter it by hand.');
   }
