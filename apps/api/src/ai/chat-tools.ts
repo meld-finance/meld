@@ -7,6 +7,8 @@ import {
   projectRetirement,
   resolvePlan,
   RetirementPlan,
+  formatFullRetirementAge,
+  socialSecurityAtFullAge,
   TransactionQuery,
 } from '@meld/shared';
 import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
@@ -289,8 +291,14 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_retirement_plan',
       description:
-        'The user’s retirement plan from Plan → Retirement: their assumptions (with which ones are Meld’s defaults), the investment accounts counted toward retirement and those left out (education/custodial accounts always; others by the user’s choice), properties the user plans to sell to fund retirement (`assumptions.sales`: sale age, net proceeds after appreciation, selling costs and the mortgage left, and net rent per year until the sale), and a year-by-year projection. All amounts are in today’s dollars with an after-inflation return. `needed` is the balance at retirement age that lasts to life expectancy, `gap` is needed minus projected (≤ 0 means on track), and `extraMonthly` is the added monthly contribution that closes the gap. Pass any of the optional inputs to try a what-if scenario without changing the saved plan.',
-      input: RetirementPlan.pick({ retirementAge: true, annualContribution: true, annualSpending: true, expectedReturn: true })
+        'The user’s retirement plan from Plan → Retirement: their assumptions (with which ones are Meld’s defaults), the investment accounts counted toward retirement and those left out (education/custodial accounts always; others by the user’s choice), properties the user plans to sell to fund retirement (`assumptions.sales`: sale age, net proceeds after appreciation, selling costs and the mortgage left, and net rent per year until the sale), and a year-by-year projection. All amounts are in today’s dollars with an after-inflation return. `needed` is the balance at retirement age that lasts to life expectancy, `gap` is needed minus projected (≤ 0 means on track), and `extraMonthly` is the added monthly contribution that closes the gap. `socialSecurity` gives the yearly benefit at full retirement age (from the user’s statement, or estimated from profile income when `estimated`); `assumptions.socialSecurityAnnual` is what’s received from the claiming age after the early or delayed adjustment. Pass any of the optional inputs to try a what-if scenario without changing the saved plan.',
+      input: RetirementPlan.pick({
+        retirementAge: true,
+        annualContribution: true,
+        annualSpending: true,
+        expectedReturn: true,
+        socialSecurityAge: true,
+      })
         .partial()
         .describe('Optional what-if overrides; omit to use the saved plan'),
       label: (input) => (Object.keys(input).length ? 'Ran a retirement what-if' : 'Checked your retirement plan'),
@@ -304,6 +312,10 @@ export function createChatTools(db: Db): ChatTool[] {
         const { excludedAccountIds: _e, ...saved } = summary.plan;
         return {
           assumptions: resolved.inputs,
+          socialSecurity: {
+            ...socialSecurityAtFullAge(plan, summary.defaults, resolved.inputs.retirementAge),
+            fullRetirementAge: formatFullRetirementAge(summary.defaults.birthYear!),
+          },
           defaulted: Object.entries(saved)
             .filter(([k, v]) => v === null && !(k in whatIf))
             .map(([k]) => k),

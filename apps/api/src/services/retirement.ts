@@ -89,6 +89,8 @@ export async function getRetirement(db: Db, today = localDate()): Promise<Retire
     plan,
     defaults: {
       currentAge: profile.birthYear === null ? null : Number(today.slice(0, 4)) - profile.birthYear,
+      birthYear: profile.birthYear,
+      married: profile.filingStatus === 'married_joint' || profile.filingStatus === 'married_separate',
       annualSpending: spending > 0 ? Math.round(spending) : null,
       annualIncome: profile.annualGrossIncome,
     },

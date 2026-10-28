@@ -1,4 +1,7 @@
 import {
+  claimingFactor,
+  formatFullRetirementAge,
+  fullRetirementAgeMonths,
   projectRetirement,
   PropertySale,
   resolvePlan,
@@ -7,6 +10,7 @@ import {
   RetirementPlan,
   retirementBalance,
   saleProceeds,
+  socialSecurityAtFullAge,
   type RetirementAccount,
   type RetirementInputs,
   type RetirementProjection as Projection,
@@ -14,7 +18,7 @@ import {
   type TaxTreatment,
 } from '@meld/shared';
 import { useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import { Linking, StyleSheet, Switch, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -71,6 +75,12 @@ const sameSales = (a: PropertySale[], b: PropertySale[]) => {
 const str = (v: number | null) => (v === null ? '' : String(v));
 const num = (s: string) => (s.trim() ? Number(s.replace(/[$,%\s]/g, '')) : null);
 
+/** Social Security is typed per month, as the SSA statement shows it, and saved per year. */
+const MONTHLY = new Set<NumberField>(['socialSecurityAnnual']);
+const toText = (f: NumberField, v: number | null) => (v !== null && MONTHLY.has(f) ? str(Math.round((v / 12) * 100) / 100) : str(v));
+
+const SSA_ACCOUNT_URL = 'https://www.ssa.gov/myaccount/';
+
 /** Projection, gap and assumptions for retirement, in today's dollars. */
 export function RetirementTab({ onShowProfile }: { onShowProfile: () => void }) {
   const retirement = useRetirement();
@@ -83,7 +93,7 @@ export function RetirementTab({ onShowProfile }: { onShowProfile: () => void }) 
 
 function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSummary; onShowProfile: () => void }) {
   const save = useSaveRetirementPlan();
-  const [text, setText] = useState(() => Object.fromEntries(FIELDS.map((f) => [f, str(summary.plan[f])])) as Record<NumberField, string>);
+  const [text, setText] = useState(() => Object.fromEntries(FIELDS.map((f) => [f, toText(f, summary.plan[f])])) as Record<NumberField, string>);
   const [properties, setProperties] = useState<Record<string, PropertyDraft>>(() =>
     Object.fromEntries(
       summary.properties.map((p) => {
@@ -103,7 +113,14 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
   const [saved, setSaved] = useState(false);
 
   // Each field is checked against the shared schema, so the form and the API agree on limits.
-  const values = Object.fromEntries(FIELDS.map((f) => [f, num(text[f])])) as Record<NumberField, number | null>;
+  const values = Object.fromEntries(
+    FIELDS.map((f) => {
+      const typed = num(text[f]);
+      if (typed === null || !MONTHLY.has(f)) return [f, typed];
+      // An untouched monthly figure keeps the saved yearly one, so rounding to cents doesn't count as a change.
+      return [f, text[f] === toText(f, summary.plan[f]) ? summary.plan[f] : typed * 12];
+    }),
+  ) as Record<NumberField, number | null>;
   const invalid = Object.fromEntries(
     FIELDS.map((f) => [f, !RetirementPlan.shape[f].safeParse(values[f]).success]),
   ) as Record<NumberField, boolean>;
@@ -168,6 +185,11 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
 
   const d = summary.defaults;
   const income = d.annualIncome;
+  // The estimate a blank Social Security field uses; it depends on when you stop working.
+  const ssEstimate =
+    resolved.inputs && income
+      ? socialSecurityAtFullAge({ socialSecurityAnnual: null }, d, resolved.inputs.retirementAge).annual
+      : null;
   const saveRow = (
     <>
       {save.isError && <ThemedText themeColor="negative">{save.error.message}</ThemedText>}
@@ -271,16 +293,34 @@ function RetirementPlanner({ summary, onShowProfile }: { summary: RetirementSumm
             </Field>
           </Row>
           <Row>
-            <Field label="Social Security per year" invalid={invalid.socialSecurityAnnual}>
-              <Input value={text.socialSecurityAnnual} onChangeText={set('socialSecurityAnnual')} placeholder="$0 · estimate at ssa.gov" keyboardType="decimal-pad" inputMode="decimal" />
+            <Field label="Social Security per month at full retirement age" invalid={invalid.socialSecurityAnnual}>
+              <Input
+                value={text.socialSecurityAnnual}
+                onChangeText={set('socialSecurityAnnual')}
+                placeholder={ssEstimate ? `${formatWholeCurrency(ssEstimate / 12)} · estimated from income` : '$ · from your statement'}
+                keyboardType="decimal-pad"
+                inputMode="decimal"
+              />
             </Field>
-            <Field label="Starting at age" invalid={invalid.socialSecurityAge}>
+            <Field label="Claim at age" invalid={invalid.socialSecurityAge}>
               <Input value={text.socialSecurityAge} onChangeText={set('socialSecurityAge')} placeholder={String(RETIREMENT_DEFAULTS.socialSecurityAge)} keyboardType="number-pad" inputMode="numeric" maxLength={2} />
             </Field>
-            <Field label="Pension per year" invalid={invalid.pensionAnnual}>
-              <Input value={text.pensionAnnual} onChangeText={set('pensionAnnual')} placeholder="$0" keyboardType="decimal-pad" inputMode="decimal" />
-            </Field>
           </Row>
+          {resolved.inputs && (
+            <SocialSecurity
+              birthYear={d.birthYear!}
+              claimAge={resolved.inputs.socialSecurityAge}
+              fullAnnual={socialSecurityAtFullAge(draft, d, resolved.inputs.retirementAge)}
+              income={income}
+              married={d.married}
+              retirementAge={resolved.inputs.retirementAge}
+              onClaimAge={(age) => set('socialSecurityAge')(String(age))}
+              onShowProfile={onShowProfile}
+            />
+          )}
+          <Field label="Pension per year" invalid={invalid.pensionAnnual}>
+            <Input value={text.pensionAnnual} onChangeText={set('pensionAnnual')} placeholder="$0" keyboardType="decimal-pad" inputMode="decimal" />
+          </Field>
           <Field label="Other savings for retirement (outside investment accounts)" invalid={invalid.otherSavings}>
             <Input value={text.otherSavings} onChangeText={set('otherSavings')} placeholder="$0 · e.g. cash set aside" keyboardType="decimal-pad" inputMode="decimal" />
           </Field>
@@ -440,6 +480,78 @@ function Summary({ inputs, projection: p }: { inputs: RetirementInputs; projecti
         />
       )}
     </TileRow>
+  );
+}
+
+/** Where the Social Security figure comes from, and what each claiming age pays. */
+function SocialSecurity({
+  birthYear,
+  claimAge,
+  fullAnnual: { annual, estimated },
+  income,
+  married,
+  retirementAge,
+  onClaimAge,
+  onShowProfile,
+}: {
+  birthYear: number;
+  claimAge: number;
+  fullAnnual: { annual: number; estimated: boolean };
+  income: number | null;
+  married: boolean;
+  retirementAge: number;
+  onClaimAge: (age: number) => void;
+  onShowProfile: () => void;
+}) {
+  const statementLink = (
+    <ThemedText type="small" themeColor="tint" onPress={() => Linking.openURL(SSA_ACCOUNT_URL)} accessibilityRole="link">
+      ssa.gov
+    </ThemedText>
+  );
+  if (annual === 0) {
+    return (
+      <View style={styles.missing}>
+        <ThemedText type="small" themeColor="textSecondary">
+          {income === null
+            ? 'Add your income to your profile and Meld will estimate your Social Security, or '
+            : 'Not counting Social Security. To count it, '}
+          type the amount at full retirement age from your statement at {statementLink}.
+        </ThemedText>
+        {income === null && <Button label="Add income" variant="secondary" size="small" onPress={onShowProfile} />}
+      </View>
+    );
+  }
+  const monthly = (age: number) => (annual / 12) * claimingFactor(birthYear, age);
+  const ages = [...new Set([62, Math.ceil(fullRetirementAgeMonths(birthYear) / 12), 70])];
+  return (
+    <View style={styles.missing}>
+      <ThemedText type="small" themeColor="textSecondary">
+        {estimated ? (
+          <>
+            Estimated from your {formatWholeCurrency(income!)} income{married ? ' for you and your spouse' : ''}, working
+            to {retirementAge}, with today’s benefit formula. For your exact figure, sign in at{' '}
+            {statementLink} and type the amount at full retirement age ({formatFullRetirementAge(birthYear)}).
+          </>
+        ) : (
+          <>
+            Your full retirement age is {formatFullRetirementAge(birthYear)}. Claiming at {claimAge} pays{' '}
+            {formatWholeCurrency(monthly(claimAge))} a month.
+          </>
+        )}
+      </ThemedText>
+      <View style={styles.buttons}>
+        {ages.map((age) => (
+          <Button
+            key={age}
+            label={`${age} · ${formatWholeCurrency(monthly(age))}/mo`}
+            variant={age === claimAge ? 'primary' : 'secondary'}
+            size="small"
+            onPress={() => onClaimAge(age)}
+            accessibilityLabel={`Claim Social Security at ${age}`}
+          />
+        ))}
+      </View>
+    </View>
   );
 }
 

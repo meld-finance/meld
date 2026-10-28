@@ -9,3 +9,4 @@ export * from './plaid';
 export * from './profile';
 export * from './transactions';
 export * from './retirement';
+export * from './social-security';
