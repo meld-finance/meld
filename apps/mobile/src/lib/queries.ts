@@ -1,6 +1,7 @@
 import type {
   Account,
   AccountDetail,
+  BalanceSnapshot,
   AccountUpdate,
   InvestmentIncome,
   InvestmentsSummary,
@@ -50,6 +51,7 @@ export const keys = {
   categoryRules: ['category-rules'] as const,
   netWorth: ['networth'] as const,
   netWorthHistory: (days: number) => ['networth', 'history', days] as const,
+  netWorthCompare: (days: number) => ['networth', 'compare', days] as const,
   cashflow: (months: number) => ['cashflow', months] as const,
   cashflowPeriod: (from: string, to: string) => ['cashflow', 'period', from, to] as const,
   cashflowCategories: (months: number, end: string) => ['cashflow', 'categories', months, end] as const,
@@ -71,6 +73,14 @@ export function useNetWorthHistory(days = 365) {
   return useQuery({
     queryKey: keys.netWorthHistory(days),
     queryFn: () => api<NetWorthPoint[]>(`/networth/history?days=${days}`),
+  });
+}
+
+/** Balances `days` ago, or null when history doesn't reach back that far. */
+export function useBalanceComparison(days = 30) {
+  return useQuery({
+    queryKey: keys.netWorthCompare(days),
+    queryFn: () => api<BalanceSnapshot | null>(`/networth/compare?days=${days}`),
   });
 }
 
@@ -247,6 +257,14 @@ export function useTransactions(filters: Omit<TransactionQuery, 'limit' | 'offse
       const loaded = pages.reduce((n, p) => n + p.transactions.length, 0);
       return loaded < last.total ? loaded : undefined;
     },
+  });
+}
+
+/** The latest few transactions across every account. */
+export function useRecentTransactions(limit: number) {
+  return useQuery({
+    queryKey: ['transactions', 'recent', limit],
+    queryFn: () => api<TransactionPage>(`/transactions?limit=${limit}`),
   });
 }
 

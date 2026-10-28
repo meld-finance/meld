@@ -12,18 +12,16 @@ import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
-import { Card } from '@/components/card';
 import { Chip } from '@/components/chip';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { confirm } from '@/lib/confirm';
-import { formatCurrency, formatWholeCurrency } from '@/lib/format';
+import { formatWholeCurrency } from '@/lib/format';
 import {
   useDeleteManualAsset,
   useEstimatePropertyValue,
   useEstimateVehicleValue,
-  useManualAssets,
   useSaveManualAsset,
 } from '@/lib/queries';
 
@@ -33,55 +31,25 @@ const KINDS: { kind: ManualAssetKind; label: string }[] = [
   { kind: 'other', label: 'Other' },
 ];
 
-/** Assets Plaid can't see (home value, vehicles), counted toward net worth. */
-export function ManualAssets() {
-  const assets = useManualAssets();
-  const [editing, setEditing] = useState<ManualAsset | 'new' | null>(null);
-
-  return (
-    <Card
-      title="Property & other assets"
-      subtitle="Your home, car and the like. Enter a home's address or a car's details to look up its value. Counted in net worth."
-      action={editing === null && <Button label="Add" variant="secondary" size="small" onPress={() => setEditing('new')} />}>
-      {assets.isError && <ThemedText themeColor="negative">{assets.error.message}</ThemedText>}
-      {assets.data?.map((a) =>
-        editing !== 'new' && editing?.id === a.id ? (
-          <AssetForm key={a.id} asset={a} onDone={() => setEditing(null)} />
-        ) : (
-          <Pressable key={a.id} style={styles.row} onPress={() => setEditing(a)} accessibilityHint="Edit asset">
-            <View style={styles.shrink}>
-              <ThemedText numberOfLines={1}>{a.name}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {KINDS.find((k) => k.kind === a.kind)?.label}
-                {a.ownershipPercent != null && a.ownershipPercent < 100
-                  ? ` · ${a.ownershipPercent}% of ${formatWholeCurrency(currentValue(a))}`
-                  : ''}
-                {a.depreciationPercent
-                  ? ` · ${formatWholeCurrency(a.value)} on ${a.valueAsOf}, −${a.depreciationPercent}%/yr`
-                  : a.valueAsOf
-                    ? ` · as of ${a.valueAsOf}`
-                    : ''}
-              </ThemedText>
-            </View>
-            <ThemedText>{formatCurrency(ownedValue(a))}</ThemedText>
-          </Pressable>
-        ),
-      )}
-      {editing === 'new' && <AssetForm onDone={() => setEditing(null)} />}
-      {assets.data?.length === 0 && editing === null && (
-        <ThemedText type="small" themeColor="textSecondary">
-          None yet.
-        </ThemedText>
-      )}
-    </Card>
-  );
+/** "Home · 50% of $800,000 · as of 2026-10-01" */
+export function manualAssetDetail(a: ManualAsset): string {
+  return [
+    KINDS.find((k) => k.kind === a.kind)?.label,
+    a.ownershipPercent != null && a.ownershipPercent < 100 && `${a.ownershipPercent}% of ${formatWholeCurrency(currentValue(a))}`,
+    a.depreciationPercent
+      ? `${formatWholeCurrency(a.value)} on ${a.valueAsOf}, −${a.depreciationPercent}%/yr`
+      : a.valueAsOf && `as of ${a.valueAsOf}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 const parseAmount = (s: string) => Number(s.replace(/[$,%\s]/g, ''));
 /** "123 Main St, Springfield, IL" → "123 Main St". */
 const streetOf = (address: string) => address.split(',')[0]!.trim();
 
-function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () => void }) {
+/** Adds or edits an asset Plaid can't see (home value, vehicles), counted toward net worth. */
+export function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () => void }) {
   const theme = useTheme();
   const save = useSaveManualAsset();
   const remove = useDeleteManualAsset();

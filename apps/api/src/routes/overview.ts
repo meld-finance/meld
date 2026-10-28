@@ -12,6 +12,7 @@ import {
   getCategoryDetail,
   getNetWorth,
   getNetWorthHistory,
+  getSnapshotAsOf,
   getSpendingByCategory,
   getSpendingByMonth,
 } from '../services/overview';
@@ -28,6 +29,13 @@ export async function registerOverviewRoutes(app: FastifyInstance, { db }: AppDe
     const since = new Date();
     since.setDate(since.getDate() - days);
     return getNetWorthHistory(db, localDate(since));
+  });
+
+  app.get('/networth/compare', (req) => {
+    const { days } = parse(z.object({ days: z.coerce.number().int().min(1).max(3650).default(30) }), req.query);
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    return getSnapshotAsOf(db, localDate(since));
   });
 
   app.get('/cashflow', (req) => {

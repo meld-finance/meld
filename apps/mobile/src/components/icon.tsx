@@ -84,6 +84,19 @@ const ICONS = {
   arrowRight: <Path d="M5 12h14M13 6l6 6-6 6" />,
   arrowUp: <Path d="M12 19V5M6 11l6-6 6 6" />,
   arrowDown: <Path d="M12 5v14M6 13l6 6 6-6" />,
+  more: (
+    <>
+      <Circle cx={5} cy={12} r={1} />
+      <Circle cx={12} cy={12} r={1} />
+      <Circle cx={19} cy={12} r={1} />
+    </>
+  ),
+  link: (
+    <>
+      <Path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+      <Path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+    </>
+  ),
   chevronDown: <Path d="m6 9 6 6 6-6" />,
   chevronLeft: <Path d="m15 6-6 6 6 6" />,
   chevronRight: <Path d="m9 6 6 6-6 6" />,

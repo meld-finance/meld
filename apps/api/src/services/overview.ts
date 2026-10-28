@@ -1,5 +1,8 @@
 import {
   netCashValue,
+  ownedBalance,
+  ownedValue,
+  type BalanceSnapshot,
   type BudgetStatus,
   type CashflowMonth,
   type CashflowPeriod,
@@ -33,14 +36,21 @@ export function recentMonths(count: number, today: string): string[] {
   });
 }
 
-export async function getNetWorth(db: Db): Promise<NetWorthSummary> {
+/** Everything that counts toward net worth, with ids so snapshots can track each one. */
+async function loadBalances(db: Db) {
   const [accountRows, manualRows, policyRows] = await Promise.all([
     db
-      .select({ type: accounts.type, currentBalance: accounts.currentBalance, ownershipPercent: accounts.ownershipPercent })
+      .select({
+        id: accounts.id,
+        type: accounts.type,
+        currentBalance: accounts.currentBalance,
+        ownershipPercent: accounts.ownershipPercent,
+      })
       .from(accounts)
       .where(eq(accounts.hidden, false)),
     db
       .select({
+        id: manualAssets.id,
         value: manualAssets.value,
         valueAsOf: manualAssets.valueAsOf,
         depreciationPercent: manualAssets.depreciationPercent,
@@ -49,6 +59,7 @@ export async function getNetWorth(db: Db): Promise<NetWorthSummary> {
       .from(manualAssets),
     db
       .select({
+        id: insurancePolicies.id,
         type: insurancePolicies.type,
         cashValue: insurancePolicies.cashValue,
         cashSurrenderValue: insurancePolicies.cashSurrenderValue,
@@ -56,19 +67,35 @@ export async function getNetWorth(db: Db): Promise<NetWorthSummary> {
       })
       .from(insurancePolicies),
   ]);
-  const cashValues = policyRows.map(netCashValue).filter((v): v is number => v !== null);
-  return computeNetWorth(accountRows, manualRows, cashValues);
+  const cashValues = policyRows.flatMap((p) => {
+    const value = netCashValue(p);
+    return value === null ? [] : [{ id: p.id, value }];
+  });
+  const balances: Record<string, number> = Object.fromEntries([
+    ...accountRows.map((a) => [a.id, ownedBalance(a)]),
+    ...manualRows.map((m) => [m.id, ownedValue(m)]),
+    ...cashValues.map((c) => [c.id, c.value]),
+  ]);
+  return {
+    summary: computeNetWorth(accountRows, manualRows, cashValues.map((c) => c.value)),
+    balances,
+  };
+}
+
+export async function getNetWorth(db: Db): Promise<NetWorthSummary> {
+  return (await loadBalances(db)).summary;
 }
 
 /** Upserts today's net-worth snapshot; history accrues one point per day. */
 export async function recordSnapshot(db: Db, today = localDate()) {
-  const summary = await getNetWorth(db);
+  const { summary, balances } = await loadBalances(db);
   const row = {
     date: today,
     totalAssets: summary.assets,
     totalLiabilities: summary.liabilities,
     netWorth: summary.netWorth,
     breakdown: summary.byType,
+    balances,
   };
   await db
     .insert(balanceSnapshots)
@@ -87,6 +114,32 @@ export async function getNetWorthHistory(db: Db, sinceDate: string) {
     .from(balanceSnapshots)
     .where(gte(balanceSnapshots.date, sinceDate))
     .orderBy(asc(balanceSnapshots.date));
+}
+
+/**
+ * The latest snapshot on or before `date`, to compare today's balances against. Null when history
+ * doesn't reach back that far, so callers show no change rather than one over a shorter span.
+ */
+export async function getSnapshotAsOf(db: Db, date: string): Promise<BalanceSnapshot | null> {
+  const [row] = await db
+    .select({
+      date: balanceSnapshots.date,
+      netWorth: balanceSnapshots.netWorth,
+      breakdown: balanceSnapshots.breakdown,
+      balances: balanceSnapshots.balances,
+    })
+    .from(balanceSnapshots)
+    .where(lte(balanceSnapshots.date, date))
+    .orderBy(desc(balanceSnapshots.date))
+    .limit(1);
+  if (!row) return null;
+  return {
+    date: row.date,
+    netWorth: row.netWorth,
+    byType: (row.breakdown as NetWorthSummary['byType'] | null) ?? [],
+    // Snapshots from before per-item tracking have none.
+    balances: row.balances ?? null,
+  };
 }
 
 export async function getCashflow(db: Db, months: number, today = localDate()): Promise<CashflowMonth[]> {

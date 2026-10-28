@@ -71,6 +71,13 @@
       "when": 1793157360467,
       "tag": "0009_vehicle_valuation",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793157937406,
+      "tag": "0010_snapshot_balances",
+      "breakpoints": true
     }
   ]
 }
