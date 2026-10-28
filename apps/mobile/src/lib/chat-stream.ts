@@ -11,6 +11,8 @@ import { API_URL } from './config';
 export async function streamChatMessage(
   sessionId: string,
   text: string,
+  /** A ChatModelOption id; the server default when null. */
+  model: string | null,
   onEvent: (event: ChatStreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
@@ -22,7 +24,7 @@ export async function streamChatMessage(
       Accept: 'text/event-stream',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, ...(model ? { model } : {}) }),
     signal,
   });
   if (res.status === 401) notifyUnauthorized();

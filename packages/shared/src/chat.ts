@@ -14,7 +14,25 @@ export type ChatMessageView = {
 
 export type ChatSessionDetail = ChatSessionSummary & { messages: ChatMessageView[] };
 
-export const ChatSendRequest = z.object({ text: z.string().trim().min(1).max(8000) });
+/** A model the Ask chat can answer with. */
+export type ChatModelOption = {
+  /** `<provider>:<model>`, e.g. `anthropic:claude-haiku-5-5` or `ollama:qwen3.5:latest`. */
+  id: string;
+  provider: string;
+  label: string;
+  /** Short hint shown next to the label, e.g. "Lowest cost". */
+  note: string | null;
+  /** True when the model runs on this machine, so nothing is sent to an outside service. */
+  local: boolean;
+};
+
+export type ChatModelList = { models: ChatModelOption[]; defaultId: string | null };
+
+export const ChatSendRequest = z.object({
+  text: z.string().trim().min(1).max(8000),
+  /** A ChatModelOption id; the default model when omitted. */
+  model: z.string().max(200).optional(),
+});
 export type ChatSendRequest = z.infer<typeof ChatSendRequest>;
 
 /** Server-sent events while an answer streams. */

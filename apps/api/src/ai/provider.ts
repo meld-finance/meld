@@ -27,6 +27,8 @@ export type StoredChatMessage = {
 export type ChatTurnEvent = { type: 'text'; text: string } | { type: 'lookup'; label: string };
 
 export type ChatTurnInput = {
+  /** The provider's own model name, from listChatModels. */
+  model: string;
   system: string;
   /** Per-session data appended to the system prompt. */
   snapshot: string;
@@ -44,12 +46,22 @@ export type ChatTurnResult = {
   outcome: 'complete' | 'refused' | 'truncated' | 'step_limit';
 };
 
+/** A model a ChatProvider offers in the Ask model picker. */
+export type ChatModelInfo = { model: string; label: string; note: string | null; local: boolean };
+
+/** Answers Ask chat messages. Local models (Ollama) only do chat, so it stands apart from AIProvider. */
+export interface ChatProvider {
+  readonly name: string;
+  listChatModels(): Promise<ChatModelInfo[]>;
+  /** Answers one user message, calling tools as needed and streaming text through onEvent. */
+  chat(input: ChatTurnInput): Promise<ChatTurnResult>;
+}
+
 /**
  * The LLM-backed features Meld uses, independent of vendor. Add an implementation
- * (OpenAI, a local model, ...) and select it with AI_PROVIDER.
+ * (OpenAI, ...) and select it with AI_PROVIDER.
  */
-export interface AIProvider {
-  readonly name: string;
+export interface AIProvider extends ChatProvider {
   /** Reads an insurance policy PDF into a draft for the user to review. */
   extractInsurancePolicy(pdf: Buffer): Promise<ExtractedPolicy>;
   /** Looks up a property's market value on real estate sites. */
@@ -58,15 +70,18 @@ export interface AIProvider {
   estimateVehicleValue(vehicle: VehicleDetails): Promise<VehicleEstimate>;
   /** Estimates what each security holds, by input position; null for one it doesn't recognize. */
   profileSecurities(securities: SecurityDescription[]): Promise<(SecurityProfile | null)[]>;
-  /** Answers one user message, calling tools as needed and streaming text through onEvent. */
-  chat(input: ChatTurnInput): Promise<ChatTurnResult>;
 }
 
 /** Returns null when no provider is configured, so AI features can say so instead of failing. */
 export function createAIProvider(env: Env): AIProvider | null {
   switch (env.AI_PROVIDER) {
     case 'anthropic':
-      return env.ANTHROPIC_API_KEY ? new AnthropicProvider(env.ANTHROPIC_API_KEY, env.ANTHROPIC_MODEL, env.ANTHROPIC_CHAT_MODEL, env.ANTHROPIC_LOOKUP_MODEL) : null;
+      return env.ANTHROPIC_API_KEY
+        ? new AnthropicProvider(env.ANTHROPIC_API_KEY, env.ANTHROPIC_MODEL, env.ANTHROPIC_LOOKUP_MODEL, [
+            env.ANTHROPIC_CHAT_MODEL,
+            ...env.ANTHROPIC_CHAT_MODELS,
+          ])
+        : null;
   }
 }
 
