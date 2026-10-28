@@ -39,7 +39,14 @@ export async function getNetWorth(db: Db): Promise<NetWorthSummary> {
       .select({ type: accounts.type, currentBalance: accounts.currentBalance, ownershipPercent: accounts.ownershipPercent })
       .from(accounts)
       .where(eq(accounts.hidden, false)),
-    db.select({ value: manualAssets.value, ownershipPercent: manualAssets.ownershipPercent }).from(manualAssets),
+    db
+      .select({
+        value: manualAssets.value,
+        valueAsOf: manualAssets.valueAsOf,
+        depreciationPercent: manualAssets.depreciationPercent,
+        ownershipPercent: manualAssets.ownershipPercent,
+      })
+      .from(manualAssets),
     db
       .select({
         type: insurancePolicies.type,

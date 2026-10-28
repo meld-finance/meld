@@ -32,6 +32,8 @@ import type {
   TransactionQuery,
   TransactionUpdate,
   UserProfile,
+  VehicleDetails,
+  VehicleEstimate,
 } from '@meld/shared';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -156,6 +158,14 @@ export function useEstimatePropertyValue() {
   return useMutation({
     mutationFn: (address: string) =>
       api<PropertyEstimate>('/manual-assets/estimate', { method: 'POST', body: JSON.stringify({ address }) }),
+  });
+}
+
+/** Looks up a used vehicle's private-party value (takes a minute or two). */
+export function useEstimateVehicleValue() {
+  return useMutation({
+    mutationFn: (vehicle: VehicleDetails) =>
+      api<VehicleEstimate>('/manual-assets/estimate-vehicle', { method: 'POST', body: JSON.stringify(vehicle) }),
   });
 }
 

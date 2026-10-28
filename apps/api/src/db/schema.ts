@@ -1,4 +1,4 @@
-import type { SecurityProfile, ValuationSource } from '@meld/shared';
+import type { SecurityProfile, ValuationSource, VehicleDetails } from '@meld/shared';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -266,6 +266,10 @@ export const manualAssets = pgTable('manual_assets', {
   ownershipPercent: numeric('ownership_percent', { precision: 5, scale: 2, mode: 'number' }),
   /** ValuationSource[] from the last automatic estimate. */
   valuationSources: jsonb('valuation_sources').$type<ValuationSource[]>(),
+  /** Year, make, model etc. for a vehicle whose value was looked up. */
+  vehicle: jsonb('vehicle').$type<VehicleDetails>(),
+  /** Yearly loss in value, compounded from `valueAsOf`; null means the value holds. */
+  depreciationPercent: numeric('depreciation_percent', { precision: 5, scale: 2, mode: 'number' }),
   ...timestamps,
 });
 

@@ -49,7 +49,7 @@ export function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
-const safeUrl = (url: string | null) => (url && /^https?:\/\//.test(url) && z.url().safeParse(url).success ? url : null);
+export const safeUrl = (url: string | null) => (url && /^https?:\/\//.test(url) && z.url().safeParse(url).success ? url : null);
 // A plausible home value; drops prices given in thousands or rents.
 const plausible = (value: number) => Number.isFinite(value) && value >= 10_000;
 

@@ -1,4 +1,13 @@
-import { ownedValue, type ManualAsset, type ManualAssetKind, type ValuationSource } from '@meld/shared';
+import {
+  currentValue,
+  DEFAULT_VEHICLE_DEPRECIATION_PERCENT,
+  ownedValue,
+  VehicleDetails,
+  vehicleLabel,
+  type ManualAsset,
+  type ManualAssetKind,
+  type ValuationSource,
+} from '@meld/shared';
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
@@ -10,7 +19,13 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { confirm } from '@/lib/confirm';
 import { formatCurrency, formatWholeCurrency } from '@/lib/format';
-import { useDeleteManualAsset, useEstimatePropertyValue, useManualAssets, useSaveManualAsset } from '@/lib/queries';
+import {
+  useDeleteManualAsset,
+  useEstimatePropertyValue,
+  useEstimateVehicleValue,
+  useManualAssets,
+  useSaveManualAsset,
+} from '@/lib/queries';
 
 const KINDS: { kind: ManualAssetKind; label: string }[] = [
   { kind: 'home', label: 'Home' },
@@ -26,7 +41,7 @@ export function ManualAssets() {
   return (
     <Card
       title="Property & other assets"
-      subtitle="Your home, car and the like. Enter a home's address to look up its value. Counted in net worth."
+      subtitle="Your home, car and the like. Enter a home's address or a car's details to look up its value. Counted in net worth."
       action={editing === null && <Button label="Add" variant="secondary" size="small" onPress={() => setEditing('new')} />}>
       {assets.isError && <ThemedText themeColor="negative">{assets.error.message}</ThemedText>}
       {assets.data?.map((a) =>
@@ -39,9 +54,13 @@ export function ManualAssets() {
               <ThemedText type="small" themeColor="textSecondary">
                 {KINDS.find((k) => k.kind === a.kind)?.label}
                 {a.ownershipPercent != null && a.ownershipPercent < 100
-                  ? ` · ${a.ownershipPercent}% of ${formatWholeCurrency(a.value)}`
+                  ? ` · ${a.ownershipPercent}% of ${formatWholeCurrency(currentValue(a))}`
                   : ''}
-                {a.valueAsOf ? ` · as of ${a.valueAsOf}` : ''}
+                {a.depreciationPercent
+                  ? ` · ${formatWholeCurrency(a.value)} on ${a.valueAsOf}, −${a.depreciationPercent}%/yr`
+                  : a.valueAsOf
+                    ? ` · as of ${a.valueAsOf}`
+                    : ''}
               </ThemedText>
             </View>
             <ThemedText>{formatCurrency(ownedValue(a))}</ThemedText>
@@ -67,53 +86,94 @@ function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () => void 
   const save = useSaveManualAsset();
   const remove = useDeleteManualAsset();
   const estimate = useEstimatePropertyValue();
+  const vehicleEstimate = useEstimateVehicleValue();
   const [kind, setKind] = useState<ManualAssetKind>(asset?.kind ?? 'home');
   const [address, setAddress] = useState(asset?.address ?? '');
+  const [year, setYear] = useState(asset?.vehicle ? String(asset.vehicle.year) : '');
+  const [make, setMake] = useState(asset?.vehicle?.make ?? '');
+  const [model, setModel] = useState(asset?.vehicle?.model ?? '');
+  const [trim, setTrim] = useState(asset?.vehicle?.trim ?? '');
+  const [mileage, setMileage] = useState(asset?.vehicle?.mileage != null ? String(asset.vehicle.mileage) : '');
+  const [zip, setZip] = useState(asset?.vehicle?.zip ?? '');
   const [name, setName] = useState(asset?.name ?? '');
-  const [value, setValue] = useState(asset ? String(asset.value) : '');
+  // Saving restarts depreciation from today, so an existing asset starts from what it's worth now.
+  const [value, setValue] = useState(asset ? String(currentValue(asset)) : '');
+  const [depreciation, setDepreciation] = useState(
+    asset?.depreciationPercent != null ? String(asset.depreciationPercent) : '',
+  );
   const [share, setShare] = useState(asset?.ownershipPercent != null ? String(asset.ownershipPercent) : '');
   const [sources, setSources] = useState<ValuationSource[] | null>(asset?.valuationSources ?? null);
 
   const home = kind === 'home';
+  const isVehicle = kind === 'vehicle';
   const trimmedAddress = home ? address.trim() : '';
+  const parsedVehicle = VehicleDetails.safeParse({
+    year: Number(year.trim()),
+    make,
+    model,
+    trim: trim.trim() || null,
+    mileage: mileage.trim() ? parseAmount(mileage) : null,
+    zip: zip.trim() || null,
+  });
+  const vehicle = isVehicle && parsedVehicle.success ? parsedVehicle.data : null;
+  const vehicleStarted = isVehicle && [year, make, model, trim, mileage, zip].some((f) => f.trim() !== '');
   const amount = parseAmount(value);
+  const depreciationPercent = home || depreciation.trim() === '' ? null : parseAmount(depreciation);
+  const depreciationValid =
+    depreciationPercent === null || (Number.isFinite(depreciationPercent) && depreciationPercent >= 0 && depreciationPercent < 100);
   const sharePercent = share.trim() === '' ? null : parseAmount(share);
   const shareValid = sharePercent === null || (Number.isFinite(sharePercent) && sharePercent > 0 && sharePercent <= 100);
   const valueValid = value.trim() !== '' && Number.isFinite(amount) && amount >= 0;
-  // A home with an address can be saved without a value; it's looked up first.
-  const lookUpOnSave = home && trimmedAddress.length >= 5 && value.trim() === '';
-  const nameValid = name.trim().length > 0 || trimmedAddress.length > 0;
-  const valid = nameValid && shareValid && (valueValid || lookUpOnSave);
+  const canLookUp = home ? trimmedAddress.length >= 5 : vehicle !== null;
+  // A home with an address or a vehicle with its details can be saved without a value; it's looked up first.
+  const lookUpOnSave = canLookUp && value.trim() === '';
+  const nameValid = name.trim().length > 0 || trimmedAddress.length > 0 || vehicle !== null;
+  const valid = nameValid && shareValid && depreciationValid && (valueValid || lookUpOnSave);
+  const looking = estimate.isPending || vehicleEstimate.isPending;
+  const lookupResult = home ? estimate.data : isVehicle ? vehicleEstimate.data : undefined;
   const inputStyle = [styles.input, { color: theme.text, backgroundColor: theme.background }];
 
   // mutate (not mutateAsync): failures surface via isError below instead of throwing.
-  function lookUp(then?: (value: number, sources: ValuationSource[], matched: string) => void) {
-    estimate.mutate(trimmedAddress, {
-      onSuccess: (result) => {
-        setValue(String(result.value));
-        setSources(result.sources);
-        then?.(result.value, result.sources, result.address);
-      },
-    });
+  // `defaultName` names the asset when the name is left blank.
+  function lookUp(then?: (value: number, sources: ValuationSource[], defaultName: string) => void) {
+    const apply = (v: number, s: ValuationSource[], defaultName: string) => {
+      setValue(String(v));
+      setSources(s);
+      then?.(v, s, defaultName);
+    };
+    if (home) estimate.mutate(trimmedAddress, { onSuccess: (r) => apply(r.value, r.sources, streetOf(r.address)) });
+    else if (vehicle) vehicleEstimate.mutate(vehicle, { onSuccess: (r) => apply(r.value, r.sources, vehicleLabel(vehicle)) });
+  }
+
+  function chooseKind(k: ManualAssetKind) {
+    setKind(k);
+    // Vehicles lose value over time; start new ones at a typical rate.
+    if (!asset && depreciation.trim() === '') {
+      if (k === 'vehicle') setDepreciation(String(DEFAULT_VEHICLE_DEPRECIATION_PERCENT));
+    } else if (!asset && k !== 'vehicle' && depreciation === String(DEFAULT_VEHICLE_DEPRECIATION_PERCENT)) {
+      setDepreciation('');
+    }
   }
 
   function submit() {
     if (!valid) return;
-    const persist = (v: number, valuationSources: ValuationSource[] | null, matched?: string) =>
+    const persist = (v: number, valuationSources: ValuationSource[] | null, defaultName?: string) =>
       save.mutate(
         {
           id: asset?.id,
           kind,
-          name: name.trim() || streetOf(matched ?? trimmedAddress),
+          name: name.trim() || defaultName || (vehicle ? vehicleLabel(vehicle) : streetOf(trimmedAddress)),
           value: v,
           valueAsOf: new Date().toLocaleDateString('en-CA'),
           address: trimmedAddress || null,
           ownershipPercent: sharePercent === 100 ? null : sharePercent,
-          valuationSources: home ? valuationSources : null,
+          valuationSources: home || isVehicle ? valuationSources : null,
+          vehicle,
+          depreciationPercent: depreciationPercent || null,
         },
         { onSuccess: onDone },
       );
-    if (lookUpOnSave) lookUp((v, s, matched) => persist(v, s, matched));
+    if (lookUpOnSave) lookUp((v, s, defaultName) => persist(v, s, defaultName));
     else persist(amount, sources);
   }
 
@@ -122,13 +182,13 @@ function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () => void 
     remove.mutate(asset.id, { onSuccess: onDone });
   }
 
-  const error = save.error ?? remove.error ?? estimate.error;
+  const error = save.error ?? remove.error ?? (home ? estimate.error : isVehicle ? vehicleEstimate.error : null);
 
   return (
     <View style={styles.form}>
       <View style={styles.chips}>
         {KINDS.map((k) => (
-          <Chip key={k.kind} label={k.label} selected={kind === k.kind} onPress={() => setKind(k.kind)} />
+          <Chip key={k.kind} label={k.label} selected={kind === k.kind} onPress={() => chooseKind(k.kind)} />
         ))}
       </View>
       {home && (
@@ -142,18 +202,89 @@ function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () => void 
           autoFocus={!asset}
         />
       )}
+      {isVehicle && (
+        <>
+          <View style={styles.inline}>
+            <TextInput
+              style={[inputStyle, styles.year]}
+              placeholder="Year"
+              placeholderTextColor={theme.textSecondary}
+              value={year}
+              onChangeText={setYear}
+              keyboardType="number-pad"
+              inputMode="numeric"
+              maxLength={4}
+              autoFocus={!asset}
+            />
+            <TextInput
+              style={[inputStyle, styles.grow]}
+              placeholder="Make (e.g. Toyota)"
+              placeholderTextColor={theme.textSecondary}
+              value={make}
+              onChangeText={setMake}
+            />
+            <TextInput
+              style={[inputStyle, styles.grow]}
+              placeholder="Model (e.g. RAV4)"
+              placeholderTextColor={theme.textSecondary}
+              value={model}
+              onChangeText={setModel}
+            />
+          </View>
+          <View style={styles.inline}>
+            <TextInput
+              style={[inputStyle, styles.grow]}
+              placeholder="Trim (optional)"
+              placeholderTextColor={theme.textSecondary}
+              value={trim}
+              onChangeText={setTrim}
+            />
+            <TextInput
+              style={[inputStyle, styles.grow]}
+              placeholder="Mileage"
+              placeholderTextColor={theme.textSecondary}
+              value={mileage}
+              onChangeText={setMileage}
+              keyboardType="number-pad"
+              inputMode="numeric"
+            />
+            <TextInput
+              style={[inputStyle, styles.zip]}
+              placeholder="ZIP"
+              placeholderTextColor={theme.textSecondary}
+              value={zip}
+              onChangeText={setZip}
+              keyboardType="number-pad"
+              inputMode="numeric"
+              maxLength={5}
+              autoComplete="postal-code"
+            />
+          </View>
+          {vehicleStarted && !vehicle && (
+            <ThemedText type="small" themeColor="textSecondary">
+              Enter the year, make and model to look up its value. Mileage and ZIP make it more accurate.
+            </ThemedText>
+          )}
+        </>
+      )}
       <TextInput
         style={inputStyle}
-        placeholder={home ? 'Name (optional, defaults to the street)' : 'Name (e.g. Car)'}
+        placeholder={
+          home
+            ? 'Name (optional, defaults to the street)'
+            : isVehicle
+              ? 'Name (optional, defaults to the vehicle)'
+              : 'Name (e.g. Boat)'
+        }
         placeholderTextColor={theme.textSecondary}
         value={name}
         onChangeText={setName}
-        autoFocus={!asset && !home}
+        autoFocus={!asset && kind === 'other'}
       />
       <View style={styles.inline}>
         <TextInput
           style={[inputStyle, styles.grow]}
-          placeholder={home ? 'Value (blank to look it up)' : 'Estimated value'}
+          placeholder={home || isVehicle ? 'Value (blank to look it up)' : 'Estimated value'}
           placeholderTextColor={theme.textSecondary}
           value={value}
           onChangeText={(v) => {
@@ -164,16 +295,40 @@ function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () => void 
           inputMode="decimal"
           onSubmitEditing={submit}
         />
-        {home && (
+        {(home || isVehicle) && (
           <Button
             label={value.trim() ? 'Refresh value' : 'Look up value'}
             variant="secondary"
             size="small"
-            disabled={trimmedAddress.length < 5 || estimate.isPending}
+            disabled={!canLookUp || looking}
             onPress={() => lookUp()}
           />
         )}
       </View>
+      {!home && (
+        <TextInput
+          style={inputStyle}
+          placeholder="Depreciation % per year (optional)"
+          placeholderTextColor={theme.textSecondary}
+          value={depreciation}
+          onChangeText={setDepreciation}
+          keyboardType="decimal-pad"
+          inputMode="decimal"
+          onSubmitEditing={submit}
+        />
+      )}
+      {!depreciationValid && (
+        <ThemedText type="small" themeColor="negative">
+          Depreciation must be between 0 and 100% a year.
+        </ThemedText>
+      )}
+      {depreciationValid && !!depreciationPercent && valueValid && amount > 0 && (
+        <ThemedText type="small" themeColor="textSecondary">
+          Loses {depreciationPercent}% a year from today: about{' '}
+          {formatWholeCurrency(amount * (1 - depreciationPercent / 100))} in a year,{' '}
+          {formatWholeCurrency(amount * (1 - depreciationPercent / 100) ** 3)} in three.
+        </ThemedText>
+      )}
       <TextInput
         style={inputStyle}
         placeholder="Your ownership % (optional, default 100)"
@@ -189,12 +344,13 @@ function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () => void 
           Ownership must be between 0 and 100%.
         </ThemedText>
       )}
-      {estimate.isPending && (
+      {looking && (
         <ThemedText type="small" themeColor="textSecondary">
-          Checking Zillow, Redfin and other sites. This can take a minute or two…
+          {isVehicle ? 'Checking Kelley Blue Book, Edmunds' : 'Checking Zillow, Redfin'} and other sites. This can take a
+          minute or two…
         </ThemedText>
       )}
-      {home && sources && sources.length > 0 && (
+      {(home || isVehicle) && sources && sources.length > 0 && (
         <View style={styles.sources}>
           {sources.map((s) => (
             <Pressable
@@ -213,14 +369,14 @@ function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () => void 
           ))}
           {sources.length > 1 && (
             <ThemedText type="small" themeColor="textSecondary">
-              {estimate.data?.basis === 'comparables'
+              {home && estimate.data?.basis === 'comparables'
                 ? 'Value is the median of these units, each scaled to your square footage.'
                 : 'Value is the median of these estimates.'}
             </ThemedText>
           )}
         </View>
       )}
-      {estimate.data?.warnings.map((w) => (
+      {lookupResult?.warnings.map((w) => (
         <ThemedText key={w} type="small" themeColor="warning">
           {w}
         </ThemedText>
@@ -239,8 +395,8 @@ function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () => void 
         <Button
           label={lookUpOnSave ? 'Look up & save' : 'Save'}
           size="small"
-          disabled={!valid || estimate.isPending}
-          loading={save.isPending || (lookUpOnSave && estimate.isPending)}
+          disabled={!valid || looking}
+          loading={save.isPending || (lookUpOnSave && looking)}
           onPress={submit}
         />
         <Button label="Cancel" variant="secondary" size="small" onPress={onDone} />
@@ -258,6 +414,8 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', gap: Spacing.two },
   inline: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   grow: { flex: 1 },
+  year: { width: 72 },
+  zip: { width: 80 },
   input: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   sources: { gap: Spacing.one },
   buttons: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },

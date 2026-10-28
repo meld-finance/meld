@@ -1,4 +1,4 @@
-import type { InsurancePolicyInput, PropertyEstimate, SecurityProfile } from '@meld/shared';
+import type { InsurancePolicyInput, PropertyEstimate, SecurityProfile, VehicleDetails, VehicleEstimate } from '@meld/shared';
 import type { Env } from '../env';
 import { HttpError } from '../lib/http';
 import { AnthropicProvider } from './anthropic';
@@ -54,6 +54,8 @@ export interface AIProvider {
   extractInsurancePolicy(pdf: Buffer): Promise<ExtractedPolicy>;
   /** Looks up a property's market value on real estate sites. */
   estimatePropertyValue(address: string): Promise<PropertyEstimate>;
+  /** Looks up a used vehicle's private-party value on car pricing sites. */
+  estimateVehicleValue(vehicle: VehicleDetails): Promise<VehicleEstimate>;
   /** Estimates what each security holds, by input position; null for one it doesn't recognize. */
   profileSecurities(securities: SecurityDescription[]): Promise<(SecurityProfile | null)[]>;
   /** Answers one user message, calling tools as needed and streaming text through onEvent. */

@@ -1,4 +1,4 @@
-import { ManualAssetInput, PropertyEstimateRequest, type ManualAsset } from '@meld/shared';
+import { ManualAssetInput, PropertyEstimateRequest, VehicleEstimateRequest, type ManualAsset } from '@meld/shared';
 import { asc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { requireAI } from '../ai/provider';
@@ -17,6 +17,8 @@ const columns = {
   address: manualAssets.address,
   ownershipPercent: manualAssets.ownershipPercent,
   valuationSources: manualAssets.valuationSources,
+  vehicle: manualAssets.vehicle,
+  depreciationPercent: manualAssets.depreciationPercent,
 };
 
 export async function registerManualAssetRoutes(app: FastifyInstance, { db, ai }: AppDeps) {
@@ -28,6 +30,12 @@ export async function registerManualAssetRoutes(app: FastifyInstance, { db, ai }
   app.post('/manual-assets/estimate', async (req) => {
     const { address } = parse(PropertyEstimateRequest, req.body);
     return requireAI(ai).estimatePropertyValue(address);
+  });
+
+  /** Rough private-party value from car pricing sites; like the property estimate, nothing is saved. */
+  app.post('/manual-assets/estimate-vehicle', async (req) => {
+    const vehicle = parse(VehicleEstimateRequest, req.body);
+    return requireAI(ai).estimateVehicleValue(vehicle);
   });
 
   app.post('/manual-assets', async (req) => {
