@@ -1,6 +1,7 @@
 import { positionsBySecurity, type Holding, type InvestmentsSummary } from '@meld/shared';
+import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Card } from '@/components/card';
 import { Dropdown } from '@/components/dropdown';
@@ -28,6 +29,7 @@ export function HoldingsTab({ data }: { data: InvestmentsSummary }) {
   const wide = useContentWidth() >= TABLE_MIN_WIDTH;
   const [account, setAccount] = useState(ALL);
   const [search, setSearch] = useState('');
+  const [hovered, setHovered] = useState<string | null>(null);
   const shown = data.holdings.filter((h) => (account === ALL || h.accountId === account) && matches(h, search));
 
   const positions = positionsBySecurity(data.holdings);
@@ -74,7 +76,13 @@ export function HoldingsTab({ data }: { data: InvestmentsSummary }) {
         {shown.map((h) => {
           const gain = gainPercent(h);
           return (
-            <View key={h.id} style={[styles.row, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border }]}>
+            <View
+              key={h.id}
+              style={[
+                styles.row,
+                { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.border },
+                hovered === h.id && styles.raised,
+              ]}>
               <View style={[styles.security, styles.securityCell]}>
                 <View style={[styles.badge, { backgroundColor: theme.backgroundSelected }]}>
                   <ThemedText type="smallBold" themeColor="tint" style={styles.badgeText}>
@@ -110,9 +118,31 @@ export function HoldingsTab({ data }: { data: InvestmentsSummary }) {
                 </ThemedText>
               )}
               {wide && (
-                <ThemedText type="small" themeColor="textSecondary" style={styles.text} numberOfLines={1}>
-                  {h.accountName}
-                </ThemedText>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={`View account ${h.accountName}`}
+                  onPress={() => router.push({ pathname: '/account/[id]', params: { id: h.accountId } })}
+                  onHoverIn={() => setHovered(h.id)}
+                  onHoverOut={() => setHovered((id) => (id === h.id ? null : id))}
+                  style={styles.text}>
+                  <ThemedText
+                    type="small"
+                    themeColor={hovered === h.id ? 'tint' : 'textSecondary'}
+                    numberOfLines={1}
+                    style={hovered === h.id && styles.underline}>
+                    {h.accountName}
+                  </ThemedText>
+                  {hovered === h.id && (
+                    <View
+                      pointerEvents="none"
+                      style={[styles.tooltip, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+                      <ThemedText type="small">{h.accountName}</ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        Click for account details
+                      </ThemedText>
+                    </View>
+                  )}
+                </Pressable>
               )}
             </View>
           );
@@ -167,4 +197,22 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 13, lineHeight: 16 },
   num: { width: 104, textAlign: 'right', fontVariant: ['tabular-nums'] },
   text: { flex: 1.2, minWidth: 0 },
+  raised: { zIndex: 1 },
+  underline: { textDecorationLine: 'underline' },
+  tooltip: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: Spacing.one,
+    minWidth: 200,
+    maxWidth: 320,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderWidth: 1,
+    borderRadius: Spacing.two,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+  },
 });
