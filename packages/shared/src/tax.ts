@@ -135,6 +135,30 @@ export const TaxSuggestion = z.object({
 });
 export type TaxSuggestion = z.infer<typeof TaxSuggestion>;
 
+/** A move with a date on it: what to do, by when, and what it's worth. */
+export const ChecklistItem = z.object({
+  /** Stable within a year, so a tick sticks. */
+  id: z.string(),
+  due: z.iso.date(),
+  /** What happens on the due date: "Last trading day", "Last paycheck", "Payment due", "Filing deadline". */
+  dueLabel: z.string(),
+  title: z.string(),
+  detail: z.string(),
+  /** Estimated tax saved this year, when there is one. */
+  impact: z.number().nullable(),
+  /** The suggestion this puts a date on, if any. */
+  suggestionId: z.string().nullable(),
+  /** Rests on something Meld can't see (an FSA, payroll timing), so it may not apply. */
+  general: z.boolean(),
+  /** Ticked off. */
+  done: z.boolean(),
+  question: z.string(),
+});
+export type ChecklistItem = z.infer<typeof ChecklistItem>;
+
+export const ChecklistDone = z.object({ id: z.string().min(1).max(60), done: z.boolean() });
+export type ChecklistDone = z.infer<typeof ChecklistDone>;
+
 export const TaxPlan = z.object({
   year: z.number(),
   asOf: z.iso.date(),
@@ -181,6 +205,8 @@ export const TaxPlan = z.object({
   balanceDue: z.number().nullable(),
   harvest: z.array(HarvestCandidate),
   suggestions: z.array(TaxSuggestion),
+  /** Dated moves still ahead for this tax year, soonest first; empty once every deadline has passed. */
+  checklist: z.array(ChecklistItem),
   /** Where the numbers rest on assumptions. */
   notes: z.array(z.string()),
 });

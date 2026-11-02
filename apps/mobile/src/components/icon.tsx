@@ -123,6 +123,7 @@ const ICONS = {
       <Path d="m20 20-3.5-3.5" />
     </>
   ),
+  check: <Path d="m5 12.5 4.5 4.5L19 7.5" />,
   info: (
     <>
       <Circle cx={12} cy={12} r={9} />

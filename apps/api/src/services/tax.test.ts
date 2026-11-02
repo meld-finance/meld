@@ -2,7 +2,10 @@ import type { HarvestCandidate, TaxPlan } from '@meld/shared';
 import { EMPTY_TAX_SETTINGS } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  buildChecklist,
   buildSuggestions,
+  businessDay,
+  paychecksLeft,
   estimateTax,
   marginalRate,
   projectYear,
@@ -299,5 +302,84 @@ describe('buildSuggestions', () => {
   it('offers a SEP IRA or solo 401(k) for self-employment income', () => {
     const s = suggest(inputs({ grossIncome: 200_000, selfEmployment: 100_000 }));
     expect(s.find((x) => x.id === 'self-employed-retirement')?.impact).toBeGreaterThan(0);
+  });
+});
+
+function checklist(i: TaxInputs, over: Partial<Parameters<typeof buildChecklist>[0]> = {}) {
+  const base = estimateTax(i);
+  const ctx = {
+    inputs: i,
+    base,
+    marginal: marginalRate(i, base),
+    settings: EMPTY_TAX_SETTINGS,
+    detected: DETECTED,
+    harvest: [],
+    age: 40,
+    balanceDue: null,
+    today: '2026-11-02',
+    done: new Set<string>(),
+    employerBenefits: null,
+    ...over,
+  };
+  return buildChecklist({ ...ctx, suggestions: over.suggestions ?? buildSuggestions(ctx) });
+}
+
+describe('buildChecklist', () => {
+  it('moves weekend deadlines to a business day', () => {
+    expect(businessDay('2027-01-15', 'forward')).toBe('2027-01-15');
+    expect(businessDay('2028-04-15', 'forward')).toBe('2028-04-17');
+    expect(businessDay('2027-12-31', 'back')).toBe('2027-12-31');
+    expect(businessDay('2028-12-31', 'back')).toBe('2028-12-29');
+  });
+
+  it('counts semi-monthly paychecks payroll can still change', () => {
+    // From Nov 2, a change lands from Nov 16: Nov 30, Dec 15, Dec 31.
+    expect(paychecksLeft(2026, '2026-11-02')).toBe(3);
+    expect(paychecksLeft(2026, '2026-12-20')).toBe(0);
+  });
+
+  it('dates the suggestions and sorts soonest first', () => {
+    const i = inputs({ grossIncome: 150_000, pretax401k: 10_000, longTermGains: 10_000 });
+    const c = checklist(i, { detected: { ...DETECTED, k401Accounts: 1 }, harvest: [candidate({})] });
+    const harvest = c.find((x) => x.id === 'harvest-losses');
+    expect(harvest?.due).toBe('2026-12-31');
+    expect(harvest?.impact).toBe(750);
+    const k = c.find((x) => x.id === '401k');
+    expect(k?.detail).toMatch(/3 semi-monthly paychecks/);
+    expect(k?.detail).toMatch(/\$4,833 each/);
+    expect(c.find((x) => x.id === 'roth-ira')?.due).toBe('2027-04-15');
+    expect(c.map((x) => x.due)).toEqual([...c.map((x) => x.due)].sort());
+    expect(c.some((x) => x.id === 'fsa' && x.general)).toBe(true);
+  });
+
+  it('puts a Q4 estimate on Jan 15 when tax is owed', () => {
+    const c = checklist(inputs({ grossIncome: 150_000 }), { balanceDue: 4_000 });
+    const q4 = c.find((x) => x.id === 'q4-estimate');
+    expect(q4?.due).toBe('2027-01-15');
+    expect(q4?.title).toMatch(/\$4,000/);
+    expect(c.some((x) => x.id === 'withholding-check')).toBe(false);
+    expect(checklist(inputs({ grossIncome: 150_000 })).some((x) => x.id === 'withholding-check')).toBe(true);
+  });
+
+  it('suggests bunching gifts when itemized deductions fall a little short', () => {
+    const i = inputs({ filingStatus: 'married_joint', grossIncome: 250_000, propertyTax: 12_000, otherItemized: 8_000 });
+    const charity = checklist(i).find((x) => x.id === 'charity');
+    expect(charity?.title).toMatch(/Bunch gifts/);
+    const itemizing = checklist({ ...i, otherItemized: 30_000 }).find((x) => x.id === 'charity');
+    expect(itemizing?.title).toMatch(/each \$1,000 saves/);
+  });
+
+  it('keeps ticks and drops what has passed', () => {
+    const i = inputs({ grossIncome: 150_000 });
+    expect(checklist(i, { done: new Set(['fsa']) }).find((x) => x.id === 'fsa')?.done).toBe(true);
+    const january = checklist(i, { today: '2027-01-10', balanceDue: 4_000 });
+    expect(january.some((x) => x.due < '2027-01-10')).toBe(false);
+    expect(january.some((x) => x.id === 'q4-estimate')).toBe(true);
+  });
+
+  it('reminds people 73 and over to take their RMD', () => {
+    const c = checklist(inputs({ grossIncome: 80_000 }), { age: 75, detected: { ...DETECTED, traditionalIraBalance: 300_000 } });
+    expect(c.find((x) => x.id === 'rmd')?.due).toBe('2026-12-31');
+    expect(c.find((x) => x.id === 'charity')?.detail).toMatch(/qualified charitable distribution/);
   });
 });

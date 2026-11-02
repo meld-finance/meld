@@ -109,6 +109,7 @@ const BY_PAGE: Record<string, PageQuestions> = {
     page: 'your tax estimate',
     questions: [
       'What are the biggest moves to lower my taxes this year?',
+      'What should I get done before December 31 for taxes?',
       'Which losses should I harvest before year-end?',
       'Should I do a Roth conversion or a backdoor Roth this year?',
       'Am I withholding enough to avoid owing in April?',
