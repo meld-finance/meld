@@ -2,7 +2,7 @@ import { EMPTY_TAX_SETTINGS } from '@meld/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { accounts, holdings, investmentTransactions, securities, transactions, userProfile } from '../db/schema';
 import { setupTestDb, testDatabaseUrl } from '../test/db';
-import { getTaxPlan, getTaxSettings, saveTaxSettings } from './tax';
+import { getChecklistDone, getTaxPlan, getTaxSettings, saveTaxSettings, setChecklistDone } from './tax';
 
 const TODAY = '2026-06-30';
 
@@ -92,6 +92,20 @@ describe.skipIf(!testDatabaseUrl)('tax plan (Postgres)', () => {
     const plan = await getTaxPlan(ctx.db, 2026, TODAY);
     expect(plan.income?.pretax401k).toBe(20_000);
     expect(plan.balanceDue).not.toBeNull();
+  });
+
+  it('keeps checklist ticks per year, through settings saves', async () => {
+    await setChecklistDone(ctx.db, 2026, 'harvest-losses', true);
+    await setChecklistDone(ctx.db, 2026, 'fsa', true);
+    await setChecklistDone(ctx.db, 2026, 'fsa', false);
+    await saveTaxSettings(ctx.db, 2026, { ...EMPTY_TAX_SETTINGS, federalWithheld: 10_000 });
+    expect(await getChecklistDone(ctx.db, 2026)).toEqual(['harvest-losses']);
+    expect(await getChecklistDone(ctx.db, 2025)).toEqual([]);
+    expect((await getTaxSettings(ctx.db, 2026)).federalWithheld).toBe(10_000);
+
+    const plan = await getTaxPlan(ctx.db, 2026, '2026-11-02');
+    expect(plan.checklist.find((c) => c.id === 'harvest-losses')).toMatchObject({ due: '2026-12-31', done: true });
+    expect(plan.checklist.find((c) => c.id === 'fsa')?.done).toBe(false);
   });
 
   it('asks for a filing status and income before estimating', async () => {

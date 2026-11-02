@@ -8,6 +8,7 @@ import { Segmented } from '@/components/cashflow/segmented';
 import { Chip } from '@/components/chip';
 import { InsightCallout, StatTile, TabHeading, TileRow } from '@/components/investments/common';
 import { Field, Input, Row } from '@/components/plan/profile-tab';
+import { TaxChecklist } from '@/components/plan/tax-checklist';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -78,6 +79,8 @@ function TaxPlanView({ plan, onShowProfile }: { plan: TaxPlan; onShowProfile: ()
               caption={plan.balanceDue === null ? 'Enter withholding below to see' : 'After withholding at this pace'}
             />
           </TileRow>
+
+          <TaxChecklist plan={plan} />
 
           <Suggestions suggestions={plan.suggestions} />
 

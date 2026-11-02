@@ -17,6 +17,7 @@ import {
   type TaxIncome,
   type TaxPlan,
   type TaxSuggestion,
+  type ChecklistItem,
 } from '@meld/shared';
 import { and, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
@@ -69,6 +70,8 @@ export type TaxEstimate = {
   state: StateTax | null;
   total: number;
   effectiveRate: number;
+  /** Federal itemized deductions as Meld sees them (SALT after the cap), against the standard deduction. */
+  deductions: { itemized: number; standard: number };
 };
 
 /** Nets short- against long-term, and caps a net loss at what can offset ordinary income. */
@@ -218,7 +221,14 @@ export function estimateTax(inputs: TaxInputs): TaxEstimate {
     inputs.qualifiedDividends +
     Math.max(0, capital.st + capital.lt) +
     inputs.otherIncome;
-  return { income, federal, state, total: round2(grandTotal), effectiveRate: gross > 0 ? grandTotal / gross : 0 };
+  return {
+    income,
+    federal,
+    state,
+    total: round2(grandTotal),
+    effectiveRate: gross > 0 ? grandTotal / gross : 0,
+    deductions: { itemized: round2(itemized), standard },
+  };
 }
 
 /** Federal and state tax on the next $1,000 of ordinary income. */
@@ -406,6 +416,16 @@ export type SuggestionContext = {
 const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
 
+/** Pre-tax 401(k) room left this year: one limit per person with a plan, plus catch-up. */
+function k401Headroom({ inputs, detected, age }: SuggestionContext) {
+  const t = federalTables(inputs.year);
+  const joint = tableStatus(inputs.filingStatus) === 'married_joint';
+  const people = Math.max(1, Math.min(joint ? 2 : 1, detected.k401Accounts));
+  const catchUp = age === null ? 0 : age >= 60 && age <= 63 ? t.limits.k401CatchUp60to63 : age >= 50 ? t.limits.k401CatchUp : 0;
+  const limit = t.limits.k401 * people + catchUp;
+  return { people, catchUp, limit, room: Math.max(0, limit - inputs.pretax401k) };
+}
+
 export function buildSuggestions(ctx: SuggestionContext): TaxSuggestion[] {
   const { inputs, base, settings, detected, age } = ctx;
   const t = federalTables(inputs.year);
@@ -465,11 +485,7 @@ export function buildSuggestions(ctx: SuggestionContext): TaxSuggestion[] {
     });
   }
 
-  // Pre-tax 401(k): one limit per person with a plan.
-  const k401People = Math.max(1, Math.min(joint ? 2 : 1, detected.k401Accounts));
-  const catchUp = age === null ? 0 : age >= 60 && age <= 63 ? t.limits.k401CatchUp60to63 : age >= 50 ? t.limits.k401CatchUp : 0;
-  const k401Limit = t.limits.k401 * k401People + catchUp;
-  const k401Room = Math.max(0, k401Limit - inputs.pretax401k);
+  const { people: k401People, catchUp, limit: k401Limit, room: k401Room } = k401Headroom(ctx);
   if ((detected.k401Accounts > 0 || settings.coveredByWorkplacePlan) && k401Room > 500) {
     out.push({
       id: '401k',
@@ -617,6 +633,256 @@ export function buildSuggestions(ctx: SuggestionContext): TaxSuggestion[] {
   return out.sort((a, b) => order[a.kind] - order[b.kind] || (b.impact ?? 0) - (a.impact ?? 0));
 }
 
+// --- Year-end checklist ------------------------------------------------------------
+
+export type ChecklistContext = SuggestionContext & {
+  suggestions: TaxSuggestion[];
+  today: string;
+  /** Ids ticked off for this year. */
+  done: ReadonlySet<string>;
+  /** The profile's free-form employer benefits, to tell whether there's an FSA. */
+  employerBenefits: string | null;
+};
+
+const weekday = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay();
+export function addDays(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+/** A deadline on a weekend moves to the next Monday (payments) or back to Friday (trades). */
+export function businessDay(date: string, direction: 'forward' | 'back'): string {
+  let d = date;
+  while (weekday(d) === 0 || weekday(d) === 6) d = addDays(d, direction === 'forward' ? 1 : -1);
+  return d;
+}
+const shortDate = (date: string) =>
+  new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
+
+/** Payroll needs about two weeks to pick up a new election. */
+const PAYROLL_LEAD_DAYS = 14;
+
+/** Semi-monthly paydays (the 15th and month-end) left in the year once payroll can act on a change. */
+export function paychecksLeft(year: number, today: string): number {
+  const from = addDays(today, PAYROLL_LEAD_DAYS);
+  let n = 0;
+  for (let m = 1; m <= 12; m++) {
+    const mm = String(m).padStart(2, '0');
+    const last = new Date(Date.UTC(year, m, 0)).getUTCDate();
+    for (const d of [`${year}-${mm}-15`, `${year}-${mm}-${last}`]) if (d >= from) n++;
+  }
+  return n;
+}
+
+/**
+ * The year's tax moves that have a deadline, with the date: the suggestions that expire on December 31
+ * or the filing deadline, plus ones Meld can't price (FSA, Q4 estimate, charity). Only what's still ahead.
+ */
+export function buildChecklist(ctx: ChecklistContext): ChecklistItem[] {
+  const { inputs, base, settings, detected, age, today, suggestions } = ctx;
+  const year = inputs.year;
+  const joint = tableStatus(inputs.filingStatus) === 'married_joint';
+  const lastTradingDay = businessDay(`${year}-12-31`, 'back');
+  const yearEnd = `${year}-12-31`;
+  const q4 = businessDay(`${year + 1}-01-15`, 'forward');
+  const filing = businessDay(`${year + 1}-04-15`, 'forward');
+  const saved = (change: Partial<TaxInputs>) => round(base.total - estimateTax({ ...inputs, ...change }).total);
+  const byId = new Map(suggestions.map((s) => [s.id, s]));
+  const out: Omit<ChecklistItem, 'done'>[] = [];
+  const fromSuggestion = (
+    id: string,
+    due: string,
+    dueLabel: string,
+    detail: (s: TaxSuggestion) => string,
+    title?: (s: TaxSuggestion) => string,
+  ) => {
+    const s = byId.get(id);
+    if (!s) return;
+    out.push({ id, due, dueLabel, title: title?.(s) ?? s.title, detail: detail(s), impact: s.impact, suggestionId: id, general: false, question: s.question });
+  };
+
+  // By the last trading day: sales count in the year of the trade date, not settlement.
+  fromSuggestion(
+    'harvest-losses',
+    lastTradingDay,
+    'Last trading day',
+    () =>
+      `Sales count for ${year} by trade date, so place them by ${shortDate(lastTradingDay)}. Buying the same fund back within 30 days, in any account, cancels the loss: buy something similar right away, or wait until ${shortDate(
+        addDays(lastTradingDay, 31),
+      )}. A December dividend reinvested in the same fund counts as a purchase, so turn off reinvestment first.`,
+  );
+  fromSuggestion(
+    'harvest-gains',
+    lastTradingDay,
+    'Last trading day',
+    () =>
+      `Sell and buy back by ${shortDate(lastTradingDay)} for the gain to land in ${year}'s 0% bracket. Leave some cushion: a December fund distribution or bonus can use up the room.`,
+  );
+
+  fromSuggestion(
+    '401k',
+    yearEnd,
+    'Last paycheck',
+    () => {
+      const left = paychecksLeft(year, today);
+      const { room, people } = k401Headroom(ctx);
+      return left > 0
+        ? `Deferrals only count when they come out of pay, and payroll usually needs a cycle or two to make a change. Change your election now: on about ${left} semi-monthly paycheck${
+            left === 1 ? '' : 's'
+          } left, that's roughly ${money(room / left)} each${people > 1 ? ', split between the two of you' : ''}. Many plans cap deferrals at a share of each paycheck, so a bonus check can help.`
+        : `Deferrals only count when they come out of pay, and there may not be time for payroll to pick up a change. Ask payroll whether a final paycheck or bonus can still take a bigger deferral; otherwise an IRA or HSA can be funded until the filing deadline.`;
+    },
+  );
+
+  fromSuggestion('roth-conversion', yearEnd, 'Year ends', () => `A conversion counts in the year the money moves, so finish it by ${shortDate(yearEnd)}. Brokers get busy in late December; start a week or two early.`);
+
+  const backdoor = byId.get('backdoor-roth');
+  if (backdoor?.kind === 'warning') {
+    fromSuggestion(
+      'backdoor-roth',
+      yearEnd,
+      'Balance counted',
+      () =>
+        `The pro-rata rule looks at your pre-tax IRA balance on December 31. Roll ${money(detected.traditionalIraBalance)} of pre-tax IRAs into a workplace 401(k) by then, if the plan takes roll-ins, and a backdoor Roth converted this year stays close to tax-free.`,
+      () => 'Clear pre-tax IRAs before a backdoor Roth',
+    );
+  } else {
+    fromSuggestion('backdoor-roth', filing, 'Filing deadline', () => `${year} contributions are allowed until ${shortDate(filing)}, ${year + 1}. Convert soon after contributing so little growth is taxed.`);
+  }
+  fromSuggestion('roth-ira', filing, 'Filing deadline', () => `Contributions for ${year} are allowed until ${shortDate(filing)}, ${year + 1}. Tell the broker which year it's for.`);
+  fromSuggestion('traditional-ira', filing, 'Filing deadline', () => `Contributions for ${year} are allowed until ${shortDate(filing)}, ${year + 1}, so you can wait to see your final income first.`);
+  fromSuggestion('hsa', filing, 'Filing deadline', () => `Direct contributions for ${year} are allowed until ${shortDate(filing)}, ${year + 1}. Through payroll before year-end also skips Social Security and Medicare tax.`);
+  fromSuggestion(
+    'self-employed-retirement',
+    filing,
+    'Filing deadline',
+    () =>
+      `A SEP IRA can be opened and funded until the filing deadline (${shortDate(filing)}, ${year + 1}, or October with an extension). A solo 401(k) set up by the deadline can take employer contributions for ${year} too.`,
+  );
+
+  // Q4 estimated payment, or the withholding check that tells you whether you need one.
+  const estimates = (settings.federalEstimatedPayments ?? 0) + (settings.stateEstimatedPayments ?? 0);
+  const owe = ctx.balanceDue;
+  if ((owe !== null && owe > 1_000) || inputs.selfEmployment > 0 || estimates > 0) {
+    const covered = owe !== null && owe <= 0;
+    out.push({
+      id: 'q4-estimate',
+      due: q4,
+      dueLabel: 'Payment due',
+      title: owe !== null && owe > 1_000 ? `Cover about ${money(owe)} by the Q4 estimate` : covered ? 'Q4 estimate: on track to be covered' : 'Make the Q4 estimated payment',
+      detail: `The fourth estimated payment for ${year} is due ${shortDate(q4)}, ${year + 1}${inputs.state === 'CA' ? ', for California too' : ''}. ${
+        covered
+          ? 'Withholding and payments so far look like enough, so you may be able to skip it; check again once December pay is in.'
+          : 'Paying at least 100% of last year’s tax (110% if last year’s AGI was over $150,000) through the year avoids a penalty. Extra withholding from a December paycheck counts as paid evenly through the year, so it also covers short earlier quarters; a Q4 payment only covers Q4.'
+      }`,
+      impact: null,
+      suggestionId: byId.has('underpayment') ? 'underpayment' : null,
+      general: owe === null,
+      question: `How much should my Q4 estimated tax payment for ${year} be, and should I raise my withholding instead?`,
+    });
+  } else if (owe === null && base.federal.total > 0) {
+    out.push({
+      id: 'withholding-check',
+      due: yearEnd,
+      dueLabel: 'Last paycheck',
+      title: 'Check withholding while there’s time to fix it',
+      detail: `Enter federal and state withheld so far from your latest pay stub in Tax inputs to see whether you're on track. If you're short, a new W-4 for the last paychecks of ${year} fixes it, and withholding counts as paid evenly through the year.`,
+      impact: null,
+      suggestionId: null,
+      general: true,
+      question: `Is my ${year} withholding enough, or should I change my W-4 before year-end?`,
+    });
+  }
+
+  // Charity: gifts count the day they're made. Bunching two years into one clears the standard deduction.
+  const { itemized, standard } = base.deductions;
+  const perThousand = saved({ otherItemized: inputs.otherItemized + 1_000 });
+  const qcd = age !== null && age >= 71 && detected.traditionalIraBalance > 0;
+  const qcdNote = qcd
+    ? ' Past 70½, a qualified charitable distribution straight from your IRA (up to about $108,000) leaves AGI entirely and counts toward a required distribution, which beats deducting a gift.'
+    : '';
+  const stockNote = ' Gifting long-held appreciated shares deducts their full value with no gain to pay; transfers take days, so start by mid-December.';
+  const nonItemizer = year >= 2026 ? ` From 2026, ${joint ? 'up to $2,000' : 'up to $1,000'} of cash gifts to charities (not donor-advised funds) is deductible without itemizing.` : '';
+  if (itemized > standard) {
+    out.push({
+      id: 'charity',
+      due: yearEnd,
+      dueLabel: 'Gifts count when made',
+      title: perThousand > 0 ? `Give by Dec 31: each $1,000 saves about ${money(perThousand)}` : 'Give by Dec 31 to deduct it this year',
+      detail: `You're itemizing, so a gift made by ${shortDate(yearEnd)} (mailed, charged or transferred) comes off ${year}'s income.${
+        year >= 2026 ? ' From 2026 only giving above 0.5% of AGI counts, so a bigger gift every other year deducts more.' : ''
+      }${stockNote}${qcdNote}`,
+      impact: null,
+      suggestionId: null,
+      general: true,
+      question: `How much should I give to charity before the end of ${year}, and should I use a donor-advised fund or appreciated stock?`,
+    });
+  } else if (itemized >= standard * 0.5) {
+    const gap = standard - itemized;
+    out.push({
+      id: 'charity',
+      due: yearEnd,
+      dueLabel: 'Gifts count when made',
+      title: `Bunch gifts: ${money(gap)} short of itemizing`,
+      detail: `Your itemized deductions come to about ${money(itemized)} against a ${money(standard)} standard deduction, so gifts don't lower your tax today. Giving two or more years' worth by ${shortDate(
+        yearEnd,
+      )} (a donor-advised fund lets you grant it out later) clears the standard deduction, and every dollar past ${money(gap)} saves at your marginal rate; take the standard deduction next year.${stockNote}${qcdNote}${nonItemizer}`,
+      impact: null,
+      suggestionId: null,
+      general: true,
+      question: `Would bunching charitable gifts into ${year} with a donor-advised fund save me tax?`,
+    });
+  } else if (nonItemizer || qcd) {
+    out.push({
+      id: 'charity',
+      due: yearEnd,
+      dueLabel: 'Gifts count when made',
+      title: year >= 2026 ? `Up to ${joint ? '$2,000' : '$1,000'} of gifts deductible without itemizing` : 'Give from your IRA instead of your checking account',
+      detail: `${nonItemizer.trim()}${qcdNote}${nonItemizer ? ' Gifts count when made, so give by Dec 31.' : ''}`.trim(),
+      impact: null,
+      suggestionId: null,
+      general: true,
+      question: `What's the most tax-efficient way for me to give to charity before the end of ${year}?`,
+    });
+  }
+
+  // Required minimum distributions, from the year you turn 73.
+  if (age !== null && age >= 73 && detected.traditionalIraBalance > 0) {
+    out.push({
+      id: 'rmd',
+      due: yearEnd,
+      dueLabel: 'Distribution deadline',
+      title: 'Take your required minimum distribution',
+      detail: `Pre-tax IRAs (${money(detected.traditionalIraBalance)}) need a minimum withdrawal by ${shortDate(yearEnd)}${
+        age === 73 ? `; the first one can wait until April 1, ${year + 1}, but then two land in ${year + 1}` : ''
+      }. Missing it costs 25% of the shortfall. It's last year's December 31 balance divided by an IRS life-expectancy factor.`,
+      impact: null,
+      suggestionId: null,
+      general: false,
+      question: `How much is my required minimum distribution for ${year}, and should I give part of it to charity?`,
+    });
+  }
+
+  // FSAs: Meld can't see them, so this rests on the profile's benefits, or is offered as a reminder.
+  const fsa = /\bFSA\b|flexible spending/i.test(ctx.employerBenefits ?? '');
+  out.push({
+    id: 'fsa',
+    due: yearEnd,
+    dueLabel: 'Plan year ends',
+    title: fsa ? 'Use up your FSA' : 'If you have an FSA, use it up',
+    detail: `FSA money left at the plan's deadline is forfeited. Most plans run with the calendar year; some allow a grace period to mid-March or carry over a few hundred dollars instead. Check the balance and book eye exams, glasses, dental work or eligible supplies before ${shortDate(
+      yearEnd,
+    )}. Open enrollment is also when to set next year's election, health and dependent care.`,
+    impact: null,
+    suggestionId: null,
+    general: !fsa,
+    question: 'What can I spend my FSA balance on before it expires, and how much should I elect for next year?',
+  });
+
+  return out
+    .filter((i) => i.due >= today)
+    .map((i) => ({ ...i, done: ctx.done.has(i.id) }))
+    .sort((a, b) => a.due.localeCompare(b.due) || Number(a.general) - Number(b.general) || (b.impact ?? 0) - (a.impact ?? 0));
+}
+
 // --- Loading -----------------------------------------------------------------------
 
 const K401_SUBTYPES = new Set(['401k', '401a', '403b', '457b', 'thrift savings plan']);
@@ -633,12 +899,41 @@ export async function getTaxSettings(db: Db, year: number): Promise<TaxSettings>
   return TaxSettings.parse({ ...EMPTY_TAX_SETTINGS, ...(row?.settings ?? {}) });
 }
 
-export async function saveTaxSettings(db: Db, year: number, settings: TaxSettings): Promise<TaxSettings> {
+/** Checklist ticks live beside the settings in the same row, apart from the TaxSettings schema. */
+type StoredSettings = TaxSettings & { checklistDone?: string[] };
+
+async function storedSettings(db: Db, year: number): Promise<StoredSettings | null> {
+  const row = await db.query.taxSettings.findFirst({ where: eq(taxSettings.year, year) });
+  return (row?.settings as StoredSettings | undefined) ?? null;
+}
+
+async function writeSettings(db: Db, year: number, settings: StoredSettings) {
   await db
     .insert(taxSettings)
     .values({ year, settings })
     .onConflictDoUpdate({ target: taxSettings.year, set: { settings, updatedAt: new Date() } });
+}
+
+export async function saveTaxSettings(db: Db, year: number, settings: TaxSettings): Promise<TaxSettings> {
+  const existing = await storedSettings(db, year);
+  await writeSettings(db, year, { ...settings, ...(existing?.checklistDone ? { checklistDone: existing.checklistDone } : {}) });
   return getTaxSettings(db, year);
+}
+
+export async function getChecklistDone(db: Db, year: number): Promise<string[]> {
+  const done = (await storedSettings(db, year))?.checklistDone;
+  return Array.isArray(done) ? done.filter((d) => typeof d === 'string') : [];
+}
+
+/** Ticks or unticks a checklist item for the year. */
+export async function setChecklistDone(db: Db, year: number, id: string, done: boolean): Promise<string[]> {
+  const existing = await storedSettings(db, year);
+  const ids = new Set(Array.isArray(existing?.checklistDone) ? existing.checklistDone : []);
+  if (done) ids.add(id);
+  else ids.delete(id);
+  const checklistDone = [...ids].sort();
+  await writeSettings(db, year, { ...EMPTY_TAX_SETTINGS, ...(existing ?? {}), checklistDone });
+  return checklistDone;
 }
 
 function elapsedShare(year: number, today: string): number {
@@ -654,9 +949,10 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
   const lastYearToDate = shiftYears(end, -1);
   const lastYearStart = `${year - 1}-01-01`;
 
-  const [profile, settings, accountRows] = await Promise.all([
+  const [profile, settings, checklistDone, accountRows] = await Promise.all([
     getProfile(db),
     getTaxSettings(db, year),
+    getChecklistDone(db, year),
     db
       .select({
         id: accounts.id,
@@ -893,6 +1189,7 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     balanceDue: null,
     harvest: harvest.filter((h) => h.gain < 0),
     suggestions: [],
+    checklist: [],
     notes: [],
   };
   if (!profile.filingStatus || profile.annualGrossIncome === null) return plan;
@@ -952,6 +1249,17 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
   }
   if (inputs.selfEmployment > 0) notes.push('Self-employment tax assumes the earner has no other wages above the Social Security limit.');
 
+  const suggestionContext: SuggestionContext = {
+    inputs,
+    base,
+    marginal,
+    settings,
+    detected,
+    harvest: plan.harvest,
+    age: ageAtYearEnd,
+    balanceDue,
+  };
+  const suggestions = buildSuggestions(suggestionContext);
   return {
     ...plan,
     income: base.income,
@@ -961,15 +1269,13 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     effectiveRate: round2(base.effectiveRate * 10_000) / 10_000,
     marginalRate: round2(marginal * 10_000) / 10_000,
     balanceDue,
-    suggestions: buildSuggestions({
-      inputs,
-      base,
-      marginal,
-      settings,
-      detected,
-      harvest: plan.harvest,
-      age: ageAtYearEnd,
-      balanceDue,
+    suggestions,
+    checklist: buildChecklist({
+      ...suggestionContext,
+      suggestions,
+      today,
+      done: new Set(checklistDone),
+      employerBenefits: profile.employerBenefits,
     }),
     notes,
   };

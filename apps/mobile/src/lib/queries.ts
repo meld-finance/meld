@@ -485,6 +485,25 @@ export function useSaveTaxSettings(year: number) {
   });
 }
 
+/** Ticks a year-end checklist item, showing it at once and rolling back on failure. */
+export function useSetChecklistDone(year: number) {
+  const qc = useQueryClient();
+  const key = [...keys.tax, year];
+  return useMutation({
+    mutationFn: (change: { id: string; done: boolean }) =>
+      api<{ done: string[] }>(`/tax/checklist?year=${year}`, { method: 'PUT', body: JSON.stringify(change) }),
+    onMutate: async ({ id, done }) => {
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<TaxPlan>(key);
+      if (previous) {
+        qc.setQueryData<TaxPlan>(key, { ...previous, checklist: previous.checklist.map((c) => (c.id === id ? { ...c, done } : c)) });
+      }
+      return { previous };
+    },
+    onError: (_e, _v, context) => context?.previous && qc.setQueryData(key, context.previous),
+  });
+}
+
 /** Liquid cash, what it earns, and the emergency fund it adds up to. */
 export function useCashPlan() {
   return useQuery({ queryKey: keys.cash, queryFn: () => api<CashPlan>('/cash') });
