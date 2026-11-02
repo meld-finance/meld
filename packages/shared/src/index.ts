@@ -1,6 +1,7 @@
 export * from './auth';
 export * from './chat';
 export * from './accounts';
+export * from './cash';
 export * from './insurance';
 export * from './investments';
 export * from './liabilities';

@@ -62,7 +62,7 @@ Use **Accounts → Link account** in the web app. Accounts and balances sync imm
 
 ## Overview & budgets
 
-The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts and Investments), **Spending** (Overview, Transactions, Budgets) and **Plan** (Retirement, Insurance, Profile).
+The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts, Cash and Investments), **Spending** (Overview, Transactions, Budgets) and **Plan** (Retirement, Insurance, Profile).
 
 
 - **Net worth** = linked balances + manual assets (home, vehicles; add them on the Accounts tab) + life insurance cash surrender value − credit, loan and mortgage balances. Meld records one snapshot per day (after each sync and every 6 hours), so the trend line starts after the second day.
@@ -70,6 +70,13 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts a
 - **Drill into a category** by tapping it on **Spending → Overview** (Spending Breakdown, Top Movers, Where You Spend the Most): spending by subcategory and merchant against a year earlier, and the transactions behind it. Subcategories are Plaid's detailed categories (e.g. Groceries vs. Restaurants under Food and drink) unless you set your own.
 - **Recategorize** by tapping any transaction: pick a category and subcategory, or type new ones. Turn on **Always categorize matching transactions this way** to create a rule: new transactions whose merchant or description contains the text you give are categorized as they sync, and optionally past matches you haven't changed by hand are updated too. The longest matching pattern wins, and a hand edit always overrides a rule. Manage rules from **Spending → Transactions → Rules**; deleting one puts its transactions back to their original category.
 - **Budgets** are monthly targets per category, set under **Spending → Budgets**.
+
+## Cash & emergency fund
+
+- **Accounts → Cash** gathers liquid cash: checking, savings, money market and cash management accounts, money market funds, T-bill ETFs (SGOV, BIL…) and brokerage sweep cash. CDs, HSAs and cash in retirement accounts aren't counted toward the emergency fund.
+- Each position's rate is estimated: bank accounts from interest paid over the last three complete months against their average balance, cash ETFs from a year of distributions (Yahoo Finance), and money market funds as roughly the 3-month Treasury yield (`^IRX`), which is also the "high-yield rate now" benchmark. Only tickers are sent. You can enter any rate yourself.
+- The emergency fund target is a number of months (6 by default) of your average monthly spending over the last 12 complete months, or a monthly figure you enter. The page shows your runway in months and how far above or below the target you are.
+- Rule-based nudges: move low-earning cash to a high-yield account (keeping a month of spending in checking), invest cash beyond the target, put idle cash in retirement accounts to work, and fill in missing rates. Positions can be set aside (e.g. for a down payment) so they don't count. Settings live in `cash_settings`; Ask Meld reads it all through `get_cash_plan`.
 
 ## Investments & loans
 
