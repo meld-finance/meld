@@ -17,6 +17,8 @@ const EnvSchema = z
     /** Overrides the per-environment URL (tests point this at the test DB). */
     DATABASE_URL: z.url().optional(),
     API_PORT: z.coerce.number().default(4000),
+    /** Address to listen on. Localhost only by default; the Docker image sets 0.0.0.0 inside its private network. */
+    API_HOST: z.string().default('127.0.0.1'),
     CORS_ORIGINS: csv,
 
     APP_PASSPHRASE: z.string().min(8, 'APP_PASSPHRASE must be at least 8 characters'),

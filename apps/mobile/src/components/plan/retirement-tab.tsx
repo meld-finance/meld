@@ -360,7 +360,8 @@ function RetirementPlanner({
       <ScenarioBar summary={summary} dirty={dirty} onSelect={onSelectScenario} />
 
       <ThemedText type="small" themeColor="textSecondary">
-        Everything is in today’s dollars: returns are after inflation, so a dollar here buys what a dollar buys now.
+        Everything is in today’s dollars: returns are after inflation, so a dollar here buys what a dollar buys now. Projections
+        rest on the assumptions you set, and are for planning, not professional financial advice.
       </ThemedText>
 
       {resolved.inputs && projection ? (

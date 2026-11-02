@@ -26,3 +26,35 @@ export function decrypt(payload: string, keyBase64: string): string {
   decipher.setAuthTag(Buffer.from(tag, 'base64'));
   return Buffer.concat([decipher.update(Buffer.from(ciphertext, 'base64')), decipher.final()]).toString('utf8');
 }
+
+/** Marks a file encrypted by encryptBytes, so older unencrypted files can still be told apart. */
+const FILE_MAGIC = Buffer.from('MELDENC1', 'latin1');
+const TAG_BYTES = 16;
+
+export function isEncryptedBytes(data: Buffer): boolean {
+  return data.length >= FILE_MAGIC.length && data.subarray(0, FILE_MAGIC.length).equals(FILE_MAGIC);
+}
+
+/**
+ * Encrypts a file's contents (e.g. an uploaded PDF).
+ * Layout: `MELDENC1` | 12-byte IV | 16-byte auth tag | ciphertext.
+ */
+export function encryptBytes(plaintext: Buffer, keyBase64: string): Buffer {
+  const iv = randomBytes(IV_BYTES);
+  const cipher = createCipheriv(ALGORITHM, Buffer.from(keyBase64, 'base64'), iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  return Buffer.concat([FILE_MAGIC, iv, cipher.getAuthTag(), ciphertext]);
+}
+
+/** Decrypts encryptBytes output; throws if the data was changed or the key is wrong. */
+export function decryptBytes(data: Buffer, keyBase64: string): Buffer {
+  if (!isEncryptedBytes(data) || data.length < FILE_MAGIC.length + IV_BYTES + TAG_BYTES) {
+    throw new Error('Unrecognized encrypted file');
+  }
+  let at = FILE_MAGIC.length;
+  const iv = data.subarray(at, (at += IV_BYTES));
+  const tag = data.subarray(at, (at += TAG_BYTES));
+  const decipher = createDecipheriv(ALGORITHM, Buffer.from(keyBase64, 'base64'), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(data.subarray(at)), decipher.final()]);
+}

@@ -1,5 +1,6 @@
 import { createAIProvider } from './ai/provider';
 import { createDb } from './db/client';
+import { documents } from './db/schema';
 import { loadEnv } from './env';
 import { createPlaidClient } from './plaid/client';
 import { syncAllItems } from './plaid/sync';
@@ -19,8 +20,8 @@ const storage = createStorage(env);
 const app = await buildServer({ env, db, plaid, sync, ai, storage });
 if (!ai) app.log.warn('No AI provider configured (ANTHROPIC_API_KEY is empty); AI features are disabled.');
 
-// Listen on localhost only; change when hosting.
-await app.listen({ port: env.API_PORT, host: '127.0.0.1' });
+// Localhost only unless API_HOST says otherwise (the Docker setup listens inside its private network).
+await app.listen({ port: env.API_PORT, host: env.API_HOST });
 
 // Local stand-in for Plaid webhooks: refresh all items periodically. The snapshot
 // also runs on its own so net-worth history gets a point each day even with no items.
@@ -30,5 +31,16 @@ async function scheduledRefresh() {
   await pruneOrphanDocuments(db, storage).catch((err) => app.log.error({ err }, 'Document cleanup failed'));
 }
 void recordSnapshot(db).catch((err) => app.log.error({ err }, 'Net worth snapshot failed'));
-void pruneOrphanDocuments(db, storage).catch((err) => app.log.error({ err }, 'Document cleanup failed'));
+void (async () => {
+  // Documents uploaded before encryption was added are encrypted once, on the next start.
+  // Done before the orphan cleanup so the two never touch the same file at once.
+  try {
+    const rows = await db.select({ key: documents.storageKey }).from(documents);
+    const n = await storage.encryptExisting(rows.map((r) => r.key));
+    if (n) app.log.info(`Encrypted ${n} stored document${n === 1 ? '' : 's'}`);
+  } catch (err) {
+    app.log.error({ err }, 'Encrypting stored documents failed');
+  }
+  await pruneOrphanDocuments(db, storage).catch((err) => app.log.error({ err }, 'Document cleanup failed'));
+})();
 setInterval(() => void scheduledRefresh(), SYNC_INTERVAL_MS);

@@ -1,4 +1,4 @@
-import type { InsurancePolicy, InsurancePolicyInput, PolicyExtraction } from '@meld/shared';
+import type { InsurancePolicy, InsurancePolicyInput, PolicyExtraction, UploadedDocument } from '@meld/shared';
 import type { PlaidApi } from 'plaid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AIProvider } from '../ai/provider';
@@ -150,6 +150,39 @@ describe.skipIf(!testDatabaseUrl)('insurance routes (Postgres)', () => {
       headers,
       payload: pdfForm(Buffer.from('<html>not a pdf</html>')),
     });
+    expect(res.statusCode).toBe(400);
+    expect(storage.files.size).toBe(0);
+  });
+
+  it('attaches, replaces and removes a PDF on an existing policy without AI', async () => {
+    const upload = async () => {
+      const res = await app.inject({ method: 'POST', url: '/documents', headers, payload: pdfForm() });
+      expect(res.statusCode).toBe(200);
+      return res.json<UploadedDocument>();
+    };
+    const input: InsurancePolicyInput = { ...(await fakeAI.extractInsurancePolicy(PDF)).draft, documentId: null };
+    const policy = (await app.inject({ method: 'POST', url: '/insurance', headers, payload: input })).json<InsurancePolicy>();
+    const put = (documentId: string | null) =>
+      app.inject({ method: 'PUT', url: `/insurance/${policy.id}`, headers, payload: { ...input, documentId } });
+
+    const first = await upload();
+    expect((await put(first.documentId)).json()).toMatchObject({ documentId: first.documentId, documentFilename: 'policy.pdf' });
+    expect(storage.files.size).toBe(1);
+
+    // Replacing the PDF deletes the old file.
+    const second = await upload();
+    expect((await put(second.documentId)).json().documentId).toBe(second.documentId);
+    expect(storage.files.size).toBe(1);
+    expect((await app.inject({ method: 'GET', url: `/documents/${first.documentId}`, headers })).statusCode).toBe(404);
+
+    // Removing it deletes the file too.
+    expect((await put(null)).json().documentId).toBeNull();
+    expect(storage.files.size).toBe(0);
+    expect(await ctx.db.select().from(documents)).toEqual([]);
+  });
+
+  it('rejects non-PDF attachments', async () => {
+    const res = await app.inject({ method: 'POST', url: '/documents', headers, payload: pdfForm(Buffer.from('not a pdf')) });
     expect(res.statusCode).toBe(400);
     expect(storage.files.size).toBe(0);
   });

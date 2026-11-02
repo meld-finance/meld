@@ -1,6 +1,7 @@
 {
   "name": "meld",
   "private": true,
+  "license": "AGPL-3.0-only",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -9,7 +10,8 @@
     "dev": "concurrently -n api,app -c blue,magenta \"npm run dev -w @meld/api\" \"npm run web -w @meld/mobile\"",
     "dev:api": "npm run dev -w @meld/api",
     "dev:web": "npm run web -w @meld/mobile",
-    "db:up": "docker compose up -d",
+    "db:up": "docker compose up -d db",
+    "docker:up": "docker compose up -d --build",
     "db:generate": "npm run db:generate -w @meld/api",
     "db:migrate": "npm run db:migrate -w @meld/api",
     "typecheck": "npm run typecheck --workspaces --if-present",

@@ -1,8 +1,9 @@
-import type { InsurancePolicyInput, PolicyExtraction } from '@meld/shared';
+import type { InsurancePolicyInput, PolicyExtraction, UploadedDocument } from '@meld/shared';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { AISetupHint } from '@/components/ai-setup-hint';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { PolicyForm } from '@/components/policy-form';
@@ -13,9 +14,20 @@ import { confirm } from '@/lib/confirm';
 import { openDocument } from '@/lib/documents';
 import { pickPdf } from '@/lib/pick-pdf';
 import { POLICY_TYPE_LABELS } from '@/lib/insurance';
-import { discardDocument, useDeletePolicy, useExtractPolicy, useInsurancePolicy, useSavePolicy } from '@/lib/queries';
+import {
+  discardDocument,
+  useDeletePolicy,
+  useExtractPolicy,
+  useFeatures,
+  useInsurancePolicy,
+  useSavePolicy,
+  useUploadDocument,
+} from '@/lib/queries';
 
 const goBack = () => (router.canGoBack() ? router.back() : router.replace('/plan'));
+
+type Doc = { id: string; filename: string };
+const toDoc = (d: UploadedDocument): Doc => ({ id: d.documentId, filename: d.filename });
 
 export default function PolicyScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -24,8 +36,21 @@ export default function PolicyScreen() {
   const save = useSavePolicy();
   const remove = useDeletePolicy();
   const extract = useExtractPolicy();
+  const attach = useUploadDocument();
+  const features = useFeatures();
   const [extraction, setExtraction] = useState<PolicyExtraction | null>(null);
+  // The document chosen on this screen: undefined keeps the saved one, null removes it.
+  const [docChoice, setDocChoice] = useState<Doc | null | undefined>(undefined);
+  // Uploads made on this screen. Any not saved with the policy are discarded.
+  const uploads = useRef<string[]>([]);
   const [docError, setDocError] = useState<string | null>(null);
+
+  const existing = policy.data;
+  const savedDoc: Doc | null = existing?.documentId
+    ? { id: existing.documentId, filename: existing.documentFilename ?? 'Policy document' }
+    : null;
+  const document = docChoice === undefined ? savedDoc : docChoice;
+  const busy = extract.isPending || attach.isPending;
 
   const back = (
     <Pressable onPress={() => void cancel()}>
@@ -33,22 +58,57 @@ export default function PolicyScreen() {
     </Pressable>
   );
 
+  /** Discards this screen's uploads other than `keep`; the server keeps any a saved policy uses. */
+  function discardUploads(keep?: string | null) {
+    const drop = uploads.current.filter((u) => u !== keep);
+    uploads.current = uploads.current.filter((u) => u === keep);
+    return Promise.all(drop.map(discardDocument));
+  }
+
   async function cancel() {
-    // An upload that never became a policy is deleted rather than left on disk.
-    if (extraction) await discardDocument(extraction.documentId);
+    await discardUploads();
     goBack();
   }
 
-  async function upload() {
+  function choose(doc: Doc | null) {
+    // A replaced upload from this screen won't be needed.
+    if (document && uploads.current.includes(document.id)) {
+      void discardDocument(document.id);
+      uploads.current = uploads.current.filter((u) => u !== document.id);
+    }
+    if (doc) uploads.current.push(doc.id);
+    setDocChoice(doc);
+  }
+
+  async function fillFromPdf() {
     const picked = await pickPdf();
     if (!picked) return;
-    if (extraction) void discardDocument(extraction.documentId);
     setExtraction(null);
-    extract.mutate(picked.form, { onSuccess: setExtraction });
+    extract.mutate(picked.form, {
+      onSuccess: (result) => {
+        choose(toDoc(result));
+        setExtraction(result);
+      },
+    });
+  }
+
+  async function attachPdf() {
+    const picked = await pickPdf();
+    if (!picked) return;
+    attach.mutate(picked.form, { onSuccess: (d) => choose(toDoc(d)) });
   }
 
   function onSave(input: InsurancePolicyInput) {
-    save.mutate({ id: isNew ? undefined : id, input }, { onSuccess: goBack });
+    const documentId = document?.id ?? null;
+    save.mutate(
+      { id: isNew ? undefined : id, input: { ...input, documentId } },
+      {
+        onSuccess: () => {
+          void discardUploads(documentId);
+          goBack();
+        },
+      },
+    );
   }
 
   async function onDelete() {
@@ -61,9 +121,9 @@ export default function PolicyScreen() {
     if (ok) remove.mutate(policy.data.id, { onSuccess: goBack });
   }
 
-  function viewDocument(documentId: string, filename: string) {
+  function viewDocument(doc: Doc) {
     setDocError(null);
-    openDocument(documentId, filename).catch((err: Error) => setDocError(err.message));
+    openDocument(doc.id, doc.filename).catch((err: Error) => setDocError(err.message));
   }
 
   if (!isNew && (policy.isPending || policy.isError)) {
@@ -76,17 +136,12 @@ export default function PolicyScreen() {
     );
   }
 
-  const existing = policy.data;
   const initial = extraction?.draft ?? existing ?? null;
-  const document = extraction
-    ? { id: extraction.documentId, filename: extraction.filename }
-    : existing?.documentId
-      ? { id: existing.documentId, filename: existing.documentFilename ?? 'Policy document' }
-      : null;
+  const uploadError = attach.error?.message ?? null;
 
   return (
     <Screen title={isNew ? 'Add policy' : existing!.carrier} actions={back}>
-      {isNew && (
+      {isNew && features.data?.cloudAI && (
         <Card
           title="Fill in from a PDF"
           subtitle="Upload a policy, certificate or benefits summary and AI will fill in the form. Nothing is saved until you check it and press Save. The PDF is sent to Anthropic to read."
@@ -95,12 +150,12 @@ export default function PolicyScreen() {
               label={extraction ? 'Use another PDF' : 'Upload PDF'}
               variant="secondary"
               size="small"
-              disabled={extract.isPending}
-              onPress={() => void upload()}
+              disabled={busy}
+              onPress={() => void fillFromPdf()}
             />
           }>
           {extract.isPending && (
-            <View style={styles.reading}>
+            <View style={styles.inline}>
               <ActivityIndicator />
               <ThemedText type="small" themeColor="textSecondary">
                 Reading the policy. This can take up to a minute…
@@ -113,7 +168,7 @@ export default function PolicyScreen() {
             </ThemedText>
           )}
           {extraction && (
-            <View style={styles.warnings}>
+            <View style={styles.stack}>
               <ThemedText type="small">
                 Filled in from {extraction.filename}. Check every field against the document before saving.
               </ThemedText>
@@ -127,12 +182,50 @@ export default function PolicyScreen() {
         </Card>
       )}
 
-      {document && (
-        <Pressable onPress={() => viewDocument(document.id, document.filename)}>
-          <ThemedText type="linkPrimary">View {document.filename} ↗</ThemedText>
-        </Pressable>
-      )}
-      {docError && <ThemedText type="small" themeColor="negative">{docError}</ThemedText>}
+      <Card
+        title="Policy document"
+        subtitle="Keep a copy of the policy with it, encrypted on this computer. Attaching doesn’t send it anywhere."
+        action={
+          <View style={styles.inline}>
+            {document && (
+              <Button label="Remove" variant="secondary" size="small" disabled={busy} onPress={() => choose(null)} />
+            )}
+            <Button
+              label={document ? 'Replace PDF' : 'Attach PDF'}
+              variant="secondary"
+              size="small"
+              disabled={busy}
+              loading={attach.isPending}
+              onPress={() => void attachPdf()}
+            />
+          </View>
+        }>
+        {document ? (
+          <Pressable onPress={() => viewDocument(document)}>
+            <ThemedText type="linkPrimary">View {document.filename} ↗</ThemedText>
+          </Pressable>
+        ) : (
+          <ThemedText type="small" themeColor="textSecondary">
+            {savedDoc ? `${savedDoc.filename} will be removed when you save.` : 'No document attached.'}
+          </ThemedText>
+        )}
+        {document && docChoice !== undefined && savedDoc?.id !== document.id && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Attached when you save.
+          </ThemedText>
+        )}
+        {isNew && features.data?.cloudAI === false && (
+          <AISetupHint
+            manual="Copy the details from your policy or benefits summary into the form below."
+            aiDoes="read a policy PDF and fill in the form for you"
+          />
+        )}
+        {(uploadError || docError) && (
+          <ThemedText type="small" themeColor="negative">
+            {uploadError ?? docError}
+          </ThemedText>
+        )}
+      </Card>
 
       <PolicyForm
         // Remount when a new draft arrives so the form picks up the extracted values.
@@ -150,6 +243,6 @@ export default function PolicyScreen() {
 }
 
 const styles = StyleSheet.create({
-  reading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  warnings: { gap: Spacing.one },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  stack: { gap: Spacing.one },
 });

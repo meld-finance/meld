@@ -4,6 +4,8 @@ import { LoginRequest } from '@meld/shared';
 import type { Env } from './env';
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+/** Login attempts allowed per client address in each window. */
+export const LOGIN_RATE_LIMIT = { max: 10, timeWindow: '15 minutes' };
 
 function passphraseMatches(candidate: string, expected: string): boolean {
   // Hash both sides so the comparison is constant-time regardless of length.
@@ -18,7 +20,7 @@ function passphraseMatches(candidate: string, expected: string): boolean {
  * Replace with a real identity provider before hosting for multiple users.
  */
 export async function registerAuth(app: FastifyInstance, env: Env) {
-  app.post('/auth/login', { config: { public: true } }, async (req, reply) => {
+  app.post('/auth/login', { config: { public: true, rateLimit: LOGIN_RATE_LIMIT } }, async (req, reply) => {
     const body = LoginRequest.safeParse(req.body);
     if (!body.success || !passphraseMatches(body.data.passphrase, env.APP_PASSPHRASE)) {
       return reply.code(401).send({ error: 'Invalid passphrase' });

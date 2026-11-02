@@ -78,6 +78,9 @@ export const InsurancePolicy = InsurancePolicyInput.extend({
 });
 export type InsurancePolicy = z.infer<typeof InsurancePolicy>;
 
+/** A stored upload, not yet attached to anything until a policy is saved with its id. */
+export type UploadedDocument = { documentId: string; filename: string };
+
 /** Draft returned from PDF extraction, for the user to review before saving. */
 export type PolicyExtraction = {
   documentId: string;

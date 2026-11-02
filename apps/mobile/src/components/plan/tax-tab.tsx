@@ -115,6 +115,9 @@ function Suggestions({ suggestions }: { suggestions: TaxSuggestion[] }) {
   return (
     <View style={styles.suggestions}>
       <ThemedText type="cardTitle">Ways to lower your tax</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        General rules applied to your numbers, not tax advice. Check with a tax professional before acting on one.
+      </ThemedText>
       {suggestions.map((s) => (
         <InsightCallout
           key={s.id}
