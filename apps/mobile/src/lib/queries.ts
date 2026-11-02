@@ -1,4 +1,6 @@
 import type {
+  AppFeatures,
+  UploadedDocument,
   Account,
   AccountDetail,
   BalanceSnapshot,
@@ -54,6 +56,7 @@ import { api } from './api';
 const PAGE_SIZE = 100;
 
 export const keys = {
+  features: ['features'] as const,
   accounts: ['accounts'] as const,
   items: ['items'] as const,
   transactions: (q: Omit<TransactionQuery, 'limit' | 'offset'>) => ['transactions', q] as const,
@@ -430,6 +433,13 @@ export function useExtractPolicy() {
   });
 }
 
+/** Stores a PDF to keep with a policy (no AI); it's attached when the policy is saved with its id. */
+export function useUploadDocument() {
+  return useMutation({
+    mutationFn: (form: FormData) => api<UploadedDocument>('/documents', { method: 'POST', body: form }),
+  });
+}
+
 /** Drops an uploaded document whose draft was abandoned. */
 export function discardDocument(documentId: string) {
   return api(`/documents/${documentId}`, { method: 'DELETE' }).catch(() => undefined);
@@ -565,4 +575,9 @@ export function useDeleteChatSession() {
     mutationFn: (id: string) => api(`/chat/sessions/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.chatSessions }),
   });
+}
+
+/** What this install has set up (e.g. cloud AI); changes only when the API restarts. */
+export function useFeatures() {
+  return useQuery({ queryKey: keys.features, queryFn: () => api<AppFeatures>('/features'), staleTime: 5 * 60_000 });
 }

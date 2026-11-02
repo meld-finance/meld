@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { decrypt, encrypt } from './crypto';
+import { decrypt, decryptBytes, encrypt, encryptBytes, isEncryptedBytes } from './crypto';
 
 const key = randomBytes(32).toString('base64');
 
@@ -23,5 +23,28 @@ describe('crypto', () => {
   it('rejects the wrong key', () => {
     const other = randomBytes(32).toString('base64');
     expect(() => decrypt(encrypt('secret', key), other)).toThrow();
+  });
+});
+
+describe('file encryption', () => {
+  const pdf = Buffer.from('%PDF-1.7\n' + 'x'.repeat(1000));
+
+  it('round-trips bytes and marks the output as encrypted', () => {
+    const sealed = encryptBytes(pdf, key);
+    expect(isEncryptedBytes(sealed)).toBe(true);
+    expect(isEncryptedBytes(pdf)).toBe(false);
+    expect(sealed.includes(Buffer.from('%PDF'))).toBe(false);
+    expect(decryptBytes(sealed, key).equals(pdf)).toBe(true);
+  });
+
+  it('rejects tampered bytes and the wrong key', () => {
+    const sealed = encryptBytes(pdf, key);
+    sealed[sealed.length - 1]! ^= 1;
+    expect(() => decryptBytes(sealed, key)).toThrow();
+    expect(() => decryptBytes(encryptBytes(pdf, key), randomBytes(32).toString('base64'))).toThrow();
+  });
+
+  it('refuses data that was never encrypted', () => {
+    expect(() => decryptBytes(pdf, key)).toThrow('Unrecognized encrypted file');
   });
 });

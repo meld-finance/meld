@@ -1,6 +1,8 @@
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
+import rateLimit from '@fastify/rate-limit';
 import Fastify from 'fastify';
+import type { AppFeatures } from '@meld/shared';
 import type { PlaidApi } from 'plaid';
 import type { AIProvider } from './ai/provider';
 import { registerAuth } from './auth';
@@ -64,6 +66,8 @@ export async function buildServer(deps: AppDeps) {
 
   await app.register(cors, { origin: env.CORS_ORIGINS, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] });
   await app.register(jwt, { secret: env.SESSION_SECRET });
+  // Off by default; routes opt in (the login route, against passphrase guessing).
+  await app.register(rateLimit, { global: false });
   await registerAuth(app, env);
 
   app.get('/health', { config: { public: true } }, async () => {
@@ -72,6 +76,7 @@ export async function buildServer(deps: AppDeps) {
   });
 
   app.get('/me', async () => ({ user: 'owner' }));
+  app.get('/features', async (): Promise<AppFeatures> => ({ cloudAI: deps.ai !== null }));
 
   await registerPlaidRoutes(app, deps);
   await registerAccountRoutes(app, deps);

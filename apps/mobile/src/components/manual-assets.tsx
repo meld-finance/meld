@@ -11,6 +11,7 @@ import {
 import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { AISetupHint } from '@/components/ai-setup-hint';
 import { Button } from '@/components/button';
 import { Chip } from '@/components/chip';
 import { ThemedText } from '@/components/themed-text';
@@ -22,6 +23,7 @@ import {
   useDeleteManualAsset,
   useEstimatePropertyValue,
   useEstimateVehicleValue,
+  useFeatures,
   useSaveManualAsset,
 } from '@/lib/queries';
 
@@ -44,6 +46,19 @@ export function manualAssetDetail(a: ManualAsset): string {
     .join(' · ');
 }
 
+/** Where to look up a value by hand when AI lookups aren't set up. */
+function homeValueLinks(address: string) {
+  const q = encodeURIComponent(address);
+  return [
+    { label: 'Zillow', url: address ? `https://www.zillow.com/homes/${q}_rb/` : 'https://www.zillow.com/how-much-is-my-home-worth/' },
+    { label: 'Redfin', url: 'https://www.redfin.com/what-is-my-home-worth' },
+  ];
+}
+const VEHICLE_VALUE_LINKS = [
+  { label: 'Kelley Blue Book', url: 'https://www.kbb.com/whats-my-car-worth/' },
+  { label: 'Edmunds', url: 'https://www.edmunds.com/appraisal/' },
+];
+
 const parseAmount = (s: string) => Number(s.replace(/[$,%\s]/g, ''));
 /** "123 Main St, Springfield, IL" → "123 Main St". */
 const streetOf = (address: string) => address.split(',')[0]!.trim();
@@ -55,6 +70,10 @@ export function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () =
   const remove = useDeleteManualAsset();
   const estimate = useEstimatePropertyValue();
   const vehicleEstimate = useEstimateVehicleValue();
+  const features = useFeatures();
+  // Lookups need cloud AI; until we know, offer neither the button nor the hint.
+  const canUseAI = features.data?.cloudAI === true;
+  const showAIHint = features.data?.cloudAI === false;
   const [kind, setKind] = useState<ManualAssetKind>(asset?.kind ?? 'home');
   const [address, setAddress] = useState(asset?.address ?? '');
   const [year, setYear] = useState(asset?.vehicle ? String(asset.vehicle.year) : '');
@@ -92,7 +111,7 @@ export function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () =
   const sharePercent = share.trim() === '' ? null : parseAmount(share);
   const shareValid = sharePercent === null || (Number.isFinite(sharePercent) && sharePercent > 0 && sharePercent <= 100);
   const valueValid = value.trim() !== '' && Number.isFinite(amount) && amount >= 0;
-  const canLookUp = home ? trimmedAddress.length >= 5 : vehicle !== null;
+  const canLookUp = canUseAI && (home ? trimmedAddress.length >= 5 : vehicle !== null);
   // A home with an address or a vehicle with its details can be saved without a value; it's looked up first.
   const lookUpOnSave = canLookUp && value.trim() === '';
   const nameValid = name.trim().length > 0 || trimmedAddress.length > 0 || vehicle !== null;
@@ -252,7 +271,7 @@ export function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () =
       <View style={styles.inline}>
         <TextInput
           style={[inputStyle, styles.grow]}
-          placeholder={home || isVehicle ? 'Value (blank to look it up)' : 'Estimated value'}
+          placeholder={(home || isVehicle) && canUseAI ? 'Value (blank to look it up)' : 'Estimated value'}
           placeholderTextColor={theme.textSecondary}
           value={value}
           onChangeText={(v) => {
@@ -263,7 +282,7 @@ export function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () =
           inputMode="decimal"
           onSubmitEditing={submit}
         />
-        {(home || isVehicle) && (
+        {(home || isVehicle) && canUseAI && (
           <Button
             label={value.trim() ? 'Refresh value' : 'Look up value'}
             variant="secondary"
@@ -273,6 +292,20 @@ export function AssetForm({ asset, onDone }: { asset?: ManualAsset; onDone: () =
           />
         )}
       </View>
+      {home && showAIHint && (
+        <AISetupHint
+          manual="Look up what it’s worth and enter it above:"
+          links={homeValueLinks(trimmedAddress)}
+          aiDoes="estimate it from Zillow, Redfin and recent sales"
+        />
+      )}
+      {isVehicle && showAIHint && (
+        <AISetupHint
+          manual="Look up what it’s worth and enter it above:"
+          links={VEHICLE_VALUE_LINKS}
+          aiDoes="estimate it from Kelley Blue Book, Edmunds and other sites"
+        />
+      )}
       {!home && (
         <TextInput
           style={inputStyle}

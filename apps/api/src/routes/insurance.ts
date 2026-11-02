@@ -4,9 +4,10 @@ import {
   InsurancePolicyInput,
   maskPolicyNumber,
   type PolicyExtraction,
+  type UploadedDocument,
 } from '@meld/shared';
 import { and, eq, lt, notExists } from 'drizzle-orm';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { requireAI } from '../ai/provider';
 import type { Db } from '../db/client';
 import { documents, insurancePolicies } from '../db/schema';
@@ -91,9 +92,8 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
     return { ok: true };
   });
 
-  /** Upload a policy PDF and get a draft back. Nothing is saved as a policy until the user confirms. */
-  app.post('/insurance/extract', async (req): Promise<PolicyExtraction> => {
-    const provider = requireAI(ai);
+  /** Checks and stores the request's PDF (encrypted by the storage layer). Unattached until a policy is saved with it. */
+  async function storeUploadedPdf(req: FastifyRequest) {
     const file = await req.file();
     if (!file) throw new HttpError(400, 'Attach a PDF file');
     const data = await file.toBuffer().catch((err: { code?: string }) => {
@@ -110,12 +110,24 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
       .insert(documents)
       .values({ filename, mimeType: 'application/pdf', sizeBytes: data.length, storageKey })
       .returning({ id: documents.id });
+    return { documentId: doc!.id, filename, data };
+  }
 
+  /** Upload a PDF to keep with a policy; no AI involved. Unsaved uploads are cleaned up after a day. */
+  app.post('/documents', async (req): Promise<UploadedDocument> => {
+    const { documentId, filename } = await storeUploadedPdf(req);
+    return { documentId, filename };
+  });
+
+  /** Upload a policy PDF and get a draft back. Nothing is saved as a policy until the user confirms. */
+  app.post('/insurance/extract', async (req): Promise<PolicyExtraction> => {
+    const provider = requireAI(ai);
+    const { documentId, filename, data } = await storeUploadedPdf(req);
     try {
       const { draft, warnings } = await provider.extractInsurancePolicy(data);
-      return { documentId: doc!.id, filename, draft: { ...draft, documentId: doc!.id }, warnings };
+      return { documentId, filename, draft: { ...draft, documentId }, warnings };
     } catch (err) {
-      await deleteDocumentIfUnused(doc!.id);
+      await deleteDocumentIfUnused(documentId);
       throw err;
     }
   });

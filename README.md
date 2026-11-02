@@ -2,9 +2,33 @@
 
 Your whole financial picture in one place — bank accounts, cards, brokerages, mortgages and loans (via Plaid), plus life and disability insurance — with an AI assistant that answers questions, makes recommendations and suggests tax strategies using that data as context.
 
-Runs locally. Web first, then iOS and Android from the same Expo codebase.
+**Private by design: it runs on your own computer.** There is no Meld cloud and no account to create; your data stays in a database on your machine. See [PRIVACY.md](PRIVACY.md) for exactly what goes where.
 
-## Layout
+Web first, then iOS and Android from the same Expo codebase.
+
+## Quick start (Docker)
+
+You need [Docker Desktop](https://www.docker.com/products/docker-desktop/) and a free [Plaid](https://dashboard.plaid.com/signup) account. An [Anthropic API key](https://console.anthropic.com/) or [Ollama](https://ollama.com) is optional and turns on the AI features.
+
+```sh
+git clone <this repo> meld && cd meld
+./scripts/setup.sh            # creates .env with fresh secrets and asks for a login passphrase
+# add your Plaid keys (and optionally ANTHROPIC_API_KEY) to .env
+docker compose up -d --build
+```
+
+Open http://localhost:8080 and unlock with your passphrase. Start with Plaid's Sandbox to look around, then follow [docs/plaid.md](docs/plaid.md) to connect your real accounts (free for up to 10 bank and brokerage logins).
+
+- **Update:** `git pull && docker compose up -d --build`. Database migrations run automatically.
+- **Stop:** `docker compose down`. Your data stays in Docker volumes (`meld-db`, `meld-documents`); `docker compose down -v` deletes it.
+- **Back up:** `docker compose exec db pg_dump -U meld meld > meld-backup.sql`, and keep `.env` somewhere safe too: without its `ENCRYPTION_KEY` you'd have to re-link your accounts.
+- **Change settings:** edit `.env`, then `docker compose up -d`.
+
+### Reaching Meld from other devices
+
+Meld only listens on `localhost`, and its login is a single passphrase, so don't open it to the internet. To use it from your phone or another computer, put both on a private network such as [Tailscale](https://tailscale.com) and use `tailscale serve 8080` on the machine running Meld, which adds HTTPS and keeps it off the public internet.
+
+## Development setup
 
 ```
 apps/api        Fastify + TypeScript API: Plaid, AI, data (Postgres via Drizzle)
@@ -12,34 +36,27 @@ apps/mobile     Expo (expo-router) app → web, iOS, Android
 packages/shared Zod schemas + types shared by app and API
 ```
 
-## Prerequisites
-
-- Node 22+ and npm
-- Docker Desktop (for Postgres)
-- Plaid keys (https://dashboard.plaid.com/developers/keys) — Sandbox works for development
-- An Anthropic API key (for the AI features)
-
-## Setup
+You need Node 22+ and npm, plus Docker for Postgres.
 
 ```sh
 npm install
-cp .env.example .env          # then fill in secrets (see comments in the file)
-npm run db:up                 # start Postgres in Docker (localhost only)
-docker compose exec db createdb -U meld meld_sandbox   # once: the sandbox database
+./scripts/setup.sh            # or: cp .env.example .env and fill it in by hand
+npm run db:up                 # start only Postgres in Docker (localhost only)
+docker compose exec db createdb -U meld meld_test       # once: the test database
 npm run db:migrate            # apply migrations to both databases
 npm run dev                   # API on :4000, Expo web on :8081
 ```
 
 Open http://localhost:8081 and unlock with `APP_PASSPHRASE`.
 
-Generate secrets with `openssl rand -base64 32` (`SESSION_SECRET` and `ENCRYPTION_KEY`).
+If your Postgres volume predates `docker/initdb`, create the sandbox database once with `docker compose exec db createdb -U meld meld_sandbox`.
 
 ## Linking accounts (Plaid)
 
 Use **Accounts → Link account** in the web app. Accounts and balances sync immediately; transaction history (up to 2 years) arrives over the next minute or so and is fetched automatically. Every linked connection also re-syncs every 6 hours while the API is running, or on demand with **Refresh**.
 
 - **Sandbox** (`PLAID_ENV=sandbox`): pick any institution and sign in with `user_good` / `pass_good`.
-- **Real accounts** (`PLAID_ENV=production`): needs Plaid production access (or a Trial plan); set `PLAID_PRODUCTION_SECRET`. Each environment has its own secret and its own database (`SANDBOX_DATABASE_URL`, `PRODUCTION_DATABASE_URL`), so sandbox data never mixes with real data. Switching is just `PLAID_ENV` plus an API restart.
+- **Real accounts** (`PLAID_ENV=production`): needs Plaid production access; the free Trial plan covers up to 10 logins (see [docs/plaid.md](docs/plaid.md)). Set `PLAID_PRODUCTION_SECRET`. Each environment has its own secret and its own database (`SANDBOX_DATABASE_URL`, `PRODUCTION_DATABASE_URL`), so sandbox data never mixes with real data. Switching is just `PLAID_ENV` plus an API restart.
 - If a bank needs you to sign in again, the connection shows **Reconnect**, which reopens Plaid Link in update mode.
 - Linking on iOS/Android arrives with the mobile phase; use the web app until then.
 
@@ -106,8 +123,9 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts a
 
 - Add life and disability policies under **Plan → Insurance**, including coverage through work. It totals your life coverage, monthly disability benefit and yearly premiums. Term policies past their end date aren't counted.
 - Whole and universal life policies count toward net worth at their surrender value, and are listed under **Insurance cash value** on the Accounts tab, which links back to each policy.
-- **Upload PDF** on the Add policy page sends a policy, certificate or benefits summary to the AI provider (Claude by default), which fills in the form and flags anything it inferred or couldn't find. Nothing is saved until you check the fields and press **Save**. Needs `ANTHROPIC_API_KEY`.
-- Uploaded PDFs are stored in `data/documents/` (gitignored; change with `DOCUMENTS_DIR`). A PDF is deleted with its policy, when you cancel the draft, or after a day if it was never saved.
+- **Upload PDF** on the Add policy page sends a policy, certificate or benefits summary to the AI provider (Claude by default), which fills in the form and flags anything it inferred or couldn't find. Nothing is saved until you check the fields and press **Save**. Needs `ANTHROPIC_API_KEY`; without it the page explains how to turn it on and you fill in the form by hand.
+- **Attach PDF** keeps a copy of the policy document with any policy, new or existing, with no AI involved: nothing is sent anywhere. **Replace PDF** and **Remove** take effect when you save, and the old file is deleted.
+- Uploaded PDFs are encrypted with `ENCRYPTION_KEY` and stored in `data/documents/` (gitignored; change with `DOCUMENTS_DIR`). PDFs saved before encryption was added are encrypted the next time the API starts. A PDF is deleted with its policy, when you cancel the draft, or after a day if it was never saved.
 - Only the last 4 characters of policy numbers are stored.
 
 ## Ask Meld (AI chat)
@@ -117,15 +135,17 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts a
 - Add your income, filing status, state, age and employer benefits under **Plan → Profile** (also in the account menu on web) for better tax and insurance answers.
 - Uses Claude through a provider interface in `apps/api/src/ai/provider.ts`, so other providers can be added. Chat defaults to `ANTHROPIC_CHAT_MODEL` (default `claude-sonnet-5-5`), property value lookups use `ANTHROPIC_LOOKUP_MODEL` (default `claude-haiku-5-5`), and policy PDF extraction `ANTHROPIC_MODEL` (default `claude-opus-5-5`).
 - **Pick the model** under the chat box: any of `ANTHROPIC_CHAT_MODELS` (Opus, Sonnet, Haiku by default; Haiku costs least), or a local model through [Ollama](https://ollama.com). The choice is remembered, and you can switch mid-conversation.
-- **Local models:** install Ollama, pull a model that supports tool calling (e.g. `ollama pull qwen3.5`), set `OLLAMA_URL=http://127.0.0.1:11434` and restart the API. Every installed model with tool support is listed, or set `OLLAMA_CHAT_MODELS` to choose. Local models are free and keep your data on your machine, but answer less reliably than Claude. Chat works with only Ollama set up; the other AI features still need `ANTHROPIC_API_KEY`.
+- **Local models:** install Ollama, pull a model that supports tool calling (e.g. `ollama pull qwen3.5`), set `OLLAMA_URL=http://127.0.0.1:11434` (or `http://host.docker.internal:11434` when Meld runs in Docker) and restart the API. Every installed model with tool support is listed, or set `OLLAMA_CHAT_MODELS` to choose. Local models are free and keep your data on your machine, but answer less reliably than Claude. Chat works with only Ollama set up; the other AI features still need `ANTHROPIC_API_KEY`.
 - Privacy: with a Claude model, your question and the data the AI looks up are sent to Anthropic; with a local Ollama model they stay on your machine. Long digit runs (account, card and policy numbers) are masked first either way.
 
 ## Common commands
 
 | Command | What it does |
 | --- | --- |
+| `docker compose up -d --build` | Run all of Meld in Docker at http://localhost:8080 |
 | `npm run dev` | API + Expo web together |
 | `npm run dev:api` / `npm run dev:web` | Run one side only |
+| `npm run db:up` | Start only Postgres (for `npm run dev`) |
 | `npm run db:generate` | Create a migration after editing `apps/api/src/db/schema.ts` |
 | `npm run db:migrate` | Apply migrations to the sandbox and production databases |
 | `npm run typecheck` | Typecheck all packages |
@@ -133,7 +153,16 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts a
 
 ## Security notes
 
-- Plaid access tokens are encrypted at rest (AES-256-GCM, `ENCRYPTION_KEY`). Losing the key means re-linking accounts.
-- The API and Postgres bind to `127.0.0.1` only.
-- Auth is a single-user passphrase that issues a bearer token. Replace it with a real identity provider before hosting.
-- AI features send financial data to the configured LLM provider. Account numbers are masked first. Insurance PDF upload sends the whole document.
+- Plaid access tokens and uploaded PDFs are encrypted at rest (AES-256-GCM, `ENCRYPTION_KEY`). Losing the key means re-linking accounts and losing access to stored PDFs.
+- The API and Postgres bind to `127.0.0.1` only; in Docker, only the web container's port is published, also on `127.0.0.1`.
+- Auth is a single-user passphrase that issues a bearer token, with 10 login attempts allowed per 15 minutes. It's built for one household on one machine, not for hosting other people's data.
+- AI features send financial data to the configured LLM provider. Account numbers are masked first. Insurance PDF upload sends the whole document. Details in [PRIVACY.md](PRIVACY.md).
+- Meld's estimates and suggestions (tax, retirement, Ask Meld) are for planning and education, not professional financial, tax or legal advice.
+
+## Contributing
+
+Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+[GNU AGPL v3](LICENSE). You can use, change and share Meld freely. If you run a modified version as a service for other people, you must share your changes under the same license.

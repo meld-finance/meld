@@ -10,3 +10,9 @@ export const LoginResponse = z.object({
   expiresAt: z.string(),
 });
 export type LoginResponse = z.infer<typeof LoginResponse>;
+
+/** What this install can do, so the app can offer a feature or explain how to turn it on. */
+export type AppFeatures = {
+  /** Cloud AI (ANTHROPIC_API_KEY) is set up: home and vehicle value lookups and policy PDF reading. */
+  cloudAI: boolean;
+};
