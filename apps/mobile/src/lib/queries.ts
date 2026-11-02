@@ -11,6 +11,8 @@ import type {
   BudgetStatus,
   BudgetUpsert,
   CashflowMonth,
+  CashPlan,
+  CashSettings,
   CashflowPeriod,
   CategoryDetail,
   CategoryMonth,
@@ -79,6 +81,7 @@ export const keys = {
   chatSession: (id: string) => ['chat', 'sessions', id] as const,
   profile: ['profile'] as const,
   tax: ['tax'] as const,
+  cash: ['cash'] as const,
   retirement: ['retirement'] as const,
   /** null is the active scenario. */
   retirementScenario: (id: string | null) => ['retirement', 'scenario', id ?? 'active'] as const,
@@ -312,6 +315,7 @@ function useInvalidateFinancialData() {
       qc.invalidateQueries({ queryKey: ['investments'] }),
       qc.invalidateQueries({ queryKey: keys.retirement }),
       qc.invalidateQueries({ queryKey: keys.tax }),
+      qc.invalidateQueries({ queryKey: keys.cash }),
     ]);
 }
 
@@ -478,6 +482,19 @@ export function useSaveTaxSettings(year: number) {
     mutationFn: (settings: TaxSettings) =>
       api<TaxSettings>(`/tax/settings?year=${year}`, { method: 'PUT', body: JSON.stringify(settings) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: [...keys.tax, year] }),
+  });
+}
+
+/** Liquid cash, what it earns, and the emergency fund it adds up to. */
+export function useCashPlan() {
+  return useQuery({ queryKey: keys.cash, queryFn: () => api<CashPlan>('/cash') });
+}
+
+export function useSaveCashSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (settings: CashSettings) => api<CashSettings>('/cash/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.cash }),
   });
 }
 

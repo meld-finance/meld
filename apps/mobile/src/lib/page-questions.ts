@@ -32,6 +32,15 @@ const BY_PAGE: Record<string, PageQuestions> = {
       'Should I pay extra on my mortgage?',
     ],
   },
+  '/accounts?cash': {
+    page: 'your cash',
+    questions: [
+      'How big should my emergency fund be, and do I have enough?',
+      'Where could my cash earn a better rate?',
+      'Should I invest my extra cash or pay down debt?',
+      'Is a money market fund or a high-yield savings account better for me?',
+    ],
+  },
   '/accounts?investments': {
     page: 'your investments',
     questions: [

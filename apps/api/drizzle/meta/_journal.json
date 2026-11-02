@@ -134,6 +134,13 @@
       "when": 1793210477227,
       "tag": "0018_tax_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793638544020,
+      "tag": "0019_cash_settings",
+      "breakpoints": true
     }
   ]
 }

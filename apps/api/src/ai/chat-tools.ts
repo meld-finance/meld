@@ -19,6 +19,7 @@ import type { Db } from '../db/client';
 import { accounts, investmentTransactions, manualAssets, securities } from '../db/schema';
 import { localDate } from '../lib/networth';
 import { listAccounts, listLiabilities } from '../services/accounts';
+import { getCashPlan } from '../services/cash';
 import { listPolicies } from '../services/insurance';
 import { getInvestmentsSummary } from '../services/investments';
 import { getInvestmentPerformance } from '../services/performance';
@@ -266,6 +267,14 @@ export function createChatTools(db: Db): ChatTool[] {
       input: z.object({ year: z.number().int().min(2000).max(2100).optional().describe('Tax year; this year when left out') }),
       label: ({ year }) => `Checked your ${year ?? 'current'} tax estimate`,
       run: ({ year }) => getTaxPlan(db, year ?? Number(localDate().slice(0, 4))),
+    }),
+    tool({
+      name: 'get_cash_plan',
+      description:
+        'Liquid cash and emergency fund from Accounts → Cash. `positions`: checking, savings and money market accounts (kind bank), money market funds and cash ETFs (fund) and brokerage sweep cash (sweep), each with its value (the user’s share), yearly rate `apy` as a fraction and where it came from (`entered` by the user, bank `interest` paid lately, fund `distributions` over the last year, or `assumed` to be about the Treasury rate), whether it’s in a tax-advantaged account (not available for emergencies) and whether the user `earmarked` it for something else. `totals`: emergency cash, the blended rate, interest a year and `missedInterest` (extra a year at the benchmark rate). `benchmark.apy` is what high-yield savings and money market funds pay now (3-month Treasury yield unless entered). `spending.monthly` is entered or the average of recent complete months; `emergency` is the target months, the target, months of runway and the gap (positive is extra cash, negative is a shortfall). `suggestions` are rule-based nudges with the extra interest a year where there is one.',
+      input: z.object({}),
+      label: () => 'Checked your cash and emergency fund',
+      run: () => getCashPlan(db),
     }),
     tool({
       name: 'get_investment_transactions',

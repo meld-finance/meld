@@ -1,4 +1,5 @@
 import type {
+  CashSettings,
   Child,
   RetirementInputs,
   RetirementPlan,
@@ -337,6 +338,14 @@ export const taxSettings = pgTable('tax_settings', {
   year: integer('year').primaryKey(),
   /** TaxSettings; read over EMPTY_TAX_SETTINGS so fields added later still parse. */
   settings: jsonb('settings').$type<TaxSettings>().notNull(),
+  ...timestamps,
+});
+
+/** Single-row table holding the cash page's settings. */
+export const cashSettings = pgTable('cash_settings', {
+  id: integer('id').primaryKey().default(1),
+  /** CashSettings; read over EMPTY_CASH_SETTINGS so fields added later still parse. */
+  settings: jsonb('settings').$type<CashSettings>().notNull(),
   ...timestamps,
 });
 

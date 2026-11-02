@@ -12,6 +12,7 @@ import { HttpError } from './lib/http';
 import { getPlaidError } from './plaid/client';
 import type { SyncDeps } from './plaid/sync';
 import { registerAccountRoutes } from './routes/accounts';
+import { registerCashRoutes } from './routes/cash';
 import { registerChatRoutes } from './routes/chat';
 import { registerInsuranceRoutes } from './routes/insurance';
 import { registerManualAssetRoutes } from './routes/manual-assets';
@@ -87,6 +88,7 @@ export async function buildServer(deps: AppDeps) {
   await registerProfileRoutes(app, deps);
   await registerRetirementRoutes(app, deps);
   await registerTaxRoutes(app, deps);
+  await registerCashRoutes(app, deps);
   await registerChatRoutes(app, deps);
 
   return app;
