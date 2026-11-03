@@ -18,6 +18,8 @@ import { useThemePref, type ThemePref } from '@/lib/theme-pref';
 
 /** Below this window width the sidebar collapses to an icon rail. */
 const COMPACT_BELOW = 1000;
+/** Below this window width (phones) the nav moves to a bottom tab bar, leaving the page the full width. */
+const PHONE_BELOW = 640;
 
 // Web: a left sidebar instead of a bottom tab bar. Keep the order in step with _layout.tsx.
 export default function TabLayout() {
@@ -28,49 +30,72 @@ export default function TabLayout() {
   );
 }
 
+type NavLayout = 'wide' | 'compact' | 'phone';
+
 function TabNavigator() {
-  const compact = useWindowDimensions().width < COMPACT_BELOW;
+  const width = useWindowDimensions().width;
+  const layout: NavLayout = width < PHONE_BELOW ? 'phone' : width < COMPACT_BELOW ? 'compact' : 'wide';
+  const phone = layout === 'phone';
   const panel = useChatPanel();
   // Hidden rather than unmounted, so the page keeps its scroll and state under an expanded chat.
   const pageHidden = !!panel?.isOpen && panel.expanded;
+  // TabTriggers must be the nav's direct children so Tabs can discover them.
+  const items = [
+    <TabTrigger key="index" name="index" href="/" asChild>
+      <NavItem icon="home" layout={layout}>
+        Home
+      </NavItem>
+    </TabTrigger>,
+    <TabTrigger key="ask" name="ask" href="/ask" asChild>
+      <NavItem icon="sparkles" layout={layout}>
+        Ask Meld
+      </NavItem>
+    </TabTrigger>,
+    <TabTrigger key="accounts" name="accounts" href="/accounts" asChild>
+      <NavItem icon="wallet" layout={layout}>
+        Accounts
+      </NavItem>
+    </TabTrigger>,
+    <TabTrigger key="spending" name="spending" href="/spending" asChild>
+      <NavItem icon="barChart" layout={layout}>
+        Spending
+      </NavItem>
+    </TabTrigger>,
+    <TabTrigger key="plan" name="plan" href="/plan" asChild>
+      <NavItem icon="flag" layout={layout}>
+        Plan
+      </NavItem>
+    </TabTrigger>,
+  ];
   return (
-    <Tabs style={styles.root}>
-      {/* TabTriggers must be the sidebar's direct children so Tabs can discover them. */}
-      <TabList asChild>
-        <Sidebar compact={compact}>
-          <TabTrigger name="index" href="/" asChild>
-            <NavItem icon="home" compact={compact}>
-              Home
-            </NavItem>
-          </TabTrigger>
-          <TabTrigger name="ask" href="/ask" asChild>
-            <NavItem icon="sparkles" compact={compact}>
-              Ask Meld
-            </NavItem>
-          </TabTrigger>
-          <TabTrigger name="accounts" href="/accounts" asChild>
-            <NavItem icon="wallet" compact={compact}>
-              Accounts
-            </NavItem>
-          </TabTrigger>
-          <TabTrigger name="spending" href="/spending" asChild>
-            <NavItem icon="barChart" compact={compact}>
-              Spending
-            </NavItem>
-          </TabTrigger>
-          <TabTrigger name="plan" href="/plan" asChild>
-            <NavItem icon="flag" compact={compact}>
-              Plan
-            </NavItem>
-          </TabTrigger>
-        </Sidebar>
-      </TabList>
-      <ThemedView style={[styles.main, pageHidden && styles.hidden]}>
-        <TopBar />
-        <TabSlot style={styles.main} />
-      </ThemedView>
-      <ChatPanel />
+    <Tabs style={[styles.root, phone && styles.rootPhone]}>
+      {!phone && (
+        <TabList asChild>
+          <Sidebar compact={layout === 'compact'}>{items}</Sidebar>
+        </TabList>
+      )}
+      <View style={styles.content}>
+        <ThemedView style={[styles.main, pageHidden && styles.hidden]}>
+          <TopBar phone={phone} />
+          <TabSlot style={styles.main} />
+        </ThemedView>
+        <ChatPanel />
+      </View>
+      {phone && (
+        <TabList asChild>
+          <BottomBar>{items}</BottomBar>
+        </TabList>
+      )}
     </Tabs>
+  );
+}
+
+function BottomBar({ children, style: _style, ...props }: TabListProps) {
+  const theme = useTheme();
+  return (
+    <View {...props} style={[styles.bottomBar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      {children}
+    </View>
   );
 }
 
@@ -150,12 +175,26 @@ function ThemeToggle({ compact }: { compact: boolean }) {
   );
 }
 
-type NavItemProps = Omit<TabTriggerSlotProps, 'children'> & { icon: IconName; compact: boolean; children: string };
+type NavItemProps = Omit<TabTriggerSlotProps, 'children'> & { icon: IconName; layout: NavLayout; children: string };
 
 // `ref` is dropped: the slot's ref type doesn't match Pressable's, and nav items don't need one.
-function NavItem({ icon, compact, children, isFocused, ref: _ref, ...props }: NavItemProps) {
+function NavItem({ icon, layout, children, isFocused, ref: _ref, ...props }: NavItemProps) {
   const theme = useTheme();
   const [hovered, setHovered] = useState(false);
+  const compact = layout === 'compact';
+  if (layout === 'phone') {
+    return (
+      <Pressable {...props} accessibilityLabel={children} style={({ pressed }) => [styles.tabItem, pressed && styles.pressed]}>
+        <Icon name={icon} size={22} themeColor={isFocused ? 'tint' : 'textSecondary'} />
+        <ThemedText
+          numberOfLines={1}
+          themeColor={isFocused ? 'text' : 'textSecondary'}
+          style={[styles.tabLabel, isFocused && styles.navTextActive]}>
+          {children}
+        </ThemedText>
+      </Pressable>
+    );
+  }
   return (
     <Pressable
       {...props}
@@ -178,7 +217,7 @@ function NavItem({ icon, compact, children, isFocused, ref: _ref, ...props }: Na
   );
 }
 
-function TopBar() {
+function TopBar({ phone }: { phone: boolean }) {
   const theme = useTheme();
   const accent = useAccents().blue;
   const panel = useChatPanel();
@@ -195,7 +234,12 @@ function TopBar() {
     .join('');
 
   return (
-    <View style={styles.topBar}>
+    <View style={[styles.topBar, phone && styles.topBarPhone]}>
+      {phone && (
+        <View style={styles.topBrand}>
+          <Logo />
+        </View>
+      )}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Ask Meld about this page"
@@ -237,14 +281,14 @@ function TopBar() {
             <Icon name="user" size={16} color={theme.backgroundElement} />
           )}
         </View>
-        <ThemedText type="small">{firstName ?? 'Account'}</ThemedText>
+        {!phone && <ThemedText type="small">{firstName ?? 'Account'}</ThemedText>}
         <Icon name="chevronDown" size={16} themeColor="textSecondary" />
       </Pressable>
       {open && (
         <>
           {/* Click-away layer behind the menu. */}
           <Pressable style={styles.backdrop} onPress={() => setOpen(false)} accessibilityLabel="Close menu" />
-          <ThemedView type="backgroundElement" style={[styles.menu, { borderColor: theme.border }]}>
+          <ThemedView type="backgroundElement" style={[styles.menu, phone && styles.menuPhone, { borderColor: theme.border }]}>
             <MenuItem
               icon="user"
               onPress={() => {
@@ -253,6 +297,12 @@ function TopBar() {
               }}>
               Profile
             </MenuItem>
+            {/* Phones have no sidebar, so the theme toggle lives here. */}
+            {phone && (
+              <View style={styles.menuTheme}>
+                <ThemeToggle compact={false} />
+              </View>
+            )}
             <MenuItem icon="lock" onPress={logout}>
               Lock
             </MenuItem>
@@ -291,7 +341,12 @@ function Logo() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, flexDirection: 'row' },
+  rootPhone: { flexDirection: 'column' },
+  content: { flex: 1, flexDirection: 'row' },
   main: { flex: 1 },
+  bottomBar: { flexDirection: 'row', borderTopWidth: 1, paddingVertical: Spacing.one },
+  tabItem: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: Spacing.one, minWidth: 0 },
+  tabLabel: { fontSize: 11, lineHeight: 14 },
   hidden: { display: 'none' },
   sidebar: {
     width: 248,
@@ -336,6 +391,8 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.three,
     zIndex: 10,
   },
+  topBarPhone: { paddingHorizontal: Spacing.three },
+  topBrand: { marginRight: 'auto' },
   askButton: {
     width: 36,
     height: 36,
@@ -373,6 +430,8 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
   },
+  menuPhone: { right: Spacing.three },
+  menuTheme: { padding: Spacing.one },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
