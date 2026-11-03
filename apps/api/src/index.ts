@@ -6,6 +6,7 @@ import { createPlaidClient } from './plaid/client';
 import { syncAllItems } from './plaid/sync';
 import { pruneOrphanDocuments } from './routes/insurance';
 import { buildServer } from './server';
+import { evaluateAlerts } from './services/alerts';
 import { recordSnapshot } from './services/overview';
 import { createStorage } from './storage';
 
@@ -28,6 +29,8 @@ await app.listen({ port: env.API_PORT, host: env.API_HOST });
 async function scheduledRefresh() {
   await syncAllItems(sync, (msg) => app.log.warn(msg));
   await recordSnapshot(db).catch((err) => app.log.error({ err }, 'Net worth snapshot failed'));
+  // Due dates come closer without any new data, so check even when nothing synced.
+  await evaluateAlerts(db).catch((err) => app.log.error({ err }, 'Alert check failed'));
   await pruneOrphanDocuments(db, storage).catch((err) => app.log.error({ err }, 'Document cleanup failed'));
 }
 void recordSnapshot(db).catch((err) => app.log.error({ err }, 'Net worth snapshot failed'));

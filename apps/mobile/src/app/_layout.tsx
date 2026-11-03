@@ -28,6 +28,7 @@ function RootNavigator() {
         <Stack.Screen name="chat/[id]" />
         <Stack.Screen name="category/[category]" />
         <Stack.Screen name="rules" />
+        <Stack.Screen name="alerts" />
       </Stack.Protected>
       <Stack.Protected guard={!isLoggedIn} redirectTo="/">
         <Stack.Screen name="login" />

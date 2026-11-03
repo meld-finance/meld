@@ -71,6 +71,20 @@ const ICONS = {
       <Path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
     </>
   ),
+  bell: (
+    <>
+      <Path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9Z" />
+      <Path d="M10 20.5a2.2 2.2 0 0 0 4 0" />
+    </>
+  ),
+  repeat: (
+    <>
+      <Path d="M17 2l3 3-3 3" />
+      <Path d="M4 11V9a4 4 0 0 1 4-4h12" />
+      <Path d="M7 22l-3-3 3-3" />
+      <Path d="M20 13v2a4 4 0 0 1-4 4H4" />
+    </>
+  ),
   barChart: <Path d="M4 20h16M7 16v-5M12 16V6M17 16v-8" />,
   calendar: (
     <>

@@ -31,6 +31,8 @@ import {
   getSpendingByCategory,
 } from '../services/overview';
 import { getProfile } from '../services/profile';
+import { listAlerts } from '../services/alerts';
+import { getRecurringSummary } from '../services/recurring';
 import { getRetirement } from '../services/retirement';
 import { getTaxPlan } from '../services/tax';
 import { listCategories, queryTransactions, totalsByMerchant } from '../services/transactions';
@@ -275,6 +277,17 @@ export function createChatTools(db: Db): ChatTool[] {
       input: z.object({}),
       label: () => 'Checked your cash and emergency fund',
       run: () => getCashPlan(db),
+    }),
+    tool({
+      name: 'get_recurring',
+      description:
+        'Recurring charges, autopay and alerts from Spending → Recurring. `series`: subscriptions, bills and income (paychecks) Meld detected from transactions that repeat on a schedule, each with its cadence, expected `amount` (`amountVaries` for bills like utilities), `monthlyAmount`, the account charged, first/last/next dates, `status` (`active`, `stopped` when charges stopped and it may have been canceled, `ignored` when the user said it isn’t recurring) and `priceChange` when the latest charge differs from a steady price. `autopay`: cards and loans the user said are paid automatically from a bank account, each with the next `dueDate` and `amount` (`amountSource` statement, minimum, fixed, scheduled loan payment, or `estimate` from the current balance when the next statement isn’t out), the funding account’s balance, other payments and paychecks before the due date (`before`), `projectedAfter` and `health` (covered, tight, short, paid, unknown). `suggestions`: cards or loans that look paid from a bank account each month but have no autopay set up in Meld. `upcoming`: what’s due over the next 30 days. `alerts`: open and recent alerts (autopay shortfalls, low balances, large charges, price increases, new recurring charges, bank connections).',
+      input: z.object({}),
+      label: () => 'Checked recurring payments and alerts',
+      run: async () => {
+        const [summary, alerts] = await Promise.all([getRecurringSummary(db), listAlerts(db)]);
+        return { ...summary, alerts: alerts.alerts.filter((a) => !a.dismissedAt && !a.resolvedAt) };
+      },
     }),
     tool({
       name: 'get_investment_transactions',

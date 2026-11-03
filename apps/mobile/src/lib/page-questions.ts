@@ -69,6 +69,15 @@ const BY_PAGE: Record<string, PageQuestions> = {
       'How much do I spend eating out each month?',
     ],
   },
+  '/spending?recurring': {
+    page: 'your recurring payments',
+    questions: [
+      'Which subscriptions could I cancel?',
+      'Will my checking account cover everything due this month?',
+      'Did any of my bills or subscriptions go up recently?',
+      'How much do I spend on subscriptions a year?',
+    ],
+  },
   '/spending?budgets': {
     page: 'your budgets',
     questions: [

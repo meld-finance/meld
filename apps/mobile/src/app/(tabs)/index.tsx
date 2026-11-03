@@ -2,6 +2,7 @@ import type { NetWorthPoint } from '@meld/shared';
 import { Link } from 'expo-router';
 import { Platform, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
+import { HomeAlerts } from '@/components/alerts/alert-row';
 import { Card } from '@/components/card';
 import { BudgetMeter } from '@/components/charts/budget-meter';
 import { CashflowChart } from '@/components/charts/cashflow-chart';
@@ -188,6 +189,7 @@ export default function HomeScreen() {
         <View style={styles.split}>
           <View style={styles.main}>
             {header}
+            <HomeAlerts />
             {dashboard}
           </View>
           <AskMeldPanel style={styles.sidePanel} />
@@ -195,6 +197,7 @@ export default function HomeScreen() {
       ) : (
         <>
           {header}
+          <HomeAlerts />
           <AskMeldPanel />
           {dashboard}
         </>
