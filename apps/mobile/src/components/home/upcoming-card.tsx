@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -6,38 +6,87 @@ import { Card } from '@/components/card';
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { useAccents } from '@/hooks/use-accents';
 import { useTheme } from '@/hooks/use-theme';
-import { formatCurrency, formatDate } from '@/lib/format';
-import type { UpcomingPayment } from '@/lib/upcoming';
+import { formatCurrency, formatDate, formatWholeCurrency } from '@/lib/format';
+import { daysBetween, type Upcoming } from '@/lib/home';
 
-const COLLAPSED = 3;
+const COLLAPSED = 8;
 
-export function UpcomingCard({ payments, style }: { payments: UpcomingPayment[]; style?: object }) {
+function dayLabel(today: string, date: string) {
+  const days = daysBetween(today, date);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  const weekday = new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short' });
+  return `${weekday}, ${formatDate(date)}`;
+}
+
+/** Money moving in the next couple of weeks, by day: bills, autopay, premiums and paychecks. */
+export function UpcomingCard({ items, today, days, style }: { items: Upcoming[]; today: string; days: number; style?: object }) {
   const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? payments : payments.slice(0, COLLAPSED);
+  const shown = expanded ? items : items.slice(0, COLLAPSED);
+  const out = items.reduce((s, i) => s + Math.max(i.amount ?? 0, 0), 0);
+  const income = items.reduce((s, i) => s - Math.min(i.amount ?? 0, 0), 0);
+  const groups = new Map<string, Upcoming[]>();
+  for (const i of shown) groups.set(i.date, [...(groups.get(i.date) ?? []), i]);
 
   return (
-    <Card title="Upcoming" style={style}>
-      {payments.length === 0 ? (
+    <Card
+      title="Coming up"
+      subtitle={
+        items.length
+          ? `Next ${days} days · ${formatWholeCurrency(out)} out${income ? ` · ${formatWholeCurrency(income)} in` : ''}`
+          : `Next ${days} days`
+      }
+      action={
+        <Pressable accessibilityRole="link" onPress={() => router.push('/spending?tab=recurring')}>
+          <ThemedText type="small" themeColor="tint">
+            Recurring →
+          </ThemedText>
+        </Pressable>
+      }
+      style={style}>
+      {items.length === 0 ? (
         <ThemedText type="small" themeColor="textSecondary">
-          No upcoming payments. Loan and card due dates appear after your accounts sync; premiums appear once a policy
-          has an amount, frequency and effective date.
+          Nothing due in the next {days} days. Bills, subscriptions and paychecks show up here once Meld has seen them repeat;
+          loan and card due dates once your accounts sync.
         </ThemedText>
       ) : (
-        <View>
-          {shown.map((p, i) => (
-            <View key={p.key} style={i > 0 && [styles.divider, { borderTopColor: theme.border }]}>
-              <UpcomingRow payment={p} />
+        <View style={styles.days}>
+          {[...groups].map(([date, rows]) => (
+            <View key={date} style={styles.day}>
+              <ThemedText type="smallBold" themeColor="textSecondary" style={styles.dayLabel}>
+                {dayLabel(today, date)}
+              </ThemedText>
+              {rows.map((u) => (
+                <Pressable
+                  key={u.key}
+                  onPress={() => router.push(u.href as Href)}
+                  style={({ pressed }) => [styles.row, { borderTopColor: theme.border }, pressed && styles.pressed]}>
+                  <Icon name={u.icon} size={16} themeColor="textSecondary" />
+                  <View style={styles.label}>
+                    <ThemedText type="small" numberOfLines={1}>
+                      {u.name}
+                    </ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary" numberOfLines={1} style={styles.detail}>
+                      {u.detail}
+                    </ThemedText>
+                  </View>
+                  <ThemedText type="smallBold" themeColor={u.amount !== null && u.amount < 0 ? 'positive' : 'text'}>
+                    {u.amount === null
+                      ? '—'
+                      : `${u.approximate ? '~' : ''}${u.amount < 0 ? '+' : ''}${formatCurrency(Math.abs(u.amount))}`}
+                  </ThemedText>
+                </Pressable>
+              ))}
             </View>
           ))}
         </View>
       )}
-      {payments.length > COLLAPSED && (
-        <Pressable onPress={() => setExpanded((e) => !e)} style={styles.viewAll}>
+      {items.length > COLLAPSED && (
+        <Pressable onPress={() => setExpanded((e) => !e)} style={styles.more}>
           <ThemedText type="small" themeColor="tint">
-            {expanded ? 'Show less' : `View all (${payments.length})`}
+            {expanded ? 'Show less' : `Show all ${items.length}`}
           </ThemedText>
         </Pressable>
       )}
@@ -45,37 +94,13 @@ export function UpcomingCard({ payments, style }: { payments: UpcomingPayment[];
   );
 }
 
-function UpcomingRow({ payment }: { payment: UpcomingPayment }) {
-  const accent = useAccents()[payment.accent];
-  return (
-    <Pressable
-      onPress={() => router.push(payment.href)}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-      <View style={[styles.badge, { backgroundColor: accent.bg }]}>
-        <Icon name={payment.icon} size={20} color={accent.fg} />
-      </View>
-      <View style={styles.label}>
-        <ThemedText numberOfLines={1}>{payment.label}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-          {payment.detail}
-        </ThemedText>
-      </View>
-      <View style={styles.amount}>
-        <ThemedText type="smallBold">{formatCurrency(payment.amount)}</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          Due {formatDate(payment.dueDate)}
-        </ThemedText>
-      </View>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three },
-  divider: { borderTopWidth: 1 },
-  badge: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  days: { gap: Spacing.three },
+  day: { gap: Spacing.one },
+  dayLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth },
   label: { flex: 1, minWidth: 0 },
-  amount: { alignItems: 'flex-end' },
-  viewAll: { alignSelf: 'flex-end', marginTop: 'auto' },
+  detail: { fontSize: 12 },
+  more: { alignSelf: 'flex-start' },
   pressed: { opacity: 0.6 },
 });
