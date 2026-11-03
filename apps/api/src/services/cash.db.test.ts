@@ -1,6 +1,6 @@
 import { EMPTY_CASH_SETTINGS } from '@meld/shared';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { accounts, balanceSnapshots, holdings, investmentTransactions, securities, transactions } from '../db/schema';
+import { accounts, holdings, investmentTransactions, securities, transactions } from '../db/schema';
 import { setupTestDb, testDatabaseUrl } from '../test/db';
 import { getCashPlan, getCashSettings, saveCashSettings, type MarketRates } from './cash';
 
@@ -76,14 +76,6 @@ describe.skipIf(!testDatabaseUrl)('cash plan (Postgres)', () => {
     await db.insert(investmentTransactions).values([
       { accountId: brokerage!.id, securityId: mmf!.id, date: '2026-09-30', name: 'Dividend', type: 'cash', subtype: 'dividend', amount: -20 },
     ]);
-    // Snapshot balances are your share: half the joint savings.
-    await db.insert(balanceSnapshots).values({
-      date: '2026-09-15',
-      totalAssets: 0,
-      totalLiabilities: 0,
-      netWorth: 0,
-      balances: { [savings!.id]: 12_000, [checking!.id]: 9_000 },
-    });
   });
 
   it('finds liquid cash and its rates', async () => {
@@ -93,8 +85,9 @@ describe.skipIf(!testDatabaseUrl)('cash plan (Postgres)', () => {
     expect(Object.keys(byName).sort()).toEqual(['Checking', 'Joint savings', 'Rollover IRA', 'SGOV', 'VMFXX']);
     expect(byName.Checking).toMatchObject({ value: 9_000, apy: 0, apySource: 'interest' });
     expect(byName['Joint savings']!.value).toBe(12_000);
-    // August has no balance on record; September's snapshot and the current balance cover Sep–Oct.
-    expect(byName['Joint savings']!.apy).toBeCloseTo((1 + 160 / 48_000) ** 12 - 1, 6);
+    // August's posting has none before it; September's and October's were earned on $23,840 and $23,920.
+    const apy = (interest: number, balance: number, days: number) => (1 + ((interest / balance / days) * 365) / 12) ** 12 - 1;
+    expect(byName['Joint savings']!.apy).toBeCloseTo((apy(80, 23_840, 30) + apy(80, 23_920, 31)) / 2, 8);
     expect(byName.SGOV).toMatchObject({ kind: 'fund', apy: 0.042, apySource: 'distributions' });
     expect(byName.VMFXX).toMatchObject({ apy: 0.04, apySource: 'assumed' });
     expect(byName['Rollover IRA']).toMatchObject({ kind: 'sweep', taxAdvantaged: true, apy: null });
@@ -111,38 +104,34 @@ describe.skipIf(!testDatabaseUrl)('cash plan (Postgres)', () => {
     expect(plan.suggestions.find((s) => s.id === 'emergency-extra')!.detail).toMatch(/\$800 on your credit cards is carried/);
   });
 
-  it('rates a bank account by its recent balance after a large balance moved out', async () => {
-    // Like a brokerage cash account: $36k earned July–August interest, then $25k moved out.
-    const [cash] = await ctx.db
+  it('rates each interest posting by the balance that earned it', async () => {
+    // Like Ally: interest on the 10th, $20k moved out mid-period, then $30k in after the last posting.
+    const [ally] = await ctx.db
       .insert(accounts)
-      .values({ source: 'manual', name: 'Cash Plus', type: 'depository', subtype: 'cash management', currentBalance: 11_067.21 })
+      .values({ source: 'manual', name: 'Online Savings', type: 'depository', subtype: 'savings', currentBalance: 40_000 })
       .returning({ id: accounts.id });
-    await ctx.db.insert(transactions).values(
-      [
-        ['2026-07-31', -102.06],
-        ['2026-08-31', -77.1],
-        ['2026-09-30', -30.33],
-        ['2026-10-30', -33.03],
-      ].map(([date, amount]) => ({
-        accountId: cash!.id,
-        date: date as string,
-        name: 'Interest',
-        amount: amount as number,
-        plaidCategoryDetailed: 'INCOME_INTEREST_EARNED',
-      })),
-    );
-    await ctx.db.insert(balanceSnapshots).values(
-      ['2026-10-27', '2026-10-28'].map((date) => ({
-        date,
-        totalAssets: 0,
-        totalLiabilities: 0,
-        netWorth: 0,
-        balances: { [cash!.id]: 11_034.18 },
-      })),
-    );
+    const tx = (date: string, amount: number, extra: Partial<typeof transactions.$inferInsert> = {}) => ({
+      accountId: ally!.id,
+      date,
+      name: 'Transfer',
+      amount,
+      ...extra,
+    });
+    const interest = { name: 'Interest Paid', plaidCategoryDetailed: 'INCOME_INTEREST_EARNED' };
+    await ctx.db.insert(transactions).values([
+      tx('2026-09-10', -75, interest),
+      tx('2026-09-21', 20_000),
+      tx('2026-10-10', -43.7, interest),
+      tx('2026-10-14', -30_000),
+      // Not in today's balance yet.
+      tx('2026-11-01', -5_000, { pending: true }),
+    ]);
     const plan = await getCashPlan(ctx.db, rates, TODAY);
-    // Only October's balance is known: 33.03 / 11,034.18 a month, 3.65% APY.
-    expect(plan.positions.find((p) => p.key === cash!.id)!.apy).toBeCloseTo(0.0365, 4);
+    // Sep 11–20 at $29,956.30, then $9,956.30 from the transfer through October's posting.
+    const balanceDays = 10 * 29_956.3 + 20 * 9_956.3;
+    const apy = plan.positions.find((p) => p.key === ally!.id)!.apy;
+    expect(apy).toBeCloseTo((1 + ((43.7 / balanceDays) * 365) / 12) ** 12 - 1, 8);
+    expect(apy).toBeCloseTo(0.032, 3);
   });
 
   it('saves settings and applies them', async () => {
