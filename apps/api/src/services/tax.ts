@@ -844,26 +844,53 @@ export function buildChecklist(ctx: ChecklistContext): ChecklistItem[] {
     });
   }
 
-  // Required minimum distributions, from the year you turn 73.
-  if (age !== null && age >= 73 && detected.traditionalIraBalance > 0) {
-    out.push({
-      id: 'rmd',
-      due: yearEnd,
-      dueLabel: 'Distribution deadline',
-      title: 'Take your required minimum distribution',
-      detail: `Pre-tax IRAs (${money(detected.traditionalIraBalance)}) need a minimum withdrawal by ${shortDate(yearEnd)}${
-        age === 73 ? `; the first one can wait until April 1, ${year + 1}, but then two land in ${year + 1}` : ''
-      }. Missing it costs 25% of the shortfall. It's last year's December 31 balance divided by an IRS life-expectancy factor.`,
-      impact: null,
-      suggestionId: null,
-      general: false,
-      question: `How much is my required minimum distribution for ${year}, and should I give part of it to charity?`,
-    });
-  }
+  const rmd = rmdItem(year, age, detected.traditionalIraBalance);
+  if (rmd) out.push(rmd);
+  out.push(fsaItem(year, ctx.employerBenefits));
 
-  // FSAs: Meld can't see them, so this rests on the profile's benefits, or is offered as a reminder.
-  const fsa = /\bFSA\b|flexible spending/i.test(ctx.employerBenefits ?? '');
-  out.push({
+  return finishChecklist(out, today, ctx.done);
+}
+
+/**
+ * The checklist before there's an estimate (no filing status or income yet): only the deadlines that
+ * don't rest on one. The card says what to fill in for the rest.
+ */
+export function checklistWithoutEstimate(year: number, today: string, age: number | null, traditionalIraBalance: number, employerBenefits: string | null, done: ReadonlySet<string>): ChecklistItem[] {
+  const rmd = rmdItem(year, age, traditionalIraBalance);
+  return finishChecklist([...(rmd ? [rmd] : []), fsaItem(year, employerBenefits)], today, done);
+}
+
+function finishChecklist(items: Omit<ChecklistItem, 'done'>[], today: string, done: ReadonlySet<string>): ChecklistItem[] {
+  return items
+    .filter((i) => i.due >= today)
+    .map((i) => ({ ...i, done: done.has(i.id) }))
+    .sort((a, b) => a.due.localeCompare(b.due) || Number(a.general) - Number(b.general) || (b.impact ?? 0) - (a.impact ?? 0));
+}
+
+/** Required minimum distributions, from the year you turn 73. */
+function rmdItem(year: number, age: number | null, traditionalIraBalance: number): Omit<ChecklistItem, 'done'> | null {
+  if (age === null || age < 73 || traditionalIraBalance <= 0) return null;
+  const yearEnd = `${year}-12-31`;
+  return {
+    id: 'rmd',
+    due: yearEnd,
+    dueLabel: 'Distribution deadline',
+    title: 'Take your required minimum distribution',
+    detail: `Pre-tax IRAs (${money(traditionalIraBalance)}) need a minimum withdrawal by ${shortDate(yearEnd)}${
+      age === 73 ? `; the first one can wait until April 1, ${year + 1}, but then two land in ${year + 1}` : ''
+    }. Missing it costs 25% of the shortfall. It's last year's December 31 balance divided by an IRS life-expectancy factor.`,
+    impact: null,
+    suggestionId: null,
+    general: false,
+    question: `How much is my required minimum distribution for ${year}, and should I give part of it to charity?`,
+  };
+}
+
+/** FSAs: Meld can't see them, so this rests on the profile's benefits, or is offered as a reminder. */
+function fsaItem(year: number, employerBenefits: string | null): Omit<ChecklistItem, 'done'> {
+  const yearEnd = `${year}-12-31`;
+  const fsa = /\bFSA\b|flexible spending/i.test(employerBenefits ?? '');
+  return {
     id: 'fsa',
     due: yearEnd,
     dueLabel: 'Plan year ends',
@@ -875,12 +902,7 @@ export function buildChecklist(ctx: ChecklistContext): ChecklistItem[] {
     suggestionId: null,
     general: !fsa,
     question: 'What can I spend my FSA balance on before it expires, and how much should I elect for next year?',
-  });
-
-  return out
-    .filter((i) => i.due >= today)
-    .map((i) => ({ ...i, done: ctx.done.has(i.id) }))
-    .sort((a, b) => a.due.localeCompare(b.due) || Number(a.general) - Number(b.general) || (b.impact ?? 0) - (a.impact ?? 0));
+  };
 }
 
 // --- Loading -----------------------------------------------------------------------
@@ -1192,9 +1214,14 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     checklist: [],
     notes: [],
   };
-  if (!profile.filingStatus || profile.annualGrossIncome === null) return plan;
-
   const ageAtYearEnd = profile.birthYear ? year - profile.birthYear : null;
+  if (!profile.filingStatus || profile.annualGrossIncome === null) {
+    return {
+      ...plan,
+      checklist: checklistWithoutEstimate(year, today, ageAtYearEnd, detected.traditionalIraBalance, profile.employerBenefits, new Set(checklistDone)),
+    };
+  }
+
   const k401Projected = Math.min(
     elapsed > 0 ? k401Contributions / elapsed : 0,
     fed.limits.k401 * Math.max(1, detected.k401Accounts) + fed.limits.k401CatchUp60to63,
