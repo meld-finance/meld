@@ -114,4 +114,16 @@ describe.skipIf(!testDatabaseUrl)('tax plan (Postgres)', () => {
     expect(plan.missing).toEqual(['filingStatus', 'income']);
     expect(plan.federal).toBeNull();
   });
+
+  it('still lists the deadlines that need no estimate', async () => {
+    await ctx.db.update(userProfile).set({ filingStatus: null, birthYear: 1950 });
+    await setChecklistDone(ctx.db, 2026, 'fsa', true);
+    const plan = await getTaxPlan(ctx.db, 2026, '2026-11-02');
+    expect(plan.missing).toEqual(['filingStatus']);
+    expect(plan.checklist.map((c) => [c.id, c.done])).toEqual([
+      ['rmd', false],
+      ['fsa', true],
+    ]);
+    expect((await getTaxPlan(ctx.db, 2026, '2027-01-02')).checklist).toEqual([]);
+  });
 });

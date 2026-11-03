@@ -8,7 +8,7 @@ import { Segmented } from '@/components/cashflow/segmented';
 import { Chip } from '@/components/chip';
 import { InsightCallout, StatTile, TabHeading, TileRow } from '@/components/investments/common';
 import { Field, Input, Row } from '@/components/plan/profile-tab';
-import { TaxChecklist } from '@/components/plan/tax-checklist';
+import { showsChecklist, TaxChecklist } from '@/components/plan/tax-checklist';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -51,7 +51,9 @@ function TaxPlanView({ plan, onShowProfile }: { plan: TaxPlan; onShowProfile: ()
   const { federal, state } = plan;
   return (
     <>
-      {plan.missing.length > 0 && (
+      {plan.missing.length > 0 && showsChecklist(plan) && <TaxChecklist plan={plan} onShowProfile={onShowProfile} />}
+
+      {plan.missing.length > 0 && !showsChecklist(plan) && (
         <Card title="A couple of details first" subtitle="The estimate needs your filing status and household gross income from your profile.">
           <View style={styles.buttons}>
             <Button label="Open profile" size="small" onPress={onShowProfile} />
@@ -80,7 +82,7 @@ function TaxPlanView({ plan, onShowProfile }: { plan: TaxPlan; onShowProfile: ()
             />
           </TileRow>
 
-          <TaxChecklist plan={plan} />
+          <TaxChecklist plan={plan} onShowProfile={onShowProfile} />
 
           <Suggestions suggestions={plan.suggestions} />
 

@@ -1,6 +1,7 @@
 import type { ChecklistItem, TaxPlan } from '@meld/shared';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
+import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
@@ -16,10 +17,24 @@ const longDate = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 const countdown = (days: number) => (days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`);
 
+const MISSING: Record<TaxPlan['missing'][number], { label: string; why: string }> = {
+  filingStatus: { label: 'Filing status', why: 'sets your brackets, standard deduction and contribution limits' },
+  income: { label: 'Household gross income', why: 'the base of the estimate that each move is priced against' },
+};
+
+/**
+ * Whether the checklist card shows: when it has items, or when profile details are missing and the
+ * year's deadlines (through the filing deadline) aren't all past, so it can say what to fill in.
+ */
+export function showsChecklist(plan: TaxPlan) {
+  return plan.checklist.length > 0 || (plan.missing.length > 0 && plan.asOf <= `${plan.year + 1}-04-15`);
+}
+
 /** The year's tax moves with a deadline, grouped by date and counting down. */
-export function TaxChecklist({ plan }: { plan: TaxPlan }) {
+export function TaxChecklist({ plan, onShowProfile }: { plan: TaxPlan; onShowProfile: () => void }) {
+  const theme = useTheme();
   const items = plan.checklist;
-  if (!items.length) return null;
+  if (!showsChecklist(plan)) return null;
   const yearEnd = `${plan.year}-12-31`;
   const toYearEnd = daysBetween(plan.asOf, yearEnd);
   const done = items.filter((i) => i.done).length;
@@ -38,18 +53,39 @@ export function TaxChecklist({ plan }: { plan: TaxPlan }) {
               {toYearEnd === 0 ? `is the last day of ${plan.year}` : `left in ${plan.year}`}
             </ThemedText>
           </View>
-        ) : (
+        ) : items.length > 0 ? (
           <View>
             <ThemedText style={styles.big}>{`${daysBetween(plan.asOf, items[0]!.due)} days`}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               to the next {plan.year} deadline
             </ThemedText>
           </View>
+        ) : (
+          <View />
         )}
-        <ThemedText type="small" themeColor="textSecondary">
-          {done} of {items.length} done
-        </ThemedText>
+        {items.length > 0 && (
+          <ThemedText type="small" themeColor="textSecondary">
+            {done} of {items.length} done
+          </ThemedText>
+        )}
       </View>
+      {plan.missing.length > 0 && (
+        <View style={[styles.missing, { borderColor: theme.border }]}>
+          <ThemedText type="smallBold">Add to your profile to fill in the rest</ThemedText>
+          {plan.missing.map((m) => (
+            <ThemedText key={m} type="small" themeColor="textSecondary">
+              • <ThemedText type="smallBold">{MISSING[m].label}</ThemedText>: {MISSING[m].why}
+            </ThemedText>
+          ))}
+          <ThemedText type="small" themeColor="textSecondary">
+            With them, the checklist adds dated moves priced off your estimate: loss and gain harvesting, 401(k), IRA and HSA room, Roth conversions,
+            charity, and the Q4 estimated payment or a withholding check.{items.length > 0 ? ' Until then, only deadlines that don’t depend on the estimate are listed.' : ''}
+          </ThemedText>
+          <View style={styles.missingActions}>
+            <Button label="Open profile" size="small" onPress={onShowProfile} />
+          </View>
+        </View>
+      )}
       {[...groups].map(([due, group]) => (
         <View key={due} style={styles.group}>
           <ThemedText type="smallBold">
@@ -131,6 +167,8 @@ function Row({ item, year }: { item: ChecklistItem; year: number }) {
 const styles = StyleSheet.create({
   hero: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: Spacing.three },
   big: { fontSize: 28, lineHeight: 36, fontWeight: 700, letterSpacing: -0.4, fontVariant: ['tabular-nums'] },
+  missing: { gap: Spacing.one, padding: Spacing.three, borderRadius: Spacing.three, borderWidth: 1 },
+  missingActions: { flexDirection: 'row', paddingTop: Spacing.one },
   group: { gap: Spacing.one },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingVertical: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth },
   done: { opacity: 0.6 },
