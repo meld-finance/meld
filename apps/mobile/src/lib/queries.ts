@@ -3,6 +3,11 @@ import type {
   AlertSettings,
   AppFeatures,
   AutopayLinkInput,
+  EstateDesignationInput,
+  EstateDocument,
+  EstateDocumentInput,
+  EstateSettings,
+  EstateSummary,
   RecurringOverride,
   RecurringSummary,
   UploadedDocument,
@@ -89,6 +94,7 @@ export const keys = {
   cash: ['cash'] as const,
   recurring: ['recurring'] as const,
   alerts: ['alerts'] as const,
+  estate: ['estate'] as const,
   alertSettings: ['alerts', 'settings'] as const,
   retirement: ['retirement'] as const,
   /** null is the active scenario. */
@@ -428,7 +434,8 @@ export function useSavePolicy() {
         method: id ? 'PUT' : 'POST',
         body: JSON.stringify(input),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.insurance }),
+    // Life policies' beneficiaries show on the Estate tab too.
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: keys.insurance }), qc.invalidateQueries({ queryKey: keys.estate })]),
   });
 }
 
@@ -436,7 +443,64 @@ export function useDeletePolicy() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api(`/insurance/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.insurance }),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: keys.insurance }), qc.invalidateQueries({ queryKey: keys.estate })]),
+  });
+}
+
+export function useEstate() {
+  return useQuery({ queryKey: keys.estate, queryFn: () => api<EstateSummary>('/estate') });
+}
+
+/** Estate changes can open or clear alerts, which the server rechecks just after saving. */
+function useInvalidateEstate() {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: keys.estate });
+    setTimeout(() => void qc.invalidateQueries({ queryKey: keys.alerts, exact: true }), 1_500);
+  };
+}
+
+export function useSaveDesignation() {
+  const invalidate = useInvalidateEstate();
+  return useMutation({
+    mutationFn: (input: EstateDesignationInput) => api('/estate/designations', { method: 'PUT', body: JSON.stringify(input) }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useEstateDocument(id: string | undefined) {
+  return useQuery({
+    queryKey: [...keys.estate, 'documents', id],
+    queryFn: () => api<EstateDocument>(`/estate/documents/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useSaveEstateDocument() {
+  const invalidate = useInvalidateEstate();
+  return useMutation({
+    mutationFn: ({ id, input }: { id?: string; input: EstateDocumentInput }) =>
+      api<EstateDocument>(id ? `/estate/documents/${id}` : '/estate/documents', {
+        method: id ? 'PUT' : 'POST',
+        body: JSON.stringify(input),
+      }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteEstateDocument() {
+  const invalidate = useInvalidateEstate();
+  return useMutation({
+    mutationFn: (id: string) => api(`/estate/documents/${id}`, { method: 'DELETE' }),
+    onSuccess: invalidate,
+  });
+}
+
+export function useSaveEstateSettings() {
+  const invalidate = useInvalidateEstate();
+  return useMutation({
+    mutationFn: (settings: EstateSettings) => api<EstateSettings>('/estate/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+    onSuccess: invalidate,
   });
 }
 

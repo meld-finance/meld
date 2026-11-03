@@ -25,6 +25,9 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="account/[id]" />
         <Stack.Screen name="insurance/[id]" />
+        <Stack.Screen name="estate/account/[id]" />
+        <Stack.Screen name="estate/asset/[id]" />
+        <Stack.Screen name="estate/document/[id]" />
         <Stack.Screen name="chat/[id]" />
         <Stack.Screen name="category/[category]" />
         <Stack.Screen name="rules" />

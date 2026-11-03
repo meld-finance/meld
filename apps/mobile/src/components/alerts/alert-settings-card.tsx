@@ -155,6 +155,12 @@ function SettingsForm({ initial }: { initial: AlertSettings }) {
         value={s.connection}
         onChange={(connection) => set({ connection })}
       />
+      <Toggle
+        label="Estate planning"
+        detail="An account or life policy with no beneficiary, or a family packet that’s out of date. Shown in the app, not pushed unless you push everything."
+        value={s.estate}
+        onChange={(estate) => set({ estate })}
+      />
 
       <Section
         label="Push to your phone"

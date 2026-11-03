@@ -15,6 +15,7 @@ import { registerAccountRoutes } from './routes/accounts';
 import { registerAlertRoutes } from './routes/alerts';
 import { registerCashRoutes } from './routes/cash';
 import { registerChatRoutes } from './routes/chat';
+import { registerEstateRoutes } from './routes/estate';
 import { registerInsuranceRoutes } from './routes/insurance';
 import { registerManualAssetRoutes } from './routes/manual-assets';
 import { registerOverviewRoutes } from './routes/overview';
@@ -93,6 +94,7 @@ export async function buildServer(deps: AppDeps) {
   await registerCashRoutes(app, deps);
   await registerRecurringRoutes(app, deps);
   await registerAlertRoutes(app, deps);
+  await registerEstateRoutes(app, deps);
   await registerChatRoutes(app, deps);
 
   return app;

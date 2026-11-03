@@ -7,15 +7,15 @@ import {
   type Beneficiary,
   type InsurancePolicyInput,
 } from '@meld/shared';
-import { useState, type ReactNode } from 'react';
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
+import { BeneficiariesEditor, parseBeneficiaries, toBeneficiaryDrafts, type BeneficiaryDraft } from '@/components/beneficiaries-editor';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Chip } from '@/components/chip';
+import { Field, formStyles, Input, parseAmount, parseDate, Row, YesNo } from '@/components/form-fields';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { coverageLabel, FREQUENCY_LABELS, POLICY_TYPE_LABELS } from '@/lib/insurance';
 
 type Props = {
@@ -28,24 +28,9 @@ type Props = {
   deleting?: boolean;
 };
 
-type BeneficiaryDraft = { name: string; relationship: string; percentage: string; primary: boolean };
-
 const str = (v: number | string | null | undefined) => (v === null || v === undefined ? '' : String(v));
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** '' → null; otherwise a non-negative number, or undefined when unreadable. */
-function num(value: string): number | null | undefined {
-  const t = value.replace(/[$,%\s]/g, '');
-  if (!t) return null;
-  const n = Number(t);
-  return Number.isFinite(n) && n >= 0 ? n : undefined;
-}
-
-function date(value: string): string | null | undefined {
-  const t = value.trim();
-  if (!t) return null;
-  return ISO_DATE.test(t) && !Number.isNaN(Date.parse(t)) ? t : undefined;
-}
+const num = parseAmount;
+const date = parseDate;
 
 export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete, deleting }: Props) {
   const [type, setType] = useState<InsurancePolicyType>(initial?.type ?? 'life_term');
@@ -67,9 +52,7 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
   const [loanBalance, setLoanBalance] = useState(str(initial?.loanBalance));
   const [valuesAsOf, setValuesAsOf] = useState(initial?.valuesAsOf ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
-  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryDraft[]>(
-    (initial?.beneficiaries ?? []).map((b) => ({ ...b, relationship: b.relationship ?? '', percentage: str(b.percentage) })),
-  );
+  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryDraft[]>(toBeneficiaryDrafts(initial?.beneficiaries ?? []));
 
   const life = isLifePolicy(type);
   const disability = isDisabilityPolicy(type);
@@ -92,15 +75,8 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
   if (parsed.benefitPercentOfIncome && parsed.benefitPercentOfIncome > 100) invalid.add('benefitPercentOfIncome');
   if (parsed.eliminationPeriodDays && !Number.isInteger(parsed.eliminationPeriodDays)) invalid.add('eliminationPeriodDays');
 
-  const parsedBeneficiaries: (Beneficiary | null)[] = life
-    ? beneficiaries.map((b) => {
-        const pct = num(b.percentage);
-        if (!b.name.trim() || pct === null || pct === undefined || pct > 100) return null;
-        return { name: b.name.trim(), relationship: b.relationship.trim() || null, percentage: pct, primary: b.primary };
-      })
-    : [];
+  const parsedBeneficiaries = life ? parseBeneficiaries(beneficiaries) : [];
   const beneficiariesValid = parsedBeneficiaries.every(Boolean);
-  const shareWarning = life ? beneficiaryShareWarning(parsedBeneficiaries.filter((b): b is Beneficiary => !!b)) : null;
 
   const valid = carrier.trim().length > 0 && invalid.size === 0 && beneficiariesValid;
 
@@ -130,9 +106,6 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
       documentId: initial?.documentId ?? null,
     });
   }
-
-  const updateBeneficiary = (i: number, patch: Partial<BeneficiaryDraft>) =>
-    setBeneficiaries((list) => list.map((b, j) => (j === i ? { ...b, ...patch } : b)));
 
   return (
     <>
@@ -232,66 +205,7 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
         </View>
       </Card>
 
-      {life && (
-        <Card
-          title="Beneficiaries"
-          action={
-            <Button
-              label="Add"
-              variant="secondary"
-              size="small"
-              onPress={() =>
-                setBeneficiaries((list) => [
-                  ...list,
-                  { name: '', relationship: '', percentage: list.length ? '' : '100', primary: true },
-                ])
-              }
-            />
-          }>
-          {beneficiaries.length === 0 && (
-            <ThemedText type="small" themeColor="textSecondary">
-              None entered.
-            </ThemedText>
-          )}
-          {beneficiaries.map((b, i) => (
-            <View key={i} style={styles.beneficiary}>
-              <Row>
-                <Field label="Name" invalid={!b.name.trim() && !!b.percentage} flex>
-                  <Input value={b.name} onChangeText={(name) => updateBeneficiary(i, { name })} />
-                </Field>
-                <Field label="Relationship" flex>
-                  <Input value={b.relationship} onChangeText={(relationship) => updateBeneficiary(i, { relationship })} />
-                </Field>
-                <Field label="Share %" invalid={parsedBeneficiaries[i] === null && !!b.name.trim()}>
-                  <Input
-                    value={b.percentage}
-                    onChangeText={(percentage) => updateBeneficiary(i, { percentage })}
-                    keyboardType="decimal-pad"
-                    inputMode="decimal"
-                    style={styles.percent}
-                  />
-                </Field>
-              </Row>
-              <View style={styles.chips}>
-                <Chip label="Primary" selected={b.primary} onPress={() => updateBeneficiary(i, { primary: true })} />
-                <Chip label="Contingent" selected={!b.primary} onPress={() => updateBeneficiary(i, { primary: false })} />
-                <View style={styles.spacer} />
-                <Button
-                  label="Remove"
-                  variant="secondary"
-                  size="small"
-                  onPress={() => setBeneficiaries((list) => list.filter((_, j) => j !== i))}
-                />
-              </View>
-            </View>
-          ))}
-          {shareWarning && (
-            <ThemedText type="small" themeColor="warning">
-              {shareWarning}
-            </ThemedText>
-          )}
-        </Card>
-      )}
+      {life && <BeneficiariesEditor value={beneficiaries} onChange={setBeneficiaries} />}
 
       <Card title="Notes">
         <Input
@@ -319,64 +233,7 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
   );
 }
 
-function beneficiaryShareWarning(list: Beneficiary[]): string | null {
-  for (const [primary, label] of [
-    [true, 'Primary'],
-    [false, 'Contingent'],
-  ] as const) {
-    const group = list.filter((b) => b.primary === primary);
-    const total = group.reduce((sum, b) => sum + b.percentage, 0);
-    if (group.length && Math.abs(total - 100) > 0.01) return `${label} beneficiary shares add up to ${total}%, not 100%.`;
-  }
-  return null;
-}
-
-function Field({ label, invalid, flex, children }: { label: string; invalid?: boolean; flex?: boolean; children: ReactNode }) {
-  return (
-    <View style={[styles.field, flex && styles.flex]}>
-      <ThemedText type="small" themeColor={invalid ? 'negative' : 'textSecondary'}>
-        {label}
-        {invalid ? ' · check this' : ''}
-      </ThemedText>
-      {children}
-    </View>
-  );
-}
-
-function Row({ children }: { children: ReactNode }) {
-  return <View style={styles.row}>{children}</View>;
-}
-
-function Input({ style, ...props }: TextInputProps) {
-  const theme = useTheme();
-  return (
-    <TextInput
-      placeholderTextColor={theme.textSecondary}
-      style={[styles.input, { color: theme.text, backgroundColor: theme.background }, style]}
-      {...props}
-    />
-  );
-}
-
-function YesNo({ value, onChange }: { value: boolean | null; onChange: (v: boolean | null) => void }) {
-  return (
-    <View style={styles.chips}>
-      <Chip label="Yes" selected={value === true} onPress={() => onChange(true)} />
-      <Chip label="No" selected={value === false} onPress={() => onChange(false)} />
-      <Chip label="Not sure" selected={value === null} onPress={() => onChange(null)} />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
-  field: { gap: Spacing.one, minWidth: 140 },
-  flex: { flex: 1 },
-  input: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
-  percent: { width: 80 },
+  ...formStyles,
   notes: { minHeight: 72, textAlignVertical: 'top' },
-  beneficiary: { gap: Spacing.two },
-  buttons: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  spacer: { flex: 1 },
 });
