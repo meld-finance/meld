@@ -66,6 +66,15 @@ export function toSecurityRow(s: PlaidSecurity): typeof securities.$inferInsert 
     industry: s.industry,
     closePrice: s.close_price,
     closePriceAsOf: s.close_price_as_of,
+    fixedIncome: s.fixed_income
+      ? {
+          yieldPercent: s.fixed_income.yield_rate?.percentage ?? null,
+          yieldType: s.fixed_income.yield_rate?.type ?? null,
+          maturityDate: s.fixed_income.maturity_date ?? null,
+          issueDate: s.fixed_income.issue_date ?? null,
+          faceValue: s.fixed_income.face_value ?? null,
+        }
+      : null,
   };
 }
 

@@ -114,4 +114,34 @@ describe.skipIf(!testDatabaseUrl)('investments (Postgres)', () => {
       ['Joint', 50, 0],
     ]);
   });
+
+  it('annualizes each holding’s payouts from the account’s own history', async () => {
+    const t = (accountId: string, date: string, subtype: string, amount: number) => ({
+      accountId,
+      securityId: ids.fund,
+      date,
+      name: subtype,
+      type: 'cash',
+      subtype,
+      amount,
+    });
+    await ctx.db.insert(investmentTransactions).values([
+      // A full year of history: no scaling.
+      t(ids.brokerage, '2025-06-30', 'buy', 1000),
+      t(ids.brokerage, '2026-03-15', 'dividend', -300),
+      t(ids.brokerage, '2026-09-15', 'dividend', -300),
+      // Linked 73 days ago: two payouts scale to a year, at your half.
+      t(ids.joint, '2026-08-15', 'buy', 1000),
+      t(ids.joint, '2026-08-31', 'dividend', -100),
+      t(ids.joint, '2026-09-30', 'dividend', -100),
+    ]);
+    const income = await getInvestmentIncome(ctx.db, TODAY);
+    expect(income.byHolding).toEqual(
+      expect.arrayContaining([
+        { accountId: ids.brokerage, securityId: ids.fund, annualIncome: 600, days: 365 },
+        { accountId: ids.joint, securityId: ids.fund, annualIncome: 500, days: 73 },
+      ]),
+    );
+    expect(income.byHolding).toHaveLength(2);
+  });
 });

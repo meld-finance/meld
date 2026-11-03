@@ -1,0 +1,1 @@
+ALTER TABLE "securities" ADD COLUMN "fixed_income" jsonb;

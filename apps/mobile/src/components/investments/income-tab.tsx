@@ -1,8 +1,9 @@
-import type { InvestmentIncome, InvestmentsSummary } from '@meld/shared';
-import { useState } from 'react';
+import { bondPositions, type InvestmentIncome, type InvestmentsSummary } from '@meld/shared';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/card';
+import { BondsCard } from '@/components/investments/bonds-card';
 import { Segmented } from '@/components/cashflow/segmented';
 import { InsightCallout, StatTile, TabHeading, TileRow } from '@/components/investments/common';
 import { ThemedText } from '@/components/themed-text';
@@ -35,6 +36,7 @@ export function IncomeTab({ income, summary }: { income: InvestmentIncome; summa
   // Yield on cost needs the cost of everything that earns; cash's cost is its value.
   const missingCost = summary.holdings.some((h) => h.securityType !== 'cash' && h.costBasis === null && (h.value ?? 0) > 0);
   const cost = summary.holdings.reduce((s, h) => s + (h.securityType === 'cash' ? (h.value ?? 0) : (h.costBasis ?? 0)), 0);
+  const bonds = useMemo(() => bondPositions(summary.holdings, income.byHolding, income.asOf), [summary.holdings, income]);
 
   return (
     <>
@@ -65,6 +67,8 @@ export function IncomeTab({ income, summary }: { income: InvestmentIncome; summa
           <IncomeByAccount income={income} />
         </View>
       </View>
+
+      {bonds.length > 0 && <BondsCard positions={bonds} />}
 
       {ytdIncome > 0 && (
         <InsightCallout

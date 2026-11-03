@@ -67,8 +67,16 @@ export const SecurityProfile = z.object({
   sectors: z.partialRecord(Sector, z.number()),
   regions: z.partialRecord(Region, z.number()),
   bondTypes: z.partialRecord(BondType, z.number()),
+  /**
+   * For a security that's mostly bonds: its published SEC yield (a fraction) and average duration
+   * in years, each null when not known. Absent on profiles from before it was asked for.
+   */
+  bondStats: z.object({ secYield: z.number().nullable(), duration: z.number().nullable() }).optional(),
 });
 export type SecurityProfile = z.infer<typeof SecurityProfile>;
+
+/** At least this share in bonds makes a security a bond fund. */
+export const BOND_FUND_SHARE = 0.5;
 
 /** Cash needs no lookup. */
 export const CASH_PROFILE: SecurityProfile = {
@@ -80,6 +88,19 @@ export const CASH_PROFILE: SecurityProfile = {
 };
 
 // --- Holdings -------------------------------------------------------------------
+
+/** Plaid's terms for an individual bond, CD or T-bill. */
+export const FixedIncomeTerms = z.object({
+  /** As a percent (4.5 = 4.5%). */
+  yieldPercent: z.number().nullable(),
+  /** coupon, coupon_equivalent, discount or yield: how Plaid's institution computed the rate. */
+  yieldType: z.string().nullable(),
+  maturityDate: z.string().nullable(),
+  issueDate: z.string().nullable(),
+  /** Paid at maturity, per unit held. */
+  faceValue: z.number().nullable(),
+});
+export type FixedIncomeTerms = z.infer<typeof FixedIncomeTerms>;
 
 export const Holding = z.object({
   id: z.string().uuid(),
@@ -98,6 +119,8 @@ export const Holding = z.object({
   costBasis: z.number().nullable(),
   /** What the security holds; null until it's been looked up, or when it couldn't be. */
   profile: SecurityProfile.nullable(),
+  /** Terms of an individual bond; null for everything else. */
+  fixedIncome: FixedIncomeTerms.nullable(),
 });
 export type Holding = z.infer<typeof Holding>;
 
@@ -240,6 +263,19 @@ export const InvestmentIncome = z.object({
   months: z.array(IncomeTotals.extend({ month: Month })),
   /** Year to date, largest first. */
   byAccount: z.array(IncomeTotals.extend({ accountId: z.string().uuid(), accountName: z.string() })),
+  /**
+   * Dividends and interest per security in each account over the last 12 months, scaled to a year
+   * when the account's transactions start later than that. Only securities that paid something.
+   */
+  byHolding: z.array(
+    z.object({
+      accountId: z.string().uuid(),
+      securityId: z.string().uuid(),
+      annualIncome: z.number(),
+      /** How many days of history the figure is based on (365 when it's a full year). */
+      days: z.number(),
+    }),
+  ),
 });
 export type InvestmentIncome = z.infer<typeof InvestmentIncome>;
 

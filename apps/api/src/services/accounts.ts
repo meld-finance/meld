@@ -48,6 +48,7 @@ export async function listHoldings(db: Db, where: SQL): Promise<Holding[]> {
       value: holdings.institutionValue,
       costBasis: holdings.costBasis,
       profile: securities.profile,
+      fixedIncome: securities.fixedIncome,
     })
     .from(holdings)
     .innerJoin(accounts, eq(accounts.id, holdings.accountId))

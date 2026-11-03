@@ -6,6 +6,7 @@ import type {
   Contact,
   EstatePerson,
   EstateSettings,
+  FixedIncomeTerms,
   RetirementInputs,
   RetirementPlan,
   SecurityProfile,
@@ -167,6 +168,8 @@ export const securities = pgTable('securities', {
   /** What the security holds, from an AI lookup; null with `profiledAt` set means it wasn't recognized. */
   profile: jsonb('profile').$type<SecurityProfile>(),
   profiledAt: timestamp('profiled_at', { withTimezone: true }),
+  /** Plaid's terms for an individual bond; null for everything else. */
+  fixedIncome: jsonb('fixed_income').$type<FixedIncomeTerms>(),
   ...timestamps,
 });
 
