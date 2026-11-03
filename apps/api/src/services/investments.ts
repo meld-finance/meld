@@ -1,4 +1,5 @@
 import {
+  BOND_FUND_SHARE,
   ownedBalance,
   taxTreatment,
   type Holding,
@@ -44,10 +45,12 @@ function shiftDays(date: string, days: number): string {
 /** Visible, non-cash securities that need a (fresh) look inside. */
 function needsProfile() {
   const stale = sql`now() - make_interval(days => ${PROFILE_MAX_AGE_DAYS})`;
+  // Bond funds profiled before yield and duration were asked for.
+  const missingBondStats = sql`(${securities.profile}->'assetClasses'->>'bonds')::float8 >= ${BOND_FUND_SHARE} and ${securities.profile}->'bondStats' is null`;
   return and(
     eq(accounts.hidden, false),
     or(isNull(securities.type), ne(securities.type, 'cash')),
-    or(isNull(securities.profiledAt), lt(securities.profiledAt, stale)),
+    or(isNull(securities.profiledAt), lt(securities.profiledAt, stale), missingBondStats),
   );
 }
 
@@ -189,6 +192,11 @@ const REINVEST_SUBTYPES = [
   'short-term capital gain reinvestment',
 ];
 
+/** Less history than this is too little to scale up to a year. */
+const MIN_ANNUALIZE_DAYS = 28;
+
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
+
 const zero = (): IncomeTotals => ({ dividends: 0, interest: 0, reinvested: 0 });
 
 function roundTotals<T extends IncomeTotals>(t: T): T {
@@ -199,24 +207,31 @@ export async function getInvestmentIncome(db: Db, today = localDate()): Promise<
   const months = recentMonths(24, today);
   const from = `${months[0]}-01`;
   const share = sql<number>`coalesce(${accounts.ownershipPercent}, 100) / 100`;
-  const rows = await db
-    .select({
-      accountId: accounts.id,
-      accountName: accounts.name,
-      date: investmentTransactions.date,
-      subtype: investmentTransactions.subtype,
-      amount: sql<number>`(${investmentTransactions.amount} * ${share})::float8`,
-    })
-    .from(investmentTransactions)
-    .innerJoin(accounts, eq(accounts.id, investmentTransactions.accountId))
-    .where(
-      and(
-        eq(accounts.hidden, false),
-        gte(investmentTransactions.date, from),
-        lte(investmentTransactions.date, today),
-        inArray(investmentTransactions.subtype, [...DIVIDEND_SUBTYPES, ...INTEREST_SUBTYPES, ...REINVEST_SUBTYPES]),
+  const [rows, historyStarts] = await Promise.all([
+    db
+      .select({
+        accountId: accounts.id,
+        accountName: accounts.name,
+        securityId: investmentTransactions.securityId,
+        date: investmentTransactions.date,
+        subtype: investmentTransactions.subtype,
+        amount: sql<number>`(${investmentTransactions.amount} * ${share})::float8`,
+      })
+      .from(investmentTransactions)
+      .innerJoin(accounts, eq(accounts.id, investmentTransactions.accountId))
+      .where(
+        and(
+          eq(accounts.hidden, false),
+          gte(investmentTransactions.date, from),
+          lte(investmentTransactions.date, today),
+          inArray(investmentTransactions.subtype, [...DIVIDEND_SUBTYPES, ...INTEREST_SUBTYPES, ...REINVEST_SUBTYPES]),
+        ),
       ),
-    );
+    db
+      .select({ accountId: investmentTransactions.accountId, first: sql<string>`min(${investmentTransactions.date})` })
+      .from(investmentTransactions)
+      .groupBy(investmentTransactions.accountId),
+  ]);
 
   const year = today.slice(0, 4);
   const lastYearToday = shiftYears(today, -1);
@@ -226,6 +241,7 @@ export async function getInvestmentIncome(db: Db, today = localDate()): Promise<
   const trailing12 = zero();
   const byMonth = new Map(months.map((m) => [m, zero()]));
   const byAccount = new Map<string, IncomeTotals & { accountId: string; accountName: string }>();
+  const byHolding = new Map<string, { accountId: string; securityId: string; income: number }>();
 
   for (const r of rows) {
     // Plaid: negative amounts are money into the account (income); reinvestment buys are positive.
@@ -238,7 +254,15 @@ export async function getInvestmentIncome(db: Db, today = localDate()): Promise<
     const add = (t: IncomeTotals) => (t[key] += amount);
 
     add(byMonth.get(r.date.slice(0, 7))!);
-    if (r.date > lastYearToday) add(trailing12);
+    if (r.date > lastYearToday) {
+      add(trailing12);
+      if (key !== 'reinvested' && r.securityId) {
+        const k = `${r.accountId}:${r.securityId}`;
+        const h = byHolding.get(k) ?? { accountId: r.accountId, securityId: r.securityId, income: 0 };
+        h.income += amount;
+        byHolding.set(k, h);
+      }
+    }
     if (r.date.startsWith(year)) {
       add(ytd);
       let account = byAccount.get(r.accountId);
@@ -249,6 +273,14 @@ export async function getInvestmentIncome(db: Db, today = localDate()): Promise<
     }
   }
 
+  const firstByAccount = new Map(historyStarts.map((r) => [r.accountId, r.first]));
+  const annualized = [...byHolding.values()].flatMap(({ accountId, securityId, income }) => {
+    const first = firstByAccount.get(accountId)!;
+    const days = first > lastYearToday ? daysBetween(first, today) : 365;
+    if (days < MIN_ANNUALIZE_DAYS || income <= 0) return [];
+    return [{ accountId, securityId, annualIncome: round2((income * 365) / days), days }];
+  });
+
   return {
     asOf: today,
     ytd: roundTotals(ytd),
@@ -258,5 +290,6 @@ export async function getInvestmentIncome(db: Db, today = localDate()): Promise<
     byAccount: [...byAccount.values()]
       .map(roundTotals)
       .sort((a, b) => b.dividends + b.interest - (a.dividends + a.interest)),
+    byHolding: annualized,
   };
 }

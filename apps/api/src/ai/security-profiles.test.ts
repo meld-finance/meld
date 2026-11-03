@@ -19,6 +19,8 @@ const entry = (overrides: Partial<RawEntry>): RawEntry => ({
   },
   regions: { ...none(['united_states', 'canada', 'europe', 'japan', 'asia_pacific', 'emerging_markets', 'other']), united_states: 100 },
   bondTypes: { ...none(['treasury', 'government_related', 'mortgage_backed', 'corporate', 'municipal', 'international', 'other']), corporate: 40 },
+  secYield: 0,
+  duration: 0,
   ...overrides,
 });
 
@@ -49,6 +51,24 @@ describe('normalizeProfiles', () => {
     expect(result[0]).toBeNull();
     expect(result[1]).toBeNull();
     expect(result[2]).toMatchObject({ category: 'Total bond market', assetClasses: { bonds: 1 }, sectors: {}, bondTypes: { corporate: 1 } });
+  });
+
+  it('keeps yield and duration only for bond funds, as fractions and years', () => {
+    const bonds = { ...entry({}).assetClasses, us_stocks: 0, bonds: 100 };
+    const [fund, stock, unknown] = normalizeProfiles(
+      {
+        securities: [
+          entry({ id: 0, assetClasses: bonds, secYield: 4.8, duration: 14.2 }),
+          entry({ id: 1, secYield: 1.2, duration: 3 }),
+          entry({ id: 2, assetClasses: bonds, secYield: 0, duration: 400 }),
+        ],
+      },
+      3,
+    );
+    expect(fund!.bondStats!.secYield).toBeCloseTo(0.048);
+    expect(fund!.bondStats!.duration).toBe(14.2);
+    expect(stock!.bondStats).toBeUndefined();
+    expect(unknown!.bondStats).toEqual({ secYield: null, duration: null });
   });
 });
 

@@ -73,7 +73,7 @@ export async function syncInvestments({ db, plaid, accessToken, accountIdByPlaid
         .values(batch)
         .onConflictDoUpdate({
           target: securities.plaidSecurityId,
-          set: excluded(securities, ['tickerSymbol', 'name', 'type', 'subtype', 'sector', 'industry', 'closePrice', 'closePriceAsOf']),
+          set: excluded(securities, ['tickerSymbol', 'name', 'type', 'subtype', 'sector', 'industry', 'closePrice', 'closePriceAsOf', 'fixedIncome']),
         })
         .returning({ id: securities.id, plaidSecurityId: securities.plaidSecurityId });
       for (const r of rows) securityIdByPlaidId.set(r.plaidSecurityId!, r.id);

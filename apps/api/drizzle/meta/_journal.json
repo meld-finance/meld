@@ -169,6 +169,13 @@
       "when": 1793691784279,
       "tag": "0023_policy_numbers",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793694024031,
+      "tag": "0024_bond_terms",
+      "breakpoints": true
     }
   ]
 }
