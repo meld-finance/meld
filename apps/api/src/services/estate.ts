@@ -21,6 +21,7 @@ import {
 } from '@meld/shared';
 import { asc, eq, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
+import { decrypt, encrypt } from '../lib/crypto';
 import { accounts, documents, estateDesignations, estateDocuments, estateSettings, manualAssets } from '../db/schema';
 import { policyMethod, summarizeEstate, type TargetDraft } from '../lib/estate';
 import { HttpError } from '../lib/http';
@@ -125,7 +126,9 @@ export async function deleteEstateDocument(db: Db, id: string): Promise<string |
 
 // --- Designations ------------------------------------------------------------------
 
-export async function saveDesignation(db: Db, input: EstateDesignationInput) {
+const last4 = (accountNumber: string) => accountNumber.replace(/[^A-Za-z0-9]/g, '').slice(-4);
+
+export async function saveDesignation(db: Db, input: EstateDesignationInput, encryptionKey: string) {
   if (input.accountId) {
     const account = await db.query.accounts.findFirst({ where: eq(accounts.id, input.accountId) });
     if (!account) throw new HttpError(404, 'Account not found');
@@ -138,14 +141,28 @@ export async function saveDesignation(db: Db, input: EstateDesignationInput) {
     if (!trust || !isTrust(trust.kind as EstateDocumentKind)) throw new HttpError(400, 'Pick one of your trusts');
   }
   // Beneficiaries only apply to methods that name people; a trust only to 'trust'.
+  const { accountNumber, ...rest } = input;
   const values = {
-    ...input,
+    ...rest,
+    // Left out, the saved number stays as it is.
+    ...(accountNumber !== undefined && {
+      accountNumberEnc: accountNumber && encrypt(accountNumber, encryptionKey),
+      accountNumberLast4: accountNumber && last4(accountNumber),
+    }),
     beneficiaries: input.method === 'beneficiary' || input.method === 'tod_pod' ? input.beneficiaries : [],
     trustId: input.method === 'trust' ? input.trustId : null,
   };
   const target = input.accountId ? estateDesignations.accountId : estateDesignations.manualAssetId;
   const { accountId: _a, manualAssetId: _m, ...set } = values;
   await db.insert(estateDesignations).values(values).onConflictDoUpdate({ target, set });
+}
+
+/** Full account numbers by account or asset id, decrypted for the packet. */
+export async function loadAccountNumbers(db: Db, encryptionKey: string): Promise<Map<string, string>> {
+  const rows = await db
+    .select({ accountId: estateDesignations.accountId, manualAssetId: estateDesignations.manualAssetId, enc: estateDesignations.accountNumberEnc })
+    .from(estateDesignations);
+  return new Map(rows.flatMap((r) => (r.enc ? [[(r.accountId ?? r.manualAssetId)!, decrypt(r.enc, encryptionKey)] as const] : [])));
 }
 
 // --- Settings & export --------------------------------------------------------------
@@ -197,6 +214,7 @@ async function loadTargets(db: Db, today: string): Promise<TargetDraft[]> {
     trustId: d?.trustId ?? null,
     reviewedAt: d?.reviewedAt ?? null,
     notes: d?.notes ?? null,
+    accountNumberLast4: d?.accountNumberLast4 ?? null,
     designated: !!d,
   });
 
@@ -243,6 +261,7 @@ async function loadTargets(db: Db, today: string): Promise<TargetDraft[]> {
           trustId: null,
           reviewedAt: null,
           notes: p.notes,
+          accountNumberLast4: null,
           designated: true,
           href: `/insurance/${p.id}`,
         }),
@@ -256,7 +275,7 @@ async function loadTargets(db: Db, today: string): Promise<TargetDraft[]> {
  */
 export function packetFingerprint(targets: TargetDraft[], docs: EstateDocument[], settings: EstateSettings): string {
   const data = {
-    targets: targets.map((t) => [t.kind, t.id, t.name, t.method, t.beneficiaries, t.trustId, t.notes]),
+    targets: targets.map((t) => [t.kind, t.id, t.name, t.method, t.beneficiaries, t.trustId, t.notes, t.accountNumberLast4]),
     docs: docs.map(({ reviewedAt: _r, createdAt: _c, updatedAt: _u, documentId: _d, documentFilename: _f, ...d }) => d),
     contacts: settings.contacts,
     credentialsNote: settings.credentialsNote,

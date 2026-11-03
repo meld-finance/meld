@@ -6,6 +6,7 @@ import { accounts, alerts, estateDesignations, manualAssets } from '../db/schema
 import { loadEnv } from '../env';
 import { buildServer } from '../server';
 import { evaluateAlerts } from '../services/alerts';
+import { loadAccountNumbers } from '../services/estate';
 import type { DocumentStorage } from '../storage';
 import { setupTestDb, testDatabaseUrl } from '../test/db';
 import { pruneOrphanDocuments } from './insurance';
@@ -44,12 +45,13 @@ describe.skipIf(!testDatabaseUrl)('estate routes (Postgres)', () => {
   let ctx: Awaited<ReturnType<typeof setupTestDb>>;
   let app: Awaited<ReturnType<typeof buildServer>>;
   let headers: Record<string, string>;
+  let env: ReturnType<typeof loadEnv>;
   let ira: string;
   const storage = new MemoryStorage();
 
   beforeAll(async () => {
     ctx = await setupTestDb();
-    const env = loadEnv({ ...process.env, DATABASE_URL: testDatabaseUrl });
+    env = loadEnv({ ...process.env, DATABASE_URL: testDatabaseUrl });
     const plaid = {} as PlaidApi;
     app = await buildServer({ env, db: ctx.db, plaid, sync: { db: ctx.db, plaid, encryptionKey: env.ENCRYPTION_KEY }, ai: null, storage });
     const login = await app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase: env.APP_PASSPHRASE } });
@@ -92,6 +94,25 @@ describe.skipIf(!testDatabaseUrl)('estate routes (Postgres)', () => {
     // Deleting the account takes its designation with it.
     await ctx.db.delete(accounts).where(eq(accounts.id, ira));
     expect(await ctx.db.select().from(estateDesignations)).toEqual([]);
+  });
+
+  it('keeps a full account number encrypted and shows only its last 4', async () => {
+    const base = { accountId: ira, manualAssetId: null, method: 'beneficiary', beneficiaries: [spouse], trustId: null, reviewedAt: null, notes: null };
+    await designate({ ...base, accountNumber: '1234-5678-9012' });
+    const [row] = await ctx.db.select().from(estateDesignations);
+    expect(row!.accountNumberEnc).not.toContain('9012');
+    expect(row!.accountNumberLast4).toBe('9012');
+    const s = await summary();
+    expect(s.targets.find((t) => t.id === ira)!.accountNumberLast4).toBe('9012');
+    expect(JSON.stringify(s)).not.toContain('5678');
+    expect(await loadAccountNumbers(ctx.db, env.ENCRYPTION_KEY)).toEqual(new Map([[ira, '1234-5678-9012']]));
+
+    // Left out, it's kept; null removes it.
+    await designate(base);
+    expect((await ctx.db.select().from(estateDesignations))[0]!.accountNumberLast4).toBe('9012');
+    await designate({ ...base, accountNumber: null });
+    expect((await ctx.db.select().from(estateDesignations))[0]).toMatchObject({ accountNumberEnc: null, accountNumberLast4: null });
+    expect((await designate({ ...base, accountNumber: '12' })).statusCode).toBe(400);
   });
 
   it('validates designations', async () => {

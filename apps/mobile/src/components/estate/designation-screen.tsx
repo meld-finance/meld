@@ -89,11 +89,17 @@ function DesignationForm({ target: t, trusts }: { target: EstateTarget; trusts: 
   const [trustId, setTrustId] = useState(t.trustId ?? trusts[0]?.id ?? null);
   const [notes, setNotes] = useState(t.notes ?? '');
   const [reviewedAt, setReviewedAt] = useState(t.reviewedAt ?? '');
+  // Never sent back by the server; blank keeps the saved one.
+  const [accountNumber, setAccountNumber] = useState('');
+  const [savedLast4, setSavedLast4] = useState(t.accountNumberLast4);
 
   const people = methodNamesPeople(method);
   const parsed = parseBeneficiaries(beneficiaries);
   const reviewed = parseDate(reviewedAt);
-  const valid = (!people || parsed.every(Boolean)) && (method !== 'trust' || trustId !== null) && reviewed !== undefined;
+  const number = accountNumber.trim();
+  const numberValid = !number || /^[A-Za-z0-9][A-Za-z0-9 -]{2,38}[A-Za-z0-9]$/.test(number);
+  const valid =
+    (!people || parsed.every(Boolean)) && (method !== 'trust' || trustId !== null) && reviewed !== undefined && numberValid;
 
   function submit() {
     if (!valid) return;
@@ -106,6 +112,7 @@ function DesignationForm({ target: t, trusts }: { target: EstateTarget; trusts: 
         trustId: method === 'trust' ? trustId : null,
         reviewedAt: reviewed ?? null,
         notes: notes.trim() || null,
+        ...(number ? { accountNumber: number } : savedLast4 !== t.accountNumberLast4 && { accountNumber: null }),
       },
       { onSuccess: goBack },
     );
@@ -159,6 +166,27 @@ function DesignationForm({ target: t, trusts }: { target: EstateTarget; trusts: 
           title={t.category === 'education' ? 'Successor owner' : 'Beneficiaries'}
           subtitle="As the institution has them on file. Contingent beneficiaries inherit if no primary beneficiary survives you."
         />
+      )}
+
+      {(t.kind === 'account' || t.category === 'other') && (
+        <Card title="Account number">
+          <Field label="Full account number" invalid={!numberValid}>
+            <Input
+              value={accountNumber}
+              onChangeText={setAccountNumber}
+              placeholder={savedLast4 ? `Saved, ending ${savedLast4}. Type to replace` : 'As on your statement'}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+          </Field>
+          {savedLast4 && !number && (
+            <Button label="Remove saved number" variant="secondary" size="small" onPress={() => setSavedLast4(null)} />
+          )}
+          <ThemedText type="small" themeColor="textSecondary">
+            Printed in the family packet so your executor can tell the institution which account. Stored encrypted and
+            never sent to Ask Meld.
+          </ThemedText>
+        </Card>
       )}
 
       <Card title="Notes">

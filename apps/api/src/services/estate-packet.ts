@@ -19,6 +19,8 @@ import PDFDocument from 'pdfkit';
 export type PacketData = {
   preparedFor: string | null;
   summary: EstateSummary;
+  /** Full account numbers by account or asset id. */
+  accountNumbers: Map<string, string>;
   /** Active subscriptions and bills. */
   bills: RecurringSeries[];
   autopay: AutopayStatus[];
@@ -168,10 +170,11 @@ export function renderPacket(data: PacketData, password: string | null): Promise
   for (const category of assetCategories) {
     subheading(ESTATE_CATEGORY_LABELS[category]);
     for (const t of groups.get(category)!) {
-      block(3 + t.beneficiaries.length, () => {
+      block(4 + t.beneficiaries.length, () => {
         doc.font('Helvetica-Bold').fontSize(10).fillColor(INK).text(t.name, { continued: true, width });
         doc.font('Helvetica').text(`   ${category === 'life' ? `${dollars(t.value)} death benefit` : dollars(t.value)}`, { width });
         if (t.detail) para(t.detail, { muted: true });
+        line('Account number', data.accountNumbers.get(t.id));
         const how = t.method === 'trust' && t.trustName ? `Trust (${t.trustName})` : ESTATE_METHOD_LABELS[t.method];
         line('Passes by', how);
         for (const b of t.beneficiaries) para(`    ${beneficiaryLine(b)}`);
@@ -185,10 +188,11 @@ export function renderPacket(data: PacketData, password: string | null): Promise
     heading('Debts');
     para('Debts are paid from the estate before anything is distributed. Heirs usually aren’t personally liable unless they co-signed.', { muted: true });
     for (const t of debts) {
-      block(2, () => {
+      block(3, () => {
         doc.font('Helvetica-Bold').fontSize(10).fillColor(INK).text(t.name, { continued: true, width });
         doc.font('Helvetica').text(`   ${dollars(t.value)} owed`, { width });
         if (t.detail) para(t.detail, { muted: true });
+        line('Account number', data.accountNumbers.get(t.id));
       });
     }
   }

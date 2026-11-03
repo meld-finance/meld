@@ -16,6 +16,7 @@ const target = (extra: Partial<TargetDraft> & Pick<TargetDraft, 'name' | 'catego
   trustId: null,
   reviewedAt: null,
   notes: null,
+  accountNumberLast4: null,
   designated: false,
   href: '/estate/account/x',
   ...extra,

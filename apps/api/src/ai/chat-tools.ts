@@ -358,7 +358,7 @@ export function createChatTools(db: Db): ChatTool[] {
         const { fingerprint: _f, settings, documents, targets, ...summary } = await getEstateSummary(db);
         return {
           ...summary,
-          targets: targets.map(({ notes: _n, href: _h, ...t }) => t),
+          targets: targets.map(({ notes: _n, href: _h, accountNumberLast4: _a, ...t }) => t),
           // Names and roles only; contact details stay out of the AI's context.
           documents: documents.map((d) => ({
             kind: d.kind,
