@@ -17,6 +17,8 @@ export type PlaidItemSummary = z.infer<typeof PlaidItemSummary>;
 export const LinkTokenRequest = z.object({
   /** Set to re-authenticate an existing item (Plaid "update mode"). */
   itemId: z.string().uuid().optional(),
+  /** With itemId: ask the user to also allow account and routing numbers (Plaid Auth). */
+  consentAuth: z.boolean().optional(),
 });
 export type LinkTokenRequest = z.infer<typeof LinkTokenRequest>;
 

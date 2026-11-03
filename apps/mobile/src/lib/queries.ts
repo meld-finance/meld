@@ -3,11 +3,13 @@ import type {
   AlertSettings,
   AppFeatures,
   AutopayLinkInput,
+  BankNumberResult,
   EstateDesignationInput,
   EstateDocument,
   EstateDocumentInput,
   EstateSettings,
   EstateSummary,
+  LeaveToWillInput,
   RecurringOverride,
   RecurringSummary,
   UploadedDocument,
@@ -465,6 +467,23 @@ export function useSaveDesignation() {
   return useMutation({
     mutationFn: (input: EstateDesignationInput) => api('/estate/designations', { method: 'PUT', body: JSON.stringify(input) }),
     onSuccess: invalidate,
+  });
+}
+
+/** Marks accounts and assets as passing by will, e.g. everything still flagged for probate. */
+export function useLeaveToWill() {
+  const invalidate = useInvalidateEstate();
+  return useMutation({
+    mutationFn: (input: LeaveToWillInput) =>
+      api<{ updated: number }>('/estate/designations/will', { method: 'POST', body: JSON.stringify(input) }),
+    onSuccess: invalidate,
+  });
+}
+
+/** Looks up a linked bank account's full number through Plaid, to fill in the designation form. */
+export function useBankNumber() {
+  return useMutation({
+    mutationFn: (accountId: string) => api<BankNumberResult>(`/estate/accounts/${accountId}/bank-number`, { method: 'POST' }),
   });
 }
 

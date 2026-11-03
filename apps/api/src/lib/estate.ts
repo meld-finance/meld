@@ -16,7 +16,7 @@ import {
 } from '@meld/shared';
 
 /** A target before its status is worked out. */
-export type TargetDraft = Omit<EstateTarget, 'status' | 'trustName'> & {
+export type TargetDraft = Omit<EstateTarget, 'status' | 'trustName' | 'todo'> & {
   /** When Meld first saw the account, to call out new ones. */
   createdAt?: string;
 };
@@ -108,22 +108,34 @@ const MISSING_BODY: Partial<Record<EstateCategory, string>> = {
   life: 'Without a named beneficiary, the death benefit is paid to your estate and goes through probate. Update it with the insurer, then here.',
 };
 
+/** The one-line version shown on the target's own row. */
+const MISSING_TODO: Partial<Record<EstateCategory, string>> = {
+  retirement: 'Name a beneficiary with the plan. Without one it goes to your estate, through probate.',
+  hsa: 'Name a beneficiary with the HSA. Without one it goes to your estate and is taxed as income.',
+  life: 'Name a beneficiary with the insurer. Without one the death benefit goes through probate.',
+};
+
+/** Issues whose id ends in the target's or document's id, so they can be shown on its row. */
+const SUBJECT_PREFIXES = ['review:', 'missing:', 'stale:', 'child:', 'state:'];
+
 /** Statuses, issues and readiness for everything Meld knows about. Pure, so it's easy to test. */
 export function summarizeEstate(input: EstateInput): Omit<EstateSummary, 'documents' | 'settings'> {
   const { today, documents, settings } = input;
-  const issues: EstateIssue[] = [];
+  const issues: Omit<EstateIssue, 'subject'>[] = [];
   const trusts = new Map(documents.filter((d) => isTrust(d.kind)).map((d) => [d.id, d.name]));
   const hasRevocableTrust = documents.some((d) => d.kind === 'revocable_trust');
   const minors = minorChildren(input.children, today);
   const minorFirstNames = firstNames(minors);
   const reviewCutoff = yearsAgo(today, settings.reviewIntervalYears);
 
-  const targets: EstateTarget[] = input.targets
+  const problemsById = new Map<string, string>();
+  const statused = input.targets
     .map(({ createdAt, ...t }) => {
       let status: EstateStatus = baseStatus(t, hasRevocableTrust);
       const problems = status === 'ok' ? beneficiaryProblems(t, minorFirstNames) : [];
       if (problems.length) {
         status = 'review';
+        problemsById.set(t.id, problems.join(' '));
         issues.push({ id: `review:${t.id}`, severity: 'info', title: `Check the beneficiaries on ${t.name}`, body: problems.join(' '), href: t.href });
       }
       if (status === 'missing') {
@@ -140,7 +152,7 @@ export function summarizeEstate(input: EstateInput): Omit<EstateSummary, 'docume
     })
     .sort((a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) || a.name.localeCompare(b.name));
 
-  const probate = targets.filter((t) => t.status === 'review' && PROBATE.has(t.category) && !issues.some((i) => i.id === `review:${t.id}`));
+  const probate = statused.filter((t) => t.status === 'review' && PROBATE.has(t.category) && !issues.some((i) => i.id === `review:${t.id}`));
   if (probate.length) {
     const education = probate.filter((t) => t.category === 'education');
     issues.push({
@@ -163,7 +175,7 @@ export function summarizeEstate(input: EstateInput): Omit<EstateSummary, 'docume
     });
   }
 
-  const noContingent = targets.filter(
+  const noContingent = statused.filter(
     (t) => t.status === 'ok' && NEEDS_BENEFICIARY.has(t.category) && methodNamesPeople(t.method) && !t.beneficiaries.some((b) => !b.primary),
   );
   if (noContingent.length) {
@@ -176,7 +188,7 @@ export function summarizeEstate(input: EstateInput): Omit<EstateSummary, 'docume
     });
   }
 
-  const unreviewed = targets.filter((t) => t.kind !== 'policy' && t.designated && t.reviewedAt && t.reviewedAt < reviewCutoff);
+  const unreviewed = statused.filter((t) => t.kind !== 'policy' && t.designated && t.reviewedAt && t.reviewedAt < reviewCutoff);
   if (unreviewed.length) {
     issues.push({
       id: 'review-designations',
@@ -186,6 +198,24 @@ export function summarizeEstate(input: EstateInput): Omit<EstateSummary, 'docume
       href: '/plan?tab=estate',
     });
   }
+
+  const probateIds = new Set(probate.map((t) => t.id));
+  const noContingentIds = new Set(noContingent.map((t) => t.id));
+  const unreviewedIds = new Set(unreviewed.map((t) => t.id));
+  const todo = (t: (typeof statused)[number]): string | null => {
+    if (problemsById.has(t.id)) return problemsById.get(t.id)!;
+    if (t.status === 'missing') return MISSING_TODO[t.category] ?? 'Name a beneficiary.';
+    if (probateIds.has(t.id)) {
+      if (t.category === 'education') return 'Name a successor owner with the plan so it skips probate.';
+      return hasRevocableTrust
+        ? 'Outside your trust. Retitle it to the trust, or name the trust as its TOD/POD beneficiary.'
+        : 'Would go through probate. Add a TOD/POD beneficiary with the institution, or mark it “By will” if that’s your plan.';
+    }
+    if (noContingentIds.has(t.id)) return 'No contingent beneficiary. If your primary beneficiary dies first, it goes to your estate.';
+    if (unreviewedIds.has(t.id)) return `Last checked over ${settings.reviewIntervalYears} years ago. Compare it with the institution’s records.`;
+    return null;
+  };
+  const targets: EstateTarget[] = statused.map((t) => ({ ...t, todo: todo(t) }));
 
   // --- Documents
   const kinds = new Set(documents.map((d) => d.kind));
@@ -294,14 +324,24 @@ export function summarizeEstate(input: EstateInput): Omit<EstateSummary, 'docume
   const applicable = targets.filter((t) => t.status !== 'n/a');
   const coreDocs = minors.length ? [...CORE_DOCUMENTS, 'guardianship' as const] : CORE_DOCUMENTS;
   const docsDone = coreDocs.filter((k) => (k === 'guardianship' ? guardianNamed : kinds.has(k))).length;
+  const targetsDone = applicable.filter((t) => t.status === 'ok').length;
+  const contacts = settings.contacts.length > 0;
   const severityRank = { warning: 0, info: 1 };
   return {
     asOf: today,
     targets,
-    issues: issues.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]),
+    issues: issues
+      .sort((a, b) => severityRank[a.severity] - severityRank[b.severity])
+      .map((i) => {
+        const prefix = SUBJECT_PREFIXES.find((p) => i.id.startsWith(p));
+        return { ...i, subject: prefix ? i.id.slice(prefix.length) : null };
+      }),
     readiness: {
-      done: applicable.filter((t) => t.status === 'ok').length + docsDone + (stale ? 0 : 1),
-      total: applicable.length + coreDocs.length + 1,
+      done: targetsDone + docsDone + (contacts ? 1 : 0) + (stale ? 0 : 1),
+      total: applicable.length + coreDocs.length + 2,
+      targets: { done: targetsDone, total: applicable.length },
+      documents: { done: docsDone, total: coreDocs.length },
+      contacts,
     },
     packet: { lastExportedAt, stale },
   };

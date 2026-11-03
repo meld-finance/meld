@@ -5,6 +5,8 @@ import { Button } from '@/components/button';
 export type PlaidLinkButtonProps = {
   /** Set to repair an existing connection (Plaid update mode). */
   itemId?: string;
+  /** With itemId: also ask the bank to share account and routing numbers. */
+  consentAuth?: boolean;
   label?: string;
   variant?: 'primary' | 'secondary' | 'danger';
   size?: 'regular' | 'small';

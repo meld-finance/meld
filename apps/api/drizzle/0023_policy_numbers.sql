@@ -1,0 +1,1 @@
+ALTER TABLE "insurance_policies" ADD COLUMN "policy_number_enc" text;

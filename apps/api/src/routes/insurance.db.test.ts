@@ -2,7 +2,7 @@ import type { InsurancePolicy, InsurancePolicyInput, PolicyExtraction, UploadedD
 import type { PlaidApi } from 'plaid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AIProvider } from '../ai/provider';
-import { documents } from '../db/schema';
+import { documents, insurancePolicies } from '../db/schema';
 import { loadEnv } from '../env';
 import { buildServer } from '../server';
 import type { DocumentStorage } from '../storage';
@@ -201,6 +201,22 @@ describe.skipIf(!testDatabaseUrl)('insurance routes (Postgres)', () => {
     expect(tooLong.statusCode).toBe(400);
     const noCarrier = await app.inject({ method: 'POST', url: '/insurance', headers, payload: { ...input, carrier: ' ' } });
     expect(noCarrier.statusCode).toBe(400);
+  });
+
+  it('keeps a full policy number encrypted, returning only its last 4', async () => {
+    const input: InsurancePolicyInput = { ...(await fakeAI.extractInsurancePolicy(PDF)).draft, documentId: null };
+    const created = (
+      await app.inject({ method: 'POST', url: '/insurance', headers, payload: { ...input, policyNumber: 'LT-00451234' } })
+    ).json<InsurancePolicy>();
+    expect(created).toMatchObject({ policyNumberMask: '1234', hasPolicyNumber: true });
+    expect(JSON.stringify(created)).not.toContain('0045');
+    const [row] = await ctx.db.select().from(insurancePolicies);
+    expect(row!.policyNumberEnc).not.toContain('0045');
+
+    // Left out, it's kept; null removes it.
+    const put = (payload: object) => app.inject({ method: 'PUT', url: `/insurance/${created.id}`, headers, payload });
+    expect((await put({ ...input, policyNumberMask: '1234' })).json()).toMatchObject({ hasPolicyNumber: true });
+    expect((await put({ ...input, policyNumberMask: '1234', policyNumber: null })).json()).toMatchObject({ hasPolicyNumber: false, policyNumberMask: '1234' });
   });
 
   it('updates a policy in place', async () => {

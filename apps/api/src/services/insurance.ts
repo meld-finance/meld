@@ -1,5 +1,5 @@
 import type { Beneficiary, InsurancePolicy } from '@meld/shared';
-import { asc, eq, type SQL } from 'drizzle-orm';
+import { asc, eq, sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { documents, insurancePolicies } from '../db/schema';
 
@@ -8,6 +8,7 @@ const columns = {
   type: insurancePolicies.type,
   carrier: insurancePolicies.carrier,
   policyNumberMask: insurancePolicies.policyNumberMask,
+  hasPolicyNumber: sql<boolean>`${insurancePolicies.policyNumberEnc} is not null`,
   insuredName: insurancePolicies.insuredName,
   coverageAmount: insurancePolicies.coverageAmount,
   benefitPercentOfIncome: insurancePolicies.benefitPercentOfIncome,

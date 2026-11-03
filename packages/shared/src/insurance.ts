@@ -37,8 +37,18 @@ export type Beneficiary = z.infer<typeof Beneficiary>;
 export const InsurancePolicyInput = z.object({
   type: InsurancePolicyType,
   carrier: z.string().trim().min(1),
-  /** Last 4 characters only; full policy numbers are never stored. */
+  /** Last 4 characters, for telling policies apart. */
   policyNumberMask: z.string().max(4).nullable(),
+  /**
+   * The full policy number, printed in the family packet and otherwise never sent back.
+   * Omit to keep the saved one; null removes it.
+   */
+  policyNumber: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9][A-Za-z0-9 -]{2,38}[A-Za-z0-9]$/, 'Use 4 to 40 letters, digits, spaces or dashes')
+    .nullable()
+    .optional(),
   insuredName: z.string().nullable(),
   /** Death benefit for life; monthly benefit for disability. */
   coverageAmount: z.number().nonnegative().nullable(),
@@ -70,8 +80,10 @@ export const InsurancePolicyInput = z.object({
 });
 export type InsurancePolicyInput = z.infer<typeof InsurancePolicyInput>;
 
-export const InsurancePolicy = InsurancePolicyInput.extend({
+export const InsurancePolicy = InsurancePolicyInput.omit({ policyNumber: true }).extend({
   id: z.uuid(),
+  /** Whether the full policy number is saved for the family packet. */
+  hasPolicyNumber: z.boolean(),
   documentFilename: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),

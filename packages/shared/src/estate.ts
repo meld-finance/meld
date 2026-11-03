@@ -52,6 +52,13 @@ export const EstateDesignationInput = z
   .refine((d) => (d.accountId === null) !== (d.manualAssetId === null), { message: 'Pick one account or asset' });
 export type EstateDesignationInput = z.infer<typeof EstateDesignationInput>;
 
+/** Marks several accounts and assets as passing by will in one go, e.g. everything still flagged for probate. */
+export const LeaveToWillInput = z.object({
+  accountIds: z.array(z.uuid()).max(500),
+  manualAssetIds: z.array(z.uuid()).max(500),
+});
+export type LeaveToWillInput = z.infer<typeof LeaveToWillInput>;
+
 /** What a target is, for which checks apply. */
 export const EstateCategory = z.enum([
   'retirement',
@@ -127,8 +134,12 @@ export const EstateTarget = z.object({
   trustName: z.string().nullable(),
   reviewedAt: z.string().nullable(),
   notes: z.string().nullable(),
-  /** Last 4 of the full account number saved for the packet, if any. */
+  /** Last 4 of the full account or policy number saved for the packet, if any. */
   accountNumberLast4: z.string().nullable(),
+  /** A linked checking or savings account, whose full number can be fetched from the bank. */
+  numberFromBank: z.boolean(),
+  /** What to do about it, in a sentence, or a note on something to check when it's set up; null when there's nothing. */
+  todo: z.string().nullable(),
   /** Whether a designation has been saved; policies always count as set up from their own form. */
   designated: z.boolean(),
   status: EstateStatus,
@@ -276,6 +287,13 @@ export const EMPTY_ESTATE_SETTINGS: EstateSettings = {
   reviewIntervalYears: 3,
 };
 
+/** Fetching an account's full number from the bank through Plaid. */
+export type BankNumberResult =
+  | { status: 'ok'; accountNumber: string }
+  /** The bank connection hasn't allowed account numbers yet; reconnect it in update mode with consentAuth. */
+  | { status: 'consent_required'; itemId: string }
+  | { status: 'unavailable'; message: string };
+
 export const PacketRequest = z.object({
   /** Encrypts the PDF (AES-256) so it opens only with this password. */
   password: z.string().min(6).max(200).nullable(),
@@ -291,6 +309,8 @@ export const EstateIssue = z.object({
   title: z.string(),
   body: z.string(),
   href: z.string().nullable(),
+  /** The target or document it's about, so the app can show it on that row; null for plan-wide issues. */
+  subject: z.string().nullable(),
 });
 export type EstateIssue = z.infer<typeof EstateIssue>;
 
@@ -300,8 +320,15 @@ export const EstateSummary = z.object({
   documents: z.array(EstateDocument),
   settings: EstateSettings,
   issues: z.array(EstateIssue),
-  /** Accounts, assets and policies set up, plus the core documents in place, out of everything that applies. */
-  readiness: z.object({ done: z.number().int(), total: z.number().int() }),
+  /** Steps done out of everything that applies: each account, asset and policy, each core document, contacts and the packet. */
+  readiness: z.object({
+    done: z.number().int(),
+    total: z.number().int(),
+    targets: z.object({ done: z.number().int(), total: z.number().int() }),
+    documents: z.object({ done: z.number().int(), total: z.number().int() }),
+    /** At least one person to call is entered. */
+    contacts: z.boolean(),
+  }),
   packet: z.object({
     lastExportedAt: z.string().nullable(),
     /** Something in the packet changed since it was exported, or it's over a year old. */

@@ -15,10 +15,11 @@ import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Chip } from '@/components/chip';
 import { Field, formStyles, Input, parseDate } from '@/components/form-fields';
+import { PlaidLinkButton } from '@/components/plaid-link-button';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { formatWholeCurrency } from '@/lib/format';
-import { useEstate, useSaveDesignation } from '@/lib/queries';
+import { useBankNumber, useEstate, useSaveDesignation } from '@/lib/queries';
 
 const goBack = () => (router.canGoBack() ? router.back() : router.replace('/plan?tab=estate'));
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -92,6 +93,22 @@ function DesignationForm({ target: t, trusts }: { target: EstateTarget; trusts: 
   // Never sent back by the server; blank keeps the saved one.
   const [accountNumber, setAccountNumber] = useState('');
   const [savedLast4, setSavedLast4] = useState(t.accountNumberLast4);
+  const bank = useBankNumber();
+  const [bankMessage, setBankMessage] = useState<string | null>(null);
+  const [consentItem, setConsentItem] = useState<string | null>(null);
+
+  function fetchFromBank() {
+    setBankMessage(null);
+    setConsentItem(null);
+    bank.mutate(t.id, {
+      onSuccess: (r) => {
+        if (r.status === 'ok') setAccountNumber(r.accountNumber);
+        else if (r.status === 'consent_required') setConsentItem(r.itemId);
+        else setBankMessage(r.message);
+      },
+      onError: (e) => setBankMessage(e.message),
+    });
+  }
 
   const people = methodNamesPeople(method);
   const parsed = parseBeneficiaries(beneficiaries);
@@ -179,12 +196,38 @@ function DesignationForm({ target: t, trusts }: { target: EstateTarget; trusts: 
               autoCorrect={false}
             />
           </Field>
-          {savedLast4 && !number && (
-            <Button label="Remove saved number" variant="secondary" size="small" onPress={() => setSavedLast4(null)} />
+          <View style={formStyles.buttons}>
+            {t.numberFromBank && !consentItem && (
+              <Button label="Get from bank" variant="secondary" size="small" loading={bank.isPending} onPress={fetchFromBank} />
+            )}
+            {savedLast4 && !number && (
+              <Button label="Remove saved number" variant="secondary" size="small" onPress={() => setSavedLast4(null)} />
+            )}
+          </View>
+          {consentItem && (
+            <>
+              <ThemedText type="small">
+                Your bank connection doesn’t share account numbers yet. Reconnect it and allow account and routing numbers,
+                then Meld fetches it.
+              </ThemedText>
+              <PlaidLinkButton
+                itemId={consentItem}
+                consentAuth
+                label="Allow account numbers"
+                size="small"
+                onLinked={fetchFromBank}
+                onError={setBankMessage}
+              />
+            </>
+          )}
+          {bankMessage && (
+            <ThemedText type="small" themeColor="warning">
+              {bankMessage}
+            </ThemedText>
           )}
           <ThemedText type="small" themeColor="textSecondary">
             Printed in the family packet so your executor can tell the institution which account. Stored encrypted and
-            never sent to Ask Meld.
+            never sent to Ask Meld.{t.numberFromBank ? ' Getting it from the bank uses Plaid Auth, which Plaid bills once per bank connection.' : ''}
           </ThemedText>
         </Card>
       )}

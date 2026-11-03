@@ -2,7 +2,8 @@ import type { EstateDocument, EstateDocumentInput, EstateSummary, UploadedDocume
 import { eq } from 'drizzle-orm';
 import type { PlaidApi } from 'plaid';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { accounts, alerts, estateDesignations, manualAssets } from '../db/schema';
+import { accounts, alerts, estateDesignations, manualAssets, plaidItems } from '../db/schema';
+import { encrypt } from '../lib/crypto';
 import { loadEnv } from '../env';
 import { buildServer } from '../server';
 import { evaluateAlerts } from '../services/alerts';
@@ -46,13 +47,14 @@ describe.skipIf(!testDatabaseUrl)('estate routes (Postgres)', () => {
   let app: Awaited<ReturnType<typeof buildServer>>;
   let headers: Record<string, string>;
   let env: ReturnType<typeof loadEnv>;
+  let plaid: PlaidApi;
   let ira: string;
   const storage = new MemoryStorage();
 
   beforeAll(async () => {
     ctx = await setupTestDb();
     env = loadEnv({ ...process.env, DATABASE_URL: testDatabaseUrl });
-    const plaid = {} as PlaidApi;
+    plaid = {} as PlaidApi;
     app = await buildServer({ env, db: ctx.db, plaid, sync: { db: ctx.db, plaid, encryptionKey: env.ENCRYPTION_KEY }, ai: null, storage });
     const login = await app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase: env.APP_PASSPHRASE } });
     headers = { authorization: `Bearer ${login.json().token}` };
@@ -113,6 +115,56 @@ describe.skipIf(!testDatabaseUrl)('estate routes (Postgres)', () => {
     await designate({ ...base, accountNumber: null });
     expect((await ctx.db.select().from(estateDesignations))[0]).toMatchObject({ accountNumberEnc: null, accountNumberLast4: null });
     expect((await designate({ ...base, accountNumber: '12' })).statusCode).toBe(400);
+  });
+
+  it('leaves the rest to the will in one go, keeping saved account numbers', async () => {
+    const [home] = await ctx.db.insert(manualAssets).values({ kind: 'home', name: 'House', value: 900_000 }).returning({ id: manualAssets.id });
+    const [checking] = await ctx.db
+      .insert(accounts)
+      .values({ source: 'manual', name: 'Checking', type: 'depository', subtype: 'checking', currentBalance: 5_000 })
+      .returning({ id: accounts.id });
+    await designate({ accountId: checking!.id, manualAssetId: null, method: 'none', beneficiaries: [], trustId: null, reviewedAt: null, notes: 'Branch on Main St', accountNumber: '000123456789' });
+    expect((await summary()).targets.filter((t) => t.status === 'review').map((t) => t.name).sort()).toEqual(['Checking', 'House']);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/estate/designations/will',
+      headers,
+      payload: { accountIds: [checking!.id, '00000000-0000-4000-8000-000000000000'], manualAssetIds: [home!.id] },
+    });
+    expect(res.json()).toEqual({ updated: 2 });
+    const s = await summary();
+    expect(s.targets.filter((t) => t.method === 'will').map((t) => [t.name, t.status, t.todo])).toEqual([
+      ['Checking', 'ok', null],
+      ['House', 'ok', null],
+    ]);
+    expect(s.targets.find((t) => t.id === checking!.id)).toMatchObject({ notes: 'Branch on Main St', accountNumberLast4: '6789' });
+  });
+
+  it('fetches a linked bank account’s number through Plaid, or says what’s needed', async () => {
+    const [item] = await ctx.db.insert(plaidItems).values({ plaidItemId: 'item-1', accessTokenEnc: encrypt('access-1', env.ENCRYPTION_KEY) }).returning({ id: plaidItems.id });
+    const [checking] = await ctx.db
+      .insert(accounts)
+      .values({ source: 'plaid', plaidItemId: item!.id, plaidAccountId: 'acc-1', name: 'Checking', type: 'depository', subtype: 'checking' })
+      .returning({ id: accounts.id });
+    const fetchNumber = (id: string) => app.inject({ method: 'POST', url: `/estate/accounts/${id}/bank-number`, headers });
+    expect((await summary()).targets.find((t) => t.id === checking!.id)?.numberFromBank).toBe(true);
+
+    let request: unknown;
+    plaid.authGet = (async (req: unknown) => {
+      request = req;
+      return { data: { numbers: { ach: [{ account_id: 'acc-1', account: '1111222233', routing: '011000015' }] } } };
+    }) as unknown as PlaidApi['authGet'];
+    expect((await fetchNumber(checking!.id)).json()).toEqual({ status: 'ok', accountNumber: '1111222233' });
+    expect(request).toEqual({ access_token: 'access-1', options: { account_ids: ['acc-1'] } });
+
+    plaid.authGet = (async () => {
+      throw Object.assign(new Error('400'), { response: { data: { error_code: 'ADDITIONAL_CONSENT_REQUIRED', error_type: 'INVALID_INPUT' } } });
+    }) as unknown as PlaidApi['authGet'];
+    expect((await fetchNumber(checking!.id)).json()).toEqual({ status: 'consent_required', itemId: item!.id });
+
+    // Only linked checking and savings accounts.
+    expect((await fetchNumber(ira)).statusCode).toBe(400);
   });
 
   it('validates designations', async () => {

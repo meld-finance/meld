@@ -19,7 +19,8 @@ import { ThemedText } from '@/components/themed-text';
 import { coverageLabel, FREQUENCY_LABELS, POLICY_TYPE_LABELS } from '@/lib/insurance';
 
 type Props = {
-  initial: InsurancePolicyInput | null;
+  /** A saved policy says whether its full number is on file; the number itself never comes back. */
+  initial: (InsurancePolicyInput & { hasPolicyNumber?: boolean }) | null;
   saving: boolean;
   error: string | null;
   onSave: (input: InsurancePolicyInput) => void;
@@ -36,7 +37,9 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
   const [type, setType] = useState<InsurancePolicyType>(initial?.type ?? 'life_term');
   const [carrier, setCarrier] = useState(initial?.carrier ?? '');
   const [insuredName, setInsuredName] = useState(initial?.insuredName ?? '');
-  const [policyNumberMask, setPolicyNumberMask] = useState(initial?.policyNumberMask ?? '');
+  // Blank keeps what's saved.
+  const [policyNumber, setPolicyNumber] = useState('');
+  const [savedMask, setSavedMask] = useState(initial?.policyNumberMask ?? null);
   const [coverage, setCoverage] = useState(str(initial?.coverageAmount));
   const [benefitPercent, setBenefitPercent] = useState(str(initial?.benefitPercentOfIncome));
   const [premium, setPremium] = useState(str(initial?.premiumAmount));
@@ -78,7 +81,14 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
   const parsedBeneficiaries = life ? parseBeneficiaries(beneficiaries) : [];
   const beneficiariesValid = parsedBeneficiaries.every(Boolean);
 
+  const number = policyNumber.trim();
+  if (number && !/^[A-Za-z0-9][A-Za-z0-9 -]{2,38}[A-Za-z0-9]$/.test(number)) invalid.add('policyNumber');
   const valid = carrier.trim().length > 0 && invalid.size === 0 && beneficiariesValid;
+  const savedPlaceholder = savedMask
+    ? initial?.hasPolicyNumber
+      ? `Saved, ending ${savedMask}. Type to replace`
+      : `Ending ${savedMask}. Enter the full number`
+    : 'For the family packet';
 
   function submit() {
     if (!valid) return;
@@ -86,7 +96,12 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
       type,
       carrier: carrier.trim(),
       insuredName: insuredName.trim() || null,
-      policyNumberMask: policyNumberMask.trim() || null,
+      // A new number sets both; removing clears both; otherwise the saved ones stay.
+      ...(number
+        ? { policyNumber: number, policyNumberMask: null }
+        : savedMask === (initial?.policyNumberMask ?? null)
+          ? { policyNumberMask: savedMask }
+          : { policyNumber: null, policyNumberMask: null }),
       coverageAmount: parsed.coverageAmount ?? null,
       benefitPercentOfIncome: parsed.benefitPercentOfIncome ?? null,
       premiumAmount: parsed.premiumAmount ?? null,
@@ -124,10 +139,25 @@ export function PolicyForm({ initial, saving, error, onSave, onCancel, onDelete,
           <Field label="Insured person" flex>
             <Input value={insuredName} onChangeText={setInsuredName} placeholder="Name" />
           </Field>
-          <Field label="Policy # (last 4)" flex>
-            <Input value={policyNumberMask} onChangeText={setPolicyNumberMask} maxLength={4} autoCapitalize="characters" />
+          <Field label="Policy number" invalid={invalid.has('policyNumber')} flex>
+            <Input
+              value={policyNumber}
+              onChangeText={setPolicyNumber}
+              placeholder={savedPlaceholder}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
           </Field>
         </Row>
+        {savedMask && !number && (
+          <Button label="Remove saved number" variant="secondary" size="small" onPress={() => setSavedMask(null)} />
+        )}
+        {life && (
+          <ThemedText type="small" themeColor="textSecondary">
+            The full number is printed in the family packet for whoever files the claim. It’s stored encrypted, the app only
+            shows the last 4, and Ask Meld never sees it.
+          </ThemedText>
+        )}
         <Field label="Employer-provided?">
           <YesNo value={employerProvided} onChange={setEmployerProvided} />
         </Field>
