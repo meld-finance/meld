@@ -1,14 +1,13 @@
 import type { Alert, AlertSeverity } from '@meld/shared';
-import { Link, router, type Href } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Card } from '@/components/card';
 import { Icon, type IconName } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRelativeTime } from '@/lib/format';
-import { useAlerts, useDismissAlert } from '@/lib/queries';
+import { useDismissAlert } from '@/lib/queries';
 
 export const SEVERITY: Record<AlertSeverity, { icon: IconName; color: 'negative' | 'warning' | 'tint' }> = {
   critical: { icon: 'info', color: 'negative' },
@@ -58,30 +57,6 @@ export function AlertRow({ alert: a, divider }: { alert: Alert; divider?: boolea
         </View>
       </View>
     </View>
-  );
-}
-
-/** Open warnings on the home page, so they're seen on phones too (where there's no bell). */
-export function HomeAlerts() {
-  const alerts = useAlerts();
-  const open = (alerts.data?.alerts ?? []).filter((a) => isOpen(a) && a.severity !== 'info');
-  if (!open.length) return null;
-  return (
-    <Card
-      title={open.length === 1 ? '1 alert' : `${open.length} alerts`}
-      action={
-        <Link href="/alerts">
-          <ThemedText type="small" themeColor="tint">
-            All alerts →
-          </ThemedText>
-        </Link>
-      }>
-      <View>
-        {open.slice(0, 3).map((a, i) => (
-          <AlertRow key={a.id} alert={a} divider={i > 0} />
-        ))}
-      </View>
-    </Card>
   );
 }
 

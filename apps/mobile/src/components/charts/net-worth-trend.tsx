@@ -11,7 +11,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useVizColors } from '@/hooks/use-viz-colors';
 import { formatCompactCurrency, formatCurrency, formatDate } from '@/lib/format';
 
-const HEIGHT = 200;
+const DEFAULT_HEIGHT = 200;
 const PAD_TOP = 8;
 const END_PAD_X = 6; // room for the end dot
 const Y_AXIS_WIDTH = 52;
@@ -28,7 +28,7 @@ function monthStarts(points: NetWorthPoint[]) {
 }
 
 /** Single-series net worth area chart. One color, no legend; the card title names it. */
-export function NetWorthTrend({ points }: { points: NetWorthPoint[] }) {
+export function NetWorthTrend({ points, height = DEFAULT_HEIGHT }: { points: NetWorthPoint[]; height?: number }) {
   const theme = useTheme();
   const viz = useVizColors();
   const [width, setWidth] = useState(0);
@@ -48,7 +48,7 @@ export function NetWorthTrend({ points }: { points: NetWorthPoint[] }) {
 
   const plotW = Math.max(width - END_PAD_X * 2, 1);
   const x = (i: number) => END_PAD_X + (i / (points.length - 1)) * plotW;
-  const y = (v: number) => PAD_TOP + (1 - (v - min) / (max - min)) * (HEIGHT - PAD_TOP);
+  const y = (v: number) => PAD_TOP + (1 - (v - min) / (max - min)) * (height - PAD_TOP);
 
   const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.netWorth).toFixed(1)}`).join(' ');
   const area = `${line} L${x(points.length - 1).toFixed(1)},${y(min)} L${x(0).toFixed(1)},${y(min)} Z`;
@@ -66,7 +66,7 @@ export function NetWorthTrend({ points }: { points: NetWorthPoint[] }) {
   return (
     <View>
       <View style={styles.row}>
-        <View style={[styles.yAxis, { height: HEIGHT }]}>
+        <View style={[styles.yAxis, { height }]}>
           {ticks.map((t) => (
             <ThemedText key={t} type="small" themeColor="textSecondary" style={[styles.yLabel, { top: y(t) - 10 }]}>
               {formatCompactCurrency(t)}
@@ -74,9 +74,9 @@ export function NetWorthTrend({ points }: { points: NetWorthPoint[] }) {
           ))}
         </View>
         <View style={styles.plot} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-          <View style={{ height: HEIGHT }}>
+          <View style={{ height }}>
             {width > 0 && (
-              <Svg width={width} height={HEIGHT}>
+              <Svg width={width} height={height}>
                 <Defs>
                   <LinearGradient id="nw-fill" x1="0" y1="0" x2="0" y2="1">
                     <Stop offset="0" stopColor={viz.trend} stopOpacity={0.22} />
@@ -89,7 +89,7 @@ export function NetWorthTrend({ points }: { points: NetWorthPoint[] }) {
                 <Path d={area} fill="url(#nw-fill)" />
                 <Path d={line} stroke={viz.trend} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
                 {active !== null && (
-                  <Line x1={x(shown)} x2={x(shown)} y1={0} y2={HEIGHT} stroke={viz.axis} strokeWidth={1} />
+                  <Line x1={x(shown)} x2={x(shown)} y1={0} y2={height} stroke={viz.axis} strokeWidth={1} />
                 )}
                 <Circle
                   cx={x(shown)}
