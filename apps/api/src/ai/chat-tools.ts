@@ -20,6 +20,7 @@ import { accounts, investmentTransactions, manualAssets, securities } from '../d
 import { localDate } from '../lib/networth';
 import { listAccounts, listLiabilities } from '../services/accounts';
 import { getCashPlan } from '../services/cash';
+import { getEstateSummary } from '../services/estate';
 import { listPolicies } from '../services/insurance';
 import { getInvestmentsSummary } from '../services/investments';
 import { getInvestmentPerformance } from '../services/performance';
@@ -344,6 +345,33 @@ export function createChatTools(db: Db): ChatTool[] {
         return {
           totals: insuranceTotals(policies, localDate()),
           policies: policies.map(({ documentId: _d, documentFilename: _f, createdAt: _c, ...p }) => p),
+        };
+      },
+    }),
+    tool({
+      name: 'get_estate_plan',
+      description:
+        'The user’s estate plan from Plan → Estate: how each account, property and life policy passes on death (`method`: beneficiary designation, transfer/payable on death, joint with survivorship, a trust, by will, or not set up), its named primary and contingent beneficiaries with shares, and a `status` (ok, missing = needs a beneficiary and has none, review = would go through probate or something looks off, n/a). Also the estate documents on file (trusts, will, powers of attorney, healthcare directive, guardianship) with signing and review dates and the roles of the people they name, the readiness checks Meld found, and whether the family packet is up to date. Organizing help, not legal advice: suggest an estate attorney for drafting or state-specific questions.',
+      input: z.object({}),
+      label: () => 'Checked your estate plan',
+      run: async () => {
+        const { fingerprint: _f, settings, documents, targets, ...summary } = await getEstateSummary(db);
+        return {
+          ...summary,
+          targets: targets.map(({ notes: _n, href: _h, ...t }) => t),
+          // Names and roles only; contact details stay out of the AI's context.
+          documents: documents.map((d) => ({
+            kind: d.kind,
+            name: d.name,
+            signedDate: d.signedDate,
+            state: d.state,
+            reviewedAt: d.reviewedAt,
+            people: d.people.map((p) => ({ name: p.name, role: p.role, relationship: p.relationship })),
+            hasAttorney: d.attorney !== null,
+          })),
+          contacts: settings.contacts.map((c) => ({ role: c.role, name: c.name })),
+          hasInstructions: !!settings.instructions,
+          reviewIntervalYears: settings.reviewIntervalYears,
         };
       },
     }),

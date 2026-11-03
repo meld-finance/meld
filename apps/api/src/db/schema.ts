@@ -1,7 +1,11 @@
 import type {
   AlertSettings,
+  Beneficiary,
   CashSettings,
   Child,
+  Contact,
+  EstatePerson,
+  EstateSettings,
   RetirementInputs,
   RetirementPlan,
   SecurityProfile,
@@ -436,6 +440,54 @@ export const alertSettings = pgTable('alert_settings', {
   id: integer('id').primaryKey().default(1),
   /** AlertSettings; read over DEFAULT_ALERT_SETTINGS so fields added later still parse. */
   settings: jsonb('settings').$type<AlertSettings>().notNull(),
+  ...timestamps,
+});
+
+// --- Estate -----------------------------------------------------------------
+
+/** A trust, will, power of attorney or directive: who it names and where the original is. */
+export const estateDocuments = pgTable('estate_documents', {
+  id: id(),
+  /** EstateDocumentKind */
+  kind: text('kind').notNull(),
+  name: text('name').notNull(),
+  signedDate: date('signed_date'),
+  state: text('state'),
+  reviewedAt: date('reviewed_at'),
+  originalLocation: text('original_location'),
+  people: jsonb('people').$type<EstatePerson[]>().notNull().default([]),
+  attorney: jsonb('attorney').$type<Contact>(),
+  documentId: uuid('document_id').references(() => documents.id, { onDelete: 'set null' }),
+  notes: text('notes'),
+  ...timestamps,
+});
+
+/** How one account or manual asset passes on death. Kept apart from accounts so sync never touches it. */
+export const estateDesignations = pgTable('estate_designations', {
+  id: id(),
+  accountId: uuid('account_id')
+    .unique()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  manualAssetId: uuid('manual_asset_id')
+    .unique()
+    .references(() => manualAssets.id, { onDelete: 'cascade' }),
+  /** EstateMethod */
+  method: text('method').notNull(),
+  beneficiaries: jsonb('beneficiaries').$type<Beneficiary[]>().notNull().default([]),
+  trustId: uuid('trust_id').references(() => estateDocuments.id, { onDelete: 'set null' }),
+  reviewedAt: date('reviewed_at'),
+  notes: text('notes'),
+  ...timestamps,
+});
+
+/** Single-row table: key contacts, instructions, and when the family packet was last exported. */
+export const estateSettings = pgTable('estate_settings', {
+  id: integer('id').primaryKey().default(1),
+  /** EstateSettings; read over EMPTY_ESTATE_SETTINGS so fields added later still parse. */
+  settings: jsonb('settings').$type<EstateSettings>().notNull(),
+  lastExportedAt: timestamp('last_exported_at', { withTimezone: true }),
+  /** Hash of the packet's contents at that export, to tell when it's out of date. */
+  exportFingerprint: text('export_fingerprint'),
   ...timestamps,
 });
 

@@ -48,7 +48,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await request(path, init)).json() as Promise<T>;
 }
 
-/** For binary responses such as uploaded documents. */
-export async function apiBlob(path: string): Promise<Blob> {
-  return (await request(path, {})).blob();
+/** For binary responses such as uploaded documents and the family packet. */
+export async function apiBlob(path: string, init: RequestInit = {}): Promise<Blob> {
+  return (await request(path, init)).blob();
 }

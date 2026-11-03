@@ -99,6 +99,14 @@ export default function AccountDetailScreen() {
 
       {!account.hidden && <OwnershipCard key={account.ownershipPercent ?? 100} account={account} />}
 
+      {!account.hidden && !owed && (
+        <Card title="On death" subtitle="Who inherits this account: a beneficiary, TOD/POD, joint owner or your trust.">
+          <Link href={{ pathname: '/estate/account/[id]', params: { id: account.id } }}>
+            <ThemedText type="linkPrimary">Set up beneficiaries →</ThemedText>
+          </Link>
+        </Card>
+      )}
+
       <Card>
         <View style={styles.actions}>
           <Link href={{ pathname: '/spending', params: { tab: 'transactions', accountId: account.id } }}>

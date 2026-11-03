@@ -10,7 +10,7 @@ import { and, eq, lt, notExists } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { requireAI } from '../ai/provider';
 import type { Db } from '../db/client';
-import { documents, insurancePolicies } from '../db/schema';
+import { documents, estateDocuments, insurancePolicies } from '../db/schema';
 import { HttpError, IdParams, parse } from '../lib/http';
 import type { AppDeps } from '../server';
 import { listPolicies } from '../services/insurance';
@@ -18,9 +18,22 @@ import type { DocumentStorage } from '../storage';
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
-/** A document no policy references. */
+/** A document no policy or estate document references. */
 const unreferenced = (db: Db) =>
-  notExists(db.select().from(insurancePolicies).where(eq(insurancePolicies.documentId, documents.id)));
+  and(
+    notExists(db.select().from(insurancePolicies).where(eq(insurancePolicies.documentId, documents.id))),
+    notExists(db.select().from(estateDocuments).where(eq(estateDocuments.documentId, documents.id))),
+  );
+
+/** Removes a document once nothing references it. */
+export async function deleteDocumentIfUnused(db: Db, storage: DocumentStorage, documentId: string | null) {
+  if (!documentId) return;
+  const [doc] = await db
+    .delete(documents)
+    .where(and(eq(documents.id, documentId), unreferenced(db)))
+    .returning({ storageKey: documents.storageKey });
+  if (doc) await storage.delete(doc.storageKey);
+}
 
 /** Deletes uploads that never became a policy (abandoned drafts), after a grace period. */
 export async function pruneOrphanDocuments(db: Db, storage: DocumentStorage, olderThanMs = 24 * 60 * 60 * 1000) {
@@ -52,15 +65,7 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
     return { ...input, policyNumberMask: maskPolicyNumber(input.policyNumberMask) };
   }
 
-  /** Removes a document once nothing references it. */
-  async function deleteDocumentIfUnused(documentId: string | null) {
-    if (!documentId) return;
-    const [doc] = await db
-      .delete(documents)
-      .where(and(eq(documents.id, documentId), unreferenced(db)))
-      .returning({ storageKey: documents.storageKey });
-    if (doc) await storage.delete(doc.storageKey);
-  }
+  const deleteIfUnused = (documentId: string | null) => deleteDocumentIfUnused(db, storage, documentId);
 
   app.get('/insurance', () => listPolicies(db));
 
@@ -77,7 +82,7 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
     const input = await parsePolicyInput(req.body);
     const before = await getPolicy(id);
     await db.update(insurancePolicies).set(input).where(eq(insurancePolicies.id, id));
-    if (before.documentId !== input.documentId) await deleteDocumentIfUnused(before.documentId);
+    if (before.documentId !== input.documentId) await deleteIfUnused(before.documentId);
     return getPolicy(id);
   });
 
@@ -88,7 +93,7 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
       .where(eq(insurancePolicies.id, id))
       .returning({ documentId: insurancePolicies.documentId });
     if (!row) throw new HttpError(404, 'Policy not found');
-    await deleteDocumentIfUnused(row.documentId);
+    await deleteIfUnused(row.documentId);
     return { ok: true };
   });
 
@@ -113,7 +118,7 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
     return { documentId: doc!.id, filename, data };
   }
 
-  /** Upload a PDF to keep with a policy; no AI involved. Unsaved uploads are cleaned up after a day. */
+  /** Upload a PDF to keep with a policy or estate document; no AI involved. Unsaved uploads are cleaned up after a day. */
   app.post('/documents', async (req): Promise<UploadedDocument> => {
     const { documentId, filename } = await storeUploadedPdf(req);
     return { documentId, filename };
@@ -127,7 +132,7 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
       const { draft, warnings } = await provider.extractInsurancePolicy(data);
       return { documentId, filename, draft: { ...draft, documentId }, warnings };
     } catch (err) {
-      await deleteDocumentIfUnused(documentId);
+      await deleteIfUnused(documentId);
       throw err;
     }
   });
@@ -144,10 +149,10 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
       .send(data);
   });
 
-  /** Discards an upload whose draft was cancelled. Documents attached to a policy are kept. */
+  /** Discards an upload whose draft was cancelled. Documents attached to a policy or estate document are kept. */
   app.delete('/documents/:id', async (req) => {
     const { id } = parse(IdParams, req.params);
-    await deleteDocumentIfUnused(id);
+    await deleteIfUnused(id);
     return { ok: true };
   });
 }

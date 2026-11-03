@@ -5,11 +5,12 @@ import { accounts, alerts, institutions, plaidItems, transactions } from '../db/
 import { localDate } from '../lib/networth';
 import { addDays, daysBetween } from '../lib/recurring';
 import { getAlertSettings } from './alert-settings';
+import { getEstateSummary } from './estate';
 import { getAutopayStatuses, getRecurringSeries } from './recurring';
 import { countsTowardCashflow } from './transactions';
 
 /** Alerts about a state that can clear on its own; the rest are about one event and stay until dismissed. */
-const CONDITIONS = new Set<AlertType>(['autopay_short', 'low_balance', 'connection']);
+const CONDITIONS = new Set<AlertType>(['autopay_short', 'low_balance', 'connection', 'estate']);
 const SEVERITY_RANK: Record<AlertSeverity, number> = { info: 0, warning: 1, critical: 2 };
 /** Charges this recent can raise a large-transaction alert; older history arriving from a new link can't. */
 const LARGE_TXN_DAYS = 3;
@@ -134,6 +135,8 @@ export async function alertCandidates(db: Db, settings: AlertSettings, today = l
     }
   }
 
+  if (settings.estate) out.push(...(await estateCandidates(db, today)));
+
   for (const s of series) {
     if (s.status !== 'active' || s.kind === 'income') continue;
     const p = s.priceChange;
@@ -157,6 +160,36 @@ export async function alertCandidates(db: Db, settings: AlertSettings, today = l
         href: '/spending?tab=recurring',
       });
     }
+  }
+  return out;
+}
+
+/** Missing beneficiaries and a stale family packet: informational, so they show in the app but aren't pushed by default. */
+async function estateCandidates(db: Db, today: string): Promise<AlertCandidate[]> {
+  const out: AlertCandidate[] = [];
+  const estate = await getEstateSummary(db, today);
+  const missing = estate.targets.filter((t) => t.status === 'missing');
+  if (missing.length) {
+    const names = missing.map((t) => t.name);
+    out.push({
+      type: 'estate',
+      severity: 'info',
+      key: 'estate:beneficiaries',
+      title: missing.length === 1 ? `${names[0]} has no beneficiary` : `${missing.length} accounts and policies have no beneficiary`,
+      body: `${names.slice(0, 4).join(', ')}${names.length > 4 ? ` and ${names.length - 4} more` : ''}. Without one they go to your estate and through probate. Name beneficiaries with each institution, then record them in Meld.`,
+      href: '/plan?tab=estate',
+    });
+  }
+  // Only once there's a packet to be out of date; never having made one is on the Estate page.
+  if (estate.packet.lastExportedAt && estate.packet.stale) {
+    out.push({
+      type: 'estate',
+      severity: 'info',
+      key: 'estate:packet',
+      title: 'Your family packet is out of date',
+      body: 'Accounts, beneficiaries, documents or contacts changed since you exported it, or it’s over a year old. Export a new copy and replace the old one.',
+      href: '/plan?tab=estate',
+    });
   }
   return out;
 }

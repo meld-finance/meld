@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const AlertType = z.enum(['autopay_short', 'low_balance', 'large_transaction', 'price_increase', 'new_recurring', 'connection']);
+export const AlertType = z.enum(['autopay_short', 'low_balance', 'large_transaction', 'price_increase', 'new_recurring', 'connection', 'estate']);
 export type AlertType = z.infer<typeof AlertType>;
 
 export const AlertSeverity = z.enum(['info', 'warning', 'critical']);
@@ -47,6 +47,8 @@ export const AlertSettings = z.object({
   newRecurring: z.boolean(),
   /** A bank connection needs you to sign in again. */
   connection: z.boolean(),
+  /** Accounts or policies with no beneficiary, and a family packet that's out of date. */
+  estate: z.boolean(),
   /** Push notifications through ntfy (https://ntfy.sh or your own server): the full topic URL, or null for in-app only. */
   ntfyUrl: z.url({ protocol: /^https?$/ }).nullable(),
   /** Only push alerts at or above this severity. */
@@ -63,6 +65,7 @@ export const DEFAULT_ALERT_SETTINGS: AlertSettings = {
   priceIncrease: true,
   newRecurring: true,
   connection: true,
+  estate: true,
   ntfyUrl: null,
   pushMinSeverity: 'warning',
 };
