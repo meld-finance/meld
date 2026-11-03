@@ -105,6 +105,15 @@ const BY_PAGE: Record<string, PageQuestions> = {
       'What happens to my family’s finances if I can’t work?',
     ],
   },
+  '/plan?estate': {
+    page: 'your estate plan',
+    questions: [
+      'Which of my accounts are missing a beneficiary?',
+      'What would go through probate if I died today?',
+      'Which estate documents should I have and am I missing any?',
+      'Are my beneficiaries and estate documents due for a review?',
+    ],
+  },
   '/plan?profile': {
     page: 'your profile',
     questions: [
@@ -126,9 +135,16 @@ const BY_PAGE: Record<string, PageQuestions> = {
   },
 };
 
+/** Detail pages outside the tabs, keyed by their first path segment, and the tab they belong to. */
+const SECTION_PAGES: Record<string, string> = {
+  '/estate': '/plan?estate',
+  '/insurance': '/plan?insurance',
+};
+
 /** What the page being looked at is about, and questions to start a chat about it. */
 export function usePageQuestions(): PageQuestions {
   const pathname = usePathname();
   const { tab } = useGlobalSearchParams<{ tab?: string }>();
-  return (tab && BY_PAGE[`${pathname}?${tab}`]) || BY_PAGE[pathname] || GENERAL;
+  const section = SECTION_PAGES[`/${pathname.split('/')[1]}`];
+  return (tab && BY_PAGE[`${pathname}?${tab}`]) || BY_PAGE[pathname] || (section && BY_PAGE[section]) || GENERAL;
 }
