@@ -1,6 +1,6 @@
 import { EMPTY_CASH_SETTINGS, type CashSettings } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
-import { buildCashPlan, isCashHolding, type CashInputs, type DetectedPosition } from './cash';
+import { bankApy, buildCashPlan, isCashHolding, type CashInputs, type DetectedPosition } from './cash';
 
 const ID = '00000000-0000-4000-8000-00000000000';
 
@@ -116,5 +116,21 @@ describe('isCashHolding', () => {
     // A 529 portfolio without a ticker, and a 401(k) stock fund Plaid typed as cash.
     expect(isCashHolding(h(null, 'mutual fund', 0.01, 'Vanguard 500 Index Portfolio'))).toBe(false);
     expect(isCashHolding(h('INTL.GROWTH.ACCOUNT', 'cash', 1, 'Intl Growth Account'))).toBe(false);
+  });
+});
+
+describe('bankApy', () => {
+  it('compounds monthly interest over that month’s balance', () => {
+    expect(bankApy([{ interest: 33.03, balance: 11_034.18 }])).toBeCloseTo(0.0365, 4);
+  });
+
+  it('skips months without a known balance', () => {
+    expect(bankApy([{ interest: 77.1, balance: null }, { interest: 30, balance: 12_000 }])).toBeCloseTo(1.0025 ** 12 - 1, 8);
+    expect(bankApy([{ interest: 77.1, balance: null }])).toBeNull();
+  });
+
+  it('reads no interest as 0% and implausible rates as unknown', () => {
+    expect(bankApy([{ interest: 0, balance: 9_000 }])).toBe(0);
+    expect(bankApy([{ interest: 500, balance: 1_000 }])).toBeNull();
   });
 });
