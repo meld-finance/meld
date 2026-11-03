@@ -1,6 +1,6 @@
 import { EMPTY_CASH_SETTINGS, type CashSettings } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
-import { bankApy, buildCashPlan, isCashHolding, type CashInputs, type DetectedPosition } from './cash';
+import { bankApy, buildCashPlan, interestPeriods, isCashHolding, type CashInputs, type DetectedPosition } from './cash';
 
 const ID = '00000000-0000-4000-8000-00000000000';
 
@@ -120,17 +120,45 @@ describe('isCashHolding', () => {
 });
 
 describe('bankApy', () => {
-  it('compounds monthly interest over that month’s balance', () => {
-    expect(bankApy([{ interest: 33.03, balance: 11_034.18 }])).toBeCloseTo(0.0365, 4);
+  it('compounds each period monthly and takes the median', () => {
+    const apy = (interest: number, balance: number, days: number) => (1 + ((interest / balance / days) * 365) / 12) ** 12 - 1;
+    expect(bankApy([{ interest: 33.03, days: 30, balance: 11_034.18 }])).toBeCloseTo(apy(33.03, 11_034.18, 30), 8);
+    // August's balance reads too low where a transfer out was offset by a sweep entry; it doesn't count.
+    const periods = [
+      { interest: 77.1, days: 31, balance: 10_258 },
+      { interest: 30.33, days: 30, balance: 11_066 },
+      { interest: 33.03, days: 30, balance: 11_066 },
+    ];
+    expect(bankApy(periods)).toBeCloseTo(apy(33.03, 11_066, 30), 8);
+    expect(bankApy(periods.slice(1))).toBeCloseTo((apy(30.33, 11_066, 30) + apy(33.03, 11_066, 30)) / 2, 8);
   });
 
-  it('skips months without a known balance', () => {
-    expect(bankApy([{ interest: 77.1, balance: null }, { interest: 30, balance: 12_000 }])).toBeCloseTo(1.0025 ** 12 - 1, 8);
-    expect(bankApy([{ interest: 77.1, balance: null }])).toBeNull();
+  it('reads no interest as 0% and implausible rates or no balance as unknown', () => {
+    expect(bankApy([{ interest: 0, days: 30, balance: 9_000 }])).toBe(0);
+    expect(bankApy([{ interest: 500, days: 30, balance: 1_000 }])).toBeNull();
+    expect(bankApy([{ interest: 5, days: 30, balance: 0 }])).toBeNull();
+    expect(bankApy([])).toBeNull();
+  });
+});
+
+describe('interestPeriods', () => {
+  // Interest posted on the 10th; $20k moved out mid-period and $30k in after the last posting.
+  const transactions = [
+    { date: '2026-09-10', amount: -75, interest: true },
+    { date: '2026-09-21', amount: 20_000, interest: false },
+    { date: '2026-10-10', amount: -40, interest: true },
+    { date: '2026-10-14', amount: -30_000, interest: false },
+  ];
+
+  it('compares each posting with the balance since the one before', () => {
+    const [period, ...rest] = interestPeriods(40_000, transactions, '2026-08-01');
+    expect(rest).toEqual([]);
+    // Sep 11–20 at $29,960, then from the transfer on Sep 21 at $9,960, before October's interest lands.
+    expect(period).toEqual({ interest: 40, days: 30, balance: (10 * 29_960 + 20 * 9_960) / 30 });
   });
 
-  it('reads no interest as 0% and implausible rates as unknown', () => {
-    expect(bankApy([{ interest: 0, balance: 9_000 }])).toBe(0);
-    expect(bankApy([{ interest: 500, balance: 1_000 }])).toBeNull();
+  it('leaves out postings before the window and after a missing one', () => {
+    expect(interestPeriods(40_000, transactions, '2026-10-11')).toEqual([]);
+    expect(interestPeriods(40_000, [{ date: '2026-07-10', amount: -50, interest: true }, ...transactions.slice(2)], '2026-08-01')).toEqual([]);
   });
 });

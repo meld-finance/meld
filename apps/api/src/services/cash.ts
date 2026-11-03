@@ -13,12 +13,12 @@ import {
 } from '@meld/shared';
 import { and, eq, gte, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { accounts, balanceSnapshots, cashSettings, investmentTransactions, transactions } from '../db/schema';
+import { accounts, cashSettings, investmentTransactions, transactions } from '../db/schema';
 import { localDate } from '../lib/networth';
 import { fetchTreasuryYield, fetchYahooTrailingYield, type FetchYield } from '../lib/prices';
 import { listAccounts, listHoldings } from './accounts';
 import { getCashflow, recentMonths } from './overview';
-import { daysBetween } from './performance';
+import { addDays, daysBetween } from './performance';
 
 /** Where today's market rates come from; tests pass their own. */
 export type MarketRates = {
@@ -34,6 +34,8 @@ const RATES_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const RATE_MONTHS = 3;
 /** Less history than this says nothing about a rate. */
 const MIN_RATE_DAYS = 28;
+/** Interest postings further apart than this have one missing between them. */
+const MAX_POSTING_GAP_DAYS = 45;
 /** Detected rates above this are bonuses or misread transactions, not a rate to plan around. */
 const MAX_PLAUSIBLE_APY = 0.15;
 /** Complete months of spending averaged. */
@@ -317,19 +319,52 @@ function annualRate(interest: number, days: number, balance: number): number | n
   return rate >= 0 && rate <= MAX_PLAUSIBLE_APY ? rate : null;
 }
 
-/** A bank account's month: the interest paid in it and its balance then, if known. */
-export type InterestMonth = { interest: number; balance: number | null };
+/** A bank transaction, as Plaid signs it: deposits negative. */
+export type BankTransaction = { date: string; amount: number; interest: boolean };
+
+/** One interest posting and the average daily balance that earned it, since the posting before. */
+export type InterestPeriod = { interest: number; days: number; balance: number };
 
 /**
- * APY from monthly interest: each month's interest over that month's own balance, compounded
- * monthly the way banks quote it. Months without a known balance are left out, so a large balance
- * moved out mid-window doesn't inflate the rate.
+ * The interest periods ending on or after `from`. Banks post on their own schedule (Ally on the
+ * 10th, others at month end), so each posting is compared with the balance since the one before,
+ * worked back day by day from today's balance through the transactions in between.
  */
-export function bankApy(months: InterestMonth[]): number | null {
-  const known = months.filter((m) => m.balance !== null && m.balance > 0);
-  if (!known.length) return null;
-  const monthly = known.reduce((s, m) => s + m.interest, 0) / known.reduce((s, m) => s + m.balance!, 0);
-  const apy = (1 + monthly) ** 12 - 1;
+export function interestPeriods(currentBalance: number, transactions: BankTransaction[], from: string): InterestPeriod[] {
+  const sorted = [...transactions].sort((x, y) => x.date.localeCompare(y.date));
+  // The balance at the end of a day: today's, less everything that came in after it.
+  const balanceAfter = (date: string) => sorted.reduce((b, t) => (t.date > date ? b + t.amount : b), currentBalance);
+  const postings = new Map<string, number>();
+  for (const t of sorted) if (t.interest) postings.set(t.date, (postings.get(t.date) ?? 0) - t.amount);
+  const dates = [...postings.keys()];
+
+  const periods: InterestPeriod[] = [];
+  for (let i = 1; i < dates.length; i++) {
+    const [start, end] = [dates[i - 1]!, dates[i]!];
+    const days = daysBetween(start, end);
+    if (end < from || days > MAX_POSTING_GAP_DAYS) continue;
+    const interest = postings.get(end)!;
+    let total = 0;
+    // The days after the last posting through this one, before its interest lands.
+    for (let d = addDays(start, 1); d <= end; d = addDays(d, 1)) total += balanceAfter(d) - (d === end ? interest : 0);
+    periods.push({ interest, days, balance: total / days });
+  }
+  return periods;
+}
+
+/**
+ * APY from interest periods: each period's rate compounded monthly the way banks quote it, and the
+ * median of those, so one period whose transactions don't add up (a transfer reversed by a sweep
+ * entry, say) can't skew it.
+ */
+export function bankApy(periods: InterestPeriod[]): number | null {
+  const rates = periods
+    .filter((p) => p.balance > 0)
+    .map((p) => (1 + ((p.interest / p.balance / p.days) * 365) / 12) ** 12 - 1)
+    .sort((x, y) => x - y);
+  if (!rates.length) return null;
+  const mid = rates.length / 2;
+  const apy = rates.length % 2 ? rates[Math.floor(mid)]! : (rates[mid - 1]! + rates[mid]!) / 2;
   return apy >= 0 && apy <= MAX_PLAUSIBLE_APY ? apy : null;
 }
 
@@ -353,32 +388,33 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
   );
   const cashHoldings = holdingList.filter((h) => (h.value ?? 0) * share(h.accountId) >= 1 && isCashHolding(h));
   const bankIds = banks.map((a) => a.id);
-  const txMonth = sql<string>`to_char(${transactions.date}, 'YYYY-MM')`;
   const brokerageIds = [...new Set(cashHoldings.map((h) => h.accountId))];
 
-  const [bankInterest, history, snapshots, fundIncome, treasuryApy] = await Promise.all([
+  const [bankTransactions, history, fundIncome, treasuryApy] = await Promise.all([
     bankIds.length
       ? db
           .select({
             accountId: transactions.accountId,
-            month: txMonth,
-            total: sql<number>`(-sum(${transactions.amount}))::float8`,
+            date: sql<string>`${transactions.date}::text`,
+            amount: transactions.amount,
+            // Plaid's interest category, unless you've recategorized it; or a deposit named for interest.
+            interest: sql<boolean>`${and(
+              lt(transactions.amount, 0),
+              or(
+                and(eq(transactions.plaidCategoryDetailed, INTEREST), or(isNull(transactions.category), eq(transactions.category, 'INCOME'))),
+                sql`${transactions.name} ~* '\\minterest\\M'`,
+              ),
+            )}`,
           })
           .from(transactions)
           .where(
             and(
               inArray(transactions.accountId, bankIds),
-              gte(transactions.date, from),
-              lt(transactions.date, to),
-              lt(transactions.amount, 0),
-              // Plaid's interest category, unless you've recategorized it; or a deposit named for interest.
-              or(
-                and(eq(transactions.plaidCategoryDetailed, INTEREST), or(isNull(transactions.category), eq(transactions.category, 'INCOME'))),
-                sql`${transactions.name} ~* '\\minterest\\M'`,
-              ),
+              gte(transactions.date, addDays(from, -MAX_POSTING_GAP_DAYS)),
+              // Today's balance leaves out what's still pending.
+              eq(transactions.pending, false),
             ),
           )
-          .groupBy(transactions.accountId, txMonth)
       : [],
     bankIds.length
       ? db
@@ -387,10 +423,6 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
           .where(inArray(transactions.accountId, bankIds))
           .groupBy(transactions.accountId)
       : [],
-    db
-      .select({ date: sql<string>`${balanceSnapshots.date}::text`, balances: balanceSnapshots.balances })
-      .from(balanceSnapshots)
-      .where(gte(balanceSnapshots.date, from)),
     brokerageIds.length
       ? db
           .select({
@@ -412,7 +444,6 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
     orNull('Treasury yield', rates.benchmark()),
   ]);
 
-  const interestOf = new Map(bankInterest.map((r) => [`${r.accountId}:${r.month}`, r.total]));
   const firstOf = new Map(history.map((r) => [r.accountId, r.first]));
   const incomeOf = new Map(fundIncome.map((r) => [`${r.accountId}:${r.securityId}`, r.total]));
   const windowDays = daysBetween(from, to);
@@ -421,26 +452,13 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
 
   for (const a of banks) {
     const first = firstOf.get(a.id);
-    // Snapshots hold your share; rates compare whole-account interest to whole-account balances.
-    const average = (inRange: (date: string) => boolean) => {
-      const seen = snapshots
-        .filter((s) => inRange(s.date))
-        .map((s) => s.balances?.[a.id])
-        .filter((b): b is number => b !== undefined);
-      return seen.length ? seen.reduce((s, b) => s + b, 0) / seen.length / share(a.id) : null;
-    };
-    const rateMonths = months.slice(0, -1);
-    const interestMonths: InterestMonth[] = rateMonths
-      // Months before the account's history began say nothing.
-      .filter((m) => first && first <= `${m}-01`)
-      .map((m) => {
-        const inMonth = average((d) => d.startsWith(m));
-        // The latest month without snapshots of its own goes by the balance since, which is
-        // usually what earned it; older months without snapshots are unknown.
-        const since = m === rateMonths.at(-1) ? (average((d) => d >= to) ?? a.currentBalance) : null;
-        return { interest: interestOf.get(`${a.id}:${m}`) ?? 0, balance: inMonth ?? since };
-      });
-    const apy = bankApy(interestMonths);
+    const periods = interestPeriods(
+      a.currentBalance ?? 0,
+      bankTransactions.filter((t) => t.accountId === a.id),
+      from,
+    );
+    // No interest at all over a window the account's history covers reads as 0%.
+    const apy = periods.length ? bankApy(periods) : first && first <= from ? 0 : null;
     positions.push({
       key: a.id,
       kind: 'bank',
