@@ -17,6 +17,7 @@ const target = (extra: Partial<TargetDraft> & Pick<TargetDraft, 'name' | 'catego
   reviewedAt: null,
   notes: null,
   accountNumberLast4: null,
+  numberFromBank: false,
   designated: false,
   href: '/estate/account/x',
   ...extra,
@@ -82,7 +83,8 @@ describe('summarizeEstate', () => {
       ['Roth', 'ok', 'Doe Family Trust'],
     ]);
     expect(r.issues).toEqual([]);
-    expect(r.readiness).toEqual({ done: 6, total: 6 });
+    // Everything but contacts.
+    expect(r.readiness).toMatchObject({ done: 6, total: 7, targets: { done: 2, total: 2 }, documents: { done: 3, total: 3 }, contacts: false });
   });
 
   it('checks shares, estates named as beneficiary, and minors named directly', () => {
@@ -99,6 +101,10 @@ describe('summarizeEstate', () => {
     expect(body('Split')).toContain('Primary shares add up to 60%');
     expect(body('Estate')).toContain('goes through probate');
     expect(body('Kid')).toContain('Emma Doe is a minor');
+    // The issue is tied to its row.
+    const kid = r.targets.find((t) => t.name === 'Kid')!;
+    expect(r.issues.find((i) => i.subject === kid.id)?.title).toBe('Check the beneficiaries on Kid');
+    expect(kid.todo).toContain('Emma Doe is a minor');
     expect(r.targets.every((t) => t.status === 'review')).toBe(true);
   });
 
@@ -119,17 +125,26 @@ describe('summarizeEstate', () => {
       ['Mortgage', 'n/a'],
     ]);
     expect(without.issues.find((i) => i.id === 'probate')?.title).toBe('1 account or asset would go through probate');
+    // Each row says what to do about it.
+    expect(without.targets.map((t) => [t.name, t.todo?.split('.')[0] ?? null])).toEqual([
+      ['Brokerage', null],
+      ['Checking', 'Would go through probate'],
+      ['House', null],
+      ['Car', null],
+      ['Mortgage', null],
+    ]);
 
     const withTrust = run({ targets, documents: [doc('revocable_trust'), doc('will'), doc('financial_poa'), doc('healthcare_directive')] });
     const probate = withTrust.issues.find((i) => i.id === 'probate')!;
     expect(probate.title).toBe('Fund your trust: 2 accounts and assets are outside it');
     expect(probate.body).toMatch(/^Checking, House\./);
+    expect(withTrust.targets.find((t) => t.name === 'House')!.todo).toMatch(/^Outside your trust/);
   });
 
   it('asks for core documents and a guardian when there are minor children', () => {
     const r = run({ documents: [], children: [{ id: 'c1', name: null, birthYear: 2020 }] });
     expect(ids(r)).toEqual(['doc:will', 'doc:guardianship', 'doc:financial_poa', 'doc:healthcare_directive']);
-    expect(r.readiness).toEqual({ done: 1, total: 5 });
+    expect(r.readiness).toMatchObject({ done: 1, total: 6, documents: { done: 0, total: 4 } });
   });
 
   it('flags old documents, children born after signing, and documents from another state', () => {

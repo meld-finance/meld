@@ -174,7 +174,7 @@ export function renderPacket(data: PacketData, password: string | null): Promise
         doc.font('Helvetica-Bold').fontSize(10).fillColor(INK).text(t.name, { continued: true, width });
         doc.font('Helvetica').text(`   ${category === 'life' ? `${dollars(t.value)} death benefit` : dollars(t.value)}`, { width });
         if (t.detail) para(t.detail, { muted: true });
-        line('Account number', data.accountNumbers.get(t.id));
+        line(t.kind === 'policy' ? 'Policy number' : 'Account number', data.accountNumbers.get(t.id));
         const how = t.method === 'trust' && t.trustName ? `Trust (${t.trustName})` : ESTATE_METHOD_LABELS[t.method];
         line('Passes by', how);
         for (const b of t.beneficiaries) para(`    ${beneficiaryLine(b)}`);

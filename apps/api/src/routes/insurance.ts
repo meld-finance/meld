@@ -11,6 +11,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { requireAI } from '../ai/provider';
 import type { Db } from '../db/client';
 import { documents, estateDocuments, insurancePolicies } from '../db/schema';
+import { encrypt } from '../lib/crypto';
 import { HttpError, IdParams, parse } from '../lib/http';
 import type { AppDeps } from '../server';
 import { listPolicies } from '../services/insurance';
@@ -46,7 +47,7 @@ export async function pruneOrphanDocuments(db: Db, storage: DocumentStorage, old
   return removed.length;
 }
 
-export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, storage }: AppDeps) {
+export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, env, storage }: AppDeps) {
   await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
 
   async function getPolicy(id: string) {
@@ -61,8 +62,14 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, st
       const doc = await db.query.documents.findFirst({ where: eq(documents.id, input.documentId) });
       if (!doc) throw new HttpError(400, 'Attached document not found');
     }
-    // Belt and braces: the column only ever holds the last 4 characters.
-    return { ...input, policyNumberMask: maskPolicyNumber(input.policyNumberMask) };
+    const { policyNumber, ...rest } = input;
+    return {
+      ...rest,
+      // Belt and braces: the mask column only ever holds the last 4 characters.
+      policyNumberMask: maskPolicyNumber(policyNumber ?? input.policyNumberMask),
+      // Left out, the saved number stays as it is.
+      ...(policyNumber !== undefined && { policyNumberEnc: policyNumber && encrypt(policyNumber, env.ENCRYPTION_KEY) }),
+    };
   }
 
   const deleteIfUnused = (documentId: string | null) => deleteDocumentIfUnused(db, storage, documentId);

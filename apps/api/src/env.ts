@@ -34,6 +34,8 @@ const EnvSchema = z
     PLAID_ENV: PlaidEnv.default('sandbox'),
     PLAID_PRODUCTS: csv,
     PLAID_OPTIONAL_PRODUCTS: csv,
+    /** Asked for at link time but only used (and billed) on demand, e.g. auth for full bank account numbers. */
+    PLAID_ADDITIONAL_CONSENTED_PRODUCTS: csv,
     PLAID_COUNTRY_CODES: csv,
 
     AI_PROVIDER: z.enum(['anthropic']).default('anthropic'),

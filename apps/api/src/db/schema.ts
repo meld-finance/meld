@@ -254,6 +254,8 @@ export const insurancePolicies = pgTable('insurance_policies', {
   type: policyType('type').notNull(),
   carrier: text('carrier').notNull(),
   policyNumberMask: text('policy_number_mask'),
+  /** The full policy number for the family packet, AES-256-GCM encrypted; see lib/crypto.ts. */
+  policyNumberEnc: text('policy_number_enc'),
   insuredName: text('insured_name'),
   coverageAmount: money('coverage_amount'),
   benefitPercentOfIncome: numeric('benefit_percent_of_income', { precision: 5, scale: 2, mode: 'number' }),

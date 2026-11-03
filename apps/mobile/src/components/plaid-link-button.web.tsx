@@ -12,7 +12,7 @@ import type { PlaidLinkButtonProps } from './plaid-link-button';
  * Opens Plaid Link. With `itemId`, runs Link in update mode to repair a
  * connection (no token exchange needed; the item keeps its access token).
  */
-export function PlaidLinkButton({ itemId, label, variant, size, onLinked, onError }: PlaidLinkButtonProps) {
+export function PlaidLinkButton({ itemId, consentAuth, label, variant, size, onLinked, onError }: PlaidLinkButtonProps) {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
   const exchange = useExchangePublicToken();
@@ -47,7 +47,7 @@ export function PlaidLinkButton({ itemId, label, variant, size, onLinked, onErro
     try {
       const res = await api<LinkTokenResponse>('/plaid/link-token', {
         method: 'POST',
-        body: JSON.stringify(itemId ? { itemId } : {}),
+        body: JSON.stringify(itemId ? { itemId, ...(consentAuth && { consentAuth }) } : {}),
       });
       setLinkToken(res.linkToken);
     } catch (e) {

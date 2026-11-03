@@ -18,11 +18,12 @@ import {
   type EstatePerson,
   type EstateSummary,
   type InsurancePolicyType,
+  type LeaveToWillInput,
 } from '@meld/shared';
-import { asc, eq, type SQL } from 'drizzle-orm';
+import { asc, eq, inArray, type SQL } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { decrypt, encrypt } from '../lib/crypto';
-import { accounts, documents, estateDesignations, estateDocuments, estateSettings, manualAssets } from '../db/schema';
+import { accounts, documents, estateDesignations, estateDocuments, estateSettings, insurancePolicies, manualAssets } from '../db/schema';
 import { policyMethod, summarizeEstate, type TargetDraft } from '../lib/estate';
 import { HttpError } from '../lib/http';
 import { localDate } from '../lib/networth';
@@ -157,12 +158,40 @@ export async function saveDesignation(db: Db, input: EstateDesignationInput, enc
   await db.insert(estateDesignations).values(values).onConflictDoUpdate({ target, set });
 }
 
-/** Full account numbers by account or asset id, decrypted for the packet. */
+/** Sets each account and asset to pass by will, keeping its notes and account number. Returns how many changed. */
+export async function leaveToWill(db: Db, input: LeaveToWillInput): Promise<number> {
+  // Skip ids that no longer exist rather than failing the whole batch.
+  const [accountRows, assetRows] = await Promise.all([
+    input.accountIds.length ? db.select({ id: accounts.id }).from(accounts).where(inArray(accounts.id, input.accountIds)) : [],
+    input.manualAssetIds.length
+      ? db.select({ id: manualAssets.id }).from(manualAssets).where(inArray(manualAssets.id, input.manualAssetIds))
+      : [],
+  ]);
+  const set = { method: 'will', beneficiaries: [], trustId: null };
+  await db.transaction(async (tx) => {
+    for (const { id } of accountRows) {
+      await tx.insert(estateDesignations).values({ accountId: id, ...set }).onConflictDoUpdate({ target: estateDesignations.accountId, set });
+    }
+    for (const { id } of assetRows) {
+      await tx.insert(estateDesignations).values({ manualAssetId: id, ...set }).onConflictDoUpdate({ target: estateDesignations.manualAssetId, set });
+    }
+  });
+  return accountRows.length + assetRows.length;
+}
+
+/** Full account and policy numbers by account, asset or policy id, decrypted for the packet. */
 export async function loadAccountNumbers(db: Db, encryptionKey: string): Promise<Map<string, string>> {
-  const rows = await db
-    .select({ accountId: estateDesignations.accountId, manualAssetId: estateDesignations.manualAssetId, enc: estateDesignations.accountNumberEnc })
-    .from(estateDesignations);
-  return new Map(rows.flatMap((r) => (r.enc ? [[(r.accountId ?? r.manualAssetId)!, decrypt(r.enc, encryptionKey)] as const] : [])));
+  const [designations, policies] = await Promise.all([
+    db
+      .select({ accountId: estateDesignations.accountId, manualAssetId: estateDesignations.manualAssetId, enc: estateDesignations.accountNumberEnc })
+      .from(estateDesignations),
+    db.select({ id: insurancePolicies.id, enc: insurancePolicies.policyNumberEnc }).from(insurancePolicies),
+  ]);
+  const encrypted = [
+    ...designations.map((r) => [(r.accountId ?? r.manualAssetId)!, r.enc] as const),
+    ...policies.map((r) => [r.id, r.enc] as const),
+  ];
+  return new Map(encrypted.flatMap(([id, enc]) => (enc ? [[id, decrypt(enc, encryptionKey)] as const] : [])));
 }
 
 // --- Settings & export --------------------------------------------------------------
@@ -229,6 +258,7 @@ async function loadTargets(db: Db, today: string): Promise<TargetDraft[]> {
         value: a.currentBalance === null ? null : ownedBalance(a),
         ...fromDesignation(byAccount.get(a.id)),
         href: `/estate/account/${a.id}`,
+        numberFromBank: a.source === 'plaid' && a.type === 'depository',
         createdAt: createdAt.get(a.id),
       }),
     ),
@@ -242,6 +272,7 @@ async function loadTargets(db: Db, today: string): Promise<TargetDraft[]> {
         value: Math.round(m.value * (m.ownershipPercent ?? 100)) / 100,
         ...fromDesignation(byAsset.get(m.id)),
         href: `/estate/asset/${m.id}`,
+        numberFromBank: false,
       }),
     ),
     ...policies
@@ -261,9 +292,10 @@ async function loadTargets(db: Db, today: string): Promise<TargetDraft[]> {
           trustId: null,
           reviewedAt: null,
           notes: p.notes,
-          accountNumberLast4: null,
+          accountNumberLast4: p.hasPolicyNumber ? p.policyNumberMask : null,
           designated: true,
           href: `/insurance/${p.id}`,
+          numberFromBank: false,
         }),
       ),
   ];

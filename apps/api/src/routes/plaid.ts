@@ -19,7 +19,7 @@ export async function registerPlaidRoutes(app: FastifyInstance, { db, plaid, env
   }
 
   app.post('/plaid/link-token', async (req): Promise<LinkTokenResponse> => {
-    const { itemId } = parse(LinkTokenRequest, req.body ?? {});
+    const { itemId, consentAuth } = parse(LinkTokenRequest, req.body ?? {});
     const request: LinkTokenCreateRequest = {
       user: { client_user_id: 'owner' },
       client_name: 'Meld',
@@ -29,9 +29,13 @@ export async function registerPlaidRoutes(app: FastifyInstance, { db, plaid, env
     if (itemId) {
       // Update mode: re-authenticate an existing item; products must be omitted.
       request.access_token = decrypt((await loadItem(itemId)).accessTokenEnc, env.ENCRYPTION_KEY);
+      if (consentAuth) request.additional_consented_products = [Products.Auth];
     } else {
       request.products = env.PLAID_PRODUCTS as Products[];
       request.optional_products = env.PLAID_OPTIONAL_PRODUCTS as Products[];
+      if (env.PLAID_ADDITIONAL_CONSENTED_PRODUCTS.length) {
+        request.additional_consented_products = env.PLAID_ADDITIONAL_CONSENTED_PRODUCTS as Products[];
+      }
       request.transactions = { days_requested: 730 };
     }
     const { data } = await plaid.linkTokenCreate(request);
