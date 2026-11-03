@@ -13,6 +13,7 @@ Meld talks to these outside services only. Each one is optional except Plaid.
 | | Home or vehicle value lookup | The property address, or the vehicle's year, make, model, mileage and ZIP code. |
 | | Accounts → Investments → Exposure | Fund tickers and names. |
 | **Ollama** (if `OLLAMA_URL` is set) | Ask Meld with a local model | The same as Ask Meld above, but to Ollama on your own machine or network, so it never leaves your control. |
+| **ntfy** (if you enter a topic URL under Alerts) | Each alert at or above the severity you pick, and **Send test** | The alert's title and message: account and merchant names, amounts and due dates. Anyone who knows the topic name can read a topic on the public ntfy.sh server, so pick a long random one, or run your own ntfy server to keep alerts on your network. Off unless you set it up; alerts otherwise stay in the app. |
 
 Before anything goes to an AI model, runs of 9 or more digits (account, card and policy numbers) are replaced with `••••` and the last 4 digits. Full loan account numbers from Plaid are dropped before storage, and only the last 4 characters of policy numbers are kept.
 

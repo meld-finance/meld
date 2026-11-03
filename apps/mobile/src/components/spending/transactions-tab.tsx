@@ -17,8 +17,14 @@ import { useAccounts, useCategories, useTransactions } from '@/lib/queries';
 /** Every transaction, searchable and filterable, with recategorizing. */
 export function TransactionsTab({ header }: { header: ReactNode }) {
   const theme = useTheme();
-  const params = useLocalSearchParams<{ accountId?: string }>();
-  const [search, setSearch] = useState('');
+  const params = useLocalSearchParams<{ accountId?: string; search?: string }>();
+  const [search, setSearch] = useState(params.search ?? '');
+  // Same for "See charges" links from Recurring.
+  const [linkedSearch, setLinkedSearch] = useState(params.search);
+  if (params.search !== linkedSearch) {
+    setLinkedSearch(params.search);
+    if (params.search) setSearch(params.search);
+  }
   const [accountId, setAccountId] = useState<string | undefined>(params.accountId);
   // Tabs stay mounted, so follow later "View transactions" links too
   // (adjusting state during render when the param changes, per React docs).

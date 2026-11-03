@@ -13,7 +13,7 @@ import { useAccents } from '@/hooks/use-accents';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { ChatPanelProvider, useChatPanel } from '@/lib/chat-panel';
-import { useProfile } from '@/lib/queries';
+import { useAlerts, useProfile } from '@/lib/queries';
 import { useThemePref, type ThemePref } from '@/lib/theme-pref';
 
 /** Below this window width the sidebar collapses to an icon rail. */
@@ -184,6 +184,7 @@ function TopBar() {
   const panel = useChatPanel();
   const { logout } = useAuth();
   const profile = useProfile();
+  const unread = useAlerts().data?.unread ?? 0;
   const [open, setOpen] = useState(false);
   const name = profile.data?.displayName?.trim();
   const firstName = name?.split(/\s+/)[0];
@@ -205,6 +206,22 @@ function TopBar() {
           pressed && styles.pressed,
         ]}>
         <Icon name="sparkles" size={18} color={accent.fg} />
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={unread ? `Alerts, ${unread} unread` : 'Alerts'}
+        onPress={() => router.push('/alerts')}
+        style={({ hovered, pressed }) => [
+          styles.askButton,
+          { borderColor: hovered ? theme.tint : theme.border, backgroundColor: theme.backgroundElement },
+          pressed && styles.pressed,
+        ]}>
+        <Icon name="bell" size={18} themeColor={unread ? 'text' : 'textSecondary'} />
+        {unread > 0 && (
+          <View style={[styles.unread, { backgroundColor: theme.negative, borderColor: theme.background }]}>
+            <ThemedText style={styles.unreadText}>{unread > 9 ? '9+' : unread}</ThemedText>
+          </View>
+        )}
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -327,6 +344,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  unread: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadText: { color: '#ffffff', fontSize: 10, lineHeight: 12, fontWeight: 700 },
   userButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, padding: Spacing.one },
   avatar: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   backdrop: { position: 'absolute', top: -1000, right: -1000, bottom: -10000, left: -10000 },

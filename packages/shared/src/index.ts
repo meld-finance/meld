@@ -13,3 +13,5 @@ export * from './retirement';
 export * from './social-security';
 export * from './tax';
 export * from './tax-tables';
+export * from './alerts';
+export * from './recurring';

@@ -6,6 +6,7 @@ import { accounts, plaidItems, transactions } from '../db/schema';
 import { chunk, excluded } from '../db/upsert';
 import { decrypt } from '../lib/crypto';
 import { HttpError } from '../lib/http';
+import { evaluateAlerts } from '../services/alerts';
 import { categorizeNewRows, loadRules } from '../services/category-rules';
 import { recordSnapshot } from '../services/overview';
 import { getPlaidError } from './client';
@@ -137,6 +138,8 @@ async function runSync({ db, plaid, encryptionKey }: SyncDeps, itemId: string): 
       types.has('credit') || types.has('loan') || types.has('mortgage') ? await syncLiabilities(ctx) : 0;
 
     await recordSnapshot(db);
+    // New balances and transactions can open (or clear) alerts; a failure here doesn't fail the sync.
+    await evaluateAlerts(db).catch((err) => console.warn(`[alerts] check failed: ${(err as Error).message}`));
 
     return {
       accounts: upserted.length,
@@ -157,6 +160,7 @@ async function runSync({ db, plaid, encryptionKey }: SyncDeps, itemId: string): 
           lastError: plaidError.display_message ?? plaidError.error_message,
         })
         .where(eq(plaidItems.id, item.id));
+      await evaluateAlerts(db).catch((e) => console.warn(`[alerts] check failed: ${(e as Error).message}`));
     }
     throw err;
   }

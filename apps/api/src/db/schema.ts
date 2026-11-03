@@ -1,4 +1,5 @@
 import type {
+  AlertSettings,
   CashSettings,
   Child,
   RetirementInputs,
@@ -373,6 +374,69 @@ export const retirementSimulations = pgTable('retirement_simulations', {
   inputs: jsonb('inputs').$type<RetirementInputs>().notNull(),
   result: jsonb('result').$type<SimulationResult>().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// --- Recurring payments, autopay, alerts ------------------------------------
+
+/** Your corrections to a detected recurring series, by its key; the series themselves are worked out from transactions. */
+export const recurringOverrides = pgTable('recurring_overrides', {
+  key: text('key').primaryKey(),
+  ignored: boolean('ignored').notNull().default(false),
+  /** RecurringKind, or null to keep Meld's guess. */
+  kind: text('kind'),
+  name: text('name'),
+  ...timestamps,
+});
+
+/** "This card (or loan) is paid automatically from that bank account." */
+export const autopayLinks = pgTable('autopay_links', {
+  id: id(),
+  payeeAccountId: uuid('payee_account_id')
+    .notNull()
+    .unique()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  fundingAccountId: uuid('funding_account_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  /** AutopayAmount */
+  amountRule: text('amount_rule').notNull(),
+  fixedAmount: money('fixed_amount'),
+  ...timestamps,
+});
+
+export const alerts = pgTable(
+  'alerts',
+  {
+    id: id(),
+    /** AlertType */
+    type: text('type').notNull(),
+    /** AlertSeverity */
+    severity: text('severity').notNull(),
+    /** What the alert is about, so the same condition or event never raises two open alerts. */
+    key: text('key').notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    href: text('href'),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
+    /** The condition cleared on its own; a later recurrence opens a new alert. */
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    /** When it was last pushed, so an alert isn't pushed again unless it gets worse. */
+    notifiedAt: timestamp('notified_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('alerts_open_key_idx').on(t.key).where(sql`${t.resolvedAt} is null`),
+    index('alerts_created_idx').on(t.createdAt),
+  ],
+);
+
+/** Single-row table holding which alerts are on and where they're pushed. */
+export const alertSettings = pgTable('alert_settings', {
+  id: integer('id').primaryKey().default(1),
+  /** AlertSettings; read over DEFAULT_ALERT_SETTINGS so fields added later still parse. */
+  settings: jsonb('settings').$type<AlertSettings>().notNull(),
+  ...timestamps,
 });
 
 // --- AI chat ----------------------------------------------------------------

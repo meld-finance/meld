@@ -141,6 +141,13 @@
       "when": 1793638544020,
       "tag": "0019_cash_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793640085794,
+      "tag": "0020_recurring_alerts",
+      "breakpoints": true
     }
   ]
 }
