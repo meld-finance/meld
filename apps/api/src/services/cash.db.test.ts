@@ -93,7 +93,8 @@ describe.skipIf(!testDatabaseUrl)('cash plan (Postgres)', () => {
     expect(Object.keys(byName).sort()).toEqual(['Checking', 'Joint savings', 'Rollover IRA', 'SGOV', 'VMFXX']);
     expect(byName.Checking).toMatchObject({ value: 9_000, apy: 0, apySource: 'interest' });
     expect(byName['Joint savings']!.value).toBe(12_000);
-    expect(byName['Joint savings']!.apy).toBeCloseTo((240 * 365) / 92 / 24_000, 4);
+    // August has no balance on record; September's snapshot and the current balance cover Sep–Oct.
+    expect(byName['Joint savings']!.apy).toBeCloseTo((1 + 160 / 48_000) ** 12 - 1, 6);
     expect(byName.SGOV).toMatchObject({ kind: 'fund', apy: 0.042, apySource: 'distributions' });
     expect(byName.VMFXX).toMatchObject({ apy: 0.04, apySource: 'assumed' });
     expect(byName['Rollover IRA']).toMatchObject({ kind: 'sweep', taxAdvantaged: true, apy: null });
@@ -108,6 +109,40 @@ describe.skipIf(!testDatabaseUrl)('cash plan (Postgres)', () => {
     expect(ids_).toContain(`low-yield:${ids.checking}`);
     expect(ids_).toContain(`idle:${ids.ira}`);
     expect(plan.suggestions.find((s) => s.id === 'emergency-extra')!.detail).toMatch(/\$800 on your credit cards is carried/);
+  });
+
+  it('rates a bank account by its recent balance after a large balance moved out', async () => {
+    // Like a brokerage cash account: $36k earned July–August interest, then $25k moved out.
+    const [cash] = await ctx.db
+      .insert(accounts)
+      .values({ source: 'manual', name: 'Cash Plus', type: 'depository', subtype: 'cash management', currentBalance: 11_067.21 })
+      .returning({ id: accounts.id });
+    await ctx.db.insert(transactions).values(
+      [
+        ['2026-07-31', -102.06],
+        ['2026-08-31', -77.1],
+        ['2026-09-30', -30.33],
+        ['2026-10-30', -33.03],
+      ].map(([date, amount]) => ({
+        accountId: cash!.id,
+        date: date as string,
+        name: 'Interest',
+        amount: amount as number,
+        plaidCategoryDetailed: 'INCOME_INTEREST_EARNED',
+      })),
+    );
+    await ctx.db.insert(balanceSnapshots).values(
+      ['2026-10-27', '2026-10-28'].map((date) => ({
+        date,
+        totalAssets: 0,
+        totalLiabilities: 0,
+        netWorth: 0,
+        balances: { [cash!.id]: 11_034.18 },
+      })),
+    );
+    const plan = await getCashPlan(ctx.db, rates, TODAY);
+    // Only October's balance is known: 33.03 / 11,034.18 a month, 3.65% APY.
+    expect(plan.positions.find((p) => p.key === cash!.id)!.apy).toBeCloseTo(0.0365, 4);
   });
 
   it('saves settings and applies them', async () => {

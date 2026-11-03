@@ -317,6 +317,22 @@ function annualRate(interest: number, days: number, balance: number): number | n
   return rate >= 0 && rate <= MAX_PLAUSIBLE_APY ? rate : null;
 }
 
+/** A bank account's month: the interest paid in it and its balance then, if known. */
+export type InterestMonth = { interest: number; balance: number | null };
+
+/**
+ * APY from monthly interest: each month's interest over that month's own balance, compounded
+ * monthly the way banks quote it. Months without a known balance are left out, so a large balance
+ * moved out mid-window doesn't inflate the rate.
+ */
+export function bankApy(months: InterestMonth[]): number | null {
+  const known = months.filter((m) => m.balance !== null && m.balance > 0);
+  if (!known.length) return null;
+  const monthly = known.reduce((s, m) => s + m.interest, 0) / known.reduce((s, m) => s + m.balance!, 0);
+  const apy = (1 + monthly) ** 12 - 1;
+  return apy >= 0 && apy <= MAX_PLAUSIBLE_APY ? apy : null;
+}
+
 export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today = localDate()): Promise<CashPlan> {
   // The last RATE_MONTHS complete months.
   const months = recentMonths(RATE_MONTHS + 1, today);
@@ -337,12 +353,17 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
   );
   const cashHoldings = holdingList.filter((h) => (h.value ?? 0) * share(h.accountId) >= 1 && isCashHolding(h));
   const bankIds = banks.map((a) => a.id);
+  const txMonth = sql<string>`to_char(${transactions.date}, 'YYYY-MM')`;
   const brokerageIds = [...new Set(cashHoldings.map((h) => h.accountId))];
 
   const [bankInterest, history, snapshots, fundIncome, treasuryApy] = await Promise.all([
     bankIds.length
       ? db
-          .select({ accountId: transactions.accountId, total: sql<number>`(-sum(${transactions.amount}))::float8` })
+          .select({
+            accountId: transactions.accountId,
+            month: txMonth,
+            total: sql<number>`(-sum(${transactions.amount}))::float8`,
+          })
           .from(transactions)
           .where(
             and(
@@ -357,7 +378,7 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
               ),
             ),
           )
-          .groupBy(transactions.accountId)
+          .groupBy(transactions.accountId, txMonth)
       : [],
     bankIds.length
       ? db
@@ -367,9 +388,9 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
           .groupBy(transactions.accountId)
       : [],
     db
-      .select({ balances: balanceSnapshots.balances })
+      .select({ date: sql<string>`${balanceSnapshots.date}::text`, balances: balanceSnapshots.balances })
       .from(balanceSnapshots)
-      .where(and(gte(balanceSnapshots.date, from), lt(balanceSnapshots.date, to))),
+      .where(gte(balanceSnapshots.date, from)),
     brokerageIds.length
       ? db
           .select({
@@ -391,7 +412,7 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
     orNull('Treasury yield', rates.benchmark()),
   ]);
 
-  const interestOf = new Map(bankInterest.map((r) => [r.accountId, r.total]));
+  const interestOf = new Map(bankInterest.map((r) => [`${r.accountId}:${r.month}`, r.total]));
   const firstOf = new Map(history.map((r) => [r.accountId, r.first]));
   const incomeOf = new Map(fundIncome.map((r) => [`${r.accountId}:${r.securityId}`, r.total]));
   const windowDays = daysBetween(from, to);
@@ -401,10 +422,25 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
   for (const a of banks) {
     const first = firstOf.get(a.id);
     // Snapshots hold your share; rates compare whole-account interest to whole-account balances.
-    const seen = snapshots.map((s) => s.balances?.[a.id]).filter((b): b is number => b !== undefined);
-    const balance = seen.length ? seen.reduce((s, b) => s + b, 0) / seen.length / share(a.id) : (a.currentBalance ?? 0);
-    const days = first ? (first > from ? daysBetween(first, to) : windowDays) : 0;
-    const apy = annualRate(interestOf.get(a.id) ?? 0, days, balance);
+    const average = (inRange: (date: string) => boolean) => {
+      const seen = snapshots
+        .filter((s) => inRange(s.date))
+        .map((s) => s.balances?.[a.id])
+        .filter((b): b is number => b !== undefined);
+      return seen.length ? seen.reduce((s, b) => s + b, 0) / seen.length / share(a.id) : null;
+    };
+    const rateMonths = months.slice(0, -1);
+    const interestMonths: InterestMonth[] = rateMonths
+      // Months before the account's history began say nothing.
+      .filter((m) => first && first <= `${m}-01`)
+      .map((m) => {
+        const inMonth = average((d) => d.startsWith(m));
+        // The latest month without snapshots of its own goes by the balance since, which is
+        // usually what earned it; older months without snapshots are unknown.
+        const since = m === rateMonths.at(-1) ? (average((d) => d >= to) ?? a.currentBalance) : null;
+        return { interest: interestOf.get(`${a.id}:${m}`) ?? 0, balance: inMonth ?? since };
+      });
+    const apy = bankApy(interestMonths);
     positions.push({
       key: a.id,
       kind: 'bank',
