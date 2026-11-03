@@ -477,6 +477,10 @@ export const estateDesignations = pgTable('estate_designations', {
   trustId: uuid('trust_id').references(() => estateDocuments.id, { onDelete: 'set null' }),
   reviewedAt: date('reviewed_at'),
   notes: text('notes'),
+  /** The full account number for the family packet, AES-256-GCM encrypted; see lib/crypto.ts. */
+  accountNumberEnc: text('account_number_enc'),
+  /** Its last 4, so the app can show one is saved without decrypting it. */
+  accountNumberLast4: text('account_number_last4'),
   ...timestamps,
 });
 

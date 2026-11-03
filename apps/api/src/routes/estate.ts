@@ -10,6 +10,7 @@ import {
   deleteEstateDocument,
   getEstateDocument,
   getEstateSummary,
+  loadAccountNumbers,
   recordPacketExport,
   saveDesignation,
   saveEstateSettings,
@@ -20,7 +21,7 @@ import { getProfile } from '../services/profile';
 import { getAutopayStatuses, getRecurringSeries } from '../services/recurring';
 import { deleteDocumentIfUnused } from './insurance';
 
-export async function registerEstateRoutes(app: FastifyInstance, { db, storage }: AppDeps) {
+export async function registerEstateRoutes(app: FastifyInstance, { db, env, storage }: AppDeps) {
   // Beneficiaries and the packet's freshness raise and clear estate alerts.
   const recheck = () => void evaluateAlerts(db).catch((err) => app.log.error({ err }, 'Alert check failed'));
 
@@ -30,7 +31,7 @@ export async function registerEstateRoutes(app: FastifyInstance, { db, storage }
   });
 
   app.put('/estate/designations', async (req) => {
-    await saveDesignation(db, parse(EstateDesignationInput, req.body));
+    await saveDesignation(db, parse(EstateDesignationInput, req.body), env.ENCRYPTION_KEY);
     recheck();
     return { ok: true };
   });
@@ -68,8 +69,9 @@ export async function registerEstateRoutes(app: FastifyInstance, { db, storage }
   app.post('/estate/packet', async (req, reply) => {
     const { password } = parse(PacketRequest, req.body ?? {});
     const today = localDate();
-    const [{ fingerprint, ...summary }, profile, series, alertSettings] = await Promise.all([
+    const [{ fingerprint, ...summary }, accountNumbers, profile, series, alertSettings] = await Promise.all([
       getEstateSummary(db, today),
+      loadAccountNumbers(db, env.ENCRYPTION_KEY),
       getProfile(db),
       getRecurringSeries(db, today),
       getAlertSettings(db),
@@ -79,6 +81,7 @@ export async function registerEstateRoutes(app: FastifyInstance, { db, storage }
       {
         preparedFor: profile.displayName,
         summary,
+        accountNumbers,
         bills: series.filter((s) => s.status === 'active' && s.kind !== 'income'),
         autopay: statuses,
       },

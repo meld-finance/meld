@@ -38,6 +38,16 @@ export const EstateDesignationInput = z
     reviewedAt: z.iso.date().nullable(),
     /** E.g. the institution's estate services phone number. */
     notes: z.string().trim().max(2000).nullable(),
+    /**
+     * The full account number, printed in the family packet and otherwise never sent back.
+     * Omit to keep the saved one; null removes it.
+     */
+    accountNumber: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9][A-Za-z0-9 -]{2,38}[A-Za-z0-9]$/, 'Use 4 to 40 letters, digits, spaces or dashes')
+      .nullable()
+      .optional(),
   })
   .refine((d) => (d.accountId === null) !== (d.manualAssetId === null), { message: 'Pick one account or asset' });
 export type EstateDesignationInput = z.infer<typeof EstateDesignationInput>;
@@ -117,6 +127,8 @@ export const EstateTarget = z.object({
   trustName: z.string().nullable(),
   reviewedAt: z.string().nullable(),
   notes: z.string().nullable(),
+  /** Last 4 of the full account number saved for the packet, if any. */
+  accountNumberLast4: z.string().nullable(),
   /** Whether a designation has been saved; policies always count as set up from their own form. */
   designated: z.boolean(),
   status: EstateStatus,
