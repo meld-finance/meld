@@ -14,7 +14,7 @@ import { KeyTest } from './key-test';
 const ANTHROPIC_KEYS_URL = 'https://console.anthropic.com/settings/keys';
 const OLLAMA_URL = 'https://ollama.com/download';
 /** A model that handles Meld's tools well and fits on most Macs. */
-const SUGGESTED_MODEL = 'qwen3:8b';
+const SUGGESTED_MODEL = 'qwen3.5';
 
 /**
  * Optional AI: an Anthropic API key (all AI features) and/or Ollama (local models,

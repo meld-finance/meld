@@ -6,33 +6,53 @@ Your whole financial picture in one place — bank accounts, cards, brokerages, 
 
 Web first, then iOS and Android from the same Expo codebase.
 
-## Quick start (Docker)
+## Install on a Mac (desktop app)
 
-You need [Docker Desktop](https://www.docker.com/products/docker-desktop/) and a free [Plaid](https://dashboard.plaid.com/signup) account. An [Anthropic API key](https://console.anthropic.com/) or [Ollama](https://ollama.com) is optional and turns on the AI features.
+You need a free [Plaid](https://dashboard.plaid.com/signup) developer account. An [Anthropic API key](https://console.anthropic.com/) or [Ollama](https://ollama.com) is optional and turns on the AI features.
+
+1. Open `Meld-<version>-arm64.dmg` (Apple silicon) or `-x64.dmg` (Intel) and drag Meld to Applications. Unsigned builds need a right-click → **Open** the first time. To build it yourself, see [Desktop app](#desktop-app) below.
+2. Meld walks you through setup the first time it opens: a passphrase, your Plaid client ID and secrets (with a **Test keys** button), and optionally an Anthropic key or Ollama, which it finds by itself if it's running.
+3. Start with Plaid's Sandbox to look around (any bank, `user_good` / `pass_good`), then follow [docs/plaid.md](docs/plaid.md) to connect your real accounts (free for up to 10 bank and brokerage logins) and switch to production in **Settings**.
+
+Everything stays on your Mac in `~/Library/Application Support/Meld`: a Postgres database that only listens on `127.0.0.1`, uploaded documents, settings, and logs. The keys that encrypt Plaid tokens, documents and saved settings are made on first run and kept encrypted with your macOS Keychain. Closing the window leaves Meld running in the menu bar, where you can also turn on **Open at Login**, show the data folder or quit.
+
+- **Change settings:** account menu → **Settings** (Plaid keys and environment, AI, passphrase, phone access). Saving restarts Meld in a few seconds.
+- **Back up:** quit Meld, then copy `~/Library/Application Support/Meld`. The copy is only readable with this Mac's Keychain, so also keep a Time Machine backup (which includes the Keychain), or you'd have to re-link accounts after restoring elsewhere.
+
+## Use Meld on your phone
+
+Meld never opens itself to the internet. Your phone reaches it over [Tailscale](https://tailscale.com), a free private network that only your devices are on:
+
+1. Install Tailscale on your Mac and your phone and sign in to both with the same account.
+2. Turn on HTTPS certificates for your tailnet (one switch in the Tailscale admin console, under **DNS**).
+3. In Meld, open **Settings → Phone access** (or **Phone Access…** in the menu bar) and click **Turn on phone access**. Scan the QR code with your phone, unlock with your passphrase, and use **Add to Home Screen** so it opens like an app.
+
+Your phone can reach Meld while your Mac is awake and Meld is running. For an always-on setup, run it on a home server with Docker instead.
+
+## Always-on or self-hosted (Docker)
+
+Docker runs Meld on any machine that's always on (a home server, a NAS, a Linux box): one container for Postgres and one for Meld, which serves the web app and the API.
 
 ```sh
 git clone <this repo> meld && cd meld
-./scripts/setup.sh            # creates .env with fresh secrets and asks for a login passphrase
-# add your Plaid keys (and optionally ANTHROPIC_API_KEY) to .env
+./scripts/setup.sh            # creates .env with fresh secrets (and, if you like, your passphrase)
 docker compose up -d --build
 ```
 
-Open http://localhost:8080 and unlock with your passphrase. Start with Plaid's Sandbox to look around, then follow [docs/plaid.md](docs/plaid.md) to connect your real accounts (free for up to 10 bank and brokerage logins).
+Open http://localhost:8080. Anything not in `.env` (passphrase, Plaid keys, AI) is asked for the first time Meld opens and saved in the `meld-config` volume; values in `.env` always win.
 
-- **Update:** `git pull && docker compose up -d --build`. Database migrations run automatically.
-- **Stop:** `docker compose down`. Your data stays in Docker volumes (`meld-db`, `meld-documents`); `docker compose down -v` deletes it.
+- **Update:** `git pull && docker compose up -d --build --remove-orphans`. Database migrations run automatically.
+- **Stop:** `docker compose down`. Your data stays in Docker volumes (`meld-db`, `meld-documents`, `meld-config`); `docker compose down -v` deletes it.
 - **Back up:** `docker compose exec db pg_dump -U meld meld > meld-backup.sql`, and keep `.env` somewhere safe too: without its `ENCRYPTION_KEY` you'd have to re-link your accounts.
-- **Change settings:** edit `.env`, then `docker compose up -d`.
-
-### Reaching Meld from other devices
-
-Meld only listens on `localhost`, and its login is a single passphrase, so don't open it to the internet. To use it from your phone or another computer, put both on a private network such as [Tailscale](https://tailscale.com) and use `tailscale serve 8080` on the machine running Meld, which adds HTTPS and keeps it off the public internet.
+- **Change settings:** in the app (**Settings**) for anything not set in `.env`; otherwise edit `.env`, then `docker compose up -d`.
+- **From your phone:** Meld only listens on `localhost`, and its login is a single passphrase, so don't open it to the internet. Put the server and your phone on [Tailscale](https://tailscale.com) and run `tailscale serve --bg 8080` on the server, which adds HTTPS and keeps it off the public internet.
 
 ## Development setup
 
 ```
-apps/api        Fastify + TypeScript API: Plaid, AI, data (Postgres via Drizzle)
+apps/api        Fastify + TypeScript API: Plaid, AI, data (Postgres via Drizzle); also serves the web app under /api
 apps/mobile     Expo (expo-router) app → web, iOS, Android
+apps/desktop    Electron app for macOS: bundled Postgres + the API + the web app, menu bar, Tailscale
 packages/shared Zod schemas + types shared by app and API
 ```
 
@@ -50,6 +70,13 @@ npm run dev                   # API on :4000, Expo web on :8081
 Open http://localhost:8081 and unlock with `APP_PASSPHRASE`.
 
 If your Postgres volume predates `docker/initdb`, create the sandbox database once with `docker compose exec db createdb -U meld meld_sandbox`.
+
+### Desktop app
+
+- `npm run desktop:dev` opens the Electron app against the API source and the Expo dev server (hot reload on both), with its own Postgres and data in `~/Library/Application Support/Meld Dev`. Stop `npm run dev` first: both use port 4000. Set `MELD_USER_DATA=<folder>` to try a fresh first run.
+- `npm run desktop:build` builds `apps/desktop/release/mac-<arch>/Meld.app` in a minute or two, for checking the real thing. `npm run desktop:dist` makes the `.dmg` for this Mac's architecture. For Intel Macs: `cd apps/desktop && node scripts/build.mjs --arch x64 && npx electron-builder --x64`.
+- Packaged, the API is one esbuild bundle run in an Electron utility process, Postgres is the [embedded-postgres](https://github.com/leinelissen/embedded-postgres) build thinned to one architecture, and the web app is the same Expo export Docker serves. Logs: menu bar → **Show Log**.
+- Signing and notarization happen when `CSC_LINK`/`CSC_KEY_PASSWORD` and `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID` are set (see electron-builder's docs); otherwise the build is unsigned.
 
 ## Linking accounts (Plaid)
 
@@ -187,7 +214,7 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts, 
 - Add your income, filing status, state, age and employer benefits under **Plan → Profile** (also in the account menu on web) for better tax and insurance answers.
 - Uses Claude through a provider interface in `apps/api/src/ai/provider.ts`, so other providers can be added. Chat defaults to `ANTHROPIC_CHAT_MODEL` (default `claude-sonnet-5-5`), property value lookups use `ANTHROPIC_LOOKUP_MODEL` (default `claude-haiku-5-5`), and policy PDF extraction `ANTHROPIC_MODEL` (default `claude-opus-5-5`).
 - **Pick the model** under the chat box: any of `ANTHROPIC_CHAT_MODELS` (Opus, Sonnet, Haiku by default; Haiku costs least), or a local model through [Ollama](https://ollama.com). The choice is remembered, and you can switch mid-conversation.
-- **Local models:** install Ollama, pull a model that supports tool calling (e.g. `ollama pull qwen3.5`), set `OLLAMA_URL=http://127.0.0.1:11434` (or `http://host.docker.internal:11434` when Meld runs in Docker) and restart the API. Every installed model with tool support is listed, or set `OLLAMA_CHAT_MODELS` to choose. Local models are free and keep your data on your machine, but answer less reliably than Claude. Chat works with only Ollama set up; the other AI features still need `ANTHROPIC_API_KEY`.
+- **Local models:** install Ollama and pull a model that supports tool calling (e.g. `ollama pull qwen3.5`), then use **Settings → AI → Find Ollama**, or set `OLLAMA_URL=http://127.0.0.1:11434` (`http://host.docker.internal:11434` when Meld runs in Docker) and restart the API. Every installed model with tool support is listed, or set `OLLAMA_CHAT_MODELS` to choose. Local models are free and keep your data on your machine, but answer less reliably than Claude. Chat works with only Ollama set up; the other AI features still need `ANTHROPIC_API_KEY`.
 - Privacy: with a Claude model, your question and the data the AI looks up are sent to Anthropic; with a local Ollama model they stay on your machine. Long digit runs (account, card and policy numbers) are masked first either way.
 
 ## Common commands
@@ -195,6 +222,8 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts, 
 | Command | What it does |
 | --- | --- |
 | `docker compose up -d --build` | Run all of Meld in Docker at http://localhost:8080 |
+| `npm run desktop:dev` | The desktop app against the API source and Expo dev server |
+| `npm run desktop:build` / `npm run desktop:dist` | Build `Meld.app` / the `.dmg` |
 | `npm run dev` | API + Expo web together |
 | `npm run dev:api` / `npm run dev:web` | Run one side only |
 | `npm run db:up` | Start only Postgres (for `npm run dev`) |
@@ -206,7 +235,8 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts, 
 ## Security notes
 
 - Plaid access tokens and uploaded PDFs are encrypted at rest (AES-256-GCM, `ENCRYPTION_KEY`). Losing the key means re-linking accounts and losing access to stored PDFs.
-- The API and Postgres bind to `127.0.0.1` only; in Docker, only the web container's port is published, also on `127.0.0.1`.
+- The API and Postgres bind to `127.0.0.1` only; in Docker, only the Meld container's port is published, also on `127.0.0.1`. Phone access goes through Tailscale (`tailscale serve`), so it's only reachable from your own devices, over HTTPS.
+- Until a passphrase is set, the API serves only first-run setup. Afterwards, changing settings needs a login (and the current passphrase to change it).
 - Auth is a single-user passphrase that issues a bearer token, with 10 login attempts allowed per 15 minutes. It's built for one household on one machine, not for hosting other people's data.
 - AI features send financial data to the configured LLM provider. Account numbers are masked first. Insurance PDF upload sends the whole document. Details in [PRIVACY.md](PRIVACY.md).
 - Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice.
