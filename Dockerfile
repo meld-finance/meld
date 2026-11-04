@@ -6,6 +6,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/mobile/package.json apps/mobile/
+COPY apps/desktop/package.json apps/desktop/
 COPY packages/shared/package.json packages/shared/
 
 # ---- Web build ----
