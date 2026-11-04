@@ -6,6 +6,10 @@ const list = (fallback: string) =>
     .default(fallback)
     .transform((s) => s.split(',').map((v) => v.trim()).filter(Boolean));
 const csv = list('');
+const flag = z
+  .enum(['', '0', '1', 'true', 'false'])
+  .default('')
+  .transform((v) => v === '1' || v === 'true');
 
 const PlaidEnv = z.enum(['sandbox', 'production']);
 
@@ -57,6 +61,13 @@ const EnvSchema = z
 
     /** Uploaded documents; defaults to <repo>/data/documents. */
     DOCUMENTS_DIR: z.string().default(''),
+
+    /** The Expo web export to serve alongside the API (which then moves under /api); empty serves none. */
+    WEB_DIR: z.string().default(''),
+    /** Apply pending migrations before starting (Docker and the desktop app). */
+    MIGRATE_ON_START: flag,
+    /** Migrations folder; defaults to apps/api/drizzle. The bundled desktop API sets it. */
+    MIGRATIONS_DIR: z.string().default(''),
   })
   .transform((env, ctx) => {
     const DATABASE_URL = env.DATABASE_URL ?? databaseUrlFor(env, env.PLAID_ENV);

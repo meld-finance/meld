@@ -1,4 +1,4 @@
-# `docker compose up -d --build` runs all of Meld: Postgres, the API and the web app,
+# `docker compose up -d --build` runs all of Meld: Postgres, and the API serving the web app,
 # at http://localhost:8080. Run scripts/setup.sh first to create .env.
 #
 # Developing locally? Run only the database (`npm run db:up`) and use `npm run dev`.
@@ -23,8 +23,8 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
-    build: { context: ., target: api }
+  meld:
+    build: { context: . }
     restart: unless-stopped
     depends_on:
       db: { condition: service_healthy }
@@ -34,18 +34,13 @@ services:
       SANDBOX_DATABASE_URL: postgres://meld:${POSTGRES_PASSWORD:-meld}@db:5432/meld_sandbox
       PRODUCTION_DATABASE_URL: postgres://meld:${POSTGRES_PASSWORD:-meld}@db:5432/meld
       API_HOST: 0.0.0.0
+      API_PORT: 8080
       DOCUMENTS_DIR: /data/documents
     extra_hosts:
       # Lets OLLAMA_URL=http://host.docker.internal:11434 reach Ollama on your computer.
       - "host.docker.internal:host-gateway"
     volumes:
       - meld-documents:/data/documents
-    # No published port: only the web container talks to the API.
-
-  web:
-    build: { context: ., target: web }
-    restart: unless-stopped
-    depends_on: [api]
     ports:
       # Localhost only. See README before exposing Meld to other devices.
       - "127.0.0.1:${MELD_PORT:-8080}:8080"

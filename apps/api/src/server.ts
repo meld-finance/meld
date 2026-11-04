@@ -1,7 +1,7 @@
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import type { AppFeatures } from '@meld/shared';
 import type { PlaidApi } from 'plaid';
 import type { AIProvider } from './ai/provider';
@@ -26,6 +26,7 @@ import { registerRetirementRoutes } from './routes/retirement';
 import { registerTaxRoutes } from './routes/tax';
 import { registerTransactionRoutes } from './routes/transactions';
 import type { DocumentStorage } from './storage';
+import { API_PREFIX, registerWebApp } from './web';
 
 export type AppDeps = {
   env: Env;
@@ -68,10 +69,28 @@ export async function buildServer(deps: AppDeps) {
     return reply.code(500).send({ error: 'Internal server error' });
   });
 
+  app.addHook('onSend', async (_req, reply) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('Referrer-Policy', 'no-referrer');
+    reply.header('X-Frame-Options', 'DENY');
+  });
+
   await app.register(cors, { origin: env.CORS_ORIGINS, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] });
   await app.register(jwt, { secret: env.SESSION_SECRET });
   // Off by default; routes opt in (the login route, against passphrase guessing).
   await app.register(rateLimit, { global: false });
+
+  // Serving the web app too (Docker, desktop): the API moves under /api so app paths
+  // like /alerts and API paths like /alerts don't collide. Without it (dev), it stays at /.
+  await app.register((api) => registerApi(api, deps), { prefix: env.WEB_DIR ? API_PREFIX : '' });
+  if (env.WEB_DIR) await registerWebApp(app, env.WEB_DIR);
+
+  return app;
+}
+
+async function registerApi(app: FastifyInstance, deps: AppDeps) {
+  const { env, db } = deps;
+  // Inside this scope only, so the web app's files need no login.
   await registerAuth(app, env);
 
   app.get('/health', { config: { public: true } }, async () => {
@@ -96,6 +115,4 @@ export async function buildServer(deps: AppDeps) {
   await registerAlertRoutes(app, deps);
   await registerEstateRoutes(app, deps);
   await registerChatRoutes(app, deps);
-
-  return app;
 }

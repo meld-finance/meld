@@ -1,7 +1,8 @@
 import { createAIProvider } from './ai/provider';
 import { createDb } from './db/client';
 import { documents } from './db/schema';
-import { loadEnv } from './env';
+import { migrateAll } from './db/migrations';
+import { configuredDatabaseUrls, loadEnv } from './env';
 import { createPlaidClient } from './plaid/client';
 import { syncAllItems } from './plaid/sync';
 import { pruneOrphanDocuments } from './routes/insurance';
@@ -13,6 +14,9 @@ import { createStorage } from './storage';
 const SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 const env = loadEnv();
+if (env.MIGRATE_ON_START) {
+  await migrateAll([...new Set([...configuredDatabaseUrls(), env.DATABASE_URL])], env.MIGRATIONS_DIR);
+}
 const { db } = createDb(env.DATABASE_URL);
 const plaid = createPlaidClient(env);
 const sync = { db, plaid, encryptionKey: env.ENCRYPTION_KEY };
