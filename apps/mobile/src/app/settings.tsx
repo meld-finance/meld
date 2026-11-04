@@ -8,13 +8,15 @@ import { Card } from '@/components/card';
 import { Field, Input, formStyles } from '@/components/form-fields';
 import { Screen } from '@/components/screen';
 import { AIFields } from '@/components/setup/ai-fields';
+import { PhoneAccessCard } from '@/components/setup/phone-access-card';
 import { PlaidFields } from '@/components/setup/plaid-fields';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { useSaveSettings, useSettings, type AIForm, type PlaidForm } from '@/lib/setup';
+import { useSaveSettings, useSettings, useSetupStatus, type AIForm, type PlaidForm } from '@/lib/setup';
 
 export default function SettingsScreen() {
   const settings = useSettings();
+  const phoneAccess = useSetupStatus().data?.phoneAccess ?? false;
   const back = (
     <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
       <ThemedText type="linkPrimary">‹ Back</ThemedText>
@@ -28,7 +30,10 @@ export default function SettingsScreen() {
       ) : settings.isError ? (
         <ThemedText themeColor="negative">Couldn’t load settings: {settings.error.message}</ThemedText>
       ) : (
-        <SettingsCards view={settings.data} />
+        <>
+          {phoneAccess && <PhoneAccessCard />}
+          <SettingsCards view={settings.data} />
+        </>
       )}
     </Screen>
   );

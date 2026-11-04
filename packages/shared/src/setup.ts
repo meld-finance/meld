@@ -82,3 +82,17 @@ export type OllamaDetectRequest = z.input<typeof OllamaDetectRequest>;
 export type OllamaDetectResult =
   | { found: true; url: string; models: string[] }
   | { found: false; tried: string[] };
+
+/** Reaching Meld from a phone over Tailscale (desktop app only). */
+export type PhoneAccess =
+  /** Tailscale isn't installed on this computer. */
+  | { state: 'not-installed' }
+  /** Installed, but not signed in or not connected. */
+  | { state: 'not-running' }
+  /** Connected, but the tailnet doesn't have HTTPS certificates turned on, which `tailscale serve` needs. */
+  | { state: 'no-https'; machine: string }
+  | { state: 'off'; machine: string }
+  | { state: 'on'; machine: string; url: string };
+
+export const PhoneAccessUpdate = z.object({ enabled: z.boolean() });
+export type PhoneAccessUpdate = z.infer<typeof PhoneAccessUpdate>;

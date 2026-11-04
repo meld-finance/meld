@@ -19,6 +19,7 @@ import { registerEstateRoutes } from './routes/estate';
 import { registerInsuranceRoutes } from './routes/insurance';
 import { registerManualAssetRoutes } from './routes/manual-assets';
 import { registerOverviewRoutes } from './routes/overview';
+import { registerPhoneAccessRoutes } from './routes/phone-access';
 import { registerPlaidRoutes } from './routes/plaid';
 import { registerProfileRoutes } from './routes/profile';
 import { registerRecurringRoutes } from './routes/recurring';
@@ -26,6 +27,7 @@ import { registerRetirementRoutes } from './routes/retirement';
 import { registerTaxRoutes } from './routes/tax';
 import { registerTransactionRoutes } from './routes/transactions';
 import { registerSetupRoutes, type SettingsDeps } from './routes/setup';
+import type { PhoneAccessService } from './services/tailscale';
 import type { DocumentStorage } from './storage';
 import { API_PREFIX, registerWebApp } from './web';
 
@@ -39,6 +41,8 @@ export type AppDeps = {
   storage: DocumentStorage;
   /** For changing settings from the app; tests can leave it out. */
   settings?: SettingsDeps;
+  /** Phone access over Tailscale; only the desktop app has it. */
+  phoneAccess?: PhoneAccessService | null;
 };
 
 const NO_SETTINGS: SettingsDeps = { fromEnv: new Set(), restart: () => {} };
@@ -122,6 +126,7 @@ async function registerApi(app: FastifyInstance, deps: AppDeps) {
 
   app.get('/me', async () => ({ user: 'owner' }));
   await registerSetupRoutes(app, env, deps.settings ?? NO_SETTINGS, true);
+  if (deps.phoneAccess) await registerPhoneAccessRoutes(app, env, deps.phoneAccess);
   app.get('/features', async (): Promise<AppFeatures> => ({ cloudAI: deps.ai !== null }));
 
   await registerPlaidRoutes(app, deps);
