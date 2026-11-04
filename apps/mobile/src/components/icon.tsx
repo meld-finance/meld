@@ -65,6 +65,14 @@ const ICONS = {
       <Path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
     </>
   ),
+  settings: (
+    <>
+      <Path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" />
+      <Circle cx={16} cy={6} r={2} />
+      <Circle cx={10} cy={12} r={2} />
+      <Circle cx={18} cy={18} r={2} />
+    </>
+  ),
   lock: (
     <>
       <Rect x={4} y={10.5} width={16} height={10.5} rx={2} />

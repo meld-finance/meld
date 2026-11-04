@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -24,8 +25,11 @@ export function AISetupHint({ manual, links = [], aiDoes }: { manual: string; li
         ))}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        ✨ To have AI {aiDoes}, add an Anthropic API key (<ThemedText type="code">ANTHROPIC_API_KEY</ThemedText> in{' '}
-        <ThemedText type="code">.env</ThemedText>) and restart Meld.
+        ✨ To have AI {aiDoes}, add an Anthropic API key in{' '}
+        <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => router.push('/settings')}>
+          Settings
+        </ThemedText>
+        .
       </ThemedText>
     </View>
   );

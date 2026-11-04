@@ -86,6 +86,6 @@ export function createAIProvider(env: Env): AIProvider | null {
 }
 
 export function requireAI(ai: AIProvider | null): AIProvider {
-  if (!ai) throw new HttpError(503, 'AI isn’t set up. Add ANTHROPIC_API_KEY to .env and restart the API.');
+  if (!ai) throw new HttpError(503, 'AI isn’t set up. Add an Anthropic API key in Settings → AI (or ANTHROPIC_API_KEY in .env).');
   return ai;
 }

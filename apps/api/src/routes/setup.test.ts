@@ -1,0 +1,141 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import type { PlaidApi } from 'plaid';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { readSettings, withSettingsFile } from '../config-file';
+import type { Db } from '../db/client';
+import { loadEnv, setupComplete } from '../env';
+import { buildServer, buildSetupServer } from '../server';
+import type { DocumentStorage } from '../storage';
+import type { SettingsDeps } from './setup';
+
+const key = Buffer.alloc(32, 3).toString('base64');
+const dir = mkdtempSync(path.join(tmpdir(), 'meld-setup-'));
+afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+const setup = {
+  passphrase: 'correct horse battery',
+  plaid: { clientId: 'client-id', sandboxSecret: 'sandbox-secret-abcd', productionSecret: '', env: 'sandbox' },
+  ai: { anthropicApiKey: '', ollamaUrl: '', ollamaModels: [] },
+};
+
+let n = 0;
+function source(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return {
+    DATABASE_URL: 'postgres://unused@127.0.0.1:5432/unused',
+    SESSION_SECRET: 'x'.repeat(32),
+    ENCRYPTION_KEY: key,
+    MELD_CONFIG_FILE: path.join(dir, `config-${n}.json`),
+    ...extra,
+  };
+}
+
+function fullServer(src: NodeJS.ProcessEnv, settings: SettingsDeps) {
+  const env = loadEnv(withSettingsFile(src));
+  const db = {} as Db;
+  const plaid = {} as PlaidApi;
+  return buildServer({ env, db, plaid, sync: { db, plaid, encryptionKey: key }, ai: null, storage: {} as DocumentStorage, settings });
+}
+
+describe('first-run setup', () => {
+  beforeEach(() => void n++);
+
+  it('saves the settings, hashes the passphrase and restarts', async () => {
+    const restart = vi.fn();
+    const env = loadEnv(source());
+    expect(setupComplete(env)).toBe(false);
+    const app = await buildSetupServer(env, { fromEnv: new Set(), restart });
+    expect((await app.inject({ method: 'GET', url: '/setup/status' })).json()).toEqual({ configured: false, editable: true, phoneAccess: false });
+
+    const res = await app.inject({ method: 'POST', url: '/setup', payload: setup });
+    expect(res.statusCode).toBe(200);
+    expect(restart).toHaveBeenCalledOnce();
+    const saved = readSettings(env.MELD_CONFIG_FILE, key);
+    expect(saved).toMatchObject({ PLAID_CLIENT_ID: 'client-id', PLAID_SANDBOX_SECRET: 'sandbox-secret-abcd', PLAID_ENV: 'sandbox' });
+    expect(saved.APP_PASSPHRASE_HASH).toMatch(/^scrypt:/);
+    expect(setupComplete(loadEnv(withSettingsFile(source())))).toBe(true);
+    await app.close();
+  });
+
+  it('rejects a short passphrase', async () => {
+    const app = await buildSetupServer(loadEnv(source()), { fromEnv: new Set(), restart: () => {} });
+    const res = await app.inject({ method: 'POST', url: '/setup', payload: { ...setup, passphrase: 'short' } });
+    expect(res.statusCode).toBe(400);
+    await app.close();
+  });
+});
+
+describe('settings once set up', () => {
+  let app: Awaited<ReturnType<typeof buildServer>>;
+  let token: string;
+  const restart = vi.fn();
+
+  beforeEach(async () => {
+    n++;
+    const first = await buildSetupServer(loadEnv(source()), { fromEnv: new Set(), restart: () => {} });
+    await first.inject({ method: 'POST', url: '/setup', payload: { ...setup, ai: { ...setup.ai, anthropicApiKey: 'sk-ant-secret-wxyz' } } });
+    await first.close();
+    app = await fullServer(source(), { fromEnv: new Set(), restart });
+    const login = await app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase: setup.passphrase } });
+    token = login.json().token;
+  });
+  afterEach(async () => {
+    await app.close();
+    restart.mockReset();
+  });
+  const auth = () => ({ authorization: `Bearer ${token}` });
+
+  it('logs in with the saved passphrase and won’t run setup again', async () => {
+    expect(token).toEqual(expect.any(String));
+    const res = await app.inject({ method: 'POST', url: '/setup', payload: setup });
+    expect(res.statusCode).toBe(401);
+    const again = await app.inject({ method: 'POST', url: '/setup', payload: setup, headers: auth() });
+    expect(again.statusCode).toBe(409);
+  });
+
+  it('needs a login to see or test settings', async () => {
+    expect((await app.inject({ method: 'GET', url: '/settings' })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: '/setup/test-anthropic', payload: {} })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'GET', url: '/setup/status' })).json().configured).toBe(true);
+  });
+
+  it('shows secrets masked', async () => {
+    const view = (await app.inject({ method: 'GET', url: '/settings', headers: auth() })).json();
+    expect(view.plaid).toEqual({ clientId: 'client-id', sandboxSecret: '••••abcd', productionSecret: '', env: 'sandbox' });
+    expect(view.ai.anthropicApiKey).toBe('••••wxyz');
+    expect(JSON.stringify(view)).not.toContain('sandbox-secret');
+  });
+
+  it('keeps a secret left empty, and changes the passphrase only with the current one', async () => {
+    const file = loadEnv(source()).MELD_CONFIG_FILE;
+    const plaid = { clientId: 'new-client', sandboxSecret: '', productionSecret: 'prod-secret', env: 'production' };
+    expect((await app.inject({ method: 'PUT', url: '/settings', headers: auth(), payload: { plaid } })).statusCode).toBe(200);
+    expect(restart).toHaveBeenCalledOnce();
+    expect(readSettings(file, key)).toMatchObject({
+      PLAID_CLIENT_ID: 'new-client',
+      PLAID_SANDBOX_SECRET: 'sandbox-secret-abcd',
+      PLAID_PRODUCTION_SECRET: 'prod-secret',
+      PLAID_ENV: 'production',
+      ANTHROPIC_API_KEY: 'sk-ant-secret-wxyz',
+    });
+
+    const wrong = await app.inject({
+      method: 'PUT',
+      url: '/settings',
+      headers: auth(),
+      payload: { passphrase: { current: 'not it at all', next: 'a new passphrase' } },
+    });
+    expect(wrong.statusCode).toBe(400);
+  });
+
+  it('won’t change settings that come from .env', async () => {
+    await app.close();
+    app = await fullServer(source({ PLAID_CLIENT_ID: 'env-client' }), { fromEnv: new Set(['PLAID_CLIENT_ID']), restart });
+    token = (await app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase: setup.passphrase } })).json().token;
+    expect((await app.inject({ method: 'GET', url: '/settings', headers: auth() })).json().fromEnv).toEqual(['plaid']);
+    const res = await app.inject({ method: 'PUT', url: '/settings', headers: auth(), payload: { plaid: setup.plaid } });
+    expect(res.statusCode).toBe(409);
+    expect(restart).not.toHaveBeenCalled();
+  });
+});

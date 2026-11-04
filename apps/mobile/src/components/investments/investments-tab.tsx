@@ -117,7 +117,7 @@ function LookupStatus({ data }: { data: InvestmentsSummary }) {
       <ThemedText type="small" style={styles.statusText}>
         {canProfile
           ? `${unprofiled} ${unprofiled === 1 ? 'holding hasn’t' : 'holdings haven’t'} been broken down yet${profile.error ? `: ${profile.error.message}` : '.'}`
-          : 'Breaking funds down by sector and region uses the AI assistant. Add ANTHROPIC_API_KEY to .env and restart the API.'}
+          : 'Breaking funds down by sector and region uses the AI assistant. Add an Anthropic API key in Settings → AI.'}
       </ThemedText>
       {canProfile && (
         <Pressable accessibilityRole="button" onPress={() => profile.mutate()} style={({ pressed }) => pressed && styles.pressed}>

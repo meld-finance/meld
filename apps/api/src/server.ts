@@ -25,6 +25,7 @@ import { registerRecurringRoutes } from './routes/recurring';
 import { registerRetirementRoutes } from './routes/retirement';
 import { registerTaxRoutes } from './routes/tax';
 import { registerTransactionRoutes } from './routes/transactions';
+import { registerSetupRoutes, type SettingsDeps } from './routes/setup';
 import type { DocumentStorage } from './storage';
 import { API_PREFIX, registerWebApp } from './web';
 
@@ -36,10 +37,37 @@ export type AppDeps = {
   /** Null when no AI provider is configured. */
   ai: AIProvider | null;
   storage: DocumentStorage;
+  /** For changing settings from the app; tests can leave it out. */
+  settings?: SettingsDeps;
 };
 
+const NO_SETTINGS: SettingsDeps = { fromEnv: new Set(), restart: () => {} };
+
+/** The full API. */
 export async function buildServer(deps: AppDeps) {
-  const { env, db } = deps;
+  const app = await createApp(deps.env);
+  // Serving the web app too (Docker, desktop): the API moves under /api so app paths
+  // like /alerts and API paths like /alerts don't collide. Without it (dev), it stays at /.
+  await app.register((api) => registerApi(api, deps), { prefix: deps.env.WEB_DIR ? API_PREFIX : '' });
+  if (deps.env.WEB_DIR) await registerWebApp(app, deps.env.WEB_DIR);
+  return app;
+}
+
+/** Before first-run setup: only the setup routes (no login yet) and the web app that shows the wizard. */
+export async function buildSetupServer(env: Env, settings: SettingsDeps) {
+  const app = await createApp(env);
+  await app.register(
+    async (api) => {
+      api.get('/health', async () => ({ ok: true }));
+      await registerSetupRoutes(api, env, settings, false);
+    },
+    { prefix: env.WEB_DIR ? API_PREFIX : '' },
+  );
+  if (env.WEB_DIR) await registerWebApp(app, env.WEB_DIR);
+  return app;
+}
+
+async function createApp(env: Env) {
   const app = Fastify({
     logger: {
       level: 'info',
@@ -79,12 +107,6 @@ export async function buildServer(deps: AppDeps) {
   await app.register(jwt, { secret: env.SESSION_SECRET });
   // Off by default; routes opt in (the login route, against passphrase guessing).
   await app.register(rateLimit, { global: false });
-
-  // Serving the web app too (Docker, desktop): the API moves under /api so app paths
-  // like /alerts and API paths like /alerts don't collide. Without it (dev), it stays at /.
-  await app.register((api) => registerApi(api, deps), { prefix: env.WEB_DIR ? API_PREFIX : '' });
-  if (env.WEB_DIR) await registerWebApp(app, env.WEB_DIR);
-
   return app;
 }
 
@@ -99,6 +121,7 @@ async function registerApi(app: FastifyInstance, deps: AppDeps) {
   });
 
   app.get('/me', async () => ({ user: 'owner' }));
+  await registerSetupRoutes(app, env, deps.settings ?? NO_SETTINGS, true);
   app.get('/features', async (): Promise<AppFeatures> => ({ cloudAI: deps.ai !== null }));
 
   await registerPlaidRoutes(app, deps);

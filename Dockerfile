@@ -28,8 +28,8 @@ COPY apps/api apps/api
 COPY --from=web-build /web /app/web
 WORKDIR /app/apps/api
 ENV NODE_ENV=production API_HOST=0.0.0.0 API_PORT=8080 WEB_DIR=/app/web MIGRATE_ON_START=1 \
-    DOCUMENTS_DIR=/data/documents
-RUN mkdir -p /data/documents && chown -R node:node /data
+    DOCUMENTS_DIR=/data/documents MELD_CONFIG_FILE=/data/config/config.json
+RUN mkdir -p /data/documents /data/config && chown -R node:node /data
 USER node
 EXPOSE 8080
 # Settings come from the environment, not a .env file.

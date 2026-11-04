@@ -36,11 +36,14 @@ services:
       API_HOST: 0.0.0.0
       API_PORT: 8080
       DOCUMENTS_DIR: /data/documents
+      # Settings saved from the app (first-run setup, Settings). Values in .env win over it.
+      MELD_CONFIG_FILE: /data/config/config.json
     extra_hosts:
       # Lets OLLAMA_URL=http://host.docker.internal:11434 reach Ollama on your computer.
       - "host.docker.internal:host-gateway"
     volumes:
       - meld-documents:/data/documents
+      - meld-config:/data/config
     ports:
       # Localhost only. See README before exposing Meld to other devices.
       - "127.0.0.1:${MELD_PORT:-8080}:8080"
@@ -48,3 +51,4 @@ services:
 volumes:
   meld-db:
   meld-documents:
+  meld-config:
