@@ -10,7 +10,7 @@ Thanks for helping. Meld is a side project with one maintainer, so small, focuse
 
 ## Running it
 
-Follow **Development setup** in the [README](README.md). Plaid Sandbox (`user_good` / `pass_good`) is enough for nearly all work.
+Follow **Development setup** in the [README](README.md). Plaid Sandbox (`user_good` / `pass_good`) is enough for nearly all work. For the Mac app, `npm run desktop:dev` runs it from source and `npm run desktop:build` builds `Meld.app` to check the packaged version.
 
 ## Before opening a PR
 
