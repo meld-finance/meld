@@ -11,6 +11,7 @@ import type { SettingsDeps } from './routes/setup';
 import { buildServer, buildSetupServer } from './server';
 import { evaluateAlerts } from './services/alerts';
 import { recordSnapshot } from './services/overview';
+import { PhoneAccessService } from './services/tailscale';
 import { createStorage } from './storage';
 
 const SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -47,11 +48,17 @@ async function startMeld() {
   const sync = { db, plaid, encryptionKey: env.ENCRYPTION_KEY };
   const ai = createAIProvider(env);
   const storage = createStorage(env);
-  app = await buildServer({ env, db, plaid, sync, ai, storage, settings });
+  const phoneAccess = env.TAILSCALE_CONTROL ? new PhoneAccessService(`http://127.0.0.1:${env.API_PORT}`) : null;
+  app = await buildServer({ env, db, plaid, sync, ai, storage, settings, phoneAccess });
   if (!ai) app.log.warn('No AI provider configured (ANTHROPIC_API_KEY is empty); AI features are disabled.');
 
   // Localhost only unless API_HOST says otherwise (the Docker setup listens inside its private network).
   await app.listen({ port: env.API_PORT, host: env.API_HOST });
+
+  // Meld's port can change between starts, so phone access is set up again each time.
+  if (phoneAccess && env.PHONE_ACCESS) {
+    void phoneAccess.enable().catch((err) => app.log.warn({ err }, 'Couldn’t turn phone access back on'));
+  }
 
   // Local stand-in for Plaid webhooks: refresh all items periodically. The snapshot
   // also runs on its own so net-worth history gets a point each day even with no items.

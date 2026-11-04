@@ -1,5 +1,6 @@
 import type {
   AISettings,
+  PhoneAccess,
   KeyTestResult,
   OllamaDetectResult,
   PlaidEnvironment,
@@ -15,7 +16,7 @@ import { api } from './api';
 const RESTART_POLL_MS = 500;
 const RESTART_TIMEOUT_MS = 60_000;
 
-const keys = { status: ['setup', 'status'] as const, settings: ['settings'] as const };
+const keys = { status: ['setup', 'status'] as const, settings: ['settings'] as const, phone: ['phone-access'] as const };
 
 /** Asked before login: whether to show first-run setup. */
 export function useSetupStatus() {
@@ -76,3 +77,15 @@ export function detectOllama(url: string) {
 
 export type PlaidForm = { clientId: string; sandboxSecret: string; productionSecret: string; env: PlaidEnvironment };
 export type AIForm = Pick<AISettings, 'anthropicApiKey' | 'ollamaUrl' | 'ollamaModels'>;
+
+export function usePhoneAccess(enabled: boolean) {
+  return useQuery({ queryKey: keys.phone, queryFn: () => api<PhoneAccess>('/phone-access'), enabled });
+}
+
+export function useSetPhoneAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) => api<PhoneAccess>('/phone-access', { method: 'PUT', body: JSON.stringify({ enabled }) }),
+    onSuccess: (data) => qc.setQueryData(keys.phone, data),
+  });
+}
