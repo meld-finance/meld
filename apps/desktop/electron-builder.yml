@@ -1,0 +1,32 @@
+# `npm run desktop:build` makes dist/mac-<arch>/Meld.app; `npm run desktop:dist` makes a .dmg.
+# Signing and notarization happen when CSC_LINK / APPLE_ID etc. are set; otherwise the
+# app is unsigned (open it the first time with right-click → Open).
+appId: app.meld.desktop
+productName: Meld
+copyright: Meld contributors (AGPL-3.0)
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/main.js
+  - build/trayTemplate*.png
+  - package.json
+extraResources:
+  - from: dist/resources
+    to: .
+    filter: ["**/*"]
+asar: true
+npmRebuild: false
+mac:
+  category: public.app-category.finance
+  icon: build/icon.png
+  target:
+    - target: dmg
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Postgres and the pdfkit package are signed along with the app when signing is set up.
+  extendInfo:
+    LSUIElement: false
+dmg:
+  title: Meld
