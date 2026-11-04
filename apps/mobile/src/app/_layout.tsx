@@ -5,13 +5,18 @@ import { useEffect } from 'react';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { useSetupStatus } from '@/lib/setup';
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function RootNavigator() {
-  const { ready, isLoggedIn } = useAuth();
+  const { ready: authReady, isLoggedIn } = useAuth();
+  const setup = useSetupStatus();
+  // If the status can't be read (an older API), assume setup is done and show the lock screen.
+  const configured = setup.data?.configured ?? true;
+  const ready = authReady && !setup.isPending;
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
@@ -21,7 +26,10 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={isLoggedIn} redirectTo="/login">
+      <Stack.Protected guard={!configured}>
+        <Stack.Screen name="setup" />
+      </Stack.Protected>
+      <Stack.Protected guard={configured && isLoggedIn} redirectTo={configured ? '/login' : '/setup'}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="account/[id]" />
         <Stack.Screen name="insurance/[id]" />
@@ -32,8 +40,9 @@ function RootNavigator() {
         <Stack.Screen name="category/[category]" />
         <Stack.Screen name="rules" />
         <Stack.Screen name="alerts" />
+        <Stack.Screen name="settings" />
       </Stack.Protected>
-      <Stack.Protected guard={!isLoggedIn} redirectTo="/">
+      <Stack.Protected guard={configured && !isLoggedIn} redirectTo={configured ? '/' : '/setup'}>
         <Stack.Screen name="login" />
       </Stack.Protected>
     </Stack>

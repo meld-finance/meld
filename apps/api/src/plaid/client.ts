@@ -1,14 +1,16 @@
 import { Configuration, PlaidApi, PlaidEnvironments, type PlaidError } from 'plaid';
-import type { Env } from '../env';
+import { plaidSecret, type Env } from '../env';
 
-export function createPlaidClient(env: Env): PlaidApi {
+export function createPlaidClient(
+  env: Pick<Env, 'PLAID_ENV' | 'PLAID_CLIENT_ID' | 'PLAID_SANDBOX_SECRET' | 'PLAID_PRODUCTION_SECRET'>,
+): PlaidApi {
   return new PlaidApi(
     new Configuration({
       basePath: PlaidEnvironments[env.PLAID_ENV],
       baseOptions: {
         headers: {
           'PLAID-CLIENT-ID': env.PLAID_CLIENT_ID,
-          'PLAID-SECRET': env.PLAID_ENV === 'production' ? env.PLAID_PRODUCTION_SECRET : env.PLAID_SANDBOX_SECRET,
+          'PLAID-SECRET': plaidSecret(env),
         },
       },
     }),

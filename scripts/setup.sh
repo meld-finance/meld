@@ -62,24 +62,26 @@ if [ "$created" = 1 ]; then
   echo "  generated POSTGRES_PASSWORD"
 fi
 
-if [ "$(current APP_PASSPHRASE)" = "change-me" ] || [ -z "$(current APP_PASSPHRASE)" ]; then
-  if [ -t 0 ]; then
-    printf 'Choose the passphrase you will log in with (8+ characters): '
+if [ "$(current APP_PASSPHRASE)" = "change-me" ]; then
+  # Empty means Meld asks for it the first time you open it.
+  set_value APP_PASSPHRASE ""
+fi
+if [ -z "$(current APP_PASSPHRASE)" ] && [ -t 0 ]; then
+  printf 'Choose the passphrase you will log in with (8+ characters), or press Enter to choose it in the app: '
+  stty -echo 2>/dev/null || true
+  read -r pass
+  stty echo 2>/dev/null || true
+  echo
+  while [ -n "$pass" ] && { [ ${#pass} -lt 8 ] || bad_chars "$pass"; }; do
+    printf 'At least 8 characters, without $ \\ quotes, # or backticks: '
     stty -echo 2>/dev/null || true
     read -r pass
     stty echo 2>/dev/null || true
     echo
-    while [ ${#pass} -lt 8 ] || bad_chars "$pass"; do
-      printf 'At least 8 characters, without $ \\ quotes, # or backticks: '
-      stty -echo 2>/dev/null || true
-      read -r pass
-      stty echo 2>/dev/null || true
-      echo
-    done
+  done
+  if [ -n "$pass" ]; then
     set_value APP_PASSPHRASE "$pass"
     echo "  set APP_PASSPHRASE"
-  else
-    echo "  APP_PASSPHRASE is still 'change-me': edit $ENV_FILE before starting"
   fi
 fi
 
@@ -91,16 +93,9 @@ cat <<EOF
 
 Next:
 EOF
-if [ -n "$missing" ]; then
-  echo "  1. Add your Plaid keys to $ENV_FILE:$missing"
-  echo "     (free; see docs/plaid.md for signing up and getting real-account access)"
-else
-  echo "  1. Plaid keys are set."
-fi
-if [ -z "$(current ANTHROPIC_API_KEY)" ] && [ -z "$(current OLLAMA_URL)" ]; then
-  echo "  2. Optional: set ANTHROPIC_API_KEY or OLLAMA_URL in $ENV_FILE for the AI features"
-else
-  echo "  2. AI is configured."
-fi
-echo "  3. Start Meld:  docker compose up -d --build"
+echo "  1. Start Meld:  docker compose up -d --build"
 echo "     then open http://localhost:8080"
+if [ -n "$missing" ] || [ -z "$(current APP_PASSPHRASE)" ]; then
+  echo "  2. Meld walks you through the rest the first time it opens: your passphrase, Plaid"
+  echo "     keys (free; see docs/plaid.md) and, optionally, AI. Anything set in $ENV_FILE wins."
+fi

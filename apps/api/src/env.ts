@@ -1,10 +1,11 @@
 import { z } from 'zod';
 
+/** Comma-separated; empty means `fallback`, since .env templates list every key with no value. */
 const list = (fallback: string) =>
   z
     .string()
     .default(fallback)
-    .transform((s) => s.split(',').map((v) => v.trim()).filter(Boolean));
+    .transform((s) => (s || fallback).split(',').map((v) => v.trim()).filter(Boolean));
 const csv = list('');
 const flag = z
   .enum(['', '0', '1', 'true', 'false'])
@@ -25,7 +26,12 @@ const EnvSchema = z
     API_HOST: z.string().default('127.0.0.1'),
     CORS_ORIGINS: csv,
 
-    APP_PASSPHRASE: z.string().min(8, 'APP_PASSPHRASE must be at least 8 characters'),
+    /** The login passphrase, or its hash (APP_PASSPHRASE_HASH) when set from the app. Unset means setup isn't done. */
+    APP_PASSPHRASE: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z.string().min(8, 'APP_PASSPHRASE must be at least 8 characters').optional(),
+    ),
+    APP_PASSPHRASE_HASH: z.string().default(''),
     SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
     ENCRYPTION_KEY: z
       .string()
@@ -35,12 +41,12 @@ const EnvSchema = z
     /** One secret per environment, so switching is just PLAID_ENV. */
     PLAID_SANDBOX_SECRET: z.string().default(''),
     PLAID_PRODUCTION_SECRET: z.string().default(''),
-    PLAID_ENV: PlaidEnv.default('sandbox'),
-    PLAID_PRODUCTS: csv,
-    PLAID_OPTIONAL_PRODUCTS: csv,
+    PLAID_ENV: z.preprocess((v) => (v === '' ? undefined : v), PlaidEnv.default('sandbox')),
+    PLAID_PRODUCTS: list('transactions'),
+    PLAID_OPTIONAL_PRODUCTS: list('investments,liabilities'),
     /** Asked for at link time but only used (and billed) on demand, e.g. auth for full bank account numbers. */
     PLAID_ADDITIONAL_CONSENTED_PRODUCTS: csv,
-    PLAID_COUNTRY_CODES: csv,
+    PLAID_COUNTRY_CODES: list('US'),
 
     AI_PROVIDER: z.enum(['anthropic']).default('anthropic'),
     ANTHROPIC_API_KEY: z.string().default(''),
@@ -68,6 +74,12 @@ const EnvSchema = z
     MIGRATE_ON_START: flag,
     /** Migrations folder; defaults to apps/api/drizzle. The bundled desktop API sets it. */
     MIGRATIONS_DIR: z.string().default(''),
+    /** Settings file the app writes from first-run setup and Settings; empty means .env only. */
+    MELD_CONFIG_FILE: z.string().default(''),
+    /** The desktop app: the API may run the Tailscale CLI to turn phone access on and off. */
+    TAILSCALE_CONTROL: flag,
+    /** Phone access over Tailscale was turned on (re-applied at start). */
+    PHONE_ACCESS: flag,
   })
   .transform((env, ctx) => {
     const DATABASE_URL = env.DATABASE_URL ?? databaseUrlFor(env, env.PLAID_ENV);
@@ -94,6 +106,16 @@ export function configuredDatabaseUrls(source: NodeJS.ProcessEnv = process.env):
 }
 
 export type Env = z.infer<typeof EnvSchema>;
+
+/** The secret for the Plaid environment in use. */
+export function plaidSecret(env: Pick<Env, 'PLAID_ENV' | 'PLAID_SANDBOX_SECRET' | 'PLAID_PRODUCTION_SECRET'>) {
+  return env.PLAID_ENV === 'production' ? env.PLAID_PRODUCTION_SECRET : env.PLAID_SANDBOX_SECRET;
+}
+
+/** Enough is set to run Meld: a passphrase and Plaid keys. Until then the API serves only first-run setup. */
+export function setupComplete(env: Env): boolean {
+  return !!(env.APP_PASSPHRASE || env.APP_PASSPHRASE_HASH) && !!env.PLAID_CLIENT_ID && !!plaidSecret(env);
+}
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = EnvSchema.safeParse(source);

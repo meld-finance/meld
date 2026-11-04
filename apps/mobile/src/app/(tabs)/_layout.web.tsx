@@ -297,6 +297,14 @@ function TopBar({ phone }: { phone: boolean }) {
               }}>
               Profile
             </MenuItem>
+            <MenuItem
+              icon="settings"
+              onPress={() => {
+                setOpen(false);
+                router.push('/settings');
+              }}>
+              Settings
+            </MenuItem>
             {/* Phones have no sidebar, so the theme toggle lives here. */}
             {phone && (
               <View style={styles.menuTheme}>

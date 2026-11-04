@@ -6,10 +6,12 @@ import { loadEnv } from './env';
 import { buildServer } from './server';
 import type { DocumentStorage } from './storage';
 
+const PASSPHRASE = 'correct horse battery';
+
 describe('POST /auth/login', () => {
   const env = loadEnv({
     DATABASE_URL: 'postgres://unused@127.0.0.1:5432/unused',
-    APP_PASSPHRASE: 'correct horse battery',
+    APP_PASSPHRASE: PASSPHRASE,
     SESSION_SECRET: 'x'.repeat(32),
     ENCRYPTION_KEY: Buffer.alloc(32).toString('base64'),
   });
@@ -33,13 +35,13 @@ describe('POST /auth/login', () => {
   const login = (passphrase: string) => app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase } });
 
   it('issues a token for the right passphrase', async () => {
-    const res = await login(env.APP_PASSPHRASE);
+    const res = await login(PASSPHRASE);
     expect(res.statusCode).toBe(200);
     expect(res.json().token).toEqual(expect.any(String));
   });
 
   it('reports cloud AI as off when no provider is configured', async () => {
-    const { token } = (await login(env.APP_PASSPHRASE)).json();
+    const { token } = (await login(PASSPHRASE)).json();
     const res = await app.inject({ method: 'GET', url: '/features', headers: { authorization: `Bearer ${token}` } });
     expect(res.json()).toEqual({ cloudAI: false });
   });
@@ -49,6 +51,6 @@ describe('POST /auth/login', () => {
     for (let i = 2; i < LOGIN_RATE_LIMIT.max; i++) expect((await login('wrong guess')).statusCode).toBe(401);
     expect((await login('wrong guess')).statusCode).toBe(429);
     // Even the right passphrase waits out the window.
-    expect((await login(env.APP_PASSPHRASE)).statusCode).toBe(429);
+    expect((await login(PASSPHRASE)).statusCode).toBe(429);
   });
 });

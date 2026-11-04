@@ -24,7 +24,7 @@ export class ChatModels {
   async resolve(id: string | undefined): Promise<{ provider: ChatProvider; model: string }> {
     const { models, defaultId } = await this.list();
     const chosen = id ?? defaultId;
-    if (!chosen) throw new HttpError(503, 'AI isn’t set up. Add ANTHROPIC_API_KEY or OLLAMA_URL to .env and restart the API.');
+    if (!chosen) throw new HttpError(503, 'AI isn’t set up. Add an Anthropic API key or Ollama in Settings → AI (or in .env).');
     const option = models.find((m) => m.id === chosen);
     const provider = this.providers.find((p) => p.name === option?.provider);
     if (!option || !provider) throw new HttpError(400, 'That model isn’t available. Pick another one.');
