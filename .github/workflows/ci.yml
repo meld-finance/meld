@@ -40,6 +40,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --no-audit --no-fund
+      # Expo writes this (gitignored) on `expo start`; it brings in the react-native-web and CSS types.
+      - run: echo '/// <reference types="expo/types" />' > apps/mobile/expo-env.d.ts
       - run: npm run typecheck
       - run: npm test
       - run: npm run lint -w @meld/mobile
