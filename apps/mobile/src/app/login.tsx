@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Logo } from '@/components/logo';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -30,7 +31,10 @@ export default function LoginScreen() {
   return (
     <ThemedView style={styles.fill}>
       <SafeAreaView style={styles.container}>
-        <ThemedText type="subtitle">Meld</ThemedText>
+        <View style={styles.brand}>
+          <Logo size={40} />
+          <ThemedText type="subtitle">Meld</ThemedText>
+        </View>
         <ThemedText themeColor="textSecondary">Your whole financial picture.</ThemedText>
 
         <TextInput
@@ -65,6 +69,7 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   container: {
     flex: 1,
     justifyContent: 'center',

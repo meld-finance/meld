@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Meld">
+  <!-- Three overlapping tiles that glow where all three meet. -->
+  <defs>
+    <rect id="meld-tile" x="-23" y="-23" width="46" height="46" rx="14"/>
+    <linearGradient id="meld-top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4033B0"/>
+      <stop offset="1" stop-color="#6A5BE2"/>
+    </linearGradient>
+    <linearGradient id="meld-left" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2A66E3"/>
+      <stop offset="1" stop-color="#4C8FF3"/>
+    </linearGradient>
+    <linearGradient id="meld-right" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#36AE9E"/>
+      <stop offset="1" stop-color="#6CCFBA"/>
+    </linearGradient>
+    <radialGradient id="meld-glow" cx="50" cy="52" r="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.55" stop-color="#F6FCFF"/>
+      <stop offset="1" stop-color="#C4E6FF"/>
+    </radialGradient>
+    <clipPath id="meld-clip-top"><use href="#meld-tile" transform="translate(50 42) rotate(45)"/></clipPath>
+    <clipPath id="meld-clip-left"><use href="#meld-tile" transform="translate(38 58) rotate(45)"/></clipPath>
+    <filter id="meld-halo" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="meld-soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+  </defs>
+  <use href="#meld-tile" transform="translate(50 42) rotate(45)" fill="url(#meld-top)" fill-opacity="0.92"/>
+  <use href="#meld-tile" transform="translate(38 58) rotate(45)" fill="url(#meld-left)" fill-opacity="0.82"/>
+  <use href="#meld-tile" transform="translate(62 58) rotate(45)" fill="url(#meld-right)" fill-opacity="0.8"/>
+  <!-- The glow is the three-way overlap, softened, with light spilling past it. -->
+  <circle cx="50" cy="52" r="11" fill="#EAF6FF" opacity="0.75" filter="url(#meld-halo)"/>
+  <g id="meld-core" filter="url(#meld-soft)">
+    <g clip-path="url(#meld-clip-top)">
+      <g clip-path="url(#meld-clip-left)">
+        <use href="#meld-tile" transform="translate(62 58) rotate(45)" fill="url(#meld-glow)"/>
+      </g>
+    </g>
+  </g>
+  <use href="#meld-core"/>
+</svg>

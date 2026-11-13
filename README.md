@@ -1,4 +1,4 @@
-# Meld
+# <img src="site/logo.svg" width="40" height="40" alt="" align="top"> Meld
 
 **Your whole financial picture. No subscription, no cloud.**
 

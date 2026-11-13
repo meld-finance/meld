@@ -33,6 +33,12 @@
     --code-text: #e6edf6;
     --shadow: 0 1px 2px rgb(15 27 45 / 6%), 0 8px 24px rgb(15 27 45 / 6%);
     --shot-shadow: 0 2px 4px rgb(15 27 45 / 6%), 0 18px 48px rgb(15 27 45 / 12%);
+    --brand-1: #4033B0;
+    --brand-2: #2A66E3;
+    --brand-3: #1E9C8A;
+    --glow-top: rgb(106 91 226 / 30%);
+    --glow-left: rgb(76 143 243 / 30%);
+    --glow-right: rgb(108 207 186 / 32%);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -56,6 +62,12 @@
       --code-text: #e6edf6;
       --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 25%);
       --shot-shadow: 0 2px 4px rgb(0 0 0 / 30%), 0 18px 48px rgb(0 0 0 / 40%);
+      --brand-1: #9A8CFF;
+      --brand-2: #6AA8FF;
+      --brand-3: #6CD9C2;
+      --glow-top: rgb(106 91 226 / 30%);
+      --glow-left: rgb(47 110 230 / 26%);
+      --glow-right: rgb(54 174 158 / 22%);
     }
   }
   :root[data-theme="dark"] {
@@ -79,6 +91,12 @@
     --code-text: #e6edf6;
     --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 25%);
     --shot-shadow: 0 2px 4px rgb(0 0 0 / 30%), 0 18px 48px rgb(0 0 0 / 40%);
+    --brand-1: #9A8CFF;
+    --brand-2: #6AA8FF;
+    --brand-3: #6CD9C2;
+    --glow-top: rgb(106 91 226 / 30%);
+    --glow-left: rgb(47 110 230 / 26%);
+    --glow-right: rgb(54 174 158 / 22%);
   }
 
   * { box-sizing: border-box; }
@@ -105,19 +123,30 @@
   header.top { border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 10; }
   header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 16px; }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); text-decoration: none; }
-  .brand img { width: 28px; height: 28px; border-radius: 7px; }
+  .brand img { width: 30px; height: 30px; }
   nav.links { display: flex; gap: 20px; font-size: 15px; align-items: center; }
   nav.links a { color: var(--muted); text-decoration: none; }
   nav.links a:hover { color: var(--text); }
   @media (max-width: 640px) { nav.links .hide-sm { display: none; } }
 
   /* Hero */
-  .hero { padding: 56px 0 0; text-align: center; overflow: hidden; }
-  @media (min-width: 900px) { .hero { padding: 88px 0 0; } }
+  .hero { position: relative; padding: 48px 0 0; text-align: center; overflow: hidden; isolation: isolate; }
+  @media (min-width: 900px) { .hero { padding: 72px 0 0; } }
+  /* The logo's three colours, blurred into a wash behind the hero. */
+  .hero::before {
+    content: ""; position: absolute; z-index: -1; left: 50%; top: -140px; width: min(1200px, 160vw); height: 720px; transform: translateX(-50%);
+    background:
+      radial-gradient(closest-side at 50% 34%, var(--glow-top), transparent),
+      radial-gradient(closest-side at 33% 60%, var(--glow-left), transparent),
+      radial-gradient(closest-side at 67% 60%, var(--glow-right), transparent);
+    filter: blur(40px); opacity: 0.9; pointer-events: none;
+  }
+  .hero-mark { display: block; width: 84px; height: 84px; margin: 0 auto 20px; filter: drop-shadow(0 10px 24px rgb(64 51 176 / 22%)); }
+  @media (min-width: 900px) { .hero-mark { width: 112px; height: 112px; } }
   .eyebrow { display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--accent-strong); background: var(--accent-soft); padding: 4px 12px; border-radius: 999px; margin-bottom: 18px; }
-  h1 { font-size: clamp(34px, 6.2vw, 60px); line-height: 1.06; letter-spacing: -0.03em; margin: 0 auto 20px; max-width: 15em; }
-  h1 .soft { color: var(--accent-strong); }
-  .lede { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); margin: 0 auto 32px; max-width: 36em; }
+  h1 { font-size: clamp(34px, 6.2vw, 60px); line-height: 1.06; letter-spacing: -0.03em; margin: 0 auto 20px; max-width: 15em; text-wrap: balance; }
+  h1 .soft { display: inline-block; color: var(--accent-strong); background: linear-gradient(90deg, var(--brand-1), var(--brand-2) 50%, var(--brand-3)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .lede { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); margin: 0 auto 32px; max-width: 34em; text-wrap: pretty; }
   .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 16px; text-decoration: none; border: 1px solid transparent; }
   .btn-primary { background: var(--accent); color: var(--on-accent); }
@@ -297,7 +326,7 @@
 
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="./"><img src="icon.png" alt="" width="28" height="28">Meld</a>
+    <a class="brand" href="./"><img src="logo.svg" alt="" width="30" height="30">Meld</a>
     <nav class="links">
       <a class="hide-sm" href="#why">Why Meld</a>
       <a class="hide-sm" href="#features">Features</a>
@@ -312,6 +341,7 @@
 <main>
   <div class="hero">
     <div class="wrap">
+      <img class="hero-mark" src="logo.svg" alt="" width="112" height="112">
       <span class="eyebrow">Free &amp; open source · runs on your Mac</span>
       <h1>Your whole financial picture. <span class="soft">No subscription, no cloud.</span></h1>
       <p class="lede">Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer, so your financial data never sits on someone else's server.</p>

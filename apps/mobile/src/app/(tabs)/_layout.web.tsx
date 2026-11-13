@@ -2,10 +2,10 @@ import { router } from 'expo-router';
 import { TabList, TabSlot, TabTrigger, Tabs, type TabListProps, type TabTriggerSlotProps } from 'expo-router/ui';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Icon, type IconName } from '@/components/icon';
+import { Logo } from '@/components/logo';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -107,7 +107,7 @@ function Sidebar({ compact, children, style: _style, ...props }: TabListProps & 
       style={[styles.sidebar, compact && styles.sidebarCompact, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
       <View style={[styles.brand, compact && styles.brandCompact]}>
         <Logo />
-        {!compact && <ThemedText style={styles.brandText}>meld</ThemedText>}
+        {!compact && <ThemedText style={styles.brandText}>Meld</ThemedText>}
       </View>
       <View style={styles.nav}>{children}</View>
       <View style={[styles.footer, compact && styles.footerCompact]}>
@@ -334,16 +334,6 @@ function MenuItem({ icon, onPress, children }: { icon: IconName; onPress: () => 
       <Icon name={icon} size={16} themeColor="textSecondary" />
       <ThemedText type="small">{children}</ThemedText>
     </Pressable>
-  );
-}
-
-/** Two overlapping peaks: blue and green. */
-function Logo() {
-  return (
-    <Svg width={30} height={20} viewBox="0 0 30 20">
-      <Path d="M1 18 9 4l8 14H1Z" fill="#2E9E6B" />
-      <Path d="M11 18 19.5 3 28 18H11Z" fill="#2563EB" opacity={0.92} />
-    </Svg>
   );
 }
 
