@@ -15,6 +15,7 @@ import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Dropdown } from '@/components/dropdown';
 import { Input } from '@/components/plan/profile-tab';
+import { TIPS } from '@/components/plan/retirement-tips';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
@@ -74,6 +75,7 @@ export function ScenarioBar({
   return (
     <Card
       title="Scenario"
+      tip={TIPS.scenarios}
       subtitle="Copy your plan to try a what-if without changing it. The active scenario is the one Ask Meld uses."
       // Above the cards that follow, so the open list isn't hidden.
       style={styles.raised}>

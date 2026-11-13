@@ -1,21 +1,34 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 
+import { WithTip, type Tip } from '@/components/info-tip';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type Props = { title?: string; subtitle?: string; action?: ReactNode; children: ReactNode; style?: ViewStyle };
+type Props = {
+  title?: string;
+  subtitle?: string;
+  /** A plain-words explanation behind an ⓘ next to the title. */
+  tip?: Tip;
+  action?: ReactNode;
+  children: ReactNode;
+  style?: ViewStyle;
+};
 
-export function Card({ title, subtitle, action, children, style }: Props) {
+export function Card({ title, subtitle, tip, action, children, style }: Props) {
   const theme = useTheme();
   return (
     <ThemedView type="backgroundElement" style={[styles.card, { borderColor: theme.border }, style]}>
       {(title || action) && (
         <View style={styles.header}>
           <View style={styles.titles}>
-            {title && <ThemedText type="cardTitle">{title}</ThemedText>}
+            {title && (
+              <WithTip tip={tip}>
+                <ThemedText type="cardTitle">{title}</ThemedText>
+              </WithTip>
+            )}
             {subtitle && (
               <ThemedText type="small" themeColor="textSecondary">
                 {subtitle}

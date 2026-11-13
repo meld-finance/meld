@@ -16,17 +16,28 @@ export const PropertySale = z.object({
 });
 export type PropertySale = z.infer<typeof PropertySale>;
 
-/** A change to yearly spending over a span of ages, e.g. kids leaving home or a mortgage paid off. */
+/**
+ * What a life event changes:
+ * - `spending`: yearly spending in retirement, e.g. kids leaving home or a mortgage paid off.
+ * - `income`: money coming in, e.g. part-time work; it covers spending in retirement and is saved before.
+ * - `saving`: what you put away each year before retiring, e.g. a raise or catch-up contributions.
+ * - `once`: a one-time sum in (positive) or out (negative) of savings at `startAge`, e.g. an inheritance.
+ */
+export const LifeEventKind = z.enum(['spending', 'income', 'saving', 'once']);
+export type LifeEventKind = z.infer<typeof LifeEventKind>;
+
+/** A life event: a change to spending, income or saving over a span of ages, or a one-time sum. */
 export const SpendingChange = z.object({
   label: z.string().trim().min(1).max(60),
+  kind: LifeEventKind.default('spending'),
   /** Whose ages startAge and endAge are: a child's id from the profile, or null for yours. */
   childId: z.string().min(1).max(40).nullable().default(null),
   startAge: z.number().int().min(0).max(120),
-  /** The first age it no longer applies; null if it never ends. */
+  /** The first age it no longer applies; null if it never ends. Ignored for `once`. */
   endAge: z.number().int().min(0).max(120).nullable(),
-  /** Added to yearly spending, in today's dollars; negative for spending less. */
+  /** Yearly, in today's dollars; negative for less. For `once`, the sum itself. */
   annualChange: z.number(),
-  /** Entered per month; annualChange is still yearly. */
+  /** Entered per month; annualChange is still yearly. Never set for `once`. */
   monthly: z.boolean().default(false),
 });
 export type SpendingChange = z.infer<typeof SpendingChange>;
@@ -213,7 +224,7 @@ export type RetirementInputs = {
   expectedReturn: number;
   /** Today's; see spendingAt. */
   annualSpending: number;
-  /** In your ages: changes that follow a child are converted. */
+  /** Life events of every kind, in your ages: events that follow a child are converted. */
   spendingChanges: SpendingChange[];
   /** Percent a year after SPENDING_DECLINE_AGE. */
   spendingDeclinePercent: number;
@@ -368,39 +379,64 @@ function salesAt(i: RetirementInputs, age: number) {
   return i.sales.reduce((sum, s) => sum + (s.age === age ? s.proceeds : 0), 0);
 }
 
+/** The yearly amounts of one kind of life event under way at an age. */
+function eventsAt(i: Pick<RetirementInputs, 'spendingChanges'>, kind: Exclude<LifeEventKind, 'once'>, age: number) {
+  return i.spendingChanges.reduce(
+    (sum, c) =>
+      sum + ((c.kind ?? 'spending') === kind && age >= c.startAge && (c.endAge === null || age < c.endAge) ? c.annualChange : 0),
+    0,
+  );
+}
+
+/** One-time sums at an age, in or out. */
+function onceAt(i: RetirementInputs, age: number) {
+  return i.spendingChanges.reduce((sum, c) => sum + (c.kind === 'once' && c.startAge === age ? c.annualChange : 0), 0);
+}
+
 /** Yearly spending at an age: today's, plus the changes under way, slowing after SPENDING_DECLINE_AGE. */
 export function spendingAt(
   i: Pick<RetirementInputs, 'annualSpending' | 'spendingChanges' | 'spendingDeclinePercent'>,
   age: number,
 ): number {
-  const changes = i.spendingChanges.reduce(
-    (sum, c) => sum + (age >= c.startAge && (c.endAge === null || age < c.endAge) ? c.annualChange : 0),
-    0,
-  );
+  const changes = eventsAt(i, 'spending', age);
   const slowdown = (1 - i.spendingDeclinePercent / 100) ** Math.max(0, age - SPENDING_DECLINE_AGE);
   return Math.max(0, i.annualSpending + changes) * slowdown;
 }
 
-/** Spending the portfolio must cover at an age, after Social Security, pension and rent. */
+/**
+ * Spending the portfolio must cover at an age, after Social Security, pension, rent and income from
+ * life events. Income from life events beyond spending goes back into savings, so it can be negative.
+ */
 function withdrawalAt(i: RetirementInputs, age: number) {
   const income = i.pensionAnnual + (age >= i.socialSecurityAge ? i.socialSecurityAnnual : 0) + rentAt(i, age);
-  return Math.max(0, spendingAt(i, age) - income);
+  return Math.max(0, spendingAt(i, age) - income) - eventsAt(i, 'income', age);
+}
+
+/** Added to savings in a working year: the contribution, saving changes, rent and income from life events. */
+function savedAt(i: RetirementInputs, age: number) {
+  return i.annualContribution + eventsAt(i, 'saving', age) + eventsAt(i, 'income', age) + rentAt(i, age);
+}
+
+/** Property sales and one-time sums at the start of a year; `short` when a sum out is more than there is. */
+function lumpsAt(i: RetirementInputs, age: number, balance: number): { balance: number; short: boolean } {
+  const next = balance + salesAt(i, age) + onceAt(i, age);
+  return { balance: Math.max(0, next), short: next < -0.005 };
 }
 
 /**
  * One year from `age` to the next, at return `r`. Before retirement the balance grows, then the year's
- * contribution and rent go in; in retirement the year's withdrawal comes out first and the rest grows.
- * `short` when the balance can't cover the withdrawal. Sales are added by the caller at the start of a year.
+ * savings go in; in retirement the year's withdrawal comes out first and the rest grows. `short` when
+ * the balance can't cover the withdrawal. Lumps are added by the caller at the start of a year.
  */
 function stepYear(i: RetirementInputs, age: number, balance: number, r: number): { balance: number; short: boolean } {
-  if (age < i.retirementAge) return { balance: balance * (1 + r) + i.annualContribution + rentAt(i, age), short: false };
+  if (age < i.retirementAge) return { balance: Math.max(0, balance * (1 + r) + savedAt(i, age)), short: false };
   const need = withdrawalAt(i, age);
   return { balance: Math.max(0, balance - need) * (1 + r), short: need > balance + 0.005 };
 }
 
 /**
  * Year-by-year projection in today's dollars. A property sold at an age adds its proceeds at the start
- * of that year. Before retirement, a year's growth is followed by that year's contribution and rent; in
+ * of that year, as does a one-time sum. Before retirement, a year's growth is followed by that year's contribution and rent; in
  * retirement, the year's withdrawal comes out first and the rest grows.
  */
 export function projectRetirement(i: RetirementInputs): RetirementProjection {
@@ -412,7 +448,9 @@ export function projectRetirement(i: RetirementInputs): RetirementProjection {
   let depletionAge: number | null = null;
 
   for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
-    balance += salesAt(i, age);
+    const lump = lumpsAt(i, age, balance);
+    if (lump.short && depletionAge === null) depletionAge = age;
+    balance = lump.balance;
     points.push({ age, balance: Math.round(balance) });
     if (age === start) atRetirement = balance;
     if (age === i.lifeExpectancy) break;
@@ -421,10 +459,10 @@ export function projectRetirement(i: RetirementInputs): RetirementProjection {
     balance = step.balance;
   }
 
-  // Present value at retirement of each year's withdrawal, less sales after retirement, mirroring the loop.
+  // Present value at retirement of each year's withdrawal, less lumps after retirement, mirroring the loop.
   let needed = 0;
   for (let age = start; age < i.lifeExpectancy; age++) {
-    needed += (withdrawalAt(i, age) - (age > start ? salesAt(i, age) : 0)) / (1 + r) ** (age - start);
+    needed += (withdrawalAt(i, age) - (age > start ? salesAt(i, age) + onceAt(i, age) : 0)) / (1 + r) ** (age - start);
   }
 
   // Whole dollars, with what's needed rounded up so saving exactly that much is enough.
@@ -560,7 +598,9 @@ export function simulateRetirement(i: RetirementInputs, settings: SimulationSett
     let balance = i.startingBalance;
     let depleted: number | null = null;
     for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
-      balance += salesAt(i, age);
+      const lump = lumpsAt(i, age, balance);
+      if (lump.short && depleted === null) depleted = age;
+      balance = lump.balance;
       balances[age - i.currentAge]![t] = balance;
       if (age === i.lifeExpectancy) break;
       const step = stepYear(i, age, balance, draw());

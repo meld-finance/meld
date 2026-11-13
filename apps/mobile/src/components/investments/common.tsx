@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon, type IconName } from '@/components/icon';
+import { WithTip, type Tip } from '@/components/info-tip';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing, type Accent } from '@/constants/theme';
 import { useAccents } from '@/hooks/use-accents';
@@ -37,12 +38,18 @@ export function StatTile({
   value,
   caption,
   change,
+  tip,
+  tone,
 }: {
   label: string;
   /** A number is shown as whole dollars. */
   value: number | string;
   caption?: string;
   change?: { previous: number; against: string };
+  /** A plain-words explanation behind an ⓘ next to the label. */
+  tip?: Tip;
+  /** Colors the value, for a status. */
+  tone?: 'positive' | 'negative';
 }) {
   const theme = useTheme();
   const amount = typeof value === 'number' ? value : 0;
@@ -50,10 +57,12 @@ export function StatTile({
   const up = change ? amount >= change.previous : true;
   return (
     <View style={[styles.tile, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {label}
-      </ThemedText>
-      <ThemedText style={styles.value} numberOfLines={1}>
+      <WithTip tip={tip}>
+        <ThemedText type="small" themeColor="textSecondary">
+          {label}
+        </ThemedText>
+      </WithTip>
+      <ThemedText style={styles.value} themeColor={tone} numberOfLines={1}>
         {typeof value === 'number' ? formatWholeCurrency(value) : value}
       </ThemedText>
       {change && pct !== null ? (

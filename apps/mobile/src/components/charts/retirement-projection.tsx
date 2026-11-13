@@ -23,11 +23,14 @@ export function RetirementProjection({
   points,
   retirementAge,
   sales = [],
+  events = [],
 }: {
   points: Projection['points'];
   retirementAge: number;
   /** Property sales, marked on the line where the balance steps up. */
   sales?: Projection['sales'];
+  /** Life events, marked along the bottom at the age each starts. */
+  events?: { label: string; age: number }[];
 }) {
   const theme = useTheme();
   const viz = useVizColors();
@@ -56,6 +59,8 @@ export function RetirementProjection({
   const point = points[shown]!;
   const year = new Date().getFullYear() + (point.age - points[0]!.age);
   const salesShown = sales.filter((s) => s.age === point.age);
+  const eventsShown = events.filter((e) => e.age === point.age);
+  const eventAges = [...new Set(events.map((e) => e.age))];
   const saleIndex = (age: number) => points.findIndex((p) => p.age === age);
 
   return (
@@ -108,6 +113,18 @@ export function RetirementProjection({
                   />
                 );
               })}
+              {eventAges.map((age) => {
+                const i = saleIndex(age);
+                return i < 0 ? null : (
+                  <Path
+                    key={`event-${age}`}
+                    d={`M${x(i).toFixed(1)},${HEIGHT - 9} l4.5,4.5 l-4.5,4.5 l-4.5,-4.5 Z`}
+                    fill={viz.series2}
+                    stroke={theme.backgroundElement}
+                    strokeWidth={1}
+                  />
+                );
+              })}
               <Circle cx={x(shown)} cy={y(point.balance)} r={5} fill={viz.trend} stroke={theme.backgroundElement} strokeWidth={2} />
             </Svg>
           )}
@@ -137,6 +154,11 @@ export function RetirementProjection({
                   Sell {s.name}: +{formatCompactCurrency(s.proceeds)}
                 </ThemedText>
               ))}
+              {eventsShown.map((e, i) => (
+                <ThemedText key={i} type="small" style={{ color: viz.series2 }}>
+                  ◆ {e.label}
+                </ThemedText>
+              ))}
             </ThemedView>
           )}
           {/* Hit targets: one slice per year, wider than the mark itself. */}
@@ -153,6 +175,7 @@ export function RetirementProjection({
                   accessibilityLabel={[
                     `Age ${p.age}: ${formatWholeCurrency(p.balance)}`,
                     ...sales.filter((s) => s.age === p.age).map((s) => `sells ${s.name} for ${formatWholeCurrency(s.proceeds)}`),
+                    ...events.filter((e) => e.age === p.age).map((e) => e.label),
                   ].join(', ')}
                 />
               ))}

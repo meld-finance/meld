@@ -15,6 +15,7 @@ import {
   type Child,
   type RetirementAccount,
   type RetirementInputs,
+  type SpendingChange,
 } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
 
@@ -123,20 +124,20 @@ describe('spending over time', () => {
   const flat = { ...base, expectedReturn: 0 };
 
   it('applies a change from its start age, so one before retirement lowers every withdrawal', () => {
-    const kids = { label: 'Kids leave home', childId: null, startAge: 55, endAge: null, annualChange: -20_000, monthly: false };
+    const kids = { label: 'Kids leave home', kind: 'spending' as const, childId: null, startAge: 55, endAge: null, annualChange: -20_000, monthly: false };
     const p = projectRetirement({ ...flat, spendingChanges: [kids] });
     expect(p.needed).toBe(30 * 40_000);
     expect(p.spendingAtRetirement).toBe(40_000);
   });
 
   it('applies a change with an end age only inside its window', () => {
-    const travel = { label: 'Travel', childId: null, startAge: 65, endAge: 70, annualChange: 15_000, monthly: false };
+    const travel = { label: 'Travel', kind: 'spending' as const, childId: null, startAge: 65, endAge: 70, annualChange: 15_000, monthly: false };
     expect(projectRetirement({ ...flat, spendingChanges: [travel] }).needed).toBe(30 * 60_000 + 5 * 15_000);
     expect(spendingAt({ ...flat, spendingChanges: [travel] }, 70)).toBe(60_000);
   });
 
   it('never spends less than nothing', () => {
-    expect(spendingAt({ ...flat, spendingChanges: [{ label: 'Cut', childId: null, startAge: 40, endAge: null, annualChange: -90_000, monthly: false }] }, 70)).toBe(0);
+    expect(spendingAt({ ...flat, spendingChanges: [{ label: 'Cut', kind: 'spending' as const, childId: null, startAge: 40, endAge: null, annualChange: -90_000, monthly: false }] }, 70)).toBe(0);
   });
 
   it('slows spending each year after 75', () => {
@@ -150,7 +151,7 @@ describe('spending over time', () => {
     const i = {
       ...base,
       spendingDeclinePercent: 1,
-      spendingChanges: [{ label: 'Mortgage paid off', childId: null, startAge: 70, endAge: null, annualChange: -18_000, monthly: false }],
+      spendingChanges: [{ label: 'Mortgage paid off', kind: 'spending' as const, childId: null, startAge: 70, endAge: null, annualChange: -18_000, monthly: false }],
     };
     const needed = projectRetirement(i).needed;
     const p = projectRetirement({ ...i, currentAge: 65, startingBalance: needed });
@@ -164,6 +165,81 @@ describe('spending over time', () => {
     expect(mortgagePayoffAge({ balance: 200_000, interestRatePct: 6, monthlyPayment: 1199.11 }, 40)).toBe(70);
     expect(mortgagePayoffAge({ balance: 200_000, interestRatePct: null, monthlyPayment: 1200 }, 40)).toBeNull();
     expect(mortgagePayoffAge({ balance: 200_000, interestRatePct: 6, monthlyPayment: 1000 }, 40)).toBeNull();
+  });
+});
+
+describe('life events', () => {
+  const flat = { ...base, expectedReturn: 0 };
+  const event = (e: Partial<SpendingChange>): SpendingChange => ({
+    label: 'Event',
+    kind: 'spending',
+    childId: null,
+    startAge: 65,
+    endAge: null,
+    annualChange: 0,
+    monthly: false,
+    ...e,
+  });
+
+  it('leaves the years before retirement alone for a spending change', () => {
+    const college = event({ startAge: 50, endAge: 54, annualChange: 30_000 });
+    expect(projectRetirement({ ...flat, spendingChanges: [college] })).toEqual(projectRetirement(flat));
+  });
+
+  it('counts income in retirement against spending, and saves what is left over', () => {
+    const work = event({ kind: 'income', startAge: 65, endAge: 70, annualChange: 20_000 });
+    expect(projectRetirement({ ...flat, spendingChanges: [work] }).needed).toBe(30 * 60_000 - 5 * 20_000);
+    const windfall = event({ kind: 'income', startAge: 65, endAge: 66, annualChange: 100_000 });
+    // 40k more than the year's spending goes back in.
+    expect(projectRetirement({ ...flat, spendingChanges: [windfall] }).needed).toBe(29 * 60_000 - 40_000);
+  });
+
+  it('saves income before retirement', () => {
+    const job = event({ kind: 'income', startAge: 60, endAge: 62, annualChange: 10_000 });
+    expect(projectRetirement({ ...flat, spendingChanges: [job] }).atRetirement).toBe(120_000);
+  });
+
+  it('changes contributions only before retirement for a saving change', () => {
+    const catchUp = event({ kind: 'saving', startAge: 50, endAge: null, annualChange: 7_500 });
+    const p = projectRetirement({ ...flat, annualContribution: 10_000, spendingChanges: [catchUp] });
+    expect(p.atRetirement).toBe(100_000 + 25 * 10_000 + 15 * 7_500);
+    expect(p.needed).toBe(30 * 60_000);
+  });
+
+  it('adds a one-time sum at its age, before or after retirement, ignoring the end age', () => {
+    const inheritance = event({ kind: 'once', startAge: 60, endAge: 90, annualChange: 200_000 });
+    const roof = event({ kind: 'once', startAge: 75, annualChange: -40_000 });
+    const p = projectRetirement({ ...flat, spendingChanges: [inheritance, roof] });
+    expect(p.atRetirement).toBe(300_000);
+    expect(p.points.find((x) => x.age === 61)!.balance).toBe(300_000);
+    expect(p.needed).toBe(30 * 60_000 + 40_000);
+  });
+
+  it('runs short when a sum out is more than there is', () => {
+    const p = projectRetirement({ ...flat, spendingChanges: [event({ kind: 'once', startAge: 45, annualChange: -150_000 })] });
+    expect(p.depletionAge).toBe(45);
+    expect(p.points.find((x) => x.age === 45)!.balance).toBe(0);
+  });
+
+  it('lasts exactly to life expectancy with every kind of event', () => {
+    const i = {
+      ...base,
+      spendingChanges: [
+        event({ kind: 'income', startAge: 65, endAge: 68, annualChange: 15_000 }),
+        event({ kind: 'once', startAge: 80, annualChange: -50_000 }),
+        event({ kind: 'once', startAge: 85, annualChange: 30_000 }),
+      ],
+    };
+    const needed = projectRetirement(i).needed;
+    const p = projectRetirement({ ...i, currentAge: 65, startingBalance: needed });
+    expect(p.depletionAge).toBeNull();
+    expect(p.points.at(-1)!.balance).toBeLessThan(10);
+  });
+
+  it('matches the projection in a simulation with no volatility', () => {
+    const i = { ...base, spendingChanges: [event({ kind: 'once', startAge: 70, annualChange: -20_000 }), event({ kind: 'saving', startAge: 45, endAge: 55, annualChange: 5_000 })] };
+    const sim = simulateRetirement(i, { trials: 100, volatility: 0, seed: 1 });
+    expect(sim.atRetirement.p50).toBe(projectRetirement(i).atRetirement);
   });
 });
 
@@ -237,10 +313,10 @@ describe('resolvePlan', () => {
     const plan = {
       ...EMPTY_RETIREMENT_PLAN,
       spendingChanges: [
-        { label: 'Mia leaves home', childId: 'mia', startAge: 18, endAge: null, annualChange: -12_000, monthly: false },
-        { label: 'Leo’s college', childId: 'leo', startAge: 18, endAge: 22, annualChange: 30_000, monthly: false },
-        { label: 'Gone', childId: 'old', startAge: 18, endAge: null, annualChange: -5_000, monthly: false },
-        { label: 'Travel', childId: null, startAge: 65, endAge: 70, annualChange: 10_000, monthly: true },
+        { label: 'Mia leaves home', kind: 'spending' as const, childId: 'mia', startAge: 18, endAge: null, annualChange: -12_000, monthly: false },
+        { label: 'Leo’s college', kind: 'spending' as const, childId: 'leo', startAge: 18, endAge: 22, annualChange: 30_000, monthly: false },
+        { label: 'Gone', kind: 'spending' as const, childId: 'old', startAge: 18, endAge: null, annualChange: -5_000, monthly: false },
+        { label: 'Travel', kind: 'spending' as const, childId: null, startAge: 65, endAge: 70, annualChange: 10_000, monthly: true },
       ],
     };
     const r = resolvePlan(plan, { ...summary, defaults: { ...summary.defaults, children: kids } });

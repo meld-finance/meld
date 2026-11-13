@@ -115,8 +115,8 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
   it('saves assumptions and accounts you leave out', async () => {
     const properties = [{ assetId: ids.house, sellAge: 70, mortgageAccountId: null, netRentAnnual: 18000 }];
     const spendingChanges = [
-      { label: 'Kids leave home', childId: null, startAge: 58, endAge: null, annualChange: -20000, monthly: false },
-      { label: 'Mia leaves home', childId: 'k1', startAge: 18, endAge: null, annualChange: -24000, monthly: true },
+      { label: 'Kids leave home', kind: 'spending' as const, childId: null, startAge: 58, endAge: null, annualChange: -20000, monthly: false },
+      { label: 'Mia leaves home', kind: 'income' as const, childId: 'k1', startAge: 18, endAge: null, annualChange: -24000, monthly: true },
     ];
     await saveRetirementPlan(ctx.db, {
       ...EMPTY_RETIREMENT_PLAN,

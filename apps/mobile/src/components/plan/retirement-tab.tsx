@@ -3,6 +3,7 @@ import {
   claimingFactor,
   formatFullRetirementAge,
   fullRetirementAgeMonths,
+  inYourAges,
   mortgagePayoffAge,
   projectRetirement,
   PropertySale,
@@ -14,7 +15,6 @@ import {
   saleProceeds,
   socialSecurityAtFullAge,
   SPENDING_DECLINE_AGE,
-  SpendingChange,
   spendingAt,
   type RetirementAccount,
   type RetirementInputs,
@@ -22,21 +22,34 @@ import {
   type RetirementSummary,
   type TaxTreatment,
 } from '@meld/shared';
-import { useState } from 'react';
-import { Linking, StyleSheet, Switch, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Linking, Platform, StyleSheet, Switch, View, type ViewStyle } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
-import { Chip } from '@/components/chip';
 import { RetirementProjection } from '@/components/charts/retirement-projection';
 import { Dropdown } from '@/components/dropdown';
+import { InfoTip, WithTip } from '@/components/info-tip';
 import { InsightCallout, StatTile, TileRow } from '@/components/investments/common';
+import {
+  eventDraft,
+  eventProblems,
+  LifeEvents,
+  sameEvents,
+  toEvent,
+  type EventDraft,
+  type EventSeed,
+  type Suggestion,
+} from '@/components/plan/life-events';
 import { MonteCarlo } from '@/components/plan/monte-carlo';
 import { Field, Input, Row } from '@/components/plan/profile-tab';
+import { TIPS } from '@/components/plan/retirement-tips';
 import { ScenarioBar, ScenarioCompare } from '@/components/plan/scenarios';
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useVizColors } from '@/hooks/use-viz-colors';
 import { formatCompactCurrency, formatWholeCurrency } from '@/lib/format';
 import { useRetirement, useSaveRetirementPlan } from '@/lib/queries';
 
@@ -47,7 +60,7 @@ const TAX_LABELS: Record<TaxTreatment, string | null> = {
   unknown: null,
 };
 
-/** The plan's numbers, typed in as text; accounts, properties and spending changes have their own controls. */
+/** The plan's numbers, typed in as text; accounts, properties and life events have their own controls. */
 type NumberField = Exclude<keyof RetirementPlan, 'excludedAccountIds' | 'properties' | 'spendingChanges'>;
 const FIELDS: NumberField[] = [
   'retirementAge',
@@ -67,26 +80,15 @@ const FIELDS: NumberField[] = [
 /** One property's controls, as typed. */
 type PropertyDraft = { on: boolean; sellAge: string; mortgageAccountId: string | null; rent: string };
 
-/** One spending change, as typed; `key` keeps rows stable while editing, and `amount` is per month when `monthly`. */
-type ChangeDraft = {
-  key: number;
-  label: string;
-  childId: string | null;
-  startAge: string;
-  endAge: string;
-  amount: string;
-  monthly: boolean;
-};
-
 const MORTGAGE_LABEL = 'Mortgage paid off';
 /** The age kids are assumed to leave home; the user changes it per child. */
 const LEAVE_HOME_AGE = 18;
 
-/** A one-tap set of spending changes; ages and amounts may be left for the user. */
-type Suggestion = { id: string; caption: string; changes: Partial<SpendingChange>[] };
-
 /** Dropdown value for "no mortgage". */
 const NO_MORTGAGE = 'none';
+
+/** How long "Saved" shows before the save bar goes away. */
+const SAVED_MS = 2500;
 
 /** Order-independent form for comparing drafts with the saved plan (jsonb doesn't keep key order). */
 const sameSales = (a: PropertySale[], b: PropertySale[]) => {
@@ -98,23 +100,6 @@ const sameSales = (a: PropertySale[], b: PropertySale[]) => {
     );
   return key(a) === key(b);
 };
-
-const sameChanges = (a: SpendingChange[], b: SpendingChange[]) => {
-  const key = (list: SpendingChange[]) =>
-    JSON.stringify(list.map((c) => [c.label, c.childId, c.startAge, c.endAge, c.annualChange, c.monthly]));
-  return key(a) === key(b);
-};
-
-let nextChangeKey = 0;
-const changeDraft = (c: Partial<SpendingChange>): ChangeDraft => ({
-  key: nextChangeKey++,
-  label: c.label ?? '',
-  childId: c.childId ?? null,
-  startAge: str(c.startAge ?? null),
-  endAge: str(c.endAge ?? null),
-  amount: str(c.annualChange === undefined ? null : c.monthly ? Math.round((c.annualChange / 12) * 100) / 100 : c.annualChange),
-  monthly: c.monthly ?? false,
-});
 
 const str = (v: number | null) => (v === null ? '' : String(v));
 const num = (s: string) => (s.trim() ? Number(s.replace(/[$,%\s]/g, '')) : null);
@@ -129,18 +114,21 @@ const SSA_ACCOUNT_URL = 'https://www.ssa.gov/myaccount/';
 export function RetirementTab({ onShowProfile }: { onShowProfile: () => void }) {
   // null is the active scenario.
   const [scenarioId, setScenarioId] = useState<string | null>(null);
+  // Bumped to throw away unsaved drafts.
+  const [resets, setResets] = useState(0);
   const retirement = useRetirement(scenarioId);
   if (retirement.isPending) return <ThemedText themeColor="textSecondary">Loading…</ThemedText>;
   if (retirement.isError) {
     return <ThemedText themeColor="negative">Couldn’t load your retirement plan: {retirement.error.message}</ThemedText>;
   }
   return (
-    // A new scenario starts its drafts afresh.
+    // A new scenario, or discarding, starts the drafts afresh.
     <RetirementPlanner
-      key={retirement.data.scenario.id}
+      key={`${retirement.data.scenario.id}-${resets}`}
       summary={retirement.data}
       scenarioId={scenarioId}
       onSelectScenario={setScenarioId}
+      onDiscard={() => setResets((n) => n + 1)}
       onShowProfile={onShowProfile}
     />
   );
@@ -150,11 +138,13 @@ function RetirementPlanner({
   summary,
   scenarioId,
   onSelectScenario,
+  onDiscard,
   onShowProfile,
 }: {
   summary: RetirementSummary;
   scenarioId: string | null;
   onSelectScenario: (id: string | null) => void;
+  onDiscard: () => void;
   onShowProfile: () => void;
 }) {
   const save = useSaveRetirementPlan(scenarioId);
@@ -175,8 +165,14 @@ function RetirementPlanner({
       }),
     ),
   );
-  const [changes, setChanges] = useState<ChangeDraft[]>(() => summary.plan.spendingChanges.map(changeDraft));
+  const [events, setEvents] = useState<EventDraft[]>(() => summary.plan.spendingChanges.map((c) => eventDraft(c)));
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!saved) return;
+    const t = setTimeout(() => setSaved(false), SAVED_MS);
+    return () => clearTimeout(t);
+  }, [saved]);
 
   // Each field is checked against the shared schema, so the form and the API agree on limits.
   const values = Object.fromEntries(
@@ -207,39 +203,24 @@ function RetirementPlanner({
     const bad = invalidProperty(s.assetId);
     return !bad.sellAge && !bad.rent;
   });
-  const draftChanges = changes.map((c) => ({
-    label: c.label.trim(),
-    childId: c.childId,
-    startAge: num(c.startAge) ?? NaN,
-    endAge: num(c.endAge),
-    annualChange: (num(c.amount) ?? NaN) * (c.monthly ? 12 : 1),
-    monthly: c.monthly,
-  }));
-  const invalidChanges = draftChanges.map((c) => ({
-    label: !SpendingChange.shape.label.safeParse(c.label).success,
-    startAge: !SpendingChange.shape.startAge.safeParse(c.startAge).success,
-    endAge: !SpendingChange.shape.endAge.safeParse(c.endAge).success || (c.endAge !== null && c.endAge <= c.startAge),
-    annualChange: !SpendingChange.shape.annualChange.safeParse(c.annualChange).success,
-  }));
-  const validChanges = draftChanges.filter((_, i) => !Object.values(invalidChanges[i]!).some(Boolean));
-  const valid =
-    !Object.values(invalid).some(Boolean) &&
-    validProperties.length === draftProperties.length &&
-    validChanges.length === draftChanges.length;
+  const draftEvents = events.map(toEvent);
+  const validEvents = draftEvents.filter((e) => !Object.values(eventProblems(e)).some(Boolean));
+  const unfinished = validEvents.length < draftEvents.length;
+  const valid = !Object.values(invalid).some(Boolean) && validProperties.length === draftProperties.length && !unfinished;
 
   // Live: the tiles and chart follow what's typed, falling back to the saved plan for anything invalid.
   const draft: RetirementPlan = {
     ...summary.plan,
     ...Object.fromEntries(FIELDS.map((f) => [f, invalid[f] ? summary.plan[f] : values[f]])),
     properties: validProperties,
-    spendingChanges: validChanges,
+    spendingChanges: validEvents,
   };
   const resolved = resolvePlan(draft, summary);
   const projection = resolved.inputs && projectRetirement(resolved.inputs);
   const dirty =
     FIELDS.some((f) => values[f] !== summary.plan[f]) ||
     !sameSales(draftProperties, summary.plan.properties) ||
-    !sameChanges(draftChanges, summary.plan.spendingChanges);
+    !sameEvents(draftEvents, summary.plan.spendingChanges);
 
   function set(field: NumberField) {
     return (value: string) => {
@@ -259,35 +240,34 @@ function RetirementPlanner({
     });
   }
 
-  function setChange(key: number, change: Partial<ChangeDraft>) {
-    setSaved(false);
-    setChanges((all) => all.map((c) => (c.key === key ? { ...c, ...change } : c)));
+  function setEvent(key: number, change: Partial<EventDraft>) {
+    // Opening or closing a row isn't an edit.
+    if (Object.keys(change).some((k) => k !== 'open')) setSaved(false);
+    setEvents((all) => all.map((e) => (e.key === key ? { ...e, ...change } : e)));
   }
 
-  /** Switches between per month and per year, keeping the amount the same. */
-  function setMonthly(c: ChangeDraft, monthly: boolean) {
-    if (monthly === c.monthly) return;
-    const amount = num(c.amount);
-    const converted = amount === null || !Number.isFinite(amount) ? c.amount : String(Math.round((monthly ? amount / 12 : amount * 12) * 100) / 100);
-    setChange(c.key, { monthly, amount: converted });
+  function addEvents(list: EventSeed[]) {
+    setSaved(false);
+    // A single new event opens for editing; a batch (every child leaving home) stays tidy.
+    setEvents((all) => [...all, ...list.map((e) => eventDraft(e, list.length === 1))]);
   }
 
-  function addChanges(list: Partial<SpendingChange>[]) {
+  function removeEvent(key: number) {
     setSaved(false);
-    setChanges((all) => [...all, ...list.map(changeDraft)]);
-  }
-
-  function removeChange(key: number) {
-    setSaved(false);
-    setChanges((all) => all.filter((c) => c.key !== key));
+    setEvents((all) => all.filter((e) => e.key !== key));
   }
 
   function submit() {
     if (!valid) return;
     setSaved(false);
     save.mutate(
-      { ...summary.plan, ...values, properties: draftProperties, spendingChanges: draftChanges },
-      { onSuccess: () => setSaved(true) },
+      { ...summary.plan, ...values, properties: draftProperties, spendingChanges: draftEvents },
+      {
+        onSuccess: () => {
+          setSaved(true);
+          setEvents((all) => all.map((e) => ({ ...e, open: false })));
+        },
+      },
     );
   }
 
@@ -304,19 +284,19 @@ function RetirementPlanner({
       ? socialSecurityAtFullAge({ socialSecurityAnnual: null }, d, resolved.inputs.retirementAge).annual
       : null;
 
-  // Changes Meld can see coming, offered until one with the same label is added.
-  const labels = new Set(changes.map((c) => c.label.trim()));
+  // Events Meld can see coming, offered until one with the same label is added.
+  const labels = new Set(events.map((e) => e.label.trim()));
   const sold = new Set(draft.properties.map((s) => s.mortgageAccountId));
   const leaving = d.children
     .map((k) => ({ childId: k.id, label: `${childName(d.children, k.id)} leaves home` }))
-    .filter((c) => !changes.some((x) => x.childId === c.childId && x.label.trim() === c.label));
+    .filter((c) => !events.some((x) => x.childId === c.childId && x.label.trim() === c.label));
   const suggestions: Suggestion[] = [
     ...(leaving.length
       ? [
           {
             id: 'kids',
             caption: `${d.children.length > 1 ? 'Kids leave' : `${childName(d.children, leaving[0]!.childId)} leaves`} home at ${LEAVE_HOME_AGE}`,
-            changes: leaving.map((c) => ({ ...c, startAge: LEAVE_HOME_AGE })),
+            events: leaving.map((c) => ({ ...c, kind: 'spending' as const, startAge: LEAVE_HOME_AGE })),
           },
         ]
       : []),
@@ -329,40 +309,63 @@ function RetirementPlanner({
             {
               id: m.id,
               caption: `${label} at ${age} · −${formatWholeCurrency(m.monthlyPayment)}/mo`,
-              changes: [{ label, startAge: age, annualChange: -Math.round(m.monthlyPayment * 12), monthly: true }],
+              events: [{ label, kind: 'spending', startAge: age, annualChange: -Math.round(m.monthlyPayment * 12), monthly: true }],
             },
           ];
         })
       : []),
   ];
 
-  const saveRow = (
-    <>
-      {save.isError && <ThemedText themeColor="negative">{save.error.message}</ThemedText>}
-      <View style={styles.buttons}>
-        <Button label="Save changes" disabled={!valid || !dirty} loading={save.isPending} onPress={submit} />
-        {saved && !dirty && (
-          <ThemedText type="small" themeColor="textSecondary">
-            Saved.
-          </ThemedText>
-        )}
-        {dirty && (
-          <ThemedText type="small" themeColor="textSecondary">
-            The projection shows your changes; save to keep them.
-          </ThemedText>
-        )}
-      </View>
-    </>
+  // Where each event starts on the chart, in your ages.
+  const markers =
+    d.birthYear === null ? [] : inYourAges(validEvents, d.children, d.birthYear).map((e) => ({ label: e.label, age: e.startAge }));
+
+  const lifeEventsCard = (
+    <LifeEvents
+      drafts={events}
+      inputs={resolved.inputs}
+      kids={d.children}
+      birthYear={d.birthYear}
+      suggestions={suggestions}
+      onAdd={addEvents}
+      onChange={setEvent}
+      onRemove={removeEvent}
+      onShowProfile={onShowProfile}
+    />
+  );
+
+  const saveBar = (dirty || saved || save.isError) && (
+    <SaveBar
+      dirty={dirty}
+      saved={saved}
+      problem={
+        !valid
+          ? unfinished
+            ? 'Finish or remove the unfinished event to save.'
+            : 'Fix the fields marked “check this” to save.'
+          : null
+      }
+      error={save.isError ? save.error.message : null}
+      saving={save.isPending}
+      onSave={submit}
+      onDiscard={onDiscard}
+    />
   );
 
   return (
     <>
       <ScenarioBar summary={summary} dirty={dirty} onSelect={onSelectScenario} />
 
-      <ThemedText type="small" themeColor="textSecondary">
-        Everything is in today’s dollars: returns are after inflation, so a dollar here buys what a dollar buys now. Projections
-        rest on the assumptions you set, and are for planning, not professional financial advice.
-      </ThemedText>
+      <View style={styles.intro}>
+        <WithTip tip={TIPS.todaysDollars}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Every amount is in today’s dollars
+          </ThemedText>
+        </WithTip>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.shrink}>
+          · Projections rest on the assumptions you set, and are for planning, not professional financial advice.
+        </ThemedText>
+      </View>
 
       {resolved.inputs && projection ? (
         <Summary inputs={resolved.inputs} projection={projection} />
@@ -378,20 +381,30 @@ function RetirementPlanner({
           )}
           {resolved.missing.includes('retirement spending') && (
             <ThemedText type="small" themeColor="textSecondary">
-              Enter what you spend each year below. Once you have a year of transactions, Meld suggests your current
-              spending.
+              Enter what you spend each year under “Spending in retirement”. Once you have a year of transactions, Meld
+              suggests your current spending.
             </ThemedText>
           )}
         </Card>
       )}
+
+      {/* On a phone the bar sits up top, where the numbers it saves are; on the web it follows you down the page. */}
+      {Platform.OS !== 'web' && saveBar}
 
       <View style={styles.columns}>
         {resolved.inputs && projection && (
           <View style={[styles.column, styles.main]}>
             <Card
               title="Projected savings"
-              subtitle={`Growing ${resolved.inputs.expectedReturn}% a year after inflation, then drawn down from age ${resolved.inputs.retirementAge}`}>
-              <RetirementProjection points={projection.points} retirementAge={resolved.inputs.retirementAge} sales={projection.sales} />
+              tip={TIPS.projected}
+              subtitle={`Growing ${resolved.inputs.expectedReturn}% a year after inflation, then drawn down from age ${resolved.inputs.retirementAge}. Tap or hover for any year.`}>
+              <RetirementProjection
+                points={projection.points}
+                retirementAge={resolved.inputs.retirementAge}
+                sales={projection.sales}
+                events={markers}
+              />
+              {markers.length > 0 && <Legend />}
             </Card>
             <InsightCallout
               body={
@@ -406,174 +419,122 @@ function RetirementPlanner({
               }
               action="Ask Meld"
             />
-            <MonteCarlo scenarioId={summary.scenario.id} inputs={resolved.inputs} dirty={dirty} />
-            {summary.scenarios.length > 1 && (
-              <ScenarioCompare summary={summary} draft={draft} dirty={dirty} onSelect={onSelectScenario} />
-            )}
+            {lifeEventsCard}
           </View>
         )}
 
-        <Card title="Assumptions" subtitle="Leave a field empty to use the suggestion shown" style={styles.column}>
-          <Row>
-            <Field label="Retire at age" invalid={invalid.retirementAge}>
-              <Input value={text.retirementAge} onChangeText={set('retirementAge')} placeholder={String(RETIREMENT_DEFAULTS.retirementAge)} keyboardType="number-pad" inputMode="numeric" maxLength={3} />
-            </Field>
-            <Field label="Plan to age" invalid={invalid.lifeExpectancy}>
-              <Input value={text.lifeExpectancy} onChangeText={set('lifeExpectancy')} placeholder={String(RETIREMENT_DEFAULTS.lifeExpectancy)} keyboardType="number-pad" inputMode="numeric" maxLength={3} />
-            </Field>
-            <Field label="Return after inflation, %" invalid={invalid.expectedReturn}>
-              <Input value={text.expectedReturn} onChangeText={set('expectedReturn')} placeholder={String(RETIREMENT_DEFAULTS.expectedReturn)} keyboardType="decimal-pad" inputMode="decimal" />
-            </Field>
-          </Row>
-          <Row>
-            <Field label="Saving per year, with employer match" invalid={invalid.annualContribution}>
-              <Input
-                value={text.annualContribution}
-                onChangeText={set('annualContribution')}
-                placeholder={income ? `$0 · 15% of income is ${formatWholeCurrency(income * 0.15)}` : '$0'}
-                keyboardType="decimal-pad"
-                inputMode="decimal"
+        <View style={[styles.column, styles.side]}>
+          <Card title="The basics" subtitle="Leave a field empty to use the suggestion in it.">
+            <Row>
+              <Field label="Retire at age" invalid={invalid.retirementAge} tip={TIPS.retirementAge}>
+                <Input value={text.retirementAge} onChangeText={set('retirementAge')} placeholder={String(RETIREMENT_DEFAULTS.retirementAge)} keyboardType="number-pad" inputMode="numeric" maxLength={3} />
+              </Field>
+              <Field label="Plan to age" invalid={invalid.lifeExpectancy} tip={TIPS.planToAge}>
+                <Input value={text.lifeExpectancy} onChangeText={set('lifeExpectancy')} placeholder={String(RETIREMENT_DEFAULTS.lifeExpectancy)} keyboardType="number-pad" inputMode="numeric" maxLength={3} />
+              </Field>
+            </Row>
+            <Row>
+              <Field label="Saving per year" invalid={invalid.annualContribution} tip={TIPS.contribution}>
+                <Input
+                  value={text.annualContribution}
+                  onChangeText={set('annualContribution')}
+                  placeholder={income ? `$0 · 15% is ${formatCompactCurrency(income * 0.15)}` : '$0'}
+                  keyboardType="decimal-pad"
+                  inputMode="decimal"
+                />
+              </Field>
+              <Field label="Return after inflation, %" invalid={invalid.expectedReturn} tip={TIPS.expectedReturn}>
+                <Input value={text.expectedReturn} onChangeText={set('expectedReturn')} placeholder={String(RETIREMENT_DEFAULTS.expectedReturn)} keyboardType="decimal-pad" inputMode="decimal" />
+              </Field>
+            </Row>
+          </Card>
+
+          <Card title="Spending in retirement" tip={TIPS.spending}>
+            <Row>
+              <Field label="Per year, in today’s dollars" invalid={invalid.annualSpending}>
+                <Input
+                  value={text.annualSpending}
+                  onChangeText={set('annualSpending')}
+                  placeholder={d.annualSpending !== null ? `${formatWholeCurrency(d.annualSpending)} · last 12 months` : '$'}
+                  keyboardType="decimal-pad"
+                  inputMode="decimal"
+                />
+              </Field>
+              <Field label={`Slows after ${SPENDING_DECLINE_AGE}, % a year`} invalid={invalid.spendingDeclinePercent} tip={TIPS.spendingDecline}>
+                <Input
+                  value={text.spendingDeclinePercent}
+                  onChangeText={set('spendingDeclinePercent')}
+                  placeholder={`${RETIREMENT_DEFAULTS.spendingDeclinePercent} · 0 keeps it flat`}
+                  keyboardType="decimal-pad"
+                  inputMode="decimal"
+                />
+              </Field>
+            </Row>
+            {resolved.inputs && <SpendingPath inputs={resolved.inputs} />}
+            <ThemedText type="small" themeColor="textSecondary">
+              Expect a change, like a paid-off mortgage or kids leaving home? Add it under Life events.
+            </ThemedText>
+          </Card>
+
+          <Card title="Income in retirement" subtitle="Money that comes in without selling investments.">
+            <Row>
+              <Field label="Social Security per month" invalid={invalid.socialSecurityAnnual} tip={TIPS.socialSecurity}>
+                <Input
+                  value={text.socialSecurityAnnual}
+                  onChangeText={set('socialSecurityAnnual')}
+                  placeholder={ssEstimate ? `${formatWholeCurrency(ssEstimate / 12)} · estimated` : '$ · from your statement'}
+                  keyboardType="decimal-pad"
+                  inputMode="decimal"
+                />
+              </Field>
+              <Field label="Start it at age" invalid={invalid.socialSecurityAge} tip={TIPS.claimAge}>
+                <Input value={text.socialSecurityAge} onChangeText={set('socialSecurityAge')} placeholder={String(RETIREMENT_DEFAULTS.socialSecurityAge)} keyboardType="number-pad" inputMode="numeric" maxLength={2} />
+              </Field>
+            </Row>
+            {resolved.inputs && (
+              <SocialSecurity
+                birthYear={d.birthYear!}
+                claimAge={resolved.inputs.socialSecurityAge}
+                fullAnnual={socialSecurityAtFullAge(draft, d, resolved.inputs.retirementAge)}
+                income={income}
+                married={d.married}
+                retirementAge={resolved.inputs.retirementAge}
+                onClaimAge={(age) => set('socialSecurityAge')(String(age))}
+                onShowProfile={onShowProfile}
               />
+            )}
+            <Field label="Pension per year" invalid={invalid.pensionAnnual} tip={TIPS.pension}>
+              <Input value={text.pensionAnnual} onChangeText={set('pensionAnnual')} placeholder="$0" keyboardType="decimal-pad" inputMode="decimal" />
             </Field>
-            <Field label="Spending per year, today" invalid={invalid.annualSpending}>
-              <Input
-                value={text.annualSpending}
-                onChangeText={set('annualSpending')}
-                placeholder={d.annualSpending !== null ? `${formatWholeCurrency(d.annualSpending)} · last 12 months` : '$'}
-                keyboardType="decimal-pad"
-                inputMode="decimal"
-              />
-            </Field>
-          </Row>
-          <Row>
-            <Field label="Social Security per month at full retirement age" invalid={invalid.socialSecurityAnnual}>
-              <Input
-                value={text.socialSecurityAnnual}
-                onChangeText={set('socialSecurityAnnual')}
-                placeholder={ssEstimate ? `${formatWholeCurrency(ssEstimate / 12)} · estimated from income` : '$ · from your statement'}
-                keyboardType="decimal-pad"
-                inputMode="decimal"
-              />
-            </Field>
-            <Field label="Claim at age" invalid={invalid.socialSecurityAge}>
-              <Input value={text.socialSecurityAge} onChangeText={set('socialSecurityAge')} placeholder={String(RETIREMENT_DEFAULTS.socialSecurityAge)} keyboardType="number-pad" inputMode="numeric" maxLength={2} />
-            </Field>
-          </Row>
-          {resolved.inputs && (
-            <SocialSecurity
-              birthYear={d.birthYear!}
-              claimAge={resolved.inputs.socialSecurityAge}
-              fullAnnual={socialSecurityAtFullAge(draft, d, resolved.inputs.retirementAge)}
-              income={income}
-              married={d.married}
-              retirementAge={resolved.inputs.retirementAge}
-              onClaimAge={(age) => set('socialSecurityAge')(String(age))}
-              onShowProfile={onShowProfile}
-            />
-          )}
-          <Field label="Pension per year" invalid={invalid.pensionAnnual}>
-            <Input value={text.pensionAnnual} onChangeText={set('pensionAnnual')} placeholder="$0" keyboardType="decimal-pad" inputMode="decimal" />
-          </Field>
-          <Field label="Other savings for retirement (outside investment accounts)" invalid={invalid.otherSavings}>
-            <Input value={text.otherSavings} onChangeText={set('otherSavings')} placeholder="$0 · e.g. cash set aside" keyboardType="decimal-pad" inputMode="decimal" />
-          </Field>
-          {saveRow}
-        </Card>
+          </Card>
+        </View>
       </View>
 
-      <View style={styles.columns}>
-        <Card
-          title="Spending over time"
-          subtitle="Start from today’s spending and add what will change: kids leaving home, a mortgage paid off, college, travel. Add your children on Profile to time changes by their ages."
-          style={styles.column}>
-          {suggestions.length > 0 && (
-            <View style={styles.buttons}>
-              {suggestions.map((s) => (
-                <Button
-                  key={s.id}
-                  label={`+ ${s.caption}`}
-                  variant="secondary"
-                  size="small"
-                  onPress={() => addChanges(s.changes)}
-                />
-              ))}
-            </View>
-          )}
-          {changes.map((c, i) => {
-            const bad = invalidChanges[i]!;
-            return (
-              <View key={c.key} style={styles.property}>
-                <View style={styles.row}>
-                  <View style={styles.shrink}>
-                    <Field label="What changes" invalid={bad.label}>
-                      <Input value={c.label} onChangeText={(label) => setChange(c.key, { label })} placeholder="e.g. Kids leave home" maxLength={60} />
-                    </Field>
-                  </View>
-                  <Button label="Remove" variant="secondary" size="small" onPress={() => removeChange(c.key)} accessibilityLabel={`Remove ${c.label || 'spending change'}`} />
-                </View>
-                {(d.children.length > 0 || c.childId !== null) && (
-                  <Field label="Ages are">
-                    <View style={styles.chips}>
-                      <Chip label="Yours" selected={c.childId === null} onPress={() => setChange(c.key, { childId: null })} />
-                      {d.children.map((k) => (
-                        <Chip
-                          key={k.id}
-                          label={childName(d.children, k.id)}
-                          selected={c.childId === k.id}
-                          onPress={() => setChange(c.key, { childId: k.id })}
-                        />
-                      ))}
-                    </View>
-                    {c.childId !== null && !d.children.some((k) => k.id === c.childId) && (
-                      <ThemedText type="small" themeColor="negative">
-                        This child is no longer on your profile, so the change is left out.
-                      </ThemedText>
-                    )}
-                  </Field>
-                )}
-                <Row>
-                  <Field label="From age" invalid={bad.startAge}>
-                    <Input value={c.startAge} onChangeText={(startAge) => setChange(c.key, { startAge })} keyboardType="number-pad" inputMode="numeric" maxLength={3} />
-                  </Field>
-                  <Field label="Until age" invalid={bad.endAge}>
-                    <Input value={c.endAge} onChangeText={(endAge) => setChange(c.key, { endAge })} placeholder="For good" keyboardType="number-pad" inputMode="numeric" maxLength={3} />
-                  </Field>
-                  <Field label={c.monthly ? 'Change per month' : 'Change per year'} invalid={bad.annualChange}>
-                    <Input value={c.amount} onChangeText={(amount) => setChange(c.key, { amount })} placeholder="−$ for less, $ for more" keyboardType="numbers-and-punctuation" inputMode="decimal" />
-                  </Field>
-                </Row>
-                <View style={styles.chips}>
-                  <Chip label="Per month" selected={c.monthly} onPress={() => setMonthly(c, true)} />
-                  <Chip label="Per year" selected={!c.monthly} onPress={() => setMonthly(c, false)} />
-                </View>
-              </View>
-            );
-          })}
-          <View style={styles.buttons}>
-            <Button label="Add a change" variant="secondary" size="small" onPress={() => addChanges([{}])} />
-          </View>
-          <Field label={`Spending falls each year after ${SPENDING_DECLINE_AGE}, %`} invalid={invalid.spendingDeclinePercent}>
-            <Input
-              value={text.spendingDeclinePercent}
-              onChangeText={set('spendingDeclinePercent')}
-              placeholder={`${RETIREMENT_DEFAULTS.spendingDeclinePercent} · 0 to keep it flat`}
-              keyboardType="decimal-pad"
-              inputMode="decimal"
-            />
-          </Field>
-          <ThemedText type="small" themeColor="textSecondary">
-            People tend to spend less as they age: households over 75 spend about a fifth less than those 65 to 74, even
-            with higher health costs.
-          </ThemedText>
-          {resolved.inputs && <SpendingPath inputs={resolved.inputs} />}
-          {saveRow}
-        </Card>
+      {/* Without a projection there's no main column, so life events get their own row. */}
+      {!(resolved.inputs && projection) && lifeEventsCard}
 
-        <Accounts summary={summary} otherSavings={draft.otherSavings} onToggle={toggleAccount} disabled={save.isPending} />
+      {resolved.inputs && <MonteCarlo scenarioId={summary.scenario.id} inputs={resolved.inputs} dirty={dirty} />}
+      {resolved.inputs && summary.scenarios.length > 1 && (
+        <ScenarioCompare summary={summary} draft={draft} dirty={dirty} onSelect={onSelectScenario} />
+      )}
+
+      <View style={styles.columns}>
+        <Accounts
+          summary={summary}
+          otherSavings={draft.otherSavings}
+          onToggle={toggleAccount}
+          disabled={save.isPending}
+          otherSavingsField={
+            <Field label="Other savings for retirement" invalid={invalid.otherSavings} tip={TIPS.otherSavings}>
+              <Input value={text.otherSavings} onChangeText={set('otherSavings')} placeholder="$0 · e.g. cash set aside" keyboardType="decimal-pad" inputMode="decimal" />
+            </Field>
+          }
+        />
 
         <Card
           title="Properties"
-          subtitle="Count a property you’d sell to fund retirement. Its proceeds join your savings in the year you sell."
+          tip={TIPS.properties}
+          subtitle="Count a home or rental you’d sell to help pay for retirement. What you get from the sale joins your savings that year."
           style={styles.column}>
           {summary.properties.length === 0 && (
             <ThemedText type="small" themeColor="textSecondary">
@@ -641,7 +602,7 @@ function RetirementPlanner({
                           ]}
                         />
                       </Field>
-                      <Field label="Net rent per year" invalid={bad.rent}>
+                      <Field label="Net rent per year" invalid={bad.rent} tip={TIPS.netRent}>
                         <Input value={draftRow.rent} onChangeText={(rent) => setProperty(p.id, { rent })} placeholder="$0 · rent minus costs" keyboardType="numbers-and-punctuation" inputMode="decimal" />
                       </Field>
                     </Row>
@@ -659,10 +620,10 @@ function RetirementPlanner({
           {summary.properties.length > 0 && (
             <>
               <Row>
-                <Field label="Value growth after inflation, %" invalid={invalid.propertyAppreciation}>
+                <Field label="Value growth after inflation, %" invalid={invalid.propertyAppreciation} tip={TIPS.appreciation}>
                   <Input value={text.propertyAppreciation} onChangeText={set('propertyAppreciation')} placeholder={String(RETIREMENT_DEFAULTS.propertyAppreciation)} keyboardType="numbers-and-punctuation" inputMode="decimal" />
                 </Field>
-                <Field label="Selling costs, %" invalid={invalid.sellingCostPercent}>
+                <Field label="Selling costs, %" invalid={invalid.sellingCostPercent} tip={TIPS.sellingCosts}>
                   <Input value={text.sellingCostPercent} onChangeText={set('sellingCostPercent')} placeholder={String(RETIREMENT_DEFAULTS.sellingCostPercent)} keyboardType="decimal-pad" inputMode="decimal" />
                 </Field>
               </Row>
@@ -670,12 +631,70 @@ function RetirementPlanner({
                 Selling the home you live in? You’ll still need somewhere to live, so include rent or a smaller home’s
                 costs in your retirement spending.
               </ThemedText>
-              {saveRow}
             </>
           )}
         </Card>
       </View>
+
+      {Platform.OS === 'web' && saveBar}
     </>
+  );
+}
+
+/** Unsaved changes: save or throw them away. Sticks to the bottom of the window on the web. */
+function SaveBar({
+  dirty,
+  saved,
+  problem,
+  error,
+  saving,
+  onSave,
+  onDiscard,
+}: {
+  dirty: boolean;
+  saved: boolean;
+  /** Why it can't be saved yet. */
+  problem: string | null;
+  error: string | null;
+  saving: boolean;
+  onSave: () => void;
+  onDiscard: () => void;
+}) {
+  const theme = useTheme();
+  const message = error ?? (!dirty ? 'Saved.' : (problem ?? 'Unsaved changes. The numbers already show them.'));
+  return (
+    <ThemedView type="backgroundElement" style={[styles.saveBar, STICKY, { borderColor: dirty ? theme.tint : theme.border }]}>
+      <ThemedText
+        type="small"
+        themeColor={error ? 'negative' : problem && dirty ? 'warning' : 'textSecondary'}
+        style={styles.saveMessage}
+        accessibilityLiveRegion="polite">
+        {message}
+      </ThemedText>
+      {dirty && (
+        <View style={styles.buttons}>
+          <Button label="Discard" variant="secondary" size="small" onPress={onDiscard} disabled={saving} />
+          <Button label="Save changes" size="small" disabled={!!problem} loading={saving} onPress={onSave} />
+        </View>
+      )}
+    </ThemedView>
+  );
+}
+
+/** react-native-web supports sticky positioning; native types don't know it. */
+const STICKY = (Platform.OS === 'web' ? { position: 'sticky', bottom: Spacing.three, zIndex: 20 } : {}) as ViewStyle;
+
+function Legend() {
+  const viz = useVizColors();
+  return (
+    <View style={styles.legend}>
+      <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="small" style={{ color: viz.series2 }}>
+          ◆
+        </ThemedText>{' '}
+        A life event starts
+      </ThemedText>
+    </View>
   );
 }
 
@@ -685,8 +704,8 @@ function SpendingPath({ inputs }: { inputs: RetirementInputs }) {
   const ages = [start, ...[75, 85].filter((a) => a > start && a < inputs.lifeExpectancy)];
   return (
     <ThemedText type="small" themeColor="textSecondary">
-      Spending per year in today’s dollars:{' '}
-      {ages.map((a, i) => `${i === 0 ? 'about ' : ''}${formatWholeCurrency(Math.round(spendingAt(inputs, a)))} at ${a}`).join(', ')}.
+      With your life events and the slowdown, you’d spend{' '}
+      {ages.map((a, i) => `${i === 0 ? 'about ' : ''}${formatWholeCurrency(Math.round(spendingAt(inputs, a)))} a year at ${a}`).join(', ')}.
     </ThemedText>
   );
 }
@@ -698,13 +717,21 @@ function Summary({ inputs, projection: p }: { inputs: RetirementInputs; projecti
     <TileRow>
       <StatTile
         label={retired ? 'Saved today' : `Projected at ${inputs.retirementAge}`}
+        tip={TIPS.projected}
         value={p.atRetirement}
         caption={retired ? 'Counted toward retirement' : `From ${formatWholeCurrency(inputs.startingBalance)} today`}
       />
-      <StatTile label={`Needed at ${inputs.retirementAge}`} value={p.needed} caption={`To last to age ${inputs.lifeExpectancy}`} />
+      <StatTile
+        label={`Needed at ${inputs.retirementAge}`}
+        tip={TIPS.needed}
+        value={p.needed}
+        caption={`To last to age ${inputs.lifeExpectancy}`}
+      />
       {p.gap <= 0 ? (
         <StatTile
           label="Status"
+          tip={TIPS.status}
+          tone="positive"
           value="On track"
           caption={[
             `${formatWholeCurrency(-p.gap)} to spare`,
@@ -714,6 +741,8 @@ function Summary({ inputs, projection: p }: { inputs: RetirementInputs; projecti
       ) : (
         <StatTile
           label="Status"
+          tip={TIPS.status}
+          tone="negative"
           value={`Short ${formatCompactCurrency(p.gap)}`}
           caption={[
             p.depletionAge !== null && `Runs out at ${p.depletionAge}`,
@@ -774,35 +803,41 @@ function SocialSecurity({
     );
   }
   const monthly = (age: number) => (annual / 12) * claimingFactor(birthYear, age);
-  const ages = [...new Set([62, Math.ceil(fullRetirementAgeMonths(birthYear) / 12), 70])];
+  const fullAge = Math.ceil(fullRetirementAgeMonths(birthYear) / 12);
+  const ages = [...new Set([62, fullAge, 70])];
   return (
     <View style={styles.missing}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {estimated ? (
-          <>
-            Estimated from your {formatWholeCurrency(income!)} income{married ? ' for you and your spouse' : ''}, working
-            to {retirementAge}, with today’s benefit formula. For your exact figure, sign in at{' '}
-            {statementLink} and type the amount at full retirement age ({formatFullRetirementAge(birthYear)}).
-          </>
-        ) : (
-          <>
-            Your full retirement age is {formatFullRetirementAge(birthYear)}. Claiming at {claimAge} pays{' '}
-            {formatWholeCurrency(monthly(claimAge))} a month.
-          </>
-        )}
-      </ThemedText>
+      <View style={styles.labelRow}>
+        <ThemedText type="small" themeColor="textSecondary">
+          Pick when to start · your full retirement age is {formatFullRetirementAge(birthYear)}
+        </ThemedText>
+        <InfoTip title={TIPS.fullRetirementAge.title}>{TIPS.fullRetirementAge.body}</InfoTip>
+      </View>
       <View style={styles.buttons}>
         {ages.map((age) => (
           <Button
             key={age}
-            label={`${age} · ${formatWholeCurrency(monthly(age))}/mo`}
+            label={`${age === 62 ? 'Earliest' : age === 70 ? 'Latest' : 'Full'} · ${age} · ${formatWholeCurrency(monthly(age))}/mo`}
             variant={age === claimAge ? 'primary' : 'secondary'}
             size="small"
             onPress={() => onClaimAge(age)}
-            accessibilityLabel={`Claim Social Security at ${age}`}
+            accessibilityLabel={`Start Social Security at ${age}`}
           />
         ))}
       </View>
+      <ThemedText type="small" themeColor="textSecondary">
+        {estimated ? (
+          <>
+            Estimated from your {formatWholeCurrency(income!)} income{married ? ' for you and your spouse' : ''}, working
+            to {retirementAge}. For your exact figure, sign in at {statementLink} and type the monthly amount at full
+            retirement age.
+          </>
+        ) : (
+          <>
+            Starting at {claimAge} pays {formatWholeCurrency(monthly(claimAge))} a month for life.
+          </>
+        )}
+      </ThemedText>
     </View>
   );
 }
@@ -812,23 +847,34 @@ function Accounts({
   otherSavings,
   onToggle,
   disabled,
+  otherSavingsField,
 }: {
   summary: RetirementSummary;
   otherSavings: number | null;
   onToggle: (account: RetirementAccount, include: boolean) => void;
   disabled: boolean;
+  otherSavingsField: ReactNode;
 }) {
   const theme = useTheme();
   const total = retirementBalance(summary, { otherSavings });
   return (
     <Card
       title="Counted toward retirement"
+      tip={TIPS.counted}
       subtitle="Your share of each investment account. Turn off any you’re saving for something else."
       style={styles.column}>
       {summary.accounts.length === 0 && (
         <ThemedText type="small" themeColor="textSecondary">
           No investment accounts yet. Link your 401(k), IRA or brokerage on the Accounts tab.
         </ThemedText>
+      )}
+      {summary.accounts.length > 0 && (
+        <View style={styles.labelRow}>
+          <ThemedText type="small" themeColor="textSecondary">
+            What tax-deferred, tax-free and taxable mean
+          </ThemedText>
+          <InfoTip title={TIPS.taxTreatment.title}>{TIPS.taxTreatment.body}</InfoTip>
+        </View>
       )}
       {summary.accounts.map((a) => (
         <View key={a.id} style={styles.row}>
@@ -853,12 +899,7 @@ function Accounts({
           )}
         </View>
       ))}
-      {!!otherSavings && (
-        <View style={styles.row}>
-          <ThemedText style={styles.shrink}>Other savings</ThemedText>
-          <ThemedText>{formatWholeCurrency(otherSavings)}</ThemedText>
-        </View>
-      )}
+      {otherSavingsField}
       <View style={[styles.row, styles.total, { borderColor: theme.border }]}>
         <ThemedText type="smallBold" style={styles.shrink}>
           Total counted
@@ -870,14 +911,34 @@ function Accounts({
 }
 
 const styles = StyleSheet.create({
+  intro: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: Spacing.one, rowGap: Spacing.half },
   missing: { gap: Spacing.two, alignItems: 'flex-start' },
-  buttons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three },
+  buttons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   columns: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, alignItems: 'flex-start' },
-  column: { flexGrow: 1, flexBasis: 420, minWidth: 0 },
+  column: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
   main: { flexGrow: 3, flexBasis: 560, gap: Spacing.three },
+  side: { gap: Spacing.three },
   property: { gap: Spacing.two },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, flexWrap: 'wrap' },
   shrink: { flex: 1, flexShrink: 1 },
   total: { paddingTop: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth },
+  // Wide enough that on a phone the buttons wrap below rather than squeezing it.
+  saveMessage: { flexGrow: 1, flexShrink: 1, flexBasis: 240 },
+  legend: { flexDirection: 'row', gap: Spacing.three },
+  saveBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.two + Spacing.half,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Spacing.three + Spacing.one,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
 });

@@ -5,6 +5,7 @@ import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Chip } from '@/components/chip';
+import { WithTip, type Tip } from '@/components/info-tip';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -203,13 +204,26 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
   );
 }
 
-export function Field({ label, invalid, children }: { label: string; invalid?: boolean; children: ReactNode }) {
+export function Field({
+  label,
+  invalid,
+  tip,
+  children,
+}: {
+  label: string;
+  invalid?: boolean;
+  /** A plain-words explanation behind an ⓘ next to the label. */
+  tip?: Tip;
+  children: ReactNode;
+}) {
   return (
     <View style={styles.field}>
-      <ThemedText type="small" themeColor={invalid ? 'negative' : 'textSecondary'}>
-        {label}
-        {invalid ? ' · check this' : ''}
-      </ThemedText>
+      <WithTip tip={tip}>
+        <ThemedText type="small" themeColor={invalid ? 'negative' : 'textSecondary'} style={styles.label}>
+          {label}
+          {invalid ? ' · check this' : ''}
+        </ThemedText>
+      </WithTip>
       {children}
     </View>
   );
@@ -233,6 +247,7 @@ export function Input({ style, ...props }: TextInputProps) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
   field: { gap: Spacing.one, flex: 1, minWidth: 160 },
+  label: { flexShrink: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   input: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
   multiline: { minHeight: 72, textAlignVertical: 'top' },

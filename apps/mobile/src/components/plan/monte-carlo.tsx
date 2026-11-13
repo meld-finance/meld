@@ -15,6 +15,7 @@ import { RetirementFan } from '@/components/charts/retirement-fan';
 import { Dropdown } from '@/components/dropdown';
 import { StatTile, TileRow } from '@/components/investments/common';
 import { Field, Input, Row } from '@/components/plan/profile-tab';
+import { TIPS } from '@/components/plan/retirement-tips';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
@@ -76,6 +77,7 @@ export function MonteCarlo({ scenarioId, inputs, dirty }: { scenarioId: string; 
   return (
     <Card
       title="Chance of success"
+      tip={TIPS.monteCarlo}
       subtitle={`${shown.settings.trials.toLocaleString()} runs of your plan with returns that rise and fall at random each year, averaging ${shown.inputs.expectedReturn}% after inflation`}>
       {saved && (
         <View style={[styles.banner, { borderColor: theme.border }]}>
@@ -110,7 +112,7 @@ export function MonteCarlo({ scenarioId, inputs, dirty }: { scenarioId: string; 
       {!saved && (
         <>
           <Row>
-            <Field label="Volatility, %" invalid={invalidVolatility}>
+            <Field label="Volatility, %" invalid={invalidVolatility} tip={TIPS.volatility}>
               <Input
                 value={volatilityText}
                 onChangeText={setVolatilityText}
