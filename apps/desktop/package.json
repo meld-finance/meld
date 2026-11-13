@@ -11,6 +11,8 @@
     "dev": "node scripts/build.mjs --main-only && MELD_DESKTOP_DEV=1 electron .",
     "build": "node scripts/build.mjs && electron-builder --dir",
     "dist": "node scripts/build.mjs && electron-builder",
+    "seed-from-dev": "node scripts/build.mjs --main-only && MELD_DESKTOP_DEV=1 MELD_TRANSFER=seed electron .",
+    "pull-to-dev": "node scripts/build.mjs --main-only && MELD_DESKTOP_DEV=1 MELD_TRANSFER=pull electron .",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

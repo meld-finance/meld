@@ -25,4 +25,7 @@ export const paths = {
   apiDir: () => (isDev ? path.join(repoRoot(), 'apps/api') : path.join(resources(), 'api')),
   migrations: () => (isDev ? path.join(repoRoot(), 'apps/api/drizzle') : path.join(resources(), 'api', 'drizzle')),
   web: () => (isDev ? '' : path.join(resources(), 'web')),
+  /** The repo's .env and default documents folder, for copying data between the Mac app and `npm run dev`. */
+  devEnv: () => path.join(repoRoot(), '.env'),
+  devDocuments: () => path.join(repoRoot(), 'data', 'documents'),
 };
