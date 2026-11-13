@@ -55,4 +55,4 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 
 Pushing a tag such as `v0.2.0` runs `.github/workflows/release.yml`: it builds the Apple silicon and Intel `.dmg` files (version taken from the tag) and attaches them to a draft GitHub Release with generated notes. Check the draft, then publish it. Add the signing secrets listed at the top of that workflow to sign and notarize the builds.
 
-The landing page lives in `site/` and is published to GitHub Pages by `.github/workflows/pages.yml` whenever `site/` changes on `main`.
+The landing page lives in `site/` and is published to GitHub Pages by `.github/workflows/pages.yml` whenever `site/` changes on `main`. Preview it with `npm run site:dev` (http://127.0.0.1:8000), which reloads the page whenever a file in `site/` changes.
