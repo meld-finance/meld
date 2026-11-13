@@ -1,24 +1,53 @@
 # Meld
 
-Your whole financial picture in one place — bank accounts, cards, brokerages, mortgages and loans (via Plaid), plus life and disability insurance — with an AI assistant that answers questions, makes recommendations and suggests tax strategies using that data as context.
+**Your whole financial picture. No subscription, no cloud.**
 
-**Private by design: it runs on your own computer.** There is no Meld cloud and no account to create; your data stays in a database on your machine. See [PRIVACY.md](PRIVACY.md) for exactly what goes where.
+Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer: there's no Meld server and no account to create, and your data stays in a database on your machine.
 
 [Download for Mac](https://github.com/shimizust/meld-finance/releases/latest) · [Website](https://shimizust.github.io/meld-finance/) · [Features](docs/features.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
 
-<!-- Screenshot taken with Plaid Sandbox data: ![Meld's Home tab](docs/images/home.png) -->
+![Meld's Home screen: to-dos with deadlines, the next two weeks of bills, and Ask Meld](site/images/home.jpg)
+
+<sub>Screenshots use Plaid's sandbox test bank, not real data.</sub>
 
 ## What it does
 
-- **Accounts and net worth:** banks, cards, brokerages, loans and mortgages through Plaid, plus homes, vehicles and life insurance cash value, with a daily net worth history.
-- **Spending:** cash flow, categories with your own rules, budgets, and a drill-down by category and merchant against a year earlier.
-- **Recurring and autopay:** finds subscriptions, bills and paychecks, checks that each autopay is covered by its bank account, and alerts you (optionally on your phone with ntfy).
-- **Cash:** your emergency fund in months of spending, and what your cash is earning.
-- **Investments:** performance with time-weighted returns, asset allocation, look-through exposure of your funds, and dividend income.
-- **Plan:** retirement projection with Social Security, this year's federal and California tax estimate with suggestions, life and disability insurance, and an estate checklist that builds a packet for your family.
-- **Ask Meld:** chat with Claude, or a local model through Ollama, about your own numbers. It can read your data but never change it.
+- **Know a payment will clear before it's due.** Meld finds your subscriptions, bills and paychecks, checks that each autopay's bank account will hold enough on the day, and alerts you (on your phone too, with ntfy) when one won't.
+- **See where your money went, and what changed.** Spending against the same period last year, drill-downs by category and merchant, your own category rules and budgets. Card payments and transfers aren't counted twice.
+- **Everything you own and owe on one screen.** Banks, cards, brokerages, loans and mortgages through Plaid, plus your home, car and life insurance cash value, with daily net worth.
+- **A straight answer on retirement.** A projection in today's dollars with Social Security, property, what-if scenarios and 1,000 simulated markets.
+- **No surprises in April.** This year's federal and California tax estimate from your real income and trades, and a year-end checklist of moves with deadlines.
+- **Investments, cash, insurance and estate.** Time-weighted returns and look-through allocation, emergency fund runway, coverage read from your policy PDFs, and a family packet that lists every account and who to call.
+- **Ask Meld.** Ask about your own numbers with Claude, or a local model through Ollama. It can read your data but never change it.
+
+<table>
+  <tr>
+    <td width="50%"><img src="site/images/recurring.jpg" alt="Recurring: subscriptions, bills, and autopays checked as Covered"></td>
+    <td width="50%"><img src="site/images/spending.jpg" alt="Spending overview against last year, with insights"></td>
+  </tr>
+  <tr>
+    <td><img src="site/images/retirement.jpg" alt="Retirement projection, on track, with Social Security claiming options"></td>
+    <td><img src="site/images/tax.jpg" alt="Tax estimate and year-end checklist"></td>
+  </tr>
+</table>
 
 More in [docs/features.md](docs/features.md).
+
+## How it compares
+
+| | **Meld** | Monarch | YNAB | Copilot | Simplifi |
+| --- | --- | --- | --- | --- | --- |
+| Price | **Free** | $99.99/yr ($199.99 Plus) | $109/yr | $109/yr | $47.88 first year, then $83.88/yr |
+| Where your data lives | **Your computer** | Their servers | Their servers | Their servers | Their servers |
+| Account with the company | **None** | Required | Required | Required | Required |
+| Who holds your bank connections | **You** (your Plaid keys) | The company | The company | The company | The company |
+| Open source | **Yes** (AGPL) | No | No | No | No |
+| AI that runs fully offline | **Yes** (Ollama) | No | No | No | No |
+| Setup | ~15 min, plus Plaid approval for real banks | Minutes | Minutes | Minutes | Minutes |
+
+<sub>US list prices for annual plans as of November 2026. Meld isn't affiliated with these companies.</sub>
+
+The trade-off is setup: you bring your own free Plaid developer account, and Plaid approves it before real banks connect. That's also the point: no company sits between you and your bank, and there's no account database to leak.
 
 > **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice. Check anything important with a professional.
 
