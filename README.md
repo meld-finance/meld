@@ -14,9 +14,10 @@ Meld brings your bank accounts, cards, investments, loans and insurance into one
 
 Meld started because no single app answered everyday money questions and long-term ones from the same, complete set of accounts:
 
-- **Retirement planners** (ProjectionLab, Boldin) do the long view well, but balances are typed in by hand or synced on a paid plan, and they don't tell you what you spent last month or which bills went up.
+- **Retirement planners** (ProjectionLab, Boldin) do the long view well, but balances are typed in by hand, or synced only on a paid plan or through another app, and they don't tell you what you spent last month or which bills went up.
 - **Budgeting apps** (Monarch, YNAB, Copilot) track spending for a yearly fee, and leave retirement, taxes, insurance and estate planning to a spreadsheet.
 - **AI assistants** (ChatGPT and Claude) can now link bank accounts on paid plans, but that's one more place to connect everything, and they see only what you link, not your home, policies, tax estimate or retirement plan.
+- **Self-hosted apps** (Actual, Firefly III, MoneyMatter) are free and keep your data yours, but they're mostly about budgeting, and bank syncing usually means running a server with Docker and paying for SimpleFIN.
 
 With Meld you link your accounts once. The same data answers this week's questions (what's recurring, where the money went, will autopay clear) and the big ones (am I on track, what will I owe), and Ask Meld sees all of it when you ask for tax or money advice.
 
@@ -45,17 +46,28 @@ More in [docs/features.md](docs/features.md).
 
 ## How it compares
 
-| | **Meld** | Monarch | YNAB | Copilot | Simplifi |
+| | Price | What it covers | Bank syncing | Where your data lives | Setup |
 | --- | --- | --- | --- | --- | --- |
-| Price | **Free** | $99.99/yr ($199.99 Plus) | $109/yr | $109/yr | $47.88 first year, then $83.88/yr |
-| Where your data lives | **Your computer** | Their servers | Their servers | Their servers | Their servers |
-| Account with the company | **None** | Required | Required | Required | Required |
-| Who holds your bank connections | **You** (your Plaid keys) | The company | The company | The company | The company |
-| Open source | **Yes** (AGPL) | No | No | No | No |
-| AI that runs fully offline | **Yes** (Ollama) | No | No | No | No |
-| Setup | ~15 min, plus Plaid approval for real banks | Minutes | Minutes | Minutes | Minutes |
+| **Meld** | **Free** | Spending, bills, investments, retirement, tax, insurance, estate, and AI over all of it | Your own Plaid keys (free for up to 10 bank logins) | **Your Mac or your server** | 🟡 Some setup: a Mac app plus a free Plaid developer account (Plaid approves it before real banks connect). Docker is optional |
+| ***Budgeting apps*** | | | | | |
+| Monarch | $99.99/yr ($199.99 Plus) | Spending, budgets, net worth | Built in | Their servers | 🟢 Easy |
+| YNAB | $109/yr | Budgeting | Built in | Their servers | 🟢 Easy |
+| Copilot | $109/yr | Spending, budgets, investments | Built in | Their servers | 🟢 Easy |
+| Simplifi | $47.88 first year, then $83.88/yr | Spending, budgets, bills | Built in | Their servers | 🟢 Easy |
+| ***Retirement planners*** | | | | | |
+| ProjectionLab | Free; Premium $129/yr | Retirement and long-term plans | None: type balances in, or pull them from Monarch, YNAB or Lunch Money with a plugin | Their servers | 🟢 Easy, but keeping balances current is on you |
+| Boldin | Free; PlannerPlus $168/yr | Retirement plans | PlannerPlus only | Their servers | 🟢 Easy |
+| ***AI assistants*** | | | | | |
+| ChatGPT finance tools | Pro plan | Questions about the accounts you link | Built in | OpenAI's servers | 🟢 Easy |
+| Claude Personal Finance (beta) | Pro, Max or Ultra plan | Questions about the accounts you link | Built in | Anthropic's servers | 🟢 Easy |
+| ***Self-hosted, open source*** | | | | | |
+| Actual Budget | Free; SimpleFIN $15/yr for US bank sync | Envelope budgeting | Through SimpleFIN, and only with a server | Your computer or your server | 🟢 Easy on one computer; 🔴 Technical for bank sync and phone access (Docker server, or paid PikaPods hosting) |
+| Firefly III | Free; SimpleFIN $15/yr for US bank sync | Transactions, budgets, reports | Through a separate Data Importer and SimpleFIN | Your server | 🔴 Technical: Docker Compose with a database, plus a second container for imports |
+| MoneyMatter | Free self-hosted; cloud from $30/yr | Budgets, bills, investments, loans, net worth | SimpleFIN and a few others | Your server, or their cloud | 🔴 Technical self-hosted (Docker Compose behind a reverse proxy); 🟢 easy in their cloud |
 
-<sub>US list prices for annual plans as of November 2026. Meld isn't affiliated with these companies.</sub>
+🟢 Easy: sign up and go. 🟡 Some setup: an app to install and accounts to make, no command line. 🔴 Technical: run a server with Docker, a database and a web address.
+
+<sub>US list prices for annual plans as of November 2026. Meld isn't affiliated with these companies or projects.</sub>
 
 The trade-off is setup: you bring your own free Plaid developer account, and Plaid approves it before real banks connect. That's also the point: no company sits between you and your bank, and there's no account database to leak.
 
