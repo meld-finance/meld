@@ -1,7 +1,7 @@
 import type { SettingsView } from '@meld/shared';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -49,7 +49,31 @@ function SettingsCards({ view }: { view: SettingsView }) {
       <PlaidCard view={view} fixed={fixed('plaid')} />
       <AICard view={view} fixed={fixed('ai')} />
       <PassphraseCard fixed={fixed('passphrase')} />
+      <AboutCard />
     </>
+  );
+}
+
+const ABOUT_LINKS = [
+  { label: 'Website', url: 'https://shimizust.github.io/meld-finance/' },
+  { label: 'Docs', url: 'https://github.com/shimizust/meld-finance/blob/main/docs/features.md' },
+  { label: 'Source', url: 'https://github.com/shimizust/meld-finance' },
+];
+
+function AboutCard() {
+  return (
+    <Card title="About Meld">
+      <ThemedText>
+        {ABOUT_LINKS.map((l, i) => (
+          <Text key={l.url}>
+            {i > 0 && ' · '}
+            <ThemedText themeColor="tint" accessibilityRole="link" onPress={() => void Linking.openURL(l.url)}>
+              {l.label}
+            </ThemedText>
+          </Text>
+        ))}
+      </ThemedText>
+    </Card>
   );
 }
 
