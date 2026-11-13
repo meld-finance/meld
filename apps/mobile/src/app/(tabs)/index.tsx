@@ -52,7 +52,7 @@ function greeting(hour = new Date().getHours()) {
 }
 
 export default function HomeScreen() {
-  const { logout } = useAuth();
+  const { logout, canLock } = useAuth();
   const width = useContentWidth();
   const today = new Date().toLocaleDateString('en-CA');
   const month = currentMonth();
@@ -117,7 +117,7 @@ export default function HomeScreen() {
                 .join(' · ') + '.'}
         </ThemedText>
       </View>
-      {Platform.OS !== 'web' && (
+      {Platform.OS !== 'web' && canLock && (
         <Pressable onPress={logout}>
           <ThemedText type="linkPrimary">Lock</ThemedText>
         </Pressable>

@@ -82,12 +82,12 @@ The trade-off is setup: you bring your own free Plaid developer account, and Pla
 
 1. [Download the latest release](https://github.com/shimizust/meld-finance/releases/latest): `Meld-<version>-arm64.dmg` for Apple silicon or `-x64.dmg` for Intel, and drag Meld to Applications.
 2. Builds aren't notarized by Apple yet, so the first time you open Meld macOS will refuse. Go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway** (or run `xattr -dr com.apple.quarantine /Applications/Meld.app`).
-3. Meld walks you through setup the first time it opens: a passphrase, your Plaid client ID and secrets (with a **Test keys** button), and optionally an Anthropic key or Ollama, which it finds by itself if it's running.
+3. Meld walks you through setup the first time it opens: a passphrase (optional), your Plaid client ID and secrets (with a **Test keys** button), and optionally an Anthropic key or Ollama, which it finds by itself if it's running.
 4. Start with Plaid's Sandbox to look around (any bank, `user_good` / `pass_good`), then follow [docs/plaid.md](docs/plaid.md) to connect your real accounts and switch to production in **Settings**.
 
 Everything stays on your Mac in `~/Library/Application Support/Meld`: a Postgres database that only listens on `127.0.0.1`, uploaded documents, settings, and logs. The keys that encrypt Plaid tokens, documents and saved settings are made on first run and kept encrypted with your macOS Keychain. Closing the window leaves Meld running in the menu bar, where you can also turn on **Open at Login**, show the data folder or quit.
 
-- **Change settings:** account menu → **Settings** (Plaid keys and environment, AI, passphrase, phone access). Saving restarts Meld in a few seconds.
+- **Change settings:** account menu → **Settings** (Plaid keys and environment, AI, passphrase on or off, phone access). Saving restarts Meld in a few seconds.
 - **Back up:** quit Meld, then copy `~/Library/Application Support/Meld`. The copy is only readable with this Mac's Keychain, so also keep a Time Machine backup (which includes the Keychain), or you'd have to re-link accounts after restoring elsewhere.
 
 ## Use Meld on your phone

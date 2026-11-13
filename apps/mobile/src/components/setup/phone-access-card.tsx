@@ -7,7 +7,7 @@ import { formStyles } from '@/components/form-fields';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { usePhoneAccess, useSetPhoneAccess } from '@/lib/setup';
+import { usePhoneAccess, useSetPhoneAccess, useSetupStatus } from '@/lib/setup';
 
 const INSTALL_URL = 'https://tailscale.com/download';
 const HTTPS_URL = 'https://tailscale.com/kb/1153/enabling-https';
@@ -30,6 +30,7 @@ export function PhoneAccessCard() {
   const phone = usePhoneAccess(true);
   const set = useSetPhoneAccess();
   const data = phone.data;
+  const passphrase = useSetupStatus().data?.passphrase ?? true;
 
   const recheck = <Button label="Check again" variant="secondary" size="small" loading={phone.isFetching} onPress={() => void phone.refetch()} />;
 
@@ -68,7 +69,8 @@ export function PhoneAccessCard() {
         <>
           <ThemedText type="small" themeColor="textSecondary">
             Your devices on Tailscale will reach Meld at a private https address while this Mac is awake and Meld is open
-            (closing the window keeps it running in the menu bar). You’ll still need your passphrase.
+            (closing the window keeps it running in the menu bar).{' '}
+            {passphrase ? 'You’ll still need your passphrase.' : 'With no passphrase, anyone on your tailnet can open it.'}
           </ThemedText>
           <View style={formStyles.buttons}>
             <Button label="Turn on phone access" loading={set.isPending} onPress={() => set.mutate(true)} />

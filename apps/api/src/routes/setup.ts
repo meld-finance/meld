@@ -15,7 +15,7 @@ import { CountryCode } from 'plaid';
 import { OllamaProvider } from '../ai/ollama';
 import { passphraseMatches } from '../auth';
 import { readSettings, writeSettings, type SettingKey, type Settings } from '../config-file';
-import type { Env } from '../env';
+import { passphraseRequired, type Env } from '../env';
 import { HttpError, parse } from '../lib/http';
 import { hashPassphrase } from '../lib/passphrase';
 import { createPlaidClient, getPlaidError } from '../plaid/client';
@@ -28,7 +28,7 @@ export type SettingsDeps = {
 };
 
 const SECTIONS = {
-  passphrase: ['APP_PASSPHRASE', 'APP_PASSPHRASE_HASH'],
+  passphrase: ['APP_PASSPHRASE', 'APP_PASSPHRASE_HASH', 'APP_PASSPHRASE_OFF'],
   plaid: ['PLAID_CLIENT_ID', 'PLAID_SANDBOX_SECRET', 'PLAID_PRODUCTION_SECRET', 'PLAID_ENV'],
   ai: ['ANTHROPIC_API_KEY', 'OLLAMA_URL', 'OLLAMA_CHAT_MODELS'],
 } as const;
@@ -107,16 +107,18 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
     configured,
     editable,
     phoneAccess: env.TAILSCALE_CONTROL,
+    passphrase: !configured || passphraseRequired(env),
   }));
 
   app.post('/setup', { config }, async (req, reply) => {
     if (configured) throw new HttpError(409, 'Meld is already set up. Change settings from Settings instead.');
     requireEditable();
     const body = parse(SetupRequest, req.body);
-    const hash = await hashPassphrase(body.passphrase);
+    const hash = body.passphrase ? await hashPassphrase(body.passphrase) : undefined;
     await save((current) => ({
       ...current,
       APP_PASSPHRASE_HASH: hash,
+      APP_PASSPHRASE_OFF: hash ? undefined : '1',
       PLAID_CLIENT_ID: body.plaid.clientId,
       PLAID_SANDBOX_SECRET: body.plaid.sandboxSecret,
       PLAID_PRODUCTION_SECRET: body.plaid.productionSecret,
@@ -150,6 +152,7 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
 
   app.get('/settings', async (): Promise<SettingsView> => ({
     editable,
+    passphrase: passphraseRequired(env),
     plaid: {
       clientId: env.PLAID_CLIENT_ID,
       sandboxSecret: mask(env.PLAID_SANDBOX_SECRET),
@@ -165,13 +168,20 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
     const body = parse(SettingsUpdate, req.body);
     const fixed = sectionsFromEnv(settings.fromEnv).filter((s) => body[s]);
     if (fixed.length) throw new HttpError(409, `These settings come from .env, which wins: ${fixed.join(', ')}. Edit it instead.`);
-    if (body.passphrase && !(await passphraseMatches(body.passphrase.current, env))) {
+    // Turning the passphrase off or changing it takes the current one; turning it on doesn't.
+    if (body.passphrase && passphraseRequired(env) && !(await passphraseMatches(body.passphrase.current, env))) {
       throw new HttpError(400, 'Your current passphrase isn’t right.');
     }
-    const hash = body.passphrase ? await hashPassphrase(body.passphrase.next) : null;
+    const hash = body.passphrase?.next ? await hashPassphrase(body.passphrase.next) : null;
     await save((current) => {
       const next = { ...current };
-      if (hash) next.APP_PASSPHRASE_HASH = hash;
+      if (hash) {
+        next.APP_PASSPHRASE_HASH = hash;
+        delete next.APP_PASSPHRASE_OFF;
+      } else if (body.passphrase) {
+        delete next.APP_PASSPHRASE_HASH;
+        next.APP_PASSPHRASE_OFF = '1';
+      }
       if (body.plaid) {
         next.PLAID_CLIENT_ID = body.plaid.clientId;
         next.PLAID_ENV = body.plaid.env;

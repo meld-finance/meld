@@ -32,6 +32,8 @@ const EnvSchema = z
       z.string().min(8, 'APP_PASSPHRASE must be at least 8 characters').optional(),
     ),
     APP_PASSPHRASE_HASH: z.string().default(''),
+    /** No passphrase: anyone who can reach Meld can use it. Ignored when APP_PASSPHRASE is set. */
+    APP_PASSPHRASE_OFF: flag,
     SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
     ENCRYPTION_KEY: z
       .string()
@@ -114,9 +116,15 @@ export function plaidSecret(env: Pick<Env, 'PLAID_ENV' | 'PLAID_SANDBOX_SECRET' 
   return env.PLAID_ENV === 'production' ? env.PLAID_PRODUCTION_SECRET : env.PLAID_SANDBOX_SECRET;
 }
 
-/** Enough is set to run Meld: a passphrase and Plaid keys. Until then the API serves only first-run setup. */
+/** Whether logging in takes a passphrase; turned off from setup or Settings, unless .env sets one. */
+export function passphraseRequired(env: Pick<Env, 'APP_PASSPHRASE' | 'APP_PASSPHRASE_OFF'>): boolean {
+  return !!env.APP_PASSPHRASE || !env.APP_PASSPHRASE_OFF;
+}
+
+/** Enough is set to run Meld: a passphrase (or none, by choice) and Plaid keys. Until then the API serves only first-run setup. */
 export function setupComplete(env: Env): boolean {
-  return !!(env.APP_PASSPHRASE || env.APP_PASSPHRASE_HASH) && !!env.PLAID_CLIENT_ID && !!plaidSecret(env);
+  const passphraseChosen = !!(env.APP_PASSPHRASE || env.APP_PASSPHRASE_HASH) || env.APP_PASSPHRASE_OFF;
+  return passphraseChosen && !!env.PLAID_CLIENT_ID && !!plaidSecret(env);
 }
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {

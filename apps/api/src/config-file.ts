@@ -11,6 +11,7 @@ import { decrypt, encrypt } from './lib/crypto';
  */
 export const SETTING_KEYS = [
   'APP_PASSPHRASE_HASH',
+  'APP_PASSPHRASE_OFF',
   'PLAID_CLIENT_ID',
   'PLAID_SANDBOX_SECRET',
   'PLAID_PRODUCTION_SECRET',

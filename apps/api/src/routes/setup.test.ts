@@ -46,7 +46,7 @@ describe('first-run setup', () => {
     const env = loadEnv(source());
     expect(setupComplete(env)).toBe(false);
     const app = await buildSetupServer(env, { fromEnv: new Set(), restart });
-    expect((await app.inject({ method: 'GET', url: '/setup/status' })).json()).toEqual({ configured: false, editable: true, phoneAccess: false });
+    expect((await app.inject({ method: 'GET', url: '/setup/status' })).json()).toEqual({ configured: false, editable: true, phoneAccess: false, passphrase: true });
 
     const res = await app.inject({ method: 'POST', url: '/setup', payload: setup });
     expect(res.statusCode).toBe(200);
@@ -55,6 +55,19 @@ describe('first-run setup', () => {
     expect(saved).toMatchObject({ PLAID_CLIENT_ID: 'client-id', PLAID_SANDBOX_SECRET: 'sandbox-secret-abcd', PLAID_ENV: 'sandbox' });
     expect(saved.APP_PASSPHRASE_HASH).toMatch(/^scrypt:/);
     expect(setupComplete(loadEnv(withSettingsFile(source())))).toBe(true);
+    await app.close();
+  });
+
+  it('can skip the passphrase, leaving every route open', async () => {
+    const first = await buildSetupServer(loadEnv(source()), { fromEnv: new Set(), restart: () => {} });
+    const { passphrase: _, ...withoutPassphrase } = setup;
+    expect((await first.inject({ method: 'POST', url: '/setup', payload: withoutPassphrase })).statusCode).toBe(200);
+    await first.close();
+    expect(readSettings(loadEnv(source()).MELD_CONFIG_FILE, key)).toMatchObject({ APP_PASSPHRASE_OFF: '1' });
+
+    const app = await fullServer(source(), { fromEnv: new Set(), restart: () => {} });
+    expect((await app.inject({ method: 'GET', url: '/setup/status' })).json()).toMatchObject({ configured: true, passphrase: false });
+    expect((await app.inject({ method: 'GET', url: '/settings' })).json().passphrase).toBe(false);
     await app.close();
   });
 
@@ -127,6 +140,28 @@ describe('settings once set up', () => {
       payload: { passphrase: { current: 'not it at all', next: 'a new passphrase' } },
     });
     expect(wrong.statusCode).toBe(400);
+  });
+
+  it('turns the passphrase off with the current one, and back on without it', async () => {
+    const file = loadEnv(source()).MELD_CONFIG_FILE;
+    const off = (current: string) =>
+      app.inject({ method: 'PUT', url: '/settings', headers: auth(), payload: { passphrase: { current, next: null } } });
+    expect((await off('not it at all')).statusCode).toBe(400);
+    expect((await off(setup.passphrase)).statusCode).toBe(200);
+    expect(readSettings(file, key).APP_PASSPHRASE_OFF).toBe('1');
+    expect(readSettings(file, key).APP_PASSPHRASE_HASH).toBeUndefined();
+
+    await app.close();
+    app = await fullServer(source(), { fromEnv: new Set(), restart });
+    expect((await app.inject({ method: 'GET', url: '/settings' })).statusCode).toBe(200);
+    const on = await app.inject({ method: 'PUT', url: '/settings', payload: { passphrase: { next: 'a new passphrase' } } });
+    expect(on.statusCode).toBe(200);
+    expect(readSettings(file, key).APP_PASSPHRASE_OFF).toBeUndefined();
+
+    await app.close();
+    app = await fullServer(source(), { fromEnv: new Set(), restart });
+    expect((await app.inject({ method: 'GET', url: '/settings' })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase: 'a new passphrase' } })).statusCode).toBe(200);
   });
 
   it('won’t change settings that come from .env', async () => {

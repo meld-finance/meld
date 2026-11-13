@@ -1,17 +1,19 @@
-import type { SettingsView } from '@meld/shared';
+import type { SettingsUpdate, SettingsView } from '@meld/shared';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Field, Input, formStyles } from '@/components/form-fields';
 import { Screen } from '@/components/screen';
 import { AIFields } from '@/components/setup/ai-fields';
+import { NoPassphraseNote } from '@/components/setup/no-passphrase-note';
 import { PhoneAccessCard } from '@/components/setup/phone-access-card';
 import { PlaidFields } from '@/components/setup/plaid-fields';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useAuth } from '@/lib/auth';
 import { useSaveSettings, useSettings, useSetupStatus, type AIForm, type PlaidForm } from '@/lib/setup';
 
 export default function SettingsScreen() {
@@ -48,7 +50,7 @@ function SettingsCards({ view }: { view: SettingsView }) {
       </ThemedText>
       <PlaidCard view={view} fixed={fixed('plaid')} />
       <AICard view={view} fixed={fixed('ai')} />
-      <PassphraseCard fixed={fixed('passphrase')} />
+      <PassphraseCard on={view.passphrase} fixed={fixed('passphrase')} />
       <AboutCard />
     </>
   );
@@ -85,8 +87,16 @@ function FromEnvNote() {
   );
 }
 
-function SaveRow({ onSave, dirty }: { onSave: (save: ReturnType<typeof useSaveSettings>) => void; dirty: boolean }) {
-  const save = useSaveSettings();
+function SaveRow({
+  onSave,
+  dirty,
+  afterRestart,
+}: {
+  onSave: (save: ReturnType<typeof useSaveSettings>) => void;
+  dirty: boolean;
+  afterRestart?: (body: SettingsUpdate) => Promise<void>;
+}) {
+  const save = useSaveSettings(afterRestart);
   return (
     <View style={styles.save}>
       <View style={formStyles.buttons}>
@@ -165,41 +175,70 @@ function AICard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
   );
 }
 
-function PassphraseCard({ fixed }: { fixed: boolean }) {
+function PassphraseCard({ on, fixed }: { on: boolean; fixed: boolean }) {
+  const { login } = useAuth();
+  const [want, setWant] = useState(on);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
-  const valid = !!current && next.length >= 8 && next === confirm;
+  const turningOff = on && !want;
+  const nextValid = next.length >= 8 && next === confirm;
+  // Changing or turning it off takes the current one; turning it on only a new one.
+  const dirty = turningOff ? !!current : want && nextValid && (!on || !!current);
   return (
-    <Card title="Passphrase">
+    <Card
+      title="Passphrase"
+      subtitle={
+        fixed
+          ? undefined
+          : turningOff
+            ? 'Enter your current passphrase to turn it off.'
+            : on
+              ? 'Meld asks for it to unlock.'
+              : want
+                ? 'Choose one to turn it on.'
+                : 'Off: Meld opens without one.'
+      }
+      action={fixed ? undefined : <Switch value={want} onValueChange={setWant} accessibilityLabel="Require a passphrase" />}>
       {fixed ? (
         <FromEnvNote />
       ) : (
         <>
-          <Field label="Current passphrase">
-            <Input value={current} onChangeText={setCurrent} secureTextEntry />
-          </Field>
-          <Field label="New passphrase" invalid={!!next && next.length < 8}>
-            <Input value={next} onChangeText={setNext} secureTextEntry placeholder="8+ characters" />
-          </Field>
-          <Field label="Type it again" invalid={!!confirm && confirm !== next}>
-            <Input value={confirm} onChangeText={setConfirm} secureTextEntry />
-          </Field>
-          <SaveRow
-            dirty={valid}
-            onSave={(save) =>
-              save.mutate(
-                { passphrase: { current, next } },
-                {
-                  onSuccess: () => {
-                    setCurrent('');
-                    setNext('');
-                    setConfirm('');
+          {on && (
+            <Field label="Current passphrase">
+              <Input value={current} onChangeText={setCurrent} secureTextEntry />
+            </Field>
+          )}
+          {want && (
+            <>
+              <Field label="New passphrase" invalid={!!next && next.length < 8}>
+                <Input value={next} onChangeText={setNext} secureTextEntry placeholder="8+ characters" />
+              </Field>
+              <Field label="Type it again" invalid={!!confirm && confirm !== next}>
+                <Input value={confirm} onChangeText={setConfirm} secureTextEntry />
+              </Field>
+            </>
+          )}
+          {!want && on && <NoPassphraseNote />}
+          {(on || want) && (
+            <SaveRow
+              dirty={dirty}
+              // Turning it on locks this device out on restart, so unlock it with the new one first.
+              afterRestart={on ? undefined : async (body) => (body.passphrase?.next ? login(body.passphrase.next) : undefined)}
+              onSave={(save) =>
+                save.mutate(
+                  { passphrase: { current, next: want ? next : null } },
+                  {
+                    onSuccess: () => {
+                      setCurrent('');
+                      setNext('');
+                      setConfirm('');
+                    },
                   },
-                },
-              )
-            }
-          />
+                )
+              }
+            />
+          )}
         </>
       )}
     </Card>

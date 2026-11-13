@@ -8,6 +8,8 @@ export type SetupStatus = {
   editable: boolean;
   /** The desktop app can turn on phone access over Tailscale. */
   phoneAccess: boolean;
+  /** Unlocking takes a passphrase; false means it was turned off and the app opens straight in. */
+  passphrase: boolean;
 };
 
 export const PlaidEnvironment = z.enum(['sandbox', 'production']);
@@ -38,7 +40,8 @@ export const Passphrase = z
   .max(200);
 
 export const SetupRequest = z.object({
-  passphrase: Passphrase,
+  /** Omitted: no passphrase, so anyone who can reach Meld can use it. */
+  passphrase: Passphrase.optional(),
   plaid: PlaidKeys,
   ai: AISettings,
 });
@@ -49,7 +52,8 @@ export type SetupRequest = z.input<typeof SetupRequest>;
  * empty, since the app only ever sees secrets masked.
  */
 export const SettingsUpdate = z.object({
-  passphrase: z.object({ current: z.string(), next: Passphrase }).optional(),
+  /** `next: null` turns the passphrase off. `current` is needed unless it's off already. */
+  passphrase: z.object({ current: z.string().default(''), next: Passphrase.nullable() }).optional(),
   plaid: PlaidKeys.optional(),
   ai: AISettings.optional(),
 });
@@ -58,6 +62,8 @@ export type SettingsUpdate = z.input<typeof SettingsUpdate>;
 /** Current settings, with secrets masked to their last 4 characters. */
 export type SettingsView = {
   editable: boolean;
+  /** Unlocking takes a passphrase. */
+  passphrase: boolean;
   plaid: { clientId: string; sandboxSecret: string; productionSecret: string; env: PlaidEnvironment };
   ai: { anthropicApiKey: string; ollamaUrl: string; ollamaModels: string[] };
   /** Settings fixed by the environment (.env), which the app can't change. */

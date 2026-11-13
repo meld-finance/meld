@@ -47,5 +47,6 @@ describe('setupComplete', () => {
     expect(
       setupComplete(loadEnv({ ...base, APP_PASSPHRASE_HASH: 'scrypt:a:b', PLAID_CLIENT_ID: 'c', PLAID_SANDBOX_SECRET: 's', PLAID_ENV: 'production' })),
     ).toBe(false);
+    expect(setupComplete(loadEnv({ ...base, APP_PASSPHRASE_OFF: '1', PLAID_CLIENT_ID: 'c', PLAID_SANDBOX_SECRET: 's' }))).toBe(true);
   });
 });

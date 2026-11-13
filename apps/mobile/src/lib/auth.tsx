@@ -2,12 +2,16 @@ import type { LoginResponse } from '@meld/shared';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { api, setAuthToken, setUnauthorizedHandler } from './api';
+import { useSetupStatus } from './setup';
 import { tokenStore } from './token-store';
 
 type AuthState = {
   /** False until the stored token has been read. */
   ready: boolean;
+  /** Logged in, or the passphrase is turned off. */
   isLoggedIn: boolean;
+  /** Unlocking takes a passphrase, so there's something to lock. */
+  canLock: boolean;
   login: (passphrase: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -17,6 +21,8 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+  // An older API doesn't say, and always asks for one.
+  const canLock = useSetupStatus().data?.passphrase ?? true;
 
   const apply = useCallback((next: string | null) => {
     setAuthToken(next);
@@ -50,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ ready, isLoggedIn: token !== null, login, logout }),
-    [ready, token, login, logout],
+    () => ({ ready, isLoggedIn: !canLock || token !== null, canLock, login, logout }),
+    [ready, token, canLock, login, logout],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

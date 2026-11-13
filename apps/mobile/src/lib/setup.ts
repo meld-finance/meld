@@ -51,12 +51,14 @@ export function useCompleteSetup() {
   });
 }
 
-export function useSaveSettings() {
+/** `afterRestart` runs before anything refreshes, e.g. to log in with a passphrase just turned on. */
+export function useSaveSettings(afterRestart?: (body: SettingsUpdate) => Promise<void>) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: SettingsUpdate) => {
       await api('/settings', { method: 'PUT', body: JSON.stringify(body) });
       await waitForRestart(true);
+      await afterRestart?.(body);
     },
     // Everything may look different with new keys (another Plaid environment, AI on or off).
     onSuccess: () => qc.invalidateQueries(),

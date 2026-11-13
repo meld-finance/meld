@@ -221,7 +221,7 @@ function TopBar({ phone }: { phone: boolean }) {
   const theme = useTheme();
   const accent = useAccents().blue;
   const panel = useChatPanel();
-  const { logout } = useAuth();
+  const { logout, canLock } = useAuth();
   const profile = useProfile();
   const unread = useAlerts().data?.unread ?? 0;
   const [open, setOpen] = useState(false);
@@ -311,9 +311,11 @@ function TopBar({ phone }: { phone: boolean }) {
                 <ThemeToggle compact={false} />
               </View>
             )}
-            <MenuItem icon="lock" onPress={logout}>
-              Lock
-            </MenuItem>
+            {canLock && (
+              <MenuItem icon="lock" onPress={logout}>
+                Lock
+              </MenuItem>
+            )}
           </ThemedView>
         </>
       )}

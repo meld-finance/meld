@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Field, Input, formStyles } from '@/components/form-fields';
 import { AIFields } from '@/components/setup/ai-fields';
+import { NoPassphraseNote } from '@/components/setup/no-passphrase-note';
 import { PlaidFields } from '@/components/setup/plaid-fields';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -15,11 +16,12 @@ import { useCompleteSetup, useSetupStatus, type AIForm, type PlaidForm } from '@
 const STEPS = ['Passphrase', 'Plaid', 'AI'] as const;
 const MIN_PASSPHRASE = 8;
 
-/** First run: a passphrase, Plaid keys and (optionally) AI, saved on this computer. */
+/** First run: a passphrase (or none), Plaid keys and (optionally) AI, saved on this computer. */
 export default function SetupScreen() {
   const status = useSetupStatus();
   const complete = useCompleteSetup();
   const [step, setStep] = useState(0);
+  const [usePassphrase, setUsePassphrase] = useState(true);
   const [passphrase, setPassphrase] = useState('');
   const [confirm, setConfirm] = useState('');
   const [plaid, setPlaid] = useState<PlaidForm>({ clientId: '', sandboxSecret: '', productionSecret: '', env: 'sandbox' });
@@ -32,7 +34,7 @@ export default function SetupScreen() {
         ? 'The two don’t match'
         : null;
   const plaidSecret = plaid.env === 'production' ? plaid.productionSecret : plaid.sandboxSecret;
-  const canContinue = [!passphraseError && confirm === passphrase, !!plaid.clientId.trim() && !!plaidSecret.trim(), true][step];
+  const canContinue = [!usePassphrase || (!passphraseError && confirm === passphrase), !!plaid.clientId.trim() && !!plaidSecret.trim(), true][step];
 
   if (status.data && !status.data.editable) {
     return (
@@ -40,7 +42,8 @@ export default function SetupScreen() {
         <Card title="Finish setting up in .env">
           <ThemedText themeColor="textSecondary">
             This Meld reads its settings from <ThemedText type="code">.env</ThemedText>. Set{' '}
-            <ThemedText type="code">APP_PASSPHRASE</ThemedText>, <ThemedText type="code">PLAID_CLIENT_ID</ThemedText> and a Plaid
+            <ThemedText type="code">APP_PASSPHRASE</ThemedText> (or <ThemedText type="code">APP_PASSPHRASE_OFF=1</ThemedText>),{' '}
+            <ThemedText type="code">PLAID_CLIENT_ID</ThemedText> and a Plaid
             secret there, then restart Meld.
           </ThemedText>
         </Card>
@@ -50,7 +53,7 @@ export default function SetupScreen() {
 
   function next() {
     if (step < STEPS.length - 1) return setStep(step + 1);
-    complete.mutate({ passphrase, plaid, ai: { ...ai, removeAnthropicKey: false } });
+    complete.mutate({ passphrase: usePassphrase ? passphrase : undefined, plaid, ai: { ...ai, removeAnthropicKey: false } });
   }
 
   return (
@@ -67,21 +70,35 @@ export default function SetupScreen() {
       </View>
 
       {step === 0 && (
-        <Card title="Choose a passphrase" subtitle="You’ll unlock Meld with it, here and on your phone.">
-          <Field label="Passphrase" invalid={!!passphrase && passphrase.length < MIN_PASSPHRASE}>
-            <Input value={passphrase} onChangeText={setPassphrase} secureTextEntry autoFocus placeholder={`${MIN_PASSPHRASE}+ characters`} />
-          </Field>
-          <Field label="Type it again" invalid={!!confirm && confirm !== passphrase}>
-            <Input value={confirm} onChangeText={setConfirm} secureTextEntry onSubmitEditing={() => canContinue && next()} />
-          </Field>
-          {(passphrase || confirm) && passphraseError && (
-            <ThemedText type="small" themeColor="textSecondary">
-              {passphraseError}
-            </ThemedText>
+        <Card
+          title={usePassphrase ? 'Choose a passphrase' : 'No passphrase'}
+          subtitle={usePassphrase ? 'You’ll unlock Meld with it, here and on your phone.' : undefined}
+          action={<Switch value={usePassphrase} onValueChange={setUsePassphrase} accessibilityLabel="Require a passphrase" />}>
+          {usePassphrase ? (
+            <>
+              <Field label="Passphrase" invalid={!!passphrase && passphrase.length < MIN_PASSPHRASE}>
+                <Input value={passphrase} onChangeText={setPassphrase} secureTextEntry autoFocus placeholder={`${MIN_PASSPHRASE}+ characters`} />
+              </Field>
+              <Field label="Type it again" invalid={!!confirm && confirm !== passphrase}>
+                <Input value={confirm} onChangeText={setConfirm} secureTextEntry onSubmitEditing={() => canContinue && next()} />
+              </Field>
+              {(passphrase || confirm) && passphraseError && (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {passphraseError}
+                </ThemedText>
+              )}
+              <ThemedText type="small" themeColor="textSecondary">
+                There’s no way to recover it, so keep it somewhere safe. You can change it, or turn it off, later in Settings.
+              </ThemedText>
+            </>
+          ) : (
+            <>
+              <NoPassphraseNote />
+              <ThemedText type="small" themeColor="textSecondary">
+                You can add one later in Settings.
+              </ThemedText>
+            </>
           )}
-          <ThemedText type="small" themeColor="textSecondary">
-            There’s no way to recover it, so keep it somewhere safe. You can change it later in Settings.
-          </ThemedText>
         </Card>
       )}
       {step === 1 && (

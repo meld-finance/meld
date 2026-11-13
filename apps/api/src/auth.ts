@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { LoginRequest } from '@meld/shared';
-import type { Env } from './env';
+import { passphraseRequired, type Env } from './env';
 import { verifyPassphrase } from './lib/passphrase';
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
@@ -23,6 +23,7 @@ export async function passphraseMatches(candidate: string, env: Pick<Env, 'APP_P
  * Single-user auth: log in with the passphrase, receive a bearer JWT.
  * Bearer tokens (not cookies) so web and native clients behave the same.
  * Replace with a real identity provider before hosting for multiple users.
+ * With the passphrase turned off, every route is open to anyone who can reach the API.
  */
 export async function registerAuth(app: FastifyInstance, env: Env) {
   app.post('/auth/login', { config: { public: true, rateLimit: LOGIN_RATE_LIMIT } }, async (req, reply) => {
@@ -35,8 +36,9 @@ export async function registerAuth(app: FastifyInstance, env: Env) {
     return { token, expiresAt };
   });
 
+  const required = passphraseRequired(env);
   app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
-    if (req.routeOptions.config?.public) return;
+    if (!required || req.routeOptions.config?.public) return;
     try {
       await req.jwtVerify();
     } catch {
