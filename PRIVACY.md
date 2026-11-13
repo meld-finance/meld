@@ -31,4 +31,4 @@ Anthropic's API doesn't train on your data by default and keeps it for a limited
 
 ## Reporting a security problem
 
-Please report it privately through GitHub (the repository's **Security** tab → **Report a vulnerability**) rather than in a public issue.
+Please report it privately through GitHub (the repository's **Security** tab → **Report a vulnerability**) rather than in a public issue. [SECURITY.md](SECURITY.md) has the details.

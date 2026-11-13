@@ -1,0 +1,63 @@
+# Push a tag like v0.2.0 to build the Mac app for Apple silicon and Intel and attach the
+# .dmg files to a draft GitHub Release. Review the draft, then publish it.
+#
+# Signing and notarization are optional: add these repository secrets to turn them on
+# (see electron-builder's docs). Without them the app is unsigned.
+#   CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    strategy:
+      matrix:
+        arch: [arm64, x64]
+    # Apple silicon runner; the x64 build thins the bundled Postgres to x86_64.
+    runs-on: macos-14
+    env:
+      EXPO_NO_TELEMETRY: 1
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # Don't go looking for a signing identity in the keychain when no certificate is given.
+      CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Build the ${{ matrix.arch }} .dmg
+        working-directory: apps/desktop
+        # The version comes from the tag (v0.2.0 → 0.2.0), not apps/desktop/package.json.
+        run: |
+          node scripts/build.mjs --arch ${{ matrix.arch }}
+          npx electron-builder --${{ matrix.arch }} --publish never "-c.extraMetadata.version=${GITHUB_REF_NAME#v}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dmg-${{ matrix.arch }}
+          path: apps/desktop/release/*.dmg
+          if-no-files-found: error
+
+  release:
+    needs: mac
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dmg-*
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: "*.dmg"
