@@ -10,6 +10,16 @@ Meld brings your bank accounts, cards, investments, loans and insurance into one
 
 <sub>Screenshots use Plaid's sandbox test bank, not real data.</sub>
 
+## Why Meld
+
+Meld started because no single app answered everyday money questions and long-term ones from the same, complete set of accounts:
+
+- **Retirement planners** (ProjectionLab, Boldin) do the long view well, but balances are typed in by hand or synced on a paid plan, and they don't tell you what you spent last month or which bills went up.
+- **Budgeting apps** (Monarch, YNAB, Copilot) track spending for a yearly fee, and leave retirement, taxes, insurance and estate planning to a spreadsheet.
+- **AI assistants** (ChatGPT and Claude) can now link bank accounts on paid plans, but that's one more place to connect everything, and they see only what you link, not your home, policies, tax estimate or retirement plan.
+
+With Meld you link your accounts once. The same data answers this week's questions (what's recurring, where the money went, will autopay clear) and the big ones (am I on track, what will I owe), and Ask Meld sees all of it when you ask for tax or money advice.
+
 ## What it does
 
 - **Know a payment will clear before it's due.** Meld finds your subscriptions, bills and paychecks, checks that each autopay's bank account will hold enough on the day, and alerts you (on your phone too, with ntfy) when one won't.
