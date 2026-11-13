@@ -5,6 +5,7 @@ import { isDev, paths } from './paths';
 import { freePort } from './ports';
 import { startPostgres, type RunningPostgres } from './postgres';
 import { loadSecrets } from './secrets';
+import { transfer, type Direction } from './transfer';
 import { createTray } from './tray';
 
 /** Meld's usual address, so a phone bookmark (via Tailscale) keeps working; another is picked if it's taken. */
@@ -19,14 +20,36 @@ app.setName('Meld');
 if (process.env.MELD_USER_DATA) app.setPath('userData', process.env.MELD_USER_DATA);
 else if (isDev) app.setPath('userData', `${app.getPath('appData')}/Meld Dev`);
 
+/** `npm run desktop:seed-from-dev` / `dev:pull-desktop`: copy data to or from the installed app's folder, then exit. */
+const transferDirection = process.env.MELD_TRANSFER as Direction | undefined;
+if (transferDirection) app.setPath('userData', `${app.getPath('appData')}/Meld`);
+
 let window: BrowserWindow | null = null;
 let api: ApiProcess | null = null;
 let db: RunningPostgres | null = null;
 let appUrl = '';
 let quitting = false;
 
-if (!app.requestSingleInstanceLock()) app.quit();
-app.on('second-instance', () => showWindow());
+if (transferDirection) runTransfer(transferDirection);
+else runApp();
+
+function runTransfer(direction: Direction) {
+  if (!app.requestSingleInstanceLock()) {
+    console.error('Meld is running. Quit it from the menu bar and try again.');
+    app.exit(1);
+    return;
+  }
+  app.dock?.hide();
+  void app.whenReady().then(() =>
+    transfer(direction).then(
+      () => app.exit(0),
+      (err: unknown) => {
+        console.error(err instanceof Error ? err.message : err);
+        app.exit(1);
+      },
+    ),
+  );
+}
 
 function page(title: string, body: string) {
   const html = `<!doctype html><meta charset="utf-8"><title>Meld</title>
@@ -116,36 +139,41 @@ async function shutdown() {
   await db?.stop().catch(() => {});
 }
 
-app.on('before-quit', (event) => {
-  if (quitting) return;
-  event.preventDefault();
-  quitting = true;
-  void shutdown().finally(() => app.exit(0));
-});
+function runApp() {
+  if (!app.requestSingleInstanceLock()) app.quit();
+  app.on('second-instance', () => showWindow());
 
-// Closing the window leaves Meld running in the menu bar (phone access keeps working).
-app.on('window-all-closed', () => {});
-app.on('activate', () => showWindow());
-
-void app.whenReady().then(async () => {
-  Menu.setApplicationMenu(
-    Menu.buildFromTemplate([
-      { role: 'appMenu' },
-      { role: 'editMenu' },
-      { role: 'viewMenu' },
-      { role: 'windowMenu' },
-    ]),
-  );
-  createTray({
-    open: () => showWindow(),
-    openSettings: () => showWindow('/settings'),
-    quit: () => app.quit(),
+  app.on('before-quit', (event) => {
+    if (quitting) return;
+    event.preventDefault();
+    quitting = true;
+    void shutdown().finally(() => app.exit(0));
   });
-  showWindow();
-  try {
-    await start();
-  } catch (err) {
-    showError(err);
-    if (!window) await dialog.showMessageBox({ type: 'error', message: 'Meld couldn’t start', detail: String(err) });
-  }
-});
+
+  // Closing the window leaves Meld running in the menu bar (phone access keeps working).
+  app.on('window-all-closed', () => {});
+  app.on('activate', () => showWindow());
+
+  void app.whenReady().then(async () => {
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        { role: 'appMenu' },
+        { role: 'editMenu' },
+        { role: 'viewMenu' },
+        { role: 'windowMenu' },
+      ]),
+    );
+    createTray({
+      open: () => showWindow(),
+      openSettings: () => showWindow('/settings'),
+      quit: () => app.quit(),
+    });
+    showWindow();
+    try {
+      await start();
+    } catch (err) {
+      showError(err);
+      if (!window) await dialog.showMessageBox({ type: 'error', message: 'Meld couldn’t start', detail: String(err) });
+    }
+  });
+}

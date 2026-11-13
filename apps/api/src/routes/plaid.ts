@@ -101,11 +101,14 @@ export async function registerPlaidRoutes(app: FastifyInstance, { db, plaid, env
 
   app.delete('/items/:id', async (req) => {
     const item = await loadItem(parse(IdParams, req.params).id);
-    try {
-      await plaid.itemRemove({ access_token: decrypt(item.accessTokenEnc, env.ENCRYPTION_KEY) });
-    } catch (err) {
-      // Still remove locally if Plaid already considers the item gone or invalid.
-      app.log.warn({ plaidError: getPlaidError(err)?.error_code }, 'Plaid itemRemove failed; deleting locally anyway');
+    // A shared item is still in use by the other copy, so it stays linked at Plaid.
+    if (!env.PLAID_SHARED_ITEMS) {
+      try {
+        await plaid.itemRemove({ access_token: decrypt(item.accessTokenEnc, env.ENCRYPTION_KEY) });
+      } catch (err) {
+        // Still remove locally if Plaid already considers the item gone or invalid.
+        app.log.warn({ plaidError: getPlaidError(err)?.error_code }, 'Plaid itemRemove failed; deleting locally anyway');
+      }
     }
     await db.delete(plaidItems).where(eq(plaidItems.id, item.id));
     return { ok: true };

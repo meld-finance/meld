@@ -24,15 +24,20 @@ export async function loadSecrets(): Promise<Secrets> {
   const file = paths.secrets();
   if (existsSync(file)) {
     const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(readFileSync(file));
+    const secrets = JSON.parse(result) as Secrets;
     // macOS rotated the key it encrypts with; store the secrets again under the new one.
-    if (shouldReEncrypt) writeFileSync(file, await safeStorage.encryptStringAsync(result), { mode: 0o600 });
-    return JSON.parse(result) as Secrets;
+    if (shouldReEncrypt) await saveSecrets(secrets);
+    return secrets;
   }
   const secrets: Secrets = {
     encryptionKey: randomBytes(32).toString('base64'),
     sessionSecret: randomBytes(32).toString('base64'),
     postgresPassword: randomBytes(24).toString('hex'),
   };
-  writeFileSync(file, await safeStorage.encryptStringAsync(JSON.stringify(secrets)), { mode: 0o600 });
+  await saveSecrets(secrets);
   return secrets;
+}
+
+export async function saveSecrets(secrets: Secrets) {
+  writeFileSync(paths.secrets(), await safeStorage.encryptStringAsync(JSON.stringify(secrets)), { mode: 0o600 });
 }

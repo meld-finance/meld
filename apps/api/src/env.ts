@@ -47,6 +47,8 @@ const EnvSchema = z
     /** Asked for at link time but only used (and billed) on demand, e.g. auth for full bank account numbers. */
     PLAID_ADDITIONAL_CONSENTED_PRODUCTS: csv,
     PLAID_COUNTRY_CODES: list('US'),
+    /** This database's Plaid items are shared with another Meld (a copy of the Mac app's data): unlinking removes them here only. */
+    PLAID_SHARED_ITEMS: flag,
 
     AI_PROVIDER: z.enum(['anthropic']).default('anthropic'),
     ANTHROPIC_API_KEY: z.string().default(''),
