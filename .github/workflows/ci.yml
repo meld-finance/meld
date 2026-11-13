@@ -32,6 +32,8 @@ jobs:
       # Throwaway values: the API's env schema requires them, and tests never reach real services.
       SESSION_SECRET: ci-session-secret-ci-session-secret-0000
       ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      # Route tests log in with it.
+      APP_PASSPHRASE: ci-passphrase
       EXPO_NO_TELEMETRY: 1
     steps:
       - uses: actions/checkout@v4
