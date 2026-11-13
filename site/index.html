@@ -205,28 +205,52 @@
   /* Comparison */
   .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
   table.compare { width: 100%; border-collapse: collapse; min-width: 980px; font-size: 15px; }
-  table.compare th, table.compare td { padding: 14px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  table.compare th, table.compare td { padding: 12px 10px; text-align: center; vertical-align: middle; border-bottom: 1px solid var(--border); }
   table.compare tr:last-child th, table.compare tr:last-child td { border-bottom: 0; }
-  table.compare thead th { font-size: 14px; color: var(--muted); font-weight: 600; background: var(--surface-2); }
-  table.compare tbody th { font-weight: 600; width: 15%; }
+  table.compare thead th { padding: 12px 4px; font-size: 13px; line-height: 1.3; color: var(--muted); font-weight: 600; background: var(--surface-2); vertical-align: bottom; }
+  table.compare tbody th { font-weight: 600; text-align: left; white-space: nowrap; padding-left: 18px; }
   table.compare th:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
   table.compare thead th:first-child { background: var(--surface-2); }
-  table.compare .us { background: var(--accent-soft); }
-  table.compare thead .us { color: var(--accent-strong); font-size: 16px; font-weight: 800; }
-  table.compare td { color: var(--muted); }
-  table.compare td.us { color: var(--text); font-weight: 500; }
-  table.compare tbody th.us { background: var(--accent-soft); color: var(--accent-strong); font-size: 16px; font-weight: 800; }
-  table.compare td > div + div { margin-top: 8px; }
-  table.compare tbody th small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; margin-top: 2px; }
-  table.compare tr.group th { position: static; background: var(--surface-2); color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 16px; }
-  .level { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; margin-bottom: 4px; white-space: nowrap; }
+  table.compare .price { text-align: left; white-space: nowrap; }
+  table.compare td.price { color: var(--muted); font-size: 14px; }
+  table.compare .setup { text-align: left; white-space: nowrap; padding-right: 18px; }
+  table.compare { table-layout: fixed; }
+  table.compare thead th:first-child { width: 150px; }
+  table.compare thead th.price { width: 130px; }
+  table.compare thead th.setup { width: 160px; }
+  table.compare td.setup .level + .level { margin-left: 4px; }
+  table.compare small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 1px; }
+  table.compare tr.us th, table.compare tr.us td { background: var(--accent-soft); }
+  table.compare tr.us th { color: var(--accent-strong); font-size: 17px; font-weight: 800; }
+  table.compare tr.us td.price { color: var(--text); font-weight: 700; }
+  table.compare tr.group th { position: static; text-align: left; background: var(--surface-2); color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 18px; }
+  .scroll-hint { display: none; font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+  @media (max-width: 720px) {
+    table.compare { min-width: 900px; font-size: 14px; }
+    table.compare thead th { font-size: 12px; padding: 10px 2px; }
+    table.compare th, table.compare td { padding: 10px 4px; }
+    table.compare tbody th { padding-left: 12px; white-space: normal; }
+    table.compare thead th:first-child { width: 118px; }
+    table.compare thead th.price { width: 104px; }
+    table.compare td.price { white-space: normal; font-size: 13px; }
+    table.compare thead th.setup { width: 150px; }
+    table.compare tr.group th { padding: 8px 12px; }
+    .scroll-hint { display: block; }
+  }
+  .mark { display: inline-block; width: 22px; height: 22px; border-radius: 50%; vertical-align: middle; position: relative; }
+  .mark.yes { background: var(--good); }
+  .mark.yes::after { content: ""; position: absolute; left: 8px; top: 4px; width: 5px; height: 10px; border: solid var(--surface); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
+  .mark.part { background: linear-gradient(90deg, var(--warn) 50%, transparent 50%); box-shadow: inset 0 0 0 2px var(--warn); }
+  .mark.no { width: 12px; height: 2px; border-radius: 1px; background: var(--border); box-shadow: 0 0 0 0.5px var(--muted); opacity: 0.8; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .level { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; white-space: nowrap; }
   .level.easy { background: var(--good-soft); color: var(--good); }
   .level.some { background: var(--warn-soft); color: var(--warn); }
   .level.tech { background: var(--bad-soft); color: var(--bad); }
-  .levels { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0 0 14px; font-size: 14px; color: var(--muted); }
-  .yes { color: var(--good); font-weight: 700; }
-  .no { color: var(--bad); }
-  .table-note { font-size: 13px; color: var(--muted); margin: 12px 0 0; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin: 16px 0 0; font-size: 14px; color: var(--muted); }
+  .legend > span { display: inline-flex; align-items: center; gap: 8px; }
+  .table-notes { margin: 16px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); max-width: 60em; }
+  .table-notes li + li { margin-top: 4px; }
 
   .tradeoffs { margin-top: 28px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
   .tradeoffs .card h3 { display: flex; gap: 8px; align-items: center; }
@@ -532,130 +556,118 @@
   <section id="compare" class="alt">
     <div class="wrap">
       <h2>How Meld compares</h2>
-      <p class="section-lede">Budgeting apps, retirement planners, AI assistants and self-hosted tools each do part of the job. Here's what each covers, what it costs, where your data ends up, and how much work it is to set up.</p>
-      <div class="levels" aria-label="Setup levels">
-        <span><span class="level easy">Easy</span> Sign up and go</span>
-        <span><span class="level some">Some setup</span> An app to install and accounts to make, no command line</span>
-        <span><span class="level tech">Technical</span> Run a server with Docker, a database and a web address</span>
-      </div>
+      <p class="section-lede">Budgeting apps, retirement planners, AI assistants and self-hosted tools each do part of the job. Here's what each covers at a glance.</p>
+      <p class="scroll-hint">Swipe the table sideways to see every column.</p>
       <div class="table-scroll" role="region" aria-label="Comparison of Meld with budgeting apps, retirement planners, AI assistants and self-hosted finance apps" tabindex="0">
         <table class="compare">
           <thead>
             <tr>
               <th scope="col"></th>
-              <th scope="col">Price</th>
-              <th scope="col">What it covers</th>
-              <th scope="col">Bank syncing</th>
-              <th scope="col">Where your data lives</th>
-              <th scope="col">Setup</th>
+              <th scope="col" class="price">Price</th>
+              <th scope="col">Budgeting</th>
+              <th scope="col">Investing</th>
+              <th scope="col">Retirement</th>
+              <th scope="col">Tax &amp; estate</th>
+              <th scope="col">AI chat</th>
+              <th scope="col">Bank sync</th>
+              <th scope="col">Self-hosted</th>
+              <th scope="col">Open source</th>
+              <th scope="col" class="setup">Setup</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <th scope="row" class="us">Meld</th>
-              <td class="us">Free</td>
-              <td class="us">Spending, bills, investments, retirement, tax, insurance, estate, and AI over all of it</td>
-              <td class="us">Built in, with your own Plaid keys (free for up to 10 bank logins)</td>
-              <td class="us">Your Mac, or your own server</td>
-              <td class="us"><span class="level some">Some setup</span><br>A Mac app, plus a free Plaid developer account that Plaid approves before real banks connect. Docker is optional.</td>
+            <tr class="us">
+              <th scope="row">Meld</th>
+              <td class="price">Free</td>
+              <td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td>
+              <td class="setup"><span class="level some">Some setup</span></td>
             </tr>
-            <tr class="group"><th scope="rowgroup" colspan="6">Budgeting apps</th></tr>
+            <tr class="group"><th scope="rowgroup" colspan="11">Budgeting apps</th></tr>
             <tr>
               <th scope="row">Monarch</th>
-              <td>$99.99/yr<br>($199.99 for Plus)</td>
-              <td>Spending, budgets, net worth</td>
-              <td>Built in</td>
-              <td>Their servers</td>
-              <td><span class="level easy">Easy</span></td>
+              <td class="price">$100/yr</td>
+              <td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td>
+              <td class="setup"><span class="level easy">Easy</span></td>
             </tr>
             <tr>
               <th scope="row">YNAB</th>
-              <td>$109/yr</td>
-              <td>Budgeting</td>
-              <td>Built in</td>
-              <td>Their servers</td>
-              <td><span class="level easy">Easy</span></td>
+              <td class="price">$109/yr</td>
+              <td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td>
+              <td class="setup"><span class="level easy">Easy</span></td>
             </tr>
             <tr>
               <th scope="row">Copilot</th>
-              <td>$109/yr</td>
-              <td>Spending, budgets, investments</td>
-              <td>Built in</td>
-              <td>Their servers</td>
-              <td><span class="level easy">Easy</span></td>
+              <td class="price">$109/yr</td>
+              <td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td>
+              <td class="setup"><span class="level easy">Easy</span></td>
             </tr>
             <tr>
               <th scope="row">Simplifi</th>
-              <td>$47.88 first year,<br>then $83.88/yr</td>
-              <td>Spending, budgets, bills</td>
-              <td>Built in</td>
-              <td>Their servers</td>
-              <td><span class="level easy">Easy</span></td>
+              <td class="price">$84/yr<small>$48 first year</small></td>
+              <td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td>
+              <td class="setup"><span class="level easy">Easy</span></td>
             </tr>
-            <tr class="group"><th scope="rowgroup" colspan="6">Retirement planners</th></tr>
+            <tr class="group"><th scope="rowgroup" colspan="11">Retirement planners</th></tr>
             <tr>
               <th scope="row">ProjectionLab</th>
-              <td>Free; Premium $129/yr</td>
-              <td>Retirement and long-term plans</td>
-              <td>None. Type balances in, or pull them from Monarch, YNAB or Lunch Money with a plugin</td>
-              <td>Their servers</td>
-              <td><span class="level easy">Easy</span><br>Keeping balances current is on you</td>
+              <td class="price">Free–$129/yr</td>
+              <td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td>
+              <td class="setup"><span class="level easy">Easy</span></td>
             </tr>
             <tr>
               <th scope="row">Boldin</th>
-              <td>Free; PlannerPlus $168/yr</td>
-              <td>Retirement plans</td>
-              <td>PlannerPlus only</td>
-              <td>Their servers</td>
-              <td><span class="level easy">Easy</span></td>
+              <td class="price">Free–$168/yr</td>
+              <td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td>
+              <td class="setup"><span class="level easy">Easy</span></td>
             </tr>
-            <tr class="group"><th scope="rowgroup" colspan="6">AI assistants</th></tr>
+            <tr class="group"><th scope="rowgroup" colspan="11">AI assistants</th></tr>
             <tr>
               <th scope="row">ChatGPT<small>finance tools</small></th>
-              <td>Pro plan</td>
-              <td>Questions about the accounts you link</td>
-              <td>Built in</td>
-              <td>OpenAI's servers</td>
-              <td><span class="level easy">Easy</span></td>
+              <td class="price">Pro plan</td>
+              <td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td>
+              <td class="setup"><span class="level easy">Easy</span></td>
             </tr>
             <tr>
               <th scope="row">Claude<small>Personal Finance beta</small></th>
-              <td>Pro, Max or Ultra plan</td>
-              <td>Questions about the accounts you link</td>
-              <td>Built in</td>
-              <td>Anthropic's servers</td>
-              <td><span class="level easy">Easy</span></td>
+              <td class="price">Pro plan or higher</td>
+              <td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td>
+              <td class="setup"><span class="level easy">Easy</span></td>
             </tr>
-            <tr class="group"><th scope="rowgroup" colspan="6">Self-hosted, open source</th></tr>
+            <tr class="group"><th scope="rowgroup" colspan="11">Self-hosted, open source</th></tr>
             <tr>
               <th scope="row">Actual Budget</th>
-              <td>Free; SimpleFIN $15/yr for US bank sync; hosting a few dollars a month if you don't run your own</td>
-              <td>Envelope budgeting</td>
-              <td>Through SimpleFIN, and only with a server</td>
-              <td>Your computer, or your server</td>
-              <td><div><span class="level easy">Easy</span> on one computer</div><div><span class="level tech">Technical</span> for bank sync and phone access: a server with Docker, or paid hosting on PikaPods</div></td>
+              <td class="price">Free<small>+$15/yr bank sync</small></td>
+              <td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td>
+              <td class="setup"><span class="level easy">Easy</span> <span class="level tech">Technical</span></td>
             </tr>
             <tr>
               <th scope="row">Firefly III</th>
-              <td>Free; SimpleFIN $15/yr for US bank sync</td>
-              <td>Transactions, budgets, reports</td>
-              <td>Through a separate Data Importer and SimpleFIN</td>
-              <td>Your server</td>
-              <td><span class="level tech">Technical</span><br>Docker Compose with a database, plus a second container for imports</td>
+              <td class="price">Free<small>+$15/yr bank sync</small></td>
+              <td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td>
+              <td class="setup"><span class="level tech">Technical</span></td>
             </tr>
             <tr>
               <th scope="row">MoneyMatter</th>
-              <td>Free self-hosted; cloud from $30/yr</td>
-              <td>Budgets, bills, investments, loans, net worth</td>
-              <td>SimpleFIN and a few others</td>
-              <td>Your server, or their cloud</td>
-              <td><div><span class="level tech">Technical</span> self-hosted: Docker Compose behind a reverse proxy</div><div><span class="level easy">Easy</span> in their cloud</div></td>
+              <td class="price">Free<small>Cloud from $30/yr</small></td>
+              <td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark no" title="No"><span class="sr">No</span></span></td><td><span class="mark part" title="Partly"><span class="sr">Partly</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td><td><span class="mark yes" title="Yes"><span class="sr">Yes</span></span></td>
+              <td class="setup"><span class="level tech">Technical</span></td>
             </tr>
           </tbody>
         </table>
       </div>
-      <p class="table-note">US list prices for annual plans as of November 2026; check each company's site for current pricing and promotions. Meld isn't affiliated with any of these companies or projects.</p>
-      <p class="table-note">Meld, Actual, Firefly III and MoneyMatter publish their source code. Meld links your banks through your own Plaid account rather than a middleman, and Ask Meld can run fully offline with Ollama.</p>
+      <div class="legend" aria-hidden="true">
+        <span><span class="mark yes"></span> Yes</span>
+        <span><span class="mark part"></span> Partly</span>
+        <span><span class="mark no"></span> No</span>
+        <span><span class="level easy">Easy</span> Sign up and go</span>
+        <span><span class="level some">Some setup</span> Install an app, no command line</span>
+        <span><span class="level tech">Technical</span> Run a server with Docker</span>
+      </div>
+      <ul class="table-notes">
+        <li><strong>Partly:</strong> AI assistants answer questions about linked accounts but don't track or plan. ProjectionLab has no bank sync (type balances in, or import from Monarch, YNAB or Lunch Money); Boldin syncs only on PlannerPlus. Self-hosted apps sync through SimpleFIN ($15/yr) and need a server for it.</li>
+        <li><strong>Meld's setup:</strong> a Mac app plus a free Plaid developer account, which Plaid approves before real banks connect. Docker is optional.</li>
+        <li>US list prices for annual plans as of November 2026 (Monarch Plus is $199.99/yr). Meld isn't affiliated with any of these companies or projects.</li>
+      </ul>
 
       <div class="tradeoffs">
         <div class="card">
