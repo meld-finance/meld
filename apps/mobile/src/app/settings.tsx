@@ -145,7 +145,7 @@ function AICard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
       ) : (
         <>
           <AIFields value={form} onChange={setForm} savedKey={removeKey ? '' : view.ai.anthropicApiKey} />
-          {view.ai.anthropicApiKey && !form.anthropicApiKey && (
+          {!!view.ai.anthropicApiKey && !form.anthropicApiKey && (
             <View style={formStyles.buttons}>
               <Button
                 label={removeKey ? 'Keep the saved Anthropic key' : 'Remove the saved Anthropic key'}

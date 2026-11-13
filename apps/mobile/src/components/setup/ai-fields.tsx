@@ -83,7 +83,7 @@ export function AIFields({ value, onChange, savedKey }: { value: AIForm; onChang
       </Field>
       <View style={formStyles.buttons}>
         <Button label={detected?.found ? 'Check again' : 'Find Ollama'} variant="secondary" size="small" loading={detecting} onPress={detect} />
-        {value.ollamaUrl && (
+        {!!value.ollamaUrl && (
           <Button
             label="Turn off"
             variant="secondary"
@@ -120,7 +120,7 @@ export function AIFields({ value, onChange, savedKey }: { value: AIForm; onChang
             <ThemedText type="code">ollama pull {SUGGESTED_MODEL}</ThemedText>, then check again.
           </ThemedText>
         ))}
-      {!detected && value.ollamaUrl && (
+      {!detected && !!value.ollamaUrl && (
         <ThemedText type="small" themeColor="textSecondary">
           Using Ollama at {value.ollamaUrl}
           {value.ollamaModels.length ? ` with ${value.ollamaModels.join(', ')}` : ', with every model that can use tools'}.
