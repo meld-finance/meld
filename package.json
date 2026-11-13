@@ -24,7 +24,7 @@
     "site:dev": "node scripts/site-dev.mjs"
   },
   "devDependencies": {
-    "concurrently": "^10.0.6",
+    "concurrently": "^10.0.7",
     "typescript": "~6.0.3",
     "zod": "^4.6.7"
   }
