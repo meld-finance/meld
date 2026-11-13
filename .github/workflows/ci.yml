@@ -1,0 +1,45 @@
+# Typecheck, test and lint on every push to main and every pull request.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: meld
+          POSTGRES_PASSWORD: meld
+          POSTGRES_DB: meld_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U meld -d meld_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://meld:meld@127.0.0.1:5432/meld_test
+      # Throwaway values: the API's env schema requires them, and tests never reach real services.
+      SESSION_SECRET: ci-session-secret-ci-session-secret-0000
+      ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run lint -w @meld/mobile

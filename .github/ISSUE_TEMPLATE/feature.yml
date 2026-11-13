@@ -1,0 +1,23 @@
+name: Feature idea
+description: Suggest something Meld could do.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Meld is single-user and local-first on purpose. Ideas that add accounts, telemetry, a hosted backend or send more data to outside services are unlikely to be accepted.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you're trying to do
+      description: The question you want answered or the task you want easier, rather than a specific design.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How Meld could help
+  - type: textarea
+    id: data
+    attributes:
+      label: Data it needs
+      description: Does it need anything new from Plaid, an AI provider or another service?

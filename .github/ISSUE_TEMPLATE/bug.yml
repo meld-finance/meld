@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in Meld doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Don't paste real financial data, Plaid keys, `.env` contents or unredacted logs.** Reproduce with Plaid Sandbox (`user_good` / `pass_good`) where you can.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run Meld
+      options:
+        - Mac app
+        - Docker
+        - From source (npm run dev)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0, or the output of git rev-parse --short HEAD
+  - type: dropdown
+    id: plaid
+    attributes:
+      label: Plaid environment
+      options:
+        - Sandbox
+        - Production
+        - Not related to Plaid
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (redacted)
+      description: Mac app → menu bar → Show Log, or `docker compose logs meld`. Remove names, amounts and account numbers.
+      render: text
