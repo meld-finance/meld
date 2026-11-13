@@ -23,3 +23,6 @@ data/
 *.log
 .vscode/
 .idea/
+
+# Playwright MCP screenshots and page snapshots
+.playwright-mcp/
