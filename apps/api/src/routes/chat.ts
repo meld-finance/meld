@@ -65,9 +65,9 @@ function titleFrom(text: string) {
   return line.length > 60 ? `${line.slice(0, 57).trimEnd()}…` : line;
 }
 
-export async function registerChatRoutes(app: FastifyInstance, { env, db, ai }: AppDeps) {
+export async function registerChatRoutes(app: FastifyInstance, { env, db, ai, chatgpt }: AppDeps) {
   const tools = createChatTools(db);
-  const chatModels = createChatModels(env, ai);
+  const chatModels = createChatModels(env, ai, chatgpt);
 
   async function loadSession(id: string) {
     const session = await db.query.chatSessions.findFirst({ where: eq(chatSessions.id, id) });

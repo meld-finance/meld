@@ -1,5 +1,6 @@
 import type {
   AISettings,
+  ChatGPTStatus,
   PhoneAccess,
   KeyTestResult,
   OllamaDetectResult,
@@ -16,7 +17,14 @@ import { api } from './api';
 const RESTART_POLL_MS = 500;
 const RESTART_TIMEOUT_MS = 60_000;
 
-const keys = { status: ['setup', 'status'] as const, settings: ['settings'] as const, phone: ['phone-access'] as const };
+const keys = {
+  status: ['setup', 'status'] as const,
+  settings: ['settings'] as const,
+  phone: ['phone-access'] as const,
+  chatgpt: ['ai', 'chatgpt'] as const,
+};
+/** How often to check whether the browser has finished signing in with ChatGPT. */
+const CHATGPT_POLL_MS = 1_500;
 
 /** Asked before login: whether to show first-run setup. */
 export function useSetupStatus() {
@@ -91,3 +99,34 @@ export function useSetPhoneAccess() {
     onSuccess: (data) => qc.setQueryData(keys.phone, data),
   });
 }
+
+/** Sign in with ChatGPT; checks back while a sign-in is waiting on the browser. */
+export function useChatGPT() {
+  return useQuery({
+    queryKey: keys.chatgpt,
+    queryFn: () => api<ChatGPTStatus>('/ai/chatgpt'),
+    refetchInterval: (q) => (q.state.data?.state === 'pending' ? CHATGPT_POLL_MS : false),
+  });
+}
+
+/** Signing in or out changes which models Ask Meld offers. */
+function useChatGPTMutation<A, R>(fn: (arg: A) => Promise<R>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSettled: async () => {
+      await qc.invalidateQueries({ queryKey: keys.chatgpt });
+      await qc.invalidateQueries({ queryKey: ['chat'] });
+    },
+  });
+}
+
+/** Returns the ChatGPT page to open in the browser. */
+export const useStartChatGPTSignIn = () =>
+  useChatGPTMutation((_: void) => api<{ authorizeUrl: string }>('/ai/chatgpt/sign-in', { method: 'POST' }));
+
+/** For when the browser isn't on Meld's computer: the address it landed on after signing in. */
+export const useFinishChatGPTSignIn = () =>
+  useChatGPTMutation((url: string) => api<ChatGPTStatus>('/ai/chatgpt/callback', { method: 'POST', body: JSON.stringify({ url }) }));
+
+export const useChatGPTSignOut = () => useChatGPTMutation((_: void) => api<{ revoked: boolean }>('/ai/chatgpt', { method: 'DELETE' }));

@@ -102,3 +102,16 @@ export type PhoneAccess =
 
 export const PhoneAccessUpdate = z.object({ enabled: z.boolean() });
 export type PhoneAccessUpdate = z.infer<typeof PhoneAccessUpdate>;
+
+/** Ask Meld on the user's own ChatGPT plan, through Sign in with ChatGPT. */
+export type ChatGPTStatus =
+  | { state: 'signed-out'; error: string | null }
+  /** Waiting for the browser to come back from ChatGPT's sign-in page. */
+  | { state: 'pending'; authorizeUrl: string }
+  | { state: 'signed-in'; email: string | null };
+
+export const ChatGPTCallback = z.object({
+  /** The address the browser landed on after signing in, for when it couldn't reach Meld itself. */
+  url: z.string().trim().min(1, 'Paste the address from your browser').max(4000),
+});
+export type ChatGPTCallback = z.infer<typeof ChatGPTCallback>;

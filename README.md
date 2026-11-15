@@ -29,7 +29,7 @@ With Meld you link your accounts once. The same data answers this week's questio
 - **A straight answer on retirement.** A projection in today's dollars with Social Security, property, what-if scenarios and 1,000 simulated markets.
 - **No surprises in April.** This year's federal and California tax estimate from your real income and trades, and a year-end checklist of moves with deadlines.
 - **Investments, cash, insurance and estate.** Time-weighted returns and look-through allocation, emergency fund runway, coverage read from your policy PDFs, and a family packet that lists every account and who to call.
-- **Ask Meld.** Ask about your own numbers with Claude, or a local model through Ollama. It can read your data but never change it.
+- **Ask Meld.** Ask about your own numbers with Claude, your ChatGPT Plus or Pro plan (no API key needed), or a local model through Ollama. It can read your data but never change it.
 
 <table>
   <tr>
@@ -75,7 +75,7 @@ The trade-off is setup: you bring your own free Plaid developer account, and Pla
 ## What you need
 
 - **Your own [Plaid](https://dashboard.plaid.com/signup) developer account.** Meld has no server of its own, so it connects to your banks with your Plaid keys. Sandbox (fake data) is free and instant. Real accounts need Plaid to approve production access; the free Trial plan covers up to 10 bank logins. [docs/plaid.md](docs/plaid.md) walks through it.
-- **Optional:** an [Anthropic API key](https://console.anthropic.com/) for Ask Meld with Claude, PDF extraction and value lookups (you pay Anthropic for usage), or [Ollama](https://ollama.com) for a local chat model.
+- **Optional:** an [Anthropic API key](https://console.anthropic.com/) for Ask Meld with Claude, PDF extraction and value lookups (you pay Anthropic for usage), a ChatGPT Plus or Pro plan for Ask Meld (sign in under **Settings → ChatGPT plan**), or [Ollama](https://ollama.com) for a local chat model.
 
 ## Install on a Mac
 

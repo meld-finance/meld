@@ -1,3 +1,4 @@
+import { createChatGPTAuth } from './ai/chatgpt-auth';
 import { createAIProvider } from './ai/provider';
 import { settingsFromEnv, withSettingsFile } from './config-file';
 import { createDb } from './db/client';
@@ -47,9 +48,10 @@ async function startMeld() {
   const plaid = createPlaidClient(env);
   const sync = { db, plaid, encryptionKey: env.ENCRYPTION_KEY };
   const ai = createAIProvider(env);
+  const chatgpt = createChatGPTAuth(env);
   const storage = createStorage(env);
   const phoneAccess = env.TAILSCALE_CONTROL ? new PhoneAccessService(`http://127.0.0.1:${env.API_PORT}`) : null;
-  app = await buildServer({ env, db, plaid, sync, ai, storage, settings, phoneAccess });
+  app = await buildServer({ env, db, plaid, sync, ai, chatgpt, storage, settings, phoneAccess });
   if (!ai) app.log.warn('No AI provider configured (ANTHROPIC_API_KEY is empty); AI features are disabled.');
 
   // Localhost only unless API_HOST says otherwise (the Docker setup listens inside its private network).

@@ -69,6 +69,9 @@ const EnvSchema = z
     /** Context window to request. Ollama's default is too small for the system prompt, snapshot and tools. */
     OLLAMA_CONTEXT_LENGTH: z.coerce.number().int().positive().default(32768),
 
+    /** Sign in with ChatGPT's tokens, encrypted; defaults to next to MELD_CONFIG_FILE, else <repo>/data/chatgpt.json. */
+    CHATGPT_AUTH_FILE: z.string().default(''),
+
     /** Uploaded documents; defaults to <repo>/data/documents. */
     DOCUMENTS_DIR: z.string().default(''),
 

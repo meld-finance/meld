@@ -4,6 +4,7 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { AppFeatures } from '@meld/shared';
 import type { PlaidApi } from 'plaid';
+import type { ChatGPTAuth } from './ai/chatgpt-auth';
 import type { AIProvider } from './ai/provider';
 import { registerAuth } from './auth';
 import type { Db } from './db/client';
@@ -15,6 +16,7 @@ import { registerAccountRoutes } from './routes/accounts';
 import { registerAlertRoutes } from './routes/alerts';
 import { registerCashRoutes } from './routes/cash';
 import { registerChatRoutes } from './routes/chat';
+import { registerChatGPTRoutes } from './routes/chatgpt';
 import { registerEstateRoutes } from './routes/estate';
 import { registerInsuranceRoutes } from './routes/insurance';
 import { registerManualAssetRoutes } from './routes/manual-assets';
@@ -38,6 +40,8 @@ export type AppDeps = {
   sync: SyncDeps;
   /** Null when no AI provider is configured. */
   ai: AIProvider | null;
+  /** Sign in with ChatGPT, for Ask Meld on the user's plan; tests can leave it out. */
+  chatgpt?: ChatGPTAuth | null;
   storage: DocumentStorage;
   /** For changing settings from the app; tests can leave it out. */
   settings?: SettingsDeps;
@@ -127,6 +131,7 @@ async function registerApi(app: FastifyInstance, deps: AppDeps) {
   app.get('/me', async () => ({ user: 'owner' }));
   await registerSetupRoutes(app, env, deps.settings ?? NO_SETTINGS, true);
   if (deps.phoneAccess) await registerPhoneAccessRoutes(app, env, deps.phoneAccess);
+  if (deps.chatgpt) await registerChatGPTRoutes(app, deps.chatgpt);
   app.get('/features', async (): Promise<AppFeatures> => ({ cloudAI: deps.ai !== null }));
 
   await registerPlaidRoutes(app, deps);

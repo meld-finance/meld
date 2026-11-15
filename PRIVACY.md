@@ -12,6 +12,7 @@ Meld talks to these outside services only. Each one is optional except Plaid.
 | | Plan → Insurance → Upload PDF | The **whole PDF** you upload. |
 | | Home or vehicle value lookup | The property address, or the vehicle's year, make, model, mileage and ZIP code. |
 | | Accounts → Investments → Exposure | Fund tickers and names. |
+| **OpenAI** (if you sign in with ChatGPT) | Ask Meld with a ChatGPT model, on your ChatGPT plan | The same as Ask Meld above. Requests are sent with `store: false`. |
 | **Ollama** (if you set it up) | Ask Meld with a local model | The same as Ask Meld above, but to Ollama on your own machine or network, so it never leaves your control. |
 | **Tailscale** (if you turn on phone access) | While it's on | Your phone reaches Meld over your own tailnet, encrypted end to end between your devices. Tailscale's servers coordinate the connection but can't see Meld's traffic. Off by default. |
 | **ntfy** (if you enter a topic URL under Alerts) | Each alert at or above the severity you pick, and **Send test** | The alert's title and message: account and merchant names, amounts and due dates. Anyone who knows the topic name can read a topic on the public ntfy.sh server, so pick a long random one, or run your own ntfy server to keep alerts on your network. Off unless you set it up; alerts otherwise stay in the app. |
@@ -24,7 +25,7 @@ Anthropic's API doesn't train on your data by default and keeps it for a limited
 
 ## What's protected on disk
 
-- Plaid access tokens, full account and policy numbers kept for the family packet, uploaded insurance and estate PDFs, and Plaid and Anthropic keys saved from the app are encrypted (AES-256-GCM) with `ENCRYPTION_KEY`. The Mac app makes that key on first run and keeps it encrypted with your macOS Keychain; Docker reads it from `.env`. A copy of the data or documents folder can't be opened without it.
+- Plaid access tokens, full account and policy numbers kept for the family packet, uploaded insurance and estate PDFs, Plaid and Anthropic keys saved from the app, and your ChatGPT sign-in are encrypted (AES-256-GCM) with `ENCRYPTION_KEY`. The Mac app makes that key on first run and keeps it encrypted with your macOS Keychain; Docker reads it from `.env`. A copy of the data or documents folder can't be opened without it.
 - The passphrase you choose in the app is stored only as a salted scrypt hash.
 - Everything else (transactions, balances, holdings) is stored unencrypted in the database, protected by your computer's own security. Turn on full-disk encryption (FileVault on macOS, BitLocker on Windows) if you haven't already.
 - With Docker, `.env` holds your secrets. `scripts/setup.sh` creates it readable only by you; don't commit or share it.

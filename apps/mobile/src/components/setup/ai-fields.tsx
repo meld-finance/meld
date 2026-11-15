@@ -46,7 +46,7 @@ export function AIFields({ value, onChange, savedKey }: { value: AIForm; onChang
       <ThemedText type="small" themeColor="textSecondary">
         Both are optional, and Meld works without either. An Anthropic key turns on every AI feature: Ask Meld, reading
         insurance PDFs, and home and car value lookups. Ollama runs models on this computer, so nothing leaves it, but only
-        for Ask Meld.
+        for Ask Meld. To use your ChatGPT plan for Ask Meld instead, sign in under “ChatGPT plan” in Settings.
       </ThemedText>
 
       <ThemedText type="cardTitle">Anthropic (Claude)</ThemedText>
