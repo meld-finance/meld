@@ -16,8 +16,8 @@ Meld started because no single app answered everyday money questions and long-te
 
 - **Retirement planners** (ProjectionLab, Boldin) do the long view well, but balances are typed in by hand, or synced only on a paid plan or through another app, and they don't tell you what you spent last month or which bills went up.
 - **Budgeting apps** (Monarch, YNAB, Copilot) track spending for a yearly fee, and leave retirement, taxes, insurance and estate planning to a spreadsheet.
-- **AI assistants** (ChatGPT and Claude) can now link bank accounts on paid plans, but that's one more place to connect everything, and they see only what you link, not your home, policies, tax estimate or retirement plan.
-- **Self-hosted apps** (Actual, Firefly III, MoneyMatter) are free and keep your data yours, but they're mostly about budgeting, and bank syncing usually means running a server with Docker and paying for SimpleFIN.
+- **AI assistants** (ChatGPT and Claude) can now link bank accounts, but that's one more place to connect everything, and they see only what you link, not your home, policies, tax estimate or retirement plan.
+- **Self-hosted apps** (Actual, Firefly III) are free and keep your data yours, but they're mostly about budgeting, and bank syncing usually means running a server with Docker and paying for SimpleFIN.
 
 With Meld you link your accounts once. The same data answers this week's questions (what's recurring, where the money went, will autopay clear) and the big ones (am I on track, what will I owe), and Ask Meld sees all of it when you ask for tax or money advice.
 
@@ -58,12 +58,11 @@ More in [docs/features.md](docs/features.md).
 | ProjectionLab | Free; Premium $129/yr | Retirement and long-term plans | None: type balances in, or pull them from Monarch, YNAB or Lunch Money with a plugin | Their servers | 🟢 Easy, but keeping balances current is on you |
 | Boldin | Free; PlannerPlus $168/yr | Retirement plans | PlannerPlus only | Their servers | 🟢 Easy |
 | ***AI assistants*** | | | | | |
-| ChatGPT finance tools | Pro plan | Questions about the accounts you link | Built in | OpenAI's servers | 🟢 Easy |
-| Claude Personal Finance (beta) | Pro, Max or Ultra plan | Questions about the accounts you link | Built in | Anthropic's servers | 🟢 Easy |
+| ChatGPT Finances | Free on every US plan; Plus $20/mo | Questions about the accounts you link | Built in | OpenAI's servers | 🟢 Easy |
+| Claude Personal Finance (beta) | Pro $20/mo ($17/mo billed yearly), Max $100/mo or Ultra $200/mo | Questions about the accounts you link | Built in | Anthropic's servers | 🟢 Easy |
 | ***Self-hosted, open source*** | | | | | |
 | Actual Budget | Free; SimpleFIN $15/yr for US bank sync | Envelope budgeting | Through SimpleFIN, and only with a server | Your computer or your server | 🟢 Easy on one computer; 🔴 Technical for bank sync and phone access (Docker server, or paid PikaPods hosting) |
 | Firefly III | Free; SimpleFIN $15/yr for US bank sync | Transactions, budgets, reports | Through a separate Data Importer and SimpleFIN | Your server | 🔴 Technical: Docker Compose with a database, plus a second container for imports |
-| MoneyMatter | Free self-hosted; cloud from $30/yr | Budgets, bills, investments, loans, net worth | SimpleFIN and a few others | Your server, or their cloud | 🔴 Technical self-hosted (Docker Compose behind a reverse proxy); 🟢 easy in their cloud |
 
 🟢 Easy: sign up and go. 🟡 Some setup: an app to install and accounts to make, no command line. 🔴 Technical: run a server with Docker, a database and a web address.
 
