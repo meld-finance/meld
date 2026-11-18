@@ -30,3 +30,5 @@ mac:
     LSUIElement: false
 dmg:
   title: Meld
+  # Name the arch on every build (electron-builder leaves x64 off by default).
+  artifactName: ${productName}-${version}-${arch}.${ext}
