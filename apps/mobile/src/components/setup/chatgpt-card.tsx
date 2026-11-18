@@ -11,6 +11,7 @@ import { prefs } from '@/lib/prefs';
 import { useChatGPT, useChatGPTSignOut, useFinishChatGPTSignIn, useStartChatGPTSignIn } from '@/lib/setup';
 
 const MANAGE_USAGE_URL = 'https://chatgpt.com/settings/usage';
+const PLANS_URL = 'https://learn.chatgpt.com/docs/sign-in-with-chatgpt';
 /** Remembers that the "using your ChatGPT plan" notice was seen, so it shows only after the first sign-in. */
 const WELCOMED_KEY = 'chatgptWelcomed';
 
@@ -105,10 +106,13 @@ export function ChatGPTCard() {
         </>
       ) : (
         <>
+          <ThemedText type="small">
+            Sign in to use your ChatGPT Go, Plus, Pro or Business plan for Ask Meld, with no API key or extra cost. Free plans
+            can’t share usage, and on Business an admin has to allow Meld first. {link('Which plans work', PLANS_URL)}
+          </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Have ChatGPT Plus or Pro? Sign in to use your plan for Ask Meld, with no API key or extra cost. Questions, with the
-            account data they need, are sent to OpenAI. Reading policy PDFs and home and car value lookups still need an
-            Anthropic key.
+            Questions, with the account data they need, are sent to OpenAI. Reading policy PDFs and home and car value lookups
+            still need an Anthropic key.
           </ThemedText>
           {!!s.error && (
             <ThemedText type="small" themeColor="negative">

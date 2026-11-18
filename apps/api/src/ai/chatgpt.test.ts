@@ -80,6 +80,24 @@ describe('ChatGPTAuth', () => {
     reloaded.close();
   });
 
+  it('explains a refused code exchange and keeps the registration for the retry', async () => {
+    const file = tempFile();
+    const auth = new ChatGPTAuth(file, key);
+    const url = new URL(await auth.startSignIn());
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: 'invalid_grant' }, { status: 400 })));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(
+      auth.finishFromUrl(`http://127.0.0.1:1455/auth/callback?code=c1&state=${url.searchParams.get('state')}&client_id=oaiapp_1`),
+    ).rejects.toThrow('Free can’t share usage');
+    expect(auth.status()).toMatchObject({ state: 'signed-out', error: expect.stringContaining('Go, Plus, Pro or Business') });
+
+    const reloaded = new ChatGPTAuth(file, key);
+    const retry = new URL(await reloaded.startSignIn());
+    expect(retry.searchParams.get('client_id')).toBe('oaiapp_1');
+    expect(retry.searchParams.has('agent_name_hint')).toBe(false);
+    reloaded.close();
+  });
+
   it('rejects a sign-in whose ID token doesn’t match the request', async () => {
     const auth = new ChatGPTAuth(tempFile(), key);
     await expect(signIn(auth, { nonce: 'other' })).rejects.toThrow('didn’t check out');

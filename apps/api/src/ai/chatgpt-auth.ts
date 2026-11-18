@@ -90,6 +90,9 @@ function decodeJwt(token: string): Record<string, unknown> {
   return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Record<string, unknown>;
 }
 
+const NOT_ELIGIBLE =
+  'ChatGPT didn’t let Meld use this plan. It needs Go, Plus, Pro or Business (with Meld allowed by an admin); Free can’t share usage. Pick another workspace, or use an API key.';
+
 const CALLBACK_PAGE = (message: string) =>
   `<!doctype html><meta charset="utf-8"><title>Meld</title>` +
   `<body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem;line-height:1.5">` +
@@ -223,6 +226,7 @@ export class ChatGPTAuth {
     try {
       await this.completeSignIn(pending, params);
     } catch (err) {
+      if (!(err instanceof HttpError)) console.warn('[chatgpt] sign-in failed:', err);
       this.lastError = err instanceof HttpError ? err.message : 'ChatGPT sign-in failed. Try again.';
       throw err;
     }
@@ -239,15 +243,30 @@ export class ChatGPTAuth {
     }
     const clientId = returned ?? pending.clientId;
     if (clientId === DYNAMIC_CLIENT_ID) throw new HttpError(502, 'ChatGPT didn’t register Meld. Try again.');
+    // Keep the registration before exchanging the code, so a retry after a failed exchange
+    // reauthorizes it instead of registering again, and ChatGPT can say why it refused.
+    if (this.stored.clientId !== clientId) {
+      this.stored.clientId = clientId;
+      await this.save();
+    }
 
-    const tokens = await this.tokenRequest({
-      grant_type: 'authorization_code',
-      client_id: clientId,
-      code,
-      code_verifier: pending.verifier,
-      redirect_uri: pending.redirectUri,
-      resource: RESOURCE,
-    });
+    let tokens: TokenResponse;
+    try {
+      tokens = await this.tokenRequest({
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        code,
+        code_verifier: pending.verifier,
+        redirect_uri: pending.redirectUri,
+        resource: RESOURCE,
+      });
+    } catch (err) {
+      if (!(err instanceof TokenError)) throw err;
+      console.warn(`[chatgpt] code exchange refused: ${err.code}`);
+      // ChatGPT approves the consent page but then won't issue a token when the workspace or plan can't share usage.
+      if (err.code === 'invalid_grant') throw new HttpError(403, NOT_ELIGIBLE);
+      throw new HttpError(502, `ChatGPT sign-in failed (${err.code}). Try again.`);
+    }
     if (!tokens.id_token || !tokens.access_token || !tokens.refresh_token) {
       throw new HttpError(502, 'ChatGPT sign-in didn’t return the expected tokens. Try again.');
     }
@@ -258,9 +277,7 @@ export class ChatGPTAuth {
       throw new HttpError(502, 'ChatGPT’s sign-in response didn’t check out. Try again.');
     }
     if (typeof claims.exp === 'number' && claims.exp * 1000 < Date.now()) throw new HttpError(502, 'ChatGPT’s sign-in had expired. Try again.');
-    this.stored.clientId = clientId;
     if (!this.scopesOf(tokens).includes(PLAN_SCOPE)) {
-      await this.save();
       throw new HttpError(403, 'Signed in, but ChatGPT didn’t allow Meld to use your plan. Try again and allow plan usage.');
     }
     this.stored.session = {
