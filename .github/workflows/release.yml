@@ -19,7 +19,7 @@ jobs:
       matrix:
         arch: [arm64, x64]
     # Apple silicon runner; the x64 build thins the bundled Postgres to x86_64.
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       EXPO_NO_TELEMETRY: 1
       CSC_LINK: ${{ secrets.CSC_LINK }}
