@@ -11,6 +11,9 @@ files:
   - dist/main.js
   - build/trayTemplate*.png
   - package.json
+  # main.js is bundled; Postgres ships thinned in Resources/postgres. Without this,
+  # the optional @embedded-postgres package is packed again, unthinned (~320 MB).
+  - "!node_modules/**"
 extraResources:
   - from: dist/resources
     to: .
