@@ -1,4 +1,5 @@
-# `npm run desktop:build` makes dist/mac-<arch>/Meld.app; `npm run desktop:dist` makes a .dmg.
+# `npm run desktop:build` makes dist/mac-<arch>/Meld.app (win-unpacked on Windows); `npm run desktop:dist`
+# makes a .dmg (a setup .exe on Windows). Build each on its own platform.
 # Signing and notarization happen when CSC_LINK / APPLE_ID etc. are set; otherwise the
 # app is unsigned (open it the first time with right-click → Open).
 appId: app.meld.desktop
@@ -10,8 +11,10 @@ directories:
 files:
   - dist/main.js
   - build/trayTemplate*.png
+  - build/icon.png
   - package.json
-  # main.js is bundled; Postgres ships thinned in Resources/postgres. Without this,
+  # main.js is bundled; Postgres ships thinned in Resources/postgres and the keyring package in
+  # Resources/keyring. Without this,
   # the optional @embedded-postgres package is packed again, unthinned (~320 MB).
   - "!node_modules/**"
 extraResources:
@@ -35,3 +38,10 @@ dmg:
   title: Meld
   # Name the arch on every build (electron-builder leaves x64 off by default).
   artifactName: ${productName}-${version}-${arch}.${ext}
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  artifactName: ${productName}-${version}-${arch}-setup.${ext}

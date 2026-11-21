@@ -3,7 +3,7 @@
 ```
 apps/api        Fastify + TypeScript API: Plaid, AI, data (Postgres via Drizzle); also serves the web app under /api
 apps/mobile     Expo (expo-router) app → web, iOS, Android
-apps/desktop    Electron app for macOS: bundled Postgres + the API + the web app, menu bar, Tailscale
+apps/desktop    Electron app for macOS (Windows builds untested): bundled Postgres + the API + the web app, menu bar, Tailscale
 packages/shared Zod schemas + types shared by app and API
 ```
 
@@ -29,7 +29,9 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 - `npm run desktop:dev` opens the Electron app against the API source and the Expo dev server (hot reload on both), with its own Postgres and data in `~/Library/Application Support/Meld Dev`. Stop `npm run dev` first: both use port 4000. Set `MELD_USER_DATA=<folder>` to try a fresh first run.
 - `npm run desktop:build` builds `apps/desktop/release/mac-<arch>/Meld.app` in a minute or two, for checking the real thing. `npm run desktop:dist` makes the `.dmg` for this Mac's architecture. For Intel Macs: `cd apps/desktop && node scripts/build.mjs --arch x64 && npx electron-builder --x64`.
 - Packaged, the API is one esbuild bundle run in an Electron utility process, Postgres is the [embedded-postgres](https://github.com/leinelissen/embedded-postgres) build thinned to one architecture, and the web app is the same Expo export Docker serves. Logs: menu bar → **Show Log**.
-- **Sharing real data with dev.** Plaid bills per linked bank, so link each bank once (in the Mac app) and copy the data to `npm run dev` rather than linking it in both. Quit Meld first; both commands run its Postgres themselves, and macOS may ask once to let Electron use the "Meld Safe Storage" Keychain item.
+- **Keys.** Meld's encryption key, session secret and Postgres password are one item in the macOS Keychain (Windows: Credential Manager), service `Meld`, account `secrets` (`secrets:<folder>` for other data folders, e.g. `secrets:Meld Dev`). Losing it means re-linking every bank, and Meld refuses to start rather than make new keys over existing data. Builds before this kept them in `secrets.bin`, encrypted with Electron's safeStorage; the first start of a newer build copies them into the Keychain and renames the file `secrets.bin.migrated`.
+- **Windows.** `npm run desktop:dist` on a Windows machine makes `Meld-<version>-x64-setup.exe` with Windows Postgres (`@embedded-postgres/windows-x64`). Build each platform on its own OS. Not yet tested on Windows.
+- **Sharing real data with dev.** Plaid bills per linked bank, so link each bank once (in the Mac app) and copy the data to `npm run dev` rather than linking it in both. Quit Meld first; both commands run its Postgres themselves, and macOS may ask once to let Electron use the "Meld" Keychain item.
   - `npm run desktop:seed-from-dev` (once): copies dev's production database and documents into the Mac app, which takes dev's `ENCRYPTION_KEY` so the Plaid tokens still work. It stops if the Mac app has banks dev doesn't.
   - `npm run dev:pull-desktop` (any time): replaces dev's production database and documents with the Mac app's, and sets dev's `ENCRYPTION_KEY` to match. It stops if dev has banks the Mac app doesn't. `MELD_TRANSFER_FORCE=1` overrides either check.
   - Both set `PLAID_SHARED_ITEMS=true` in `.env`, so unlinking a bank in dev removes it there only and the Mac app keeps it. Restart `npm run dev` and the Docker container afterwards.

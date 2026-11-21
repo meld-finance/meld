@@ -1,5 +1,6 @@
 import { BrowserWindow, Menu, app, dialog, shell } from 'electron';
 import { ApiProcess } from './api';
+import { systemEnv } from './env';
 import { log, logFile } from './log';
 import { isDev, paths } from './paths';
 import { freePort } from './ports';
@@ -73,6 +74,8 @@ function showWindow(path = '') {
     minHeight: 560,
     title: 'Meld',
     show: false,
+    // Windows: the menu bar shows when Alt is pressed, as in most Windows apps. No effect on macOS.
+    autoHideMenuBar: true,
     webPreferences: { sandbox: true, contextIsolation: true },
   });
   window.once('ready-to-show', () => window?.show());
@@ -108,7 +111,7 @@ async function start() {
   const port = isDev ? DEV_API_PORT : await freePort(PREFERRED_PORT);
   const env: Record<string, string> = {
     // A clean environment: settings come from Meld's own files, not whatever the shell had.
-    PATH: '/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin',
+    ...systemEnv(),
     HOME: app.getPath('home'),
     TMPDIR: app.getPath('temp'),
     NODE_ENV: isDev ? 'development' : 'production',
@@ -157,7 +160,7 @@ function runApp() {
   void app.whenReady().then(async () => {
     Menu.setApplicationMenu(
       Menu.buildFromTemplate([
-        { role: 'appMenu' },
+        process.platform === 'darwin' ? { role: 'appMenu' } : { role: 'fileMenu' },
         { role: 'editMenu' },
         { role: 'viewMenu' },
         { role: 'windowMenu' },

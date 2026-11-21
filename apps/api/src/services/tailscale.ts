@@ -3,8 +3,11 @@ import { existsSync } from 'node:fs';
 import type { PhoneAccess } from '@meld/shared';
 import { HttpError } from '../lib/http';
 
-/** Where the CLI lives: the Mac app (App Store or standalone), Homebrew, or the PATH. */
-const CLI_CANDIDATES = ['/Applications/Tailscale.app/Contents/MacOS/Tailscale', '/opt/homebrew/bin/tailscale', '/usr/local/bin/tailscale'];
+/** Where the CLI lives: the Mac app (App Store or standalone), Homebrew, the Windows installer, or the PATH. */
+const CLI_CANDIDATES =
+  process.platform === 'win32'
+    ? [`${process.env.ProgramFiles ?? 'C:\\Program Files'}\\Tailscale\\tailscale.exe`]
+    : ['/Applications/Tailscale.app/Contents/MacOS/Tailscale', '/opt/homebrew/bin/tailscale', '/usr/local/bin/tailscale'];
 const TIMEOUT_MS = 15_000;
 const HTTPS_PORT = 443;
 /** Links in Tailscale's own messages, e.g. to turn Serve on for the tailnet. */

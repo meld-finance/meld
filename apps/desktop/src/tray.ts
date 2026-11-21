@@ -3,14 +3,23 @@ import { Menu, Tray, app, nativeImage, shell } from 'electron';
 import { logFile } from './log';
 import { paths } from './paths';
 
-const ICON = 'trayTemplate.png';
+const isMac = process.platform === 'darwin';
 
-/** The menu bar item: Meld keeps running there with the window closed, so a phone can still reach it. */
-export function createTray(actions: { open: () => void; openSettings: () => void; quit: () => void }) {
-  const icon = nativeImage.createFromPath(path.join(app.getAppPath(), 'build', ICON));
+/** The icon: a template macOS tints for the menu bar; the app icon in the Windows notification area. */
+function trayIcon() {
+  const build = path.join(app.getAppPath(), 'build');
+  if (!isMac) return nativeImage.createFromPath(path.join(build, 'icon.png')).resize({ width: 32, height: 32, quality: 'best' });
+  const icon = nativeImage.createFromPath(path.join(build, 'trayTemplate.png'));
   icon.setTemplateImage(true);
-  const tray = new Tray(icon);
+  return icon;
+}
+
+/** The menu bar (or notification area) item: Meld keeps running there with the window closed, so a phone can still reach it. */
+export function createTray(actions: { open: () => void; openSettings: () => void; quit: () => void }) {
+  const tray = new Tray(trayIcon());
   tray.setToolTip('Meld');
+  // On Windows a click on the icon opens the app and a right-click shows the menu.
+  if (!isMac) tray.on('click', actions.open);
 
   const update = () => {
     const openAtLogin = app.getLoginItemSettings().openAtLogin;

@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import postgres from 'postgres';
+import { systemEnv } from './env';
 import { log } from './log';
 import { paths } from './paths';
 import { freePort } from './ports';
@@ -11,12 +12,18 @@ const USER = 'meld';
 /** Real data and Plaid sandbox data, kept apart as in the Docker setup. */
 const DATABASES = ['meld', 'meld_sandbox'];
 const READY_TIMEOUT_MS = 30_000;
+const isWindows = process.platform === 'win32';
+/** en_US sorting everywhere; Windows takes BCP 47 names, and UTF8 works with any locale there. */
+const LOCALE = isWindows ? 'en-US' : 'en_US.UTF-8';
+
+const bin = (name: string) => path.join(paths.postgresBin(), isWindows ? `${name}.exe` : name);
+const env = () => (isWindows ? systemEnv() : { LC_ALL: LOCALE, PATH: '/usr/bin:/bin' });
 
 export type RunningPostgres = { url: (db: string) => string; stop: () => Promise<void> };
 
-function run(bin: string, args: string[]): Promise<void> {
+function run(name: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(path.join(paths.postgresBin(), bin), args, { env: { LC_ALL: 'en_US.UTF-8', PATH: '/usr/bin:/bin' } });
+    const child = spawn(bin(name), args, { env: env() });
     let output = '';
     child.stdout.on('data', (d) => (output += d));
     child.stderr.on('data', (d) => (output += d));
@@ -24,7 +31,7 @@ function run(bin: string, args: string[]): Promise<void> {
     child.on('close', (code) => {
       log('postgres', output);
       if (code === 0) resolve();
-      else reject(new Error(`${bin} failed (${code}): ${output.slice(-500)}`));
+      else reject(new Error(`${name} failed (${code}): ${output.slice(-500)}`));
     });
   });
 }
@@ -35,7 +42,7 @@ async function initialise(dataDir: string, password: string) {
   const pwfile = path.join(tmpdir(), `meld-pw-${process.pid}`);
   writeFileSync(pwfile, password, { mode: 0o600 });
   try {
-    await run('initdb', [`--pgdata=${dataDir}`, `--username=${USER}`, `--pwfile=${pwfile}`, '--auth=scram-sha-256', '--encoding=UTF8', '--locale=en_US.UTF-8']);
+    await run('initdb', [`--pgdata=${dataDir}`, `--username=${USER}`, `--pwfile=${pwfile}`, '--auth=scram-sha-256', '--encoding=UTF8', `--locale=${LOCALE}`]);
   } catch (err) {
     // Leave no half-made folder behind, or the next start would think it's ready.
     rmSync(dataDir, { recursive: true, force: true });
@@ -55,9 +62,9 @@ export async function startPostgres(password: string): Promise<RunningPostgres> 
   const port = await freePort();
 
   const child: ChildProcess = spawn(
-    path.join(paths.postgresBin(), 'postgres'),
+    bin('postgres'),
     ['-D', dataDir, '-p', String(port), '-c', 'listen_addresses=127.0.0.1', '-c', 'unix_socket_directories='],
-    { env: { LC_ALL: 'en_US.UTF-8', PATH: '/usr/bin:/bin' } },
+    { env: env() },
   );
   let exited = false;
   child.on('exit', (code) => {
@@ -96,8 +103,10 @@ export async function startPostgres(password: string): Promise<RunningPostgres> 
       new Promise<void>((resolve) => {
         if (exited) return resolve();
         child.once('exit', () => resolve());
-        // SIGINT is Postgres's "fast" shutdown: roll back open transactions and stop cleanly.
-        child.kill('SIGINT');
+        // Postgres's "fast" shutdown: roll back open transactions and stop cleanly. That's SIGINT
+        // on macOS; Windows has no signals (kill() would end it abruptly), so pg_ctl asks instead.
+        if (isWindows) run('pg_ctl', ['stop', `--pgdata=${dataDir}`, '--mode=fast', '--no-wait']).catch(() => child.kill());
+        else child.kill('SIGINT');
       }),
   };
 }
