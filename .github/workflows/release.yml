@@ -1,5 +1,6 @@
-# Push a tag like v0.2.0 to build the Mac app for Apple silicon and Intel and attach the
-# .dmg files to a draft GitHub Release. Review the draft, then publish it.
+# Bump "version" in apps/desktop/package.json, commit, then push the matching tag (0.2.0 → v0.2.0)
+# to build the Mac app for Apple silicon and Intel and attach the .dmg files to a draft GitHub
+# Release. Review the draft, then publish it.
 #
 # Signing and notarization are optional: add these repository secrets to turn them on
 # (see electron-builder's docs). Without them the app is unsigned.
@@ -36,12 +37,20 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --no-audit --no-fund
+      # apps/desktop/package.json is the one place the version lives, so dev runs, local builds
+      # and releases all show the same number in About Meld.
+      - name: Check the tag matches apps/desktop/package.json
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match apps/desktop/package.json version $version. Bump the version, commit, and tag v$version."
+            exit 1
+          fi
       - name: Build the ${{ matrix.arch }} .dmg
         working-directory: apps/desktop
-        # The version comes from the tag (v0.2.0 → 0.2.0), not apps/desktop/package.json.
         run: |
           node scripts/build.mjs --arch ${{ matrix.arch }}
-          npx electron-builder --${{ matrix.arch }} --publish never "-c.extraMetadata.version=${GITHUB_REF_NAME#v}"
+          npx electron-builder --${{ matrix.arch }} --publish never
       - uses: actions/upload-artifact@v4
         with:
           name: dmg-${{ matrix.arch }}

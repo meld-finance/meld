@@ -55,6 +55,6 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 
 ## Releases
 
-Pushing a tag such as `v0.2.0` runs `.github/workflows/release.yml`: it builds the Apple silicon and Intel `.dmg` files (version taken from the tag) and attaches them to a draft GitHub Release with generated notes. Check the draft, then publish it. Add the signing secrets listed at the top of that workflow to sign and notarize the builds.
+The app's version lives in `apps/desktop/package.json` (it's what About Meld shows). To release, bump it there (`npm version 0.2.0 -w apps/desktop --no-git-tag-version`), commit, and push the matching tag: `git tag v0.2.0 && git push origin v0.2.0`. That runs `.github/workflows/release.yml`, which fails if the tag and `package.json` disagree, builds the Apple silicon and Intel `.dmg` files and attaches them to a draft GitHub Release with generated notes. Check the draft, then publish it. Add the signing secrets listed at the top of that workflow to sign and notarize the builds.
 
 The landing page lives in `site/` and is published to GitHub Pages by `.github/workflows/pages.yml` whenever `site/` changes on `main`. Preview it with `npm run site:dev` (http://127.0.0.1:8000), which reloads the page whenever a file in `site/` changes.
