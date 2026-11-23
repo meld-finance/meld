@@ -4,7 +4,7 @@ Meld holds your financial data, so security reports are very welcome.
 
 ## Reporting a vulnerability
 
-Please report it privately: the repository's **Security** tab → **Report a vulnerability** ([direct link](https://github.com/shimizust/meld-finance/security/advisories/new)). Don't open a public issue or PR for it.
+Please report it privately: the repository's **Security** tab → **Report a vulnerability** ([direct link](https://github.com/meld-finance/meld/security/advisories/new)). Don't open a public issue or PR for it.
 
 Include what's affected, how to reproduce it (with Plaid Sandbox data, never real accounts), and what someone could do with it. Meld has one maintainer, so a reply may take a few days. Once a fix is out, you'll be credited in the advisory unless you'd rather not be.
 

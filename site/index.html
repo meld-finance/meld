@@ -7,7 +7,7 @@
 <meta name="description" content="Meld puts your bank accounts, cards, investments, loans and insurance in one place, with an AI assistant that knows your numbers. Free and open source. It runs on your own computer: no subscription, no cloud, no account.">
 <meta property="og:title" content="Meld — your finances, on your own computer">
 <meta property="og:description" content="Accounts, spending, bills, retirement and tax planning, with an AI assistant. Free, open source and local: no subscription, no cloud, no account.">
-<meta property="og:image" content="https://shimizust.github.io/meld-finance/images/home.jpg">
+<meta property="og:image" content="https://meld-finance.github.io/meld/images/home.jpg">
 <meta name="theme-color" content="#1a7fe6">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -333,7 +333,7 @@
       <a class="hide-sm" href="#compare">Compare</a>
       <a class="hide-sm" href="#privacy">Privacy</a>
       <a href="#install">Install</a>
-      <a href="https://github.com/shimizust/meld-finance">GitHub</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
     </nav>
   </div>
 </header>
@@ -346,7 +346,7 @@
       <h1>Your whole financial picture. <span class="soft">No subscription, no cloud.</span></h1>
       <p class="lede">Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer, so your financial data never sits on someone else's server.</p>
       <div class="actions">
-        <a class="btn btn-primary" href="https://github.com/shimizust/meld-finance/releases/latest">
+        <a class="btn btn-primary" href="https://github.com/meld-finance/meld/releases/latest">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>
           Download for Mac
         </a>
@@ -711,7 +711,7 @@
       <div>
         <h2>What it really costs</h2>
         <p>Meld itself is free. The only bills are for services you choose to use, paid directly to them, with no markup and no middleman.</p>
-        <p class="fineprint">Plaid's free Trial plan is for Plaid teams created after April 15, 2026; older teams can use Limited Production. Plaid sets its own prices; <a href="https://github.com/shimizust/meld-finance/blob/main/docs/plaid.md">docs/plaid.md</a> walks through it.</p>
+        <p class="fineprint">Plaid's free Trial plan is for Plaid teams created after April 15, 2026; older teams can use Limited Production. Plaid sets its own prices; <a href="https://github.com/meld-finance/meld/blob/main/docs/plaid.md">docs/plaid.md</a> walks through it.</p>
       </div>
       <div class="costs">
         <div class="cost"><strong>Meld</strong><span class="price">$0</span><span class="why">Free and open source, with no paid tier.</span></div>
@@ -732,7 +732,7 @@
         <div class="flow"><strong>Yahoo Finance</strong><span>Ticker symbols only, for daily prices.</span></div>
         <div class="flow"><strong>Your phone</strong><span>Over Tailscale, a private network of only your own devices. Meld never opens itself to the internet.</span></div>
       </div>
-      <p class="fineprint" style="margin-top:20px"><a href="https://github.com/shimizust/meld-finance/blob/main/PRIVACY.md">Exactly what goes where →</a> · <a href="https://github.com/shimizust/meld-finance/blob/main/SECURITY.md">Security model →</a></p>
+      <p class="fineprint" style="margin-top:20px"><a href="https://github.com/meld-finance/meld/blob/main/PRIVACY.md">Exactly what goes where →</a> · <a href="https://github.com/meld-finance/meld/blob/main/SECURITY.md">Security model →</a></p>
     </div>
   </section>
 
@@ -743,7 +743,7 @@
       <div class="steps">
         <div class="step">
           <h3>Download Meld</h3>
-          <p><a href="https://github.com/shimizust/meld-finance/releases/latest">Get the .dmg</a> for Apple silicon or Intel and drag Meld to Applications. The first time, allow it under <strong>System Settings → Privacy &amp; Security → Open Anyway</strong>.</p>
+          <p><a href="https://github.com/meld-finance/meld/releases/latest">Get the .dmg</a> for Apple silicon or Intel and drag Meld to Applications. The first time, allow it under <strong>System Settings → Privacy &amp; Security → Open Anyway</strong>.</p>
         </div>
         <div class="step">
           <h3>Set it up</h3>
@@ -751,7 +751,7 @@
         </div>
         <div class="step">
           <h3>Try Sandbox, then go live</h3>
-          <p>Look around with test data (<code>user_good</code> / <code>pass_good</code>), then <a href="https://github.com/shimizust/meld-finance/blob/main/docs/plaid.md">connect your real accounts</a>.</p>
+          <p>Look around with test data (<code>user_good</code> / <code>pass_good</code>), then <a href="https://github.com/meld-finance/meld/blob/main/docs/plaid.md">connect your real accounts</a>.</p>
         </div>
       </div>
     </div>
@@ -764,8 +764,8 @@
         <p>Reach the Mac app from your phone over <a href="https://tailscale.com">Tailscale</a> while your Mac is awake: turn on phone access, scan the QR code and add Meld to your home screen.</p>
         <p>For an always-on setup, run Meld with Docker on a home server, NAS or any Linux box. It listens on localhost only; reach it from your phone with <code>tailscale serve</code>.</p>
       </div>
-      <pre><code>git clone https://github.com/shimizust/meld-finance.git
-cd meld-finance
+      <pre><code>git clone https://github.com/meld-finance/meld.git
+cd meld
 ./scripts/setup.sh
 docker compose up -d --build
 # open http://localhost:8080</code></pre>
@@ -781,13 +781,13 @@ docker compose up -d --build
 
 <footer>
   <div class="wrap">
-    <span>Meld is free software under the <a href="https://github.com/shimizust/meld-finance/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
     <nav>
-      <a href="https://github.com/shimizust/meld-finance">GitHub</a>
-      <a href="https://github.com/shimizust/meld-finance/blob/main/docs/features.md">All features</a>
-      <a href="https://github.com/shimizust/meld-finance/blob/main/PRIVACY.md">Privacy</a>
-      <a href="https://github.com/shimizust/meld-finance/blob/main/SECURITY.md">Security</a>
-      <a href="https://github.com/shimizust/meld-finance/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+      <a href="https://github.com/meld-finance/meld/blob/main/docs/features.md">All features</a>
+      <a href="https://github.com/meld-finance/meld/blob/main/PRIVACY.md">Privacy</a>
+      <a href="https://github.com/meld-finance/meld/blob/main/SECURITY.md">Security</a>
+      <a href="https://github.com/meld-finance/meld/blob/main/CONTRIBUTING.md">Contributing</a>
     </nav>
   </div>
 </footer>

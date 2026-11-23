@@ -4,7 +4,7 @@
 
 Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer: there's no Meld server and no account to create, and your data stays in a database on your machine.
 
-[Download for Mac](https://github.com/shimizust/meld-finance/releases/latest) · [Website](https://shimizust.github.io/meld-finance/) · [Features](docs/features.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
+[Download for Mac](https://github.com/meld-finance/meld/releases/latest) · [Website](https://meld-finance.github.io/meld/) · [Features](docs/features.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
 
 ![Meld's Home screen: to-dos with deadlines, the next two weeks of bills, and Ask Meld](site/images/home.jpg)
 
@@ -79,7 +79,7 @@ The trade-off is setup: you bring your own free Plaid developer account, and Pla
 
 ## Install on a Mac
 
-1. [Download the latest release](https://github.com/shimizust/meld-finance/releases/latest): `Meld-<version>-arm64.dmg` for Apple silicon or `-x64.dmg` for Intel, and drag Meld to Applications.
+1. [Download the latest release](https://github.com/meld-finance/meld/releases/latest): `Meld-<version>-arm64.dmg` for Apple silicon or `-x64.dmg` for Intel, and drag Meld to Applications.
 2. Builds aren't notarized by Apple yet, so the first time you open Meld macOS will refuse. Go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway** (or run `xattr -dr com.apple.quarantine /Applications/Meld.app`).
 3. Meld walks you through setup the first time it opens: a passphrase (optional), your Plaid client ID and secrets (with a **Test keys** button), and optionally an Anthropic key or Ollama, which it finds by itself if it's running.
 4. Start with Plaid's Sandbox to look around (any bank, `user_good` / `pass_good`), then follow [docs/plaid.md](docs/plaid.md) to connect your real accounts and switch to production in **Settings**.
@@ -104,7 +104,7 @@ Your phone can reach Meld while your Mac is awake and Meld is running. For an al
 Docker runs Meld on any machine that's always on (a home server, a NAS, a Linux box): one container for Postgres and one for Meld, which serves the web app and the API.
 
 ```sh
-git clone https://github.com/shimizust/meld-finance.git && cd meld-finance
+git clone https://github.com/meld-finance/meld.git && cd meld
 ./scripts/setup.sh            # creates .env with fresh secrets (and, if you like, your passphrase)
 docker compose up -d --build
 ```

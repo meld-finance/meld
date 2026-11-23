@@ -59,9 +59,9 @@ function SettingsCards({ view }: { view: SettingsView }) {
 }
 
 const ABOUT_LINKS = [
-  { label: 'Website', url: 'https://shimizust.github.io/meld-finance/' },
-  { label: 'Docs', url: 'https://github.com/shimizust/meld-finance/blob/main/docs/features.md' },
-  { label: 'Source', url: 'https://github.com/shimizust/meld-finance' },
+  { label: 'Website', url: 'https://meld-finance.github.io/meld/' },
+  { label: 'Docs', url: 'https://github.com/meld-finance/meld/blob/main/docs/features.md' },
+  { label: 'Source', url: 'https://github.com/meld-finance/meld' },
 ];
 
 function AboutCard() {
