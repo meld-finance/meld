@@ -6,7 +6,8 @@ import {
   type LifeEventKind,
   type RetirementInputs,
 } from '@meld/shared';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -35,6 +36,8 @@ export type EventDraft = {
   monthly: boolean;
   /** Showing its form rather than its summary. */
   open: boolean;
+  /** Display-order snapshot (in your ages) so editing an open event never jumps mid-keystroke. */
+  sortAge?: number;
 };
 
 /** An event to start from; `less` points a blank amount down. */
@@ -70,8 +73,16 @@ const str = (v: number | null | undefined) => (v === null || v === undefined ? '
 const num = (s: string) => (s.trim() ? Number(s.replace(/[$,%\s]/g, '')) : null);
 const cents = (v: number) => Math.round(v * 100) / 100;
 
+/** Resolves a draft's start age into your age for chronological sorting without changing array order. */
+export function resolvedSortAge(e: Pick<SpendingChange, 'startAge' | 'childId'>, children: Child[], birthYear: number | null): number {
+  if (!Number.isFinite(e.startAge)) return Infinity;
+  if (e.childId === null || birthYear === null) return e.startAge;
+  const child = children.find((k) => k.id === e.childId);
+  return child ? e.startAge + (child.birthYear - birthYear) : e.startAge;
+}
+
 let nextKey = 0;
-export function eventDraft(c: EventSeed, open = false): EventDraft {
+export function eventDraft(c: EventSeed, open = false, sortAge?: number): EventDraft {
   const kind = c.kind ?? 'spending';
   const monthly = kind !== 'once' && (c.monthly ?? false);
   const amount = c.annualChange === undefined ? null : Math.abs(monthly ? cents(c.annualChange / 12) : c.annualChange);
@@ -86,6 +97,7 @@ export function eventDraft(c: EventSeed, open = false): EventDraft {
     less: c.less ?? (c.annualChange ?? 0) < 0,
     monthly,
     open,
+    sortAge: sortAge ?? (open ? Infinity : (c.startAge ?? Infinity)),
   };
 }
 
@@ -129,7 +141,6 @@ export function commonEvents(inputs: RetirementInputs | null, children: Child[],
   const out: Suggestion[] = [];
   if (birthYear !== null) {
     for (const k of children) {
-      // College while you're still working means saving less; once retired, spending more.
       const yourAge = 18 + k.birthYear - birthYear;
       if (yourAge + 4 <= now) continue;
       const working = yourAge < retire;
@@ -178,7 +189,7 @@ export function commonEvents(inputs: RetirementInputs | null, children: Child[],
   return out;
 }
 
-/** The plan's life events: what to add, what's there, and what each one does. */
+/** The plan's life events: chronological display, kind filters, scannable pills, and quick-add ideas. */
 export function LifeEvents({
   drafts,
   inputs,
@@ -191,35 +202,70 @@ export function LifeEvents({
   onShowProfile,
 }: {
   drafts: EventDraft[];
-  /** The resolved plan, for retirement age and today's age; null until it can be worked out. */
   inputs: RetirementInputs | null;
-  /** From the profile, for events that follow a child's age. */
   kids: Child[];
   birthYear: number | null;
-  /** Events Meld can see coming from your accounts and profile. */
   suggestions: Suggestion[];
   onAdd: (events: EventSeed[]) => void;
   onChange: (key: number, change: Partial<EventDraft>) => void;
   onRemove: (key: number) => void;
   onShowProfile: () => void;
 }) {
+  const theme = useTheme();
+  const [cardWidth, setCardWidth] = useState(0);
+  const [kindFilter, setKindFilter] = useState<'all' | LifeEventKind>('all');
+  const [quickOpen, setQuickOpen] = useState(drafts.length < 4);
+  const narrow = cardWidth > 0 && cardWidth < 560;
+
   const labels = new Set(drafts.map((d) => d.label.trim()));
   const common = commonEvents(inputs, children, birthYear).filter((s) => !s.events.every((e) => labels.has(e.label ?? '')));
+  const totalSuggestions = suggestions.length + common.length;
+
+  const activeFilter =
+    kindFilter !== 'all' && !drafts.some((d) => d.kind === kindFilter) ? 'all' : kindFilter;
+
+  const displayed = [...drafts]
+    .filter((d) => activeFilter === 'all' || d.kind === activeFilter)
+    .sort((a, b) => (a.sortAge ?? Infinity) - (b.sortAge ?? Infinity) || a.key - b.key);
+
+  const showQuickAdd = drafts.length < 4 || quickOpen;
+
   return (
     <Card
       title="Life events"
       tip={TIPS.lifeEvents}
-      subtitle="Changes you can see coming. Each one shows up in the projection as soon as you add it.">
+      subtitle="Changes you can see coming. Each one shows up in the projection as soon as you add it."
+      action={<Button label="Add your own" variant="secondary" size="small" onPress={() => onAdd([{}])} />}>
+      <View onLayout={(e) => setCardWidth(e.nativeEvent.layout.width)} style={styles.cardInner}>
+      {drafts.length >= 4 && (
+        <View style={styles.chips}>
+          <Chip label={`All (${drafts.length})`} selected={activeFilter === 'all'} onPress={() => setKindFilter('all')} />
+          {KINDS.map((k) => {
+            const count = drafts.filter((d) => d.kind === k.kind).length;
+            if (count === 0) return null;
+            return (
+              <Chip
+                key={k.kind}
+                label={`${k.label} (${count})`}
+                selected={activeFilter === k.kind}
+                onPress={() => setKindFilter(k.kind)}
+              />
+            );
+          })}
+        </View>
+      )}
+
       {drafts.length === 0 ? (
         <ThemedText type="small" themeColor="textSecondary">
-          No life events yet. Start from one below, or add your own.
+          No life events yet. Start from an idea below, or tap “Add your own”.
         </ThemedText>
       ) : (
         <View style={styles.list}>
-          {drafts.map((d) => (
+          {displayed.map((d) => (
             <EventRow
               key={d.key}
               draft={d}
+              narrow={narrow}
               inputs={inputs}
               kids={children}
               birthYear={birthYear}
@@ -230,23 +276,38 @@ export function LifeEvents({
         </View>
       )}
 
-      <View style={styles.add}>
-        {suggestions.length > 0 && (
-          <SuggestionGroup title="From your accounts and profile" suggestions={suggestions} onAdd={onAdd} />
-        )}
-        <SuggestionGroup title="Common events" suggestions={common} onAdd={onAdd} />
-        <View style={styles.buttons}>
-          <Button label="Add your own" variant="secondary" size="small" onPress={() => onAdd([{}])} />
-          {children.length === 0 && (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.shrink}>
-              Have kids?{' '}
-              <ThemedText type="small" themeColor="tint" onPress={onShowProfile} accessibilityRole="link">
-                Add them to your profile
-              </ThemedText>{' '}
-              to time events by their ages.
+      <View style={[styles.add, { borderTopColor: theme.border }]}>
+        {drafts.length >= 4 && totalSuggestions > 0 && (
+          <Pressable
+            onPress={() => setQuickOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showQuickAdd }}
+            style={styles.quickHeader}>
+            <ThemedText type="smallBold">
+              Quick-add ideas ({totalSuggestions})
             </ThemedText>
-          )}
-        </View>
+            <Icon name={showQuickAdd ? 'chevronUp' : 'chevronDown'} size={16} themeColor="textSecondary" />
+          </Pressable>
+        )}
+
+        {showQuickAdd && (
+          <>
+            {suggestions.length > 0 && (
+              <SuggestionGroup title="From your accounts and profile" suggestions={suggestions} onAdd={onAdd} />
+            )}
+            <SuggestionGroup title="Common events" suggestions={common} onAdd={onAdd} />
+            {children.length === 0 && (
+              <ThemedText type="small" themeColor="textSecondary">
+                Have kids?{' '}
+                <ThemedText type="small" themeColor="tint" onPress={onShowProfile} accessibilityRole="link">
+                  Add them to your profile
+                </ThemedText>{' '}
+                to time events by their ages.
+              </ThemedText>
+            )}
+          </>
+        )}
+      </View>
       </View>
     </Card>
   );
@@ -276,8 +337,38 @@ function SuggestionGroup({
   );
 }
 
+function formatImpactPill(e: SpendingChange): string {
+  const amt = formatWholeCurrency(Math.abs(e.monthly ? e.annualChange / 12 : e.annualChange));
+  const sign = e.annualChange < 0 ? '−' : '+';
+  if (e.kind === 'once') return `${sign}${amt} once`;
+  return `${sign}${amt}/${e.monthly ? 'mo' : 'yr'}`;
+}
+
+function formatTimingLine(e: SpendingChange, children: Child[], birthYear: number | null): string {
+  const child = e.childId === null ? null : children.find((k) => k.id === e.childId);
+  if (child) {
+    const startYear = child.birthYear + e.startAge;
+    const yourStart = birthYear === null ? null : startYear - birthYear;
+    const childPrefix = `${childName(children, child.id)} is ${e.startAge}`;
+    if (e.kind === 'once') {
+      return `When ${childPrefix} (${yourStart !== null ? `you’re ${yourStart}, ` : ''}${startYear})`;
+    }
+    const span = e.endAge === null ? `${childPrefix}+` : `${childName(children, child.id)} ${e.startAge}–${e.endAge}`;
+    return yourStart !== null
+      ? `When ${span} (you’re ${yourStart}${e.endAge !== null ? `–${child.birthYear + e.endAge - birthYear!}` : ''}, ${startYear})`
+      : `When ${span} (${startYear})`;
+  }
+  const calStart = birthYear === null ? null : birthYear + e.startAge;
+  if (e.kind === 'once') return calStart !== null ? `At age ${e.startAge} (${calStart})` : `At age ${e.startAge}`;
+  if (e.endAge === null) return calStart !== null ? `Age ${e.startAge}+ (${calStart})` : `Age ${e.startAge}+`;
+  return calStart !== null
+    ? `Ages ${e.startAge}–${e.endAge} (${calStart}–${birthYear! + e.endAge})`
+    : `Ages ${e.startAge}–${e.endAge}`;
+}
+
 function EventRow({
   draft: d,
+  narrow,
   inputs,
   kids: children,
   birthYear,
@@ -285,6 +376,7 @@ function EventRow({
   onRemove,
 }: {
   draft: EventDraft;
+  narrow: boolean;
   inputs: RetirementInputs | null;
   kids: Child[];
   birthYear: number | null;
@@ -293,28 +385,44 @@ function EventRow({
 }) {
   const theme = useTheme();
   const accent = useAccents()[KIND[d.kind].accent];
-  // On a phone the form uses the full width rather than lining up under the title.
-  const narrow = useWindowDimensions().width < 600;
   const event = toEvent(d);
   const bad = eventProblems(event);
-  // Blank fields are unfinished rather than wrong; only something typed is flagged.
-  const flag = { label: bad.label && !!d.label.trim(), startAge: bad.startAge && !!d.startAge.trim(), endAge: bad.endAge, annualChange: bad.annualChange && !!d.amount.trim() };
+  const flag = {
+    label: bad.label && !!d.label.trim(),
+    startAge: bad.startAge && !!d.startAge.trim(),
+    endAge: bad.endAge,
+    annualChange: bad.annualChange && !!d.amount.trim(),
+  };
   const complete = !Object.values(bad).some(Boolean);
   const open = d.open || !complete;
   const lostChild = d.childId !== null && !children.some((k) => k.id === d.childId);
   const [more, less] = DIRECTIONS[d.kind];
   const once = d.kind === 'once';
 
+  function toggleOpen(nextOpen: boolean) {
+    onChange(nextOpen ? { open: true } : { open: false, sortAge: resolvedSortAge(event, children, birthYear) });
+  }
+
   function setMonthly(monthly: boolean) {
     if (monthly === d.monthly) return;
     const amount = num(d.amount);
-    onChange({ monthly, amount: amount === null || !Number.isFinite(amount) ? d.amount : String(cents(monthly ? amount / 12 : amount * 12)) });
+    onChange({
+      monthly,
+      amount: amount === null || !Number.isFinite(amount) ? d.amount : String(cents(monthly ? amount / 12 : amount * 12)),
+    });
   }
 
   function setKind(kind: LifeEventKind) {
-    // A one-time sum is never per month and has no end.
     onChange(kind === 'once' ? { kind, monthly: false, endAge: '' } : { kind });
   }
+
+  const impactPill = complete && (
+    <View style={[styles.impactPill, { backgroundColor: accent.bg }]}>
+      <ThemedText type="smallBold" style={{ color: accent.fg, fontSize: 12, lineHeight: 16 }}>
+        {formatImpactPill(event)}
+      </ThemedText>
+    </View>
+  );
 
   return (
     <View style={[styles.event, { borderColor: open ? theme.border : 'transparent' }]}>
@@ -324,7 +432,7 @@ function EventRow({
         </View>
         <Pressable
           style={styles.shrink}
-          onPress={() => complete && onChange({ open: !d.open })}
+          onPress={() => complete && toggleOpen(!d.open)}
           accessibilityRole="button"
           accessibilityState={{ expanded: open }}
           accessibilityLabel={`${d.label || 'New event'}: ${complete ? 'edit' : 'unfinished'}`}>
@@ -332,14 +440,16 @@ function EventRow({
             {d.label.trim() || 'New event'}
           </ThemedText>
           <ThemedText type="small" themeColor={complete ? 'textSecondary' : 'warning'}>
-            {complete ? describe(event, children, birthYear) : 'Unfinished: fill in the fields below'}
+            {complete ? formatTimingLine(event, children, birthYear) : 'Unfinished: fill in the fields below'}
           </ThemedText>
+          {narrow && impactPill && <View style={styles.narrowPillWrap}>{impactPill}</View>}
           {complete && inputs && <Effect event={event} inputs={inputs} kids={children} birthYear={birthYear} />}
         </Pressable>
+        {!narrow && impactPill}
         <View style={styles.eventActions}>
           {complete && (
             <Pressable
-              onPress={() => onChange({ open: !d.open })}
+              onPress={() => toggleOpen(!d.open)}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={d.open ? `Done editing ${d.label}` : `Edit ${d.label}`}
@@ -429,7 +539,7 @@ function EventRow({
           )}
           {complete && (
             <View style={styles.buttons}>
-              <Button label="Done" variant="secondary" size="small" onPress={() => onChange({ open: false })} />
+              <Button label="Done" variant="secondary" size="small" onPress={() => toggleOpen(false)} />
             </View>
           )}
         </View>
@@ -494,16 +604,20 @@ function Effect({
 }
 
 const styles = StyleSheet.create({
+  cardInner: { gap: Spacing.three },
   list: { gap: Spacing.one },
-  add: { gap: Spacing.three },
+  add: { gap: Spacing.three, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.three },
+  quickHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
   group: { gap: Spacing.two },
   chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
   shrink: { flex: 1, flexShrink: 1, gap: Spacing.half },
   event: { gap: Spacing.three, padding: Spacing.three, marginHorizontal: -Spacing.three, borderRadius: Spacing.three, borderWidth: 1 },
-  eventHead: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
+  eventHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   eventActions: { flexDirection: 'row', gap: Spacing.one },
+  impactPill: { paddingHorizontal: Spacing.two, paddingVertical: 3, borderRadius: Spacing.three },
+  narrowPillWrap: { flexDirection: 'row', marginTop: 2 },
   iconButton: { padding: Spacing.one, borderRadius: Spacing.two },
   badge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   form: { gap: Spacing.three },

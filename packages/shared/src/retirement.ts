@@ -271,6 +271,35 @@ export function retirementBalance(summary: Pick<RetirementSummary, 'accounts'>, 
   return summary.accounts.filter((a) => a.included).reduce((sum, a) => sum + a.value, 0) + (plan.otherSavings ?? 0);
 }
 
+/** Breakdown of a future property sale in today's dollars. */
+export type SaleBreakdown = {
+  futurePrice: number;
+  sellingCosts: number;
+  mortgageLeft: number;
+  proceeds: number;
+};
+
+/**
+ * Breakdown and net proceeds of selling a property `years` from now. The price is in today's
+ * dollars; the mortgage left is in future dollars, which overstates it a little and keeps the estimate conservative.
+ */
+export function saleBreakdown(
+  property: Pick<RetirementProperty, 'value'>,
+  mortgage: Pick<RetirementMortgage, 'balance' | 'interestRatePct' | 'monthlyPayment'> | null,
+  years: number,
+  appreciationPct: number,
+  sellingCostPct: number,
+): SaleBreakdown {
+  const price = property.value * (1 + appreciationPct / 100) ** years;
+  const owed = mortgage ? remainingLoanBalance(mortgage.balance, mortgage.interestRatePct, mortgage.monthlyPayment, years * 12) : 0;
+  return {
+    futurePrice: Math.round(price),
+    sellingCosts: Math.round(price * (sellingCostPct / 100)),
+    mortgageLeft: Math.round(owed),
+    proceeds: Math.round(price * (1 - sellingCostPct / 100) - owed),
+  };
+}
+
 /**
  * Net proceeds of selling a property `years` from now. The price is in today's dollars; the mortgage
  * left is in future dollars, which overstates it a little and keeps the estimate conservative.
@@ -282,9 +311,7 @@ export function saleProceeds(
   appreciationPct: number,
   sellingCostPct: number,
 ): number {
-  const price = property.value * (1 + appreciationPct / 100) ** years;
-  const owed = mortgage ? remainingLoanBalance(mortgage.balance, mortgage.interestRatePct, mortgage.monthlyPayment, years * 12) : 0;
-  return Math.round(price * (1 - sellingCostPct / 100) - owed);
+  return saleBreakdown(property, mortgage, years, appreciationPct, sellingCostPct).proceeds;
 }
 
 /** Fills empty fields from defaults; null inputs when age or spending can't be known. */
@@ -490,6 +517,40 @@ export function projectRetirement(i: RetirementInputs): RetirementProjection {
     extraMonthly,
     depletionAge,
   };
+}
+
+export type RetirementCashFlowYear = {
+  age: number;
+  retired: boolean;
+  spending: number;
+  socialSecurity: number;
+  pension: number;
+  rent: number;
+  eventIncome: number;
+  saving: number;
+  withdrawal: number;
+  lump: number;
+};
+
+/** Year-by-year cash flow breakdown (saving before retirement, spending vs. income & drawdowns in retirement). */
+export function retirementCashFlow(i: RetirementInputs): RetirementCashFlowYear[] {
+  const out: RetirementCashFlowYear[] = [];
+  for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
+    const retired = age >= i.retirementAge;
+    out.push({
+      age,
+      retired,
+      spending: retired ? Math.round(spendingAt(i, age)) : 0,
+      socialSecurity: age >= i.socialSecurityAge ? i.socialSecurityAnnual : 0,
+      pension: retired ? i.pensionAnnual : 0,
+      rent: Math.round(rentAt(i, age)),
+      eventIncome: Math.round(eventsAt(i, 'income', age)),
+      saving: retired ? 0 : Math.round(savedAt(i, age)),
+      withdrawal: retired ? Math.round(withdrawalAt(i, age)) : 0,
+      lump: Math.round(salesAt(i, age) + onceAt(i, age)),
+    });
+  }
+  return out;
 }
 
 // --- Monte Carlo -------------------------------------------------------------

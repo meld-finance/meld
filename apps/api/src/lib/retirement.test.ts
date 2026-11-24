@@ -8,6 +8,8 @@ import {
   projectRetirement,
   remainingLoanBalance,
   resolvePlan,
+  retirementCashFlow,
+  saleBreakdown,
   saleProceeds,
   simulateRetirement,
   spendingAt,
@@ -117,6 +119,16 @@ describe('property sales', () => {
     // 10 years at 2%: 400k → 487,598; less 5% → 463,218; less 100k owed with no terms.
     expect(saleProceeds({ value: 400_000 }, { balance: 100_000, interestRatePct: null, monthlyPayment: null }, 10, 2, 5)).toBe(363_218);
     expect(saleProceeds({ value: 400_000 }, null, 0, 1, 6)).toBe(376_000);
+  });
+
+  it('breaks down future value, selling costs, mortgage left, and net proceeds consistently', () => {
+    const mortgage = { balance: 200_000, interestRatePct: 6, monthlyPayment: 1199.1 };
+    const b = saleBreakdown({ value: 500_000 }, mortgage, 10, 1, 6);
+    expect(b.futurePrice).toBe(Math.round(500_000 * 1.01 ** 10));
+    expect(b.sellingCosts).toBe(Math.round(500_000 * 1.01 ** 10 * 0.06));
+    expect(b.mortgageLeft).toBeGreaterThan(150_000);
+    expect(b.mortgageLeft).toBeLessThan(180_000);
+    expect(b.proceeds).toBe(saleProceeds({ value: 500_000 }, mortgage, 10, 1, 6));
   });
 });
 
@@ -443,5 +455,61 @@ describe('withPlan', () => {
       ['b', false, 'user'],
       ['c', false, 'education'],
     ]);
+  });
+});
+
+describe('retirementCashFlow', () => {
+  it('breaks down pre-retirement saving and retirement spending, income, withdrawals, and lumps', () => {
+    const rows = retirementCashFlow({
+      ...base,
+      currentAge: 60,
+      retirementAge: 62,
+      lifeExpectancy: 70,
+      annualContribution: 20_000,
+      annualSpending: 80_000,
+      socialSecurityAnnual: 30_000,
+      socialSecurityAge: 67,
+      pensionAnnual: 10_000,
+      sales: [{ name: 'Rental', age: 65, proceeds: 250_000, netRentAnnual: 12_000 }],
+      spendingChanges: [
+        { label: 'Catch-up', kind: 'saving', childId: null, startAge: 61, endAge: 62, annualChange: 7_500, monthly: false },
+        { label: 'Part-time', kind: 'income', childId: null, startAge: 62, endAge: 64, annualChange: 15_000, monthly: false },
+        { label: 'Roof', kind: 'once', childId: null, startAge: 63, endAge: null, annualChange: -25_000, monthly: false },
+      ],
+    });
+    expect(rows).toHaveLength(11);
+    // Working years: saving + rent (+ catch-up at 61), spending/pension/withdrawal are 0.
+    expect(rows.find((r) => r.age === 60)).toEqual({
+      age: 60,
+      retired: false,
+      spending: 0,
+      socialSecurity: 0,
+      pension: 0,
+      rent: 12_000,
+      eventIncome: 0,
+      saving: 32_000,
+      withdrawal: 0,
+      lump: 0,
+    });
+    expect(rows.find((r) => r.age === 61)?.saving).toBe(39_500);
+    // First year retired (62): spending 80k, pension 10k, rent 12k, eventIncome 15k -> withdrawal 43k.
+    expect(rows.find((r) => r.age === 62)).toEqual({
+      age: 62,
+      retired: true,
+      spending: 80_000,
+      socialSecurity: 0,
+      pension: 10_000,
+      rent: 12_000,
+      eventIncome: 15_000,
+      saving: 0,
+      withdrawal: 43_000,
+      lump: 0,
+    });
+    // One-time roof at 63.
+    expect(rows.find((r) => r.age === 63)?.lump).toBe(-25_000);
+    // Sale at 65 stops rent from 65 onward and records lump proceeds.
+    expect(rows.find((r) => r.age === 65)).toMatchObject({ rent: 0, lump: 250_000, withdrawal: 70_000 });
+    // Social Security starts at 67.
+    expect(rows.find((r) => r.age === 67)).toMatchObject({ socialSecurity: 30_000, pension: 10_000, withdrawal: 40_000 });
   });
 });

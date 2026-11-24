@@ -14,10 +14,12 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Dropdown } from '@/components/dropdown';
+import { InfoTip } from '@/components/info-tip';
 import { Input } from '@/components/plan/profile-tab';
 import { TIPS } from '@/components/plan/retirement-tips';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { ThemedView } from '@/components/themed-view';
+import { Spacing, type ThemeColor } from '@/constants/theme';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useTheme } from '@/hooks/use-theme';
 import { confirm } from '@/lib/confirm';
@@ -31,7 +33,7 @@ const COMPARE_TRIALS = 500;
 const leave = async (dirty: boolean) =>
   !dirty || confirm('Discard your changes?', 'Changes to this scenario haven’t been saved.', 'Discard');
 
-/** Picks, copies, renames and removes scenarios; the active one is the plan the rest of Meld uses. */
+/** Compact toolbar for picking, copying, renaming, and removing scenarios; the active one is used across Meld. */
 export function ScenarioBar({
   summary,
   dirty,
@@ -42,6 +44,7 @@ export function ScenarioBar({
   /** null selects the active scenario. */
   onSelect: (id: string | null) => void;
 }) {
+  const theme = useTheme();
   const create = useCreateScenario();
   const update = useUpdateScenario();
   const remove = useDeleteScenario();
@@ -73,12 +76,7 @@ export function ScenarioBar({
   }
 
   return (
-    <Card
-      title="Scenario"
-      tip={TIPS.scenarios}
-      subtitle="Copy your plan to try a what-if without changing it. The active scenario is the one Ask Meld uses."
-      // Above the cards that follow, so the open list isn't hidden.
-      style={styles.raised}>
+    <ThemedView type="backgroundElement" style={[styles.toolbar, { borderColor: theme.border }]}>
       {editing ? (
         <View style={styles.row}>
           <View style={styles.grow}>
@@ -102,7 +100,11 @@ export function ScenarioBar({
         </View>
       ) : (
         <View style={styles.row}>
-          <View style={styles.grow}>
+          <View style={styles.labelGroup}>
+            <ThemedText type="smallBold">Scenario</ThemedText>
+            <InfoTip title={TIPS.scenarios.title}>{TIPS.scenarios.body}</InfoTip>
+          </View>
+          <View style={styles.picker}>
             <Dropdown
               accessibilityLabel="Scenario"
               value={scenario.id}
@@ -110,35 +112,39 @@ export function ScenarioBar({
               options={scenarios.map((s) => ({ value: s.id, label: s.active ? `${s.name} · active` : s.name }))}
             />
           </View>
-          <Button label="Copy" variant="secondary" size="small" onPress={startCopy} />
-          <Button label="Rename" variant="secondary" size="small" onPress={() => setEditing({ kind: 'rename', name: scenario.name })} />
-          {!scenario.active && (
-            <Button
-              label="Make active"
-              size="small"
-              loading={update.isPending}
-              onPress={() => update.mutate({ id: scenario.id, active: true })}
-            />
-          )}
-          {scenarios.length > 1 && (
-            <Button label="Delete" variant="secondary" size="small" loading={remove.isPending} onPress={deleteScenario} />
-          )}
+          <View style={styles.actions}>
+            <Button label="Copy" variant="secondary" size="small" onPress={startCopy} />
+            <Button label="Rename" variant="secondary" size="small" onPress={() => setEditing({ kind: 'rename', name: scenario.name })} />
+            {!scenario.active && (
+              <Button
+                label="Make active"
+                size="small"
+                loading={update.isPending}
+                onPress={() => update.mutate({ id: scenario.id, active: true })}
+              />
+            )}
+            {scenarios.length > 1 && (
+              <Button label="Delete" variant="secondary" size="small" loading={remove.isPending} onPress={deleteScenario} />
+            )}
+          </View>
         </View>
       )}
-      {error && <ThemedText themeColor="negative">{error.message}</ThemedText>}
-    </Card>
+      {error && <ThemedText type="small" themeColor="negative">{error.message}</ThemedText>}
+    </ThemedView>
   );
 }
 
 const COLUMNS = [
-  { label: 'Scenario', width: 180 },
-  { label: 'Retire at', width: 72 },
-  { label: 'Spending', width: 88 },
-  { label: 'Projected', width: 96 },
-  { label: 'Needed', width: 96 },
-  { label: 'Gap', width: 96 },
-  { label: 'Lasts', width: 64 },
+  { label: 'Scenario', width: 180, numeric: false },
+  { label: 'Retire at', width: 76, numeric: true },
+  { label: 'Spending', width: 92, numeric: true },
+  { label: 'Projected', width: 100, numeric: true },
+  { label: 'Needed', width: 100, numeric: true },
+  { label: 'Gap', width: 104, numeric: true },
+  { label: 'Lasts', width: 68, numeric: true },
 ] as const;
+
+type CellSpec = { text: string; color?: ThemeColor; bold?: boolean };
 
 /** Every scenario side by side; the one being edited uses what's typed. */
 export function ScenarioCompare({
@@ -162,17 +168,24 @@ export function ScenarioCompare({
       if (!inputs) return { scenario: s, cells: null };
       const p = projectRetirement(inputs);
       const sim = simulateRetirement(inputs, { ...SIMULATION_DEFAULTS, trials: COMPARE_TRIALS });
-      return {
-        scenario: s,
-        cells: [
-          String(inputs.retirementAge),
-          formatCompactCurrency(p.spendingAtRetirement),
-          formatCompactCurrency(p.atRetirement),
-          formatCompactCurrency(p.needed),
-          p.gap > 0 ? `Short ${formatCompactCurrency(p.gap)}` : `+${formatCompactCurrency(-p.gap)}`,
-          `${Math.round(sim.successRate * 100)}%`,
-        ],
-      };
+      const pct = Math.round(sim.successRate * 100);
+      const cells: CellSpec[] = [
+        { text: String(inputs.retirementAge) },
+        { text: formatCompactCurrency(p.spendingAtRetirement) },
+        { text: formatCompactCurrency(p.atRetirement) },
+        { text: formatCompactCurrency(p.needed) },
+        {
+          text: p.gap > 0 ? `Short ${formatCompactCurrency(p.gap)}` : `+${formatCompactCurrency(-p.gap)}`,
+          color: p.gap > 0 ? 'negative' : 'positive',
+          bold: true,
+        },
+        {
+          text: `${pct}%`,
+          color: pct >= 80 ? 'positive' : pct >= 60 ? 'warning' : 'negative',
+          bold: true,
+        },
+      ];
+      return { scenario: s, cells };
     });
   }, [summary, draftKey]);
 
@@ -188,7 +201,11 @@ export function ScenarioCompare({
         <View>
           <View style={[styles.tableRow, { borderColor: theme.border }]}>
             {COLUMNS.map((c) => (
-              <ThemedText key={c.label} type="small" themeColor="textSecondary" style={{ width: c.width }}>
+              <ThemedText
+                key={c.label}
+                type="small"
+                themeColor="textSecondary"
+                style={[{ width: c.width }, c.numeric && styles.numeric]}>
                 {c.label}
               </ThemedText>
             ))}
@@ -202,7 +219,11 @@ export function ScenarioCompare({
                 disabled={viewing}
                 accessibilityRole="button"
                 accessibilityLabel={`Open ${s.name}`}
-                style={({ hovered }) => [styles.tableRow, { borderColor: theme.border }, hovered && !viewing && { backgroundColor: theme.background }]}>
+                style={({ hovered }) => [
+                  styles.tableRow,
+                  { borderColor: theme.border },
+                  hovered && !viewing && { backgroundColor: theme.background },
+                ]}>
                 <View style={{ width: COLUMNS[0].width }}>
                   <ThemedText type={viewing ? 'smallBold' : 'small'} numberOfLines={1}>
                     {s.name}
@@ -213,8 +234,12 @@ export function ScenarioCompare({
                 </View>
                 {cells ? (
                   cells.map((c, i) => (
-                    <ThemedText key={COLUMNS[i + 1]!.label} type="small" style={{ width: COLUMNS[i + 1]!.width }}>
-                      {c}
+                    <ThemedText
+                      key={COLUMNS[i + 1]!.label}
+                      type={c.bold ? 'smallBold' : 'small'}
+                      themeColor={c.color}
+                      style={[{ width: COLUMNS[i + 1]!.width }, styles.numeric]}>
+                      {c.text}
                     </ThemedText>
                   ))
                 ) : (
@@ -232,9 +257,19 @@ export function ScenarioCompare({
 }
 
 const styles = StyleSheet.create({
-  raised: { zIndex: 2 },
+  toolbar: {
+    zIndex: 10,
+    borderWidth: 1,
+    borderRadius: Spacing.three + Spacing.one,
+    paddingVertical: Spacing.two + Spacing.half,
+    paddingHorizontal: Spacing.three,
+    gap: Spacing.two,
+  },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
+  labelGroup: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  picker: { flexGrow: 1, flexBasis: 200 },
   grow: { flexGrow: 1, flexBasis: 220 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -243,4 +278,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  numeric: { textAlign: 'right', fontVariant: ['tabular-nums'] },
 });

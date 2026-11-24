@@ -12,6 +12,7 @@ import { StyleSheet, View } from 'react-native';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { RetirementFan } from '@/components/charts/retirement-fan';
+import { Chip } from '@/components/chip';
 import { Dropdown } from '@/components/dropdown';
 import { StatTile, TileRow } from '@/components/investments/common';
 import { Field, Input, Row } from '@/components/plan/profile-tab';
@@ -25,6 +26,13 @@ import { formatCompactCurrency, formatWholeCurrency } from '@/lib/format';
 import { useDeleteSimulation, useRunSimulation, useSimulations } from '@/lib/queries';
 
 const TRIALS = ['500', '1000', '5000'] as const;
+
+const VOLATILITY_PRESETS = [
+  { label: 'Balanced · 7%', value: 7 },
+  { label: 'Moderate · 10%', value: 10 },
+  { label: 'Stock-heavy · 12%', value: 12 },
+  { label: 'All stocks · 15%', value: 15 },
+] as const;
 
 const percent = (rate: number) => `${Math.round(rate * 100)}%`;
 /** Balances at retirement, or at the end of the plan once already retired. */
@@ -67,6 +75,7 @@ export function MonteCarlo({ scenarioId, inputs, dirty }: { scenarioId: string; 
   const shown: { inputs: RetirementInputs; settings: SimulationSettings; result: SimulationResult } = saved ?? live;
   const { result } = shown;
   const milestone = milestoneOf(shown.inputs, result);
+  const successTone = result.successRate >= 0.8 ? 'positive' : result.successRate >= 0.6 ? 'warning' : 'negative';
 
   async function deleteRun(s: SavedSimulation) {
     if (!(await confirm('Delete this run?', `The run from ${runDate(s.createdAt)} will be deleted.`, 'Delete'))) return;
@@ -90,6 +99,7 @@ export function MonteCarlo({ scenarioId, inputs, dirty }: { scenarioId: string; 
       <TileRow>
         <StatTile
           label="Lasts to the end"
+          tone={successTone}
           value={percent(result.successRate)}
           caption={`Of runs, money lasts to ${shown.inputs.lifeExpectancy}`}
         />
@@ -130,6 +140,16 @@ export function MonteCarlo({ scenarioId, inputs, dirty }: { scenarioId: string; 
               />
             </Field>
           </Row>
+          <View style={styles.presets}>
+            {VOLATILITY_PRESETS.map((p) => (
+              <Chip
+                key={p.value}
+                label={p.label}
+                selected={!invalidVolatility && typed === p.value}
+                onPress={() => setVolatilityText(String(p.value))}
+              />
+            ))}
+          </View>
           <ThemedText type="small" themeColor="textSecondary">
             Volatility is how far a typical year strays from the average: about 15% for all stocks, 12% for a
             stock-heavy mix.
@@ -198,6 +218,7 @@ export function MonteCarlo({ scenarioId, inputs, dirty }: { scenarioId: string; 
 
 const styles = StyleSheet.create({
   banner: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, paddingBottom: Spacing.two, borderBottomWidth: StyleSheet.hairlineWidth },
+  presets: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   runs: { gap: Spacing.two },
   run: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three, paddingTop: Spacing.two, borderTopWidth: StyleSheet.hairlineWidth },
