@@ -112,6 +112,7 @@ export function useNetWorthHistory(days = 365) {
   return useQuery({
     queryKey: keys.netWorthHistory(days),
     queryFn: () => api<NetWorthPoint[]>(`/networth/history?days=${days}`),
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -1,15 +1,20 @@
 import type {
   Alert,
+  AlertSettings,
   AlertType,
+  AutopayHealth,
   AutopayStatus,
   BudgetStatus,
   CashPlan,
   EstateSummary,
   InsurancePolicy,
   LiabilitySummary,
+  ManualAsset,
+  RecurringSummary,
   RetirementProjection,
   TaxPlan,
   UpcomingItem,
+  UserProfile,
 } from '@meld/shared';
 
 import type { IconName } from '@/components/icon';
@@ -35,10 +40,14 @@ export const AREAS: Record<Area, { label: string; icon: IconName; accent: Accent
 export type Urgency = 'now' | 'soon' | 'later';
 const URGENCY_ORDER: Record<Urgency, number> = { now: 0, soon: 1, later: 2 };
 
+export type TaskKind = 'alert' | 'move' | 'checklist';
+
 export type Task = {
   key: string;
   area: Area;
+  kind: TaskKind;
   urgency: Urgency;
+  general: boolean;
   title: string;
   detail: string;
   /** YYYY-MM-DD, when there's a deadline. */
@@ -79,13 +88,16 @@ export function addDays(date: string, days: number) {
   return d.toISOString().slice(0, 10);
 }
 
-const task = (t: Omit<Task, 'due' | 'dueLabel' | 'impact' | 'question' | 'checklist' | 'alertId'> & Partial<Task>): Task => ({
+const task = (
+  t: Omit<Task, 'due' | 'dueLabel' | 'impact' | 'question' | 'checklist' | 'alertId' | 'general'> & Partial<Task>,
+): Task => ({
   due: null,
   dueLabel: null,
   impact: null,
   question: null,
   checklist: null,
   alertId: null,
+  general: false,
   ...t,
 });
 
@@ -97,13 +109,12 @@ export type TaskSources = {
   estate: EstateSummary | undefined;
   budgets: BudgetStatus[] | undefined;
   retirement: { projection: RetirementProjection | null; missing: string[] } | undefined;
-  policies: InsurancePolicy[] | undefined;
 };
 
 /**
  * Everything across Meld that wants something from you, most pressing first: open warnings, dated
  * tax moves, a short emergency fund, budgets already blown, beneficiaries to name, a retirement gap.
- * Sources still loading are left out rather than holding the list back.
+ * Pure setup/onboarding steps live in `buildSetupSteps` instead.
  */
 export function buildTasks(s: TaskSources): Task[] {
   const tasks: Task[] = [];
@@ -115,6 +126,7 @@ export function buildTasks(s: TaskSources): Task[] {
       task({
         key: `alert:${a.id}`,
         area: ALERT_AREAS[a.type],
+        kind: 'alert',
         urgency: a.severity === 'critical' ? 'now' : 'soon',
         title: a.title,
         detail: a.body,
@@ -134,7 +146,9 @@ export function buildTasks(s: TaskSources): Task[] {
         task({
           key: `tax:${c.id}`,
           area: 'tax',
+          kind: 'checklist',
           urgency: days <= SOON_DAYS ? 'soon' : 'later',
+          general: c.general,
           title: c.title,
           detail: c.detail,
           due: c.due,
@@ -150,17 +164,17 @@ export function buildTasks(s: TaskSources): Task[] {
     const dated = new Set(tax.checklist.map((c) => c.suggestionId));
     for (const t of tax.suggestions) {
       if (t.kind !== 'save' || dated.has(t.id)) continue;
-      tasks.push(task({ key: `tax:${t.id}`, area: 'tax', urgency: 'later', title: t.title, detail: t.detail, impact: t.impact, href, question: t.question }));
-    }
-    if (tax.missing.length) {
       tasks.push(
         task({
-          key: 'tax:missing',
+          key: `tax:${t.id}`,
           area: 'tax',
+          kind: 'move',
           urgency: 'later',
-          title: `Add your ${tax.missing.map((m) => (m === 'filingStatus' ? 'filing status' : 'household income')).join(' and ')}`,
-          detail: `Meld needs ${tax.missing.length === 1 ? 'it' : 'them'} to estimate your ${tax.year} taxes and price each tax move.`,
-          href: '/plan?tab=profile',
+          title: t.title,
+          detail: t.detail,
+          impact: t.impact,
+          href,
+          question: t.question,
         }),
       );
     }
@@ -173,6 +187,7 @@ export function buildTasks(s: TaskSources): Task[] {
         task({
           key: `cash:${c.id}`,
           area: 'cash',
+          kind: c.kind === 'warning' ? 'alert' : 'move',
           urgency: c.kind === 'warning' ? 'soon' : 'later',
           title: c.title,
           detail: c.detail,
@@ -190,6 +205,7 @@ export function buildTasks(s: TaskSources): Task[] {
       task({
         key: `budget:${b.category}`,
         area: 'spending',
+        kind: 'alert',
         urgency: 'soon',
         title: `${formatCategory(b.category)} is ${formatWholeCurrency(b.spent - b.monthlyTarget)} over budget`,
         detail: `${formatWholeCurrency(b.spent)} spent this month against a ${formatWholeCurrency(b.monthlyTarget)} target.`,
@@ -199,7 +215,7 @@ export function buildTasks(s: TaskSources): Task[] {
     );
   }
 
-  if (s.estate) {
+  if (s.estate && s.estate.readiness.done > 0) {
     const warnings = s.estate.issues.filter((i) => i.severity === 'warning');
     const missing = warnings.filter((i) => i.id.startsWith('missing:'));
     const rest = warnings.filter((i) => !i.id.startsWith('missing:'));
@@ -208,6 +224,7 @@ export function buildTasks(s: TaskSources): Task[] {
         task({
           key: 'estate:missing',
           area: 'estate',
+          kind: 'move',
           urgency: 'later',
           title: `Name beneficiaries on ${missing.length} accounts and policies`,
           detail: 'Without one they pass through your estate and probate. Name them with each institution, then record them in Meld.',
@@ -216,28 +233,28 @@ export function buildTasks(s: TaskSources): Task[] {
       );
     }
     for (const i of [...(missing.length > ESTATE_GROUP_AFTER ? [] : missing), ...rest]) {
-      tasks.push(task({ key: `estate:${i.id}`, area: 'estate', urgency: 'later', title: i.title, detail: i.body, href: i.href ?? '/plan?tab=estate' }));
+      tasks.push(
+        task({
+          key: `estate:${i.id}`,
+          area: 'estate',
+          kind: 'move',
+          urgency: 'later',
+          title: i.title,
+          detail: i.body,
+          href: i.href ?? '/plan?tab=estate',
+        }),
+      );
     }
   }
 
   if (s.retirement) {
     const { projection: p, missing } = s.retirement;
-    if (missing.length) {
-      tasks.push(
-        task({
-          key: 'retirement:missing',
-          area: 'retirement',
-          urgency: 'later',
-          title: 'Set up your retirement plan',
-          detail: `Add your ${missing.join(' and ')} to see whether your savings will last.`,
-          href: missing.includes('birth year') ? '/plan?tab=profile' : '/plan?tab=retirement',
-        }),
-      );
-    } else if (p && p.gap > 0) {
+    if (!missing.length && p && p.gap > 0) {
       tasks.push(
         task({
           key: 'retirement:gap',
           area: 'retirement',
+          kind: 'move',
           urgency: 'later',
           title: `Close a ${formatWholeCurrency(p.gap)} retirement gap`,
           detail:
@@ -253,26 +270,16 @@ export function buildTasks(s: TaskSources): Task[] {
     }
   }
 
-  if (s.policies && s.policies.length === 0) {
-    tasks.push(
-      task({
-        key: 'insurance:none',
-        area: 'insurance',
-        urgency: 'later',
-        title: 'Add your insurance policies',
-        detail: 'Record life and disability coverage, including what comes through work, to check it against what your family would need.',
-        href: '/insurance/new',
-        question: 'How much life and disability insurance should someone in my situation have?',
-      }),
-    );
-  }
-
-  return tasks.sort(
-    (a, b) =>
-      URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency] ||
-      (a.due ?? '9999').localeCompare(b.due ?? '9999') ||
-      (b.impact ?? 0) - (a.impact ?? 0),
-  );
+  return tasks.sort((a, b) => {
+    const urgencyDiff = URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency];
+    if (urgencyDiff !== 0) return urgencyDiff;
+    const generalDiff = Number(a.general) - Number(b.general);
+    if (generalDiff !== 0) return generalDiff;
+    if (a.urgency === 'later') {
+      return (b.impact ?? 0) - (a.impact ?? 0) || (a.due ?? '9999').localeCompare(b.due ?? '9999');
+    }
+    return (a.due ?? '9999').localeCompare(b.due ?? '9999') || (b.impact ?? 0) - (a.impact ?? 0);
+  });
 }
 
 export type Upcoming = {
@@ -284,6 +291,7 @@ export type Upcoming = {
   /** Positive is money out, negative money in; null when the amount isn't known. */
   amount: number | null;
   approximate: boolean;
+  autopayHealth: AutopayHealth | null;
   icon: IconName;
   href: string;
 };
@@ -300,6 +308,7 @@ export function buildUpcoming(
   policies: InsurancePolicy[] | undefined,
 ): Upcoming[] {
   const until = addDays(today, days);
+  const autopayById = new Map((recurring?.autopay ?? []).map((a) => [a.id, a]));
   const autopaid = new Set(recurring?.autopay.map((a) => a.payeeAccountId));
   const items: Upcoming[] = (recurring?.upcoming ?? []).map((u) => ({
     key: `${u.ref}:${u.date}`,
@@ -308,6 +317,7 @@ export function buildUpcoming(
     detail: u.accountName,
     amount: u.amount,
     approximate: u.approximate,
+    autopayHealth: u.source === 'autopay' ? (autopayById.get(u.ref)?.health ?? null) : null,
     icon: u.kind === 'autopay' ? 'card' : u.kind === 'income' ? 'arrowDownRight' : 'repeat',
     href: '/spending?tab=recurring',
   }));
@@ -320,9 +330,188 @@ export function buildUpcoming(
       detail: p.detail,
       amount: p.amount,
       approximate: false,
+      autopayHealth: null,
       icon: p.icon,
       href: p.href,
     });
   }
   return items.filter((i) => i.date >= today && i.date <= until).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export type SetupStep = {
+  id: string;
+  area: Area;
+  icon: IconName;
+  title: string;
+  reason: string;
+  cta: string;
+  href: string;
+  done: boolean;
+  badge: string | null;
+};
+
+export type SetupSources = {
+  profile: UserProfile | undefined;
+  manualAssets: ManualAsset[] | undefined;
+  liabilities: LiabilitySummary[] | undefined;
+  recurring: RecurringSummary | undefined;
+  tax: TaxPlan | undefined;
+  budgets: BudgetStatus[] | undefined;
+  policies: InsurancePolicy[] | undefined;
+  estate: EstateSummary | undefined;
+  alertSettings: AlertSettings | undefined;
+};
+
+export type SetupProgress = {
+  steps: SetupStep[];
+  completed: number;
+  total: number;
+  remaining: SetupStep[];
+};
+
+/**
+ * Guides the user toward underutilized features based on what's already synced or configured.
+ * Steps appear in priority order once their backing query resolves.
+ */
+export function buildSetupSteps(s: SetupSources): SetupProgress {
+  const steps: SetupStep[] = [];
+
+  if (s.profile) {
+    const p = s.profile;
+    const missingFields: string[] = [];
+    if (!p.annualGrossIncome) missingFields.push('income');
+    if (!p.filingStatus) missingFields.push('filing status');
+    if (!p.state) missingFields.push('state');
+    if (!p.birthYear) missingFields.push('birth year');
+    steps.push({
+      id: 'profile',
+      area: 'accounts',
+      icon: 'user',
+      title: 'Complete your profile',
+      reason:
+        missingFields.length > 0
+          ? `Add your ${missingFields.join(', ')} to unlock tax estimates, Social Security, and Ask Meld.`
+          : 'Income, filing status, state, and birth year power your taxes, retirement, and Ask Meld.',
+      cta: 'Complete profile',
+      href: '/plan?tab=profile',
+      done: missingFields.length === 0,
+      badge: '1 min',
+    });
+  }
+
+  if (s.liabilities && s.manualAssets && s.liabilities.some((l) => l.kind === 'mortgage')) {
+    steps.push({
+      id: 'home-asset',
+      area: 'accounts',
+      icon: 'home',
+      title: 'Add your home value',
+      reason: 'You linked a mortgage — adding your home keeps your net worth accurate.',
+      cta: 'Add home',
+      href: '/accounts',
+      done: s.manualAssets.some((a) => a.kind === 'home'),
+      badge: '2 min',
+    });
+  }
+
+  if (
+    s.recurring &&
+    s.liabilities &&
+    (s.liabilities.length > 0 || s.recurring.suggestions.length > 0 || s.recurring.autopay.length > 0)
+  ) {
+    const suggestions = s.recurring.suggestions.length;
+    steps.push({
+      id: 'autopay',
+      area: 'bills',
+      icon: 'repeat',
+      title: suggestions > 0 ? `Confirm ${suggestions} detected autopay${suggestions === 1 ? '' : 's'}` : 'Track card & loan autopay',
+      reason: 'Check bank balances before autopays draft so you never fall short.',
+      cta: suggestions > 0 ? 'Review autopay' : 'Set up autopay',
+      href: '/spending?tab=recurring',
+      done: s.recurring.autopay.length > 0 && suggestions === 0,
+      badge: suggestions > 0 ? `${suggestions} spotted` : '2 min',
+    });
+  }
+
+  if (s.tax && s.tax.missing.length === 0) {
+    steps.push({
+      id: 'tax-withholding',
+      area: 'tax',
+      icon: 'receipt',
+      title: 'Enter tax withholding',
+      reason: 'Add YTD withholding from a pay stub to see if you’ll owe or get a refund.',
+      cta: 'Add withholding',
+      href: '/plan?tab=tax',
+      done: s.tax.balanceDue !== null,
+      badge: '2 min',
+    });
+  }
+
+  if (s.budgets) {
+    steps.push({
+      id: 'budgets',
+      area: 'spending',
+      icon: 'barChart',
+      title: 'Set monthly budgets',
+      reason: 'Pick targets for your top categories to track pace and catch overspending.',
+      cta: 'Create budgets',
+      href: '/spending?tab=budgets',
+      done: s.budgets.length > 0,
+      badge: '2 min',
+    });
+  }
+
+  if (s.policies) {
+    steps.push({
+      id: 'insurance',
+      area: 'insurance',
+      icon: 'shield',
+      title: 'Add insurance policies',
+      reason: 'Upload a PDF or log employer life and disability coverage to spot gaps.',
+      cta: 'Add policy',
+      href: '/insurance/new',
+      done: s.policies.length > 0,
+      badge: '2 min',
+    });
+  }
+
+  if (s.estate && s.estate.readiness.total > 0) {
+    const r = s.estate.readiness;
+    const started = r.done > 0;
+    steps.push({
+      id: 'estate',
+      area: 'estate',
+      icon: 'lock',
+      title: started ? 'Finish your estate packet' : 'Start your estate plan',
+      reason: started
+        ? `${r.done} of ${r.total} steps done — complete beneficiaries, documents, and export your family packet.`
+        : 'Record beneficiaries, store key documents, and export an encrypted family packet.',
+      cta: started ? 'Continue estate' : 'Start estate plan',
+      href: '/plan?tab=estate',
+      done: r.done >= r.total && !s.estate.packet.stale,
+      badge: null,
+    });
+  }
+
+  if (s.alertSettings) {
+    const a = s.alertSettings;
+    steps.push({
+      id: 'alerts',
+      area: 'bills',
+      icon: 'bell',
+      title: 'Set up smart alerts',
+      reason: 'Get alerted on large charges, low balances, or push alerts to your phone.',
+      cta: 'Configure alerts',
+      href: '/alerts',
+      done: Boolean(a.ntfyUrl || a.largeTransaction !== null || Object.keys(a.lowBalance).length > 0 || a.autopayCushion > 0),
+      badge: '1 min',
+    });
+  }
+
+  const remaining = steps.filter((step) => !step.done);
+  return {
+    steps,
+    completed: steps.length - remaining.length,
+    total: steps.length,
+    remaining,
+  };
 }
