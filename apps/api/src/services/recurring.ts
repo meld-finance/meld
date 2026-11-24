@@ -54,6 +54,7 @@ export async function loadRecurringTxns(db: Db, today: string): Promise<Recurrin
       name: transactions.name,
       merchantName: transactions.merchantName,
       category: categoryKey,
+      plaidCategory: transactions.plaidCategoryPrimary,
       detailed: transactions.plaidCategoryDetailed,
     })
     .from(transactions)
