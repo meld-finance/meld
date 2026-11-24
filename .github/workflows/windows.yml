@@ -1,0 +1,45 @@
+# Builds the Windows installer (Meld-<version>-x64-setup.exe) on a Windows runner, since the app
+# has to be built on the OS it's for. Runs on pull requests that touch the desktop app, on demand
+# (Actions → Windows build → Run workflow), and from release.yml for tagged releases. The installer
+# is attached to the run as the "windows" artifact.
+#
+# The installer is unsigned, so Windows SmartScreen warns on first run (More info → Run anyway).
+name: Windows build
+
+on:
+  pull_request:
+    paths:
+      - apps/desktop/**
+      - .github/workflows/windows.yml
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Build the x64 installer
+        working-directory: apps/desktop
+        run: |
+          node scripts/build.mjs
+          npx electron-builder --win --x64 --publish never
+      # latest.yml is what installed copies read to find updates.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.exe.blockmap
+            apps/desktop/release/latest.yml
+          if-no-files-found: error
