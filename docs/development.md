@@ -52,6 +52,8 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 | `npm run db:migrate` | Apply migrations to the sandbox and production databases |
 | `npm run typecheck` | Typecheck all packages |
 | `npm test` | Run tests (DB tests use `TEST_DATABASE_URL`; create it once with `docker compose exec db createdb -U meld meld_test`) |
+| `npm run site:screenshots` | Re-capture 2× landing page PNGs from `meld_sandbox` and sync dimensions |
+| `npm run site:check` | Verify landing page screenshots are 2× PNGs matching `site/index.html` |
 
 ## Releases
 
@@ -63,4 +65,4 @@ The release notes are what Meld shows on its **What's new** page (account menu �
 
 To try the update UI without a release, run `npm run desktop:dev` with `MELD_FAKE_UPDATE=0.9.0`: Meld acts as if 0.9.0 were out, and its download and restart steps are simulated.
 
-The landing page lives in `site/` and is published to GitHub Pages by `.github/workflows/pages.yml` whenever `site/` changes on `main`. Preview it with `npm run site:dev` (http://127.0.0.1:8000), which reloads the page whenever a file in `site/` changes.
+The landing page lives in `site/` and is published to GitHub Pages by `.github/workflows/pages.yml` whenever `site/` changes on `main`. Preview it with `npm run site:dev` (http://127.0.0.1:8000), which reloads the page whenever a file in `site/` changes. When UI changes affect the landing page, run `npm run site:screenshots` (requires Chrome and `meld_sandbox`) to re-capture 2× Retina PNGs and sync `site/index.html` dimensions, check callout pin positions in `npm run site:dev`, and verify with `npm run site:check`.

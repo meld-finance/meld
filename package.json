@@ -21,7 +21,9 @@
     "db:migrate": "npm run db:migrate -w @meld/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "site:dev": "node scripts/site-dev.mjs"
+    "site:dev": "node scripts/site-dev.mjs",
+    "site:screenshots": "node scripts/make-screenshots.mjs",
+    "site:check": "node scripts/make-screenshots.mjs --check"
   },
   "devDependencies": {
     "concurrently": "^10.0.6",
