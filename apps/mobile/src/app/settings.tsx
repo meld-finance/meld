@@ -15,6 +15,8 @@ import { PlaidFields } from '@/components/setup/plaid-fields';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
+import { desktop } from '@/lib/desktop';
+import { useFeatures } from '@/lib/queries';
 import { useSaveSettings, useSettings, useSetupStatus, type AIForm, type PlaidForm } from '@/lib/setup';
 
 export default function SettingsScreen() {
@@ -65,18 +67,28 @@ const ABOUT_LINKS = [
 ];
 
 function AboutCard() {
+  const features = useFeatures();
+  const version = desktop()?.version || features.data?.version;
   return (
     <Card title="About Meld">
       <ThemedText>
-        {ABOUT_LINKS.map((l, i) => (
+        <ThemedText themeColor="tint" accessibilityRole="link" onPress={() => router.push('/releases')}>
+          What’s new
+        </ThemedText>
+        {ABOUT_LINKS.map((l) => (
           <Text key={l.url}>
-            {i > 0 && ' · '}
+            {' · '}
             <ThemedText themeColor="tint" accessibilityRole="link" onPress={() => void Linking.openURL(l.url)}>
               {l.label}
             </ThemedText>
           </Text>
         ))}
       </ThemedText>
+      {version && (
+        <ThemedText type="small" themeColor="textSecondary" style={styles.version} selectable>
+          Version {version}
+        </ThemedText>
+      )}
     </Card>
   );
 }
@@ -249,4 +261,5 @@ function PassphraseCard({ on, fixed }: { on: boolean; fixed: boolean }) {
 
 const styles = StyleSheet.create({
   save: { gap: Spacing.two },
+  version: { opacity: 0.75 },
 });

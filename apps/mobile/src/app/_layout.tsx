@@ -41,6 +41,7 @@ function RootNavigator() {
         <Stack.Screen name="rules" />
         <Stack.Screen name="alerts" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="releases" />
       </Stack.Protected>
       <Stack.Protected guard={configured && !isLoggedIn} redirectTo={configured ? '/' : '/setup'}>
         <Stack.Screen name="login" />

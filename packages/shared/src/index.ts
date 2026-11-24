@@ -18,3 +18,4 @@ export * from './alerts';
 export * from './recurring';
 export * from './estate';
 export * from './setup';
+export * from './releases';

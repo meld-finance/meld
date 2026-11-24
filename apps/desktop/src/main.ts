@@ -1,4 +1,5 @@
-import { BrowserWindow, Menu, app, dialog, shell } from 'electron';
+import { join } from 'node:path';
+import { BrowserWindow, Menu, app, dialog, shell, type MenuItemConstructorOptions } from 'electron';
 import { ApiProcess } from './api';
 import { systemEnv } from './env';
 import { log, logFile } from './log';
@@ -8,6 +9,7 @@ import { startPostgres, type RunningPostgres } from './postgres';
 import { loadSecrets } from './secrets';
 import { transfer, type Direction } from './transfer';
 import { createTray } from './tray';
+import { Updater } from './updater';
 
 /** Meld's usual address, so a phone bookmark (via Tailscale) keeps working; another is picked if it's taken. */
 const PREFERRED_PORT = 47800;
@@ -30,6 +32,18 @@ let api: ApiProcess | null = null;
 let db: RunningPostgres | null = null;
 let appUrl = '';
 let quitting = false;
+let refreshTray = () => {};
+
+/** Pages from Meld's own server; only they get answers from the desktop bridge. */
+function isTrustedUrl(url: string) {
+  try {
+    return !!appUrl && new URL(url).origin === new URL(appUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
+const updater = new Updater({ isTrustedUrl, showReleases: () => showWindow('/releases'), onChange: () => refreshTray() });
 
 if (transferDirection) runTransfer(transferDirection);
 else runApp();
@@ -76,7 +90,8 @@ function showWindow(path = '') {
     show: false,
     // Windows: the menu bar shows when Alt is pressed, as in most Windows apps. No effect on macOS.
     autoHideMenuBar: true,
-    webPreferences: { sandbox: true, contextIsolation: true },
+    // The preload gives the page window.meldDesktop: the version and updates.
+    webPreferences: { sandbox: true, contextIsolation: true, preload: join(app.getAppPath(), 'dist', 'preload.cjs') },
   });
   window.once('ready-to-show', () => window?.show());
   window.on('closed', () => (window = null));
@@ -126,6 +141,7 @@ async function start() {
     MIGRATE_ON_START: '1',
     MIGRATIONS_DIR: paths.migrations(),
     TAILSCALE_CONTROL: '1',
+    MELD_VERSION: app.getVersion(),
   };
   if (isDev) env.CORS_ORIGINS = new URL(DEV_WEB_URL).origin;
   else env.WEB_DIR = paths.web();
@@ -143,14 +159,18 @@ async function shutdown() {
 }
 
 function runApp() {
-  if (!app.requestSingleInstanceLock()) app.quit();
+  if (!app.requestSingleInstanceLock()) {
+    app.quit();
+    return;
+  }
   app.on('second-instance', () => showWindow());
 
   app.on('before-quit', (event) => {
     if (quitting) return;
     event.preventDefault();
     quitting = true;
-    void shutdown().finally(() => app.exit(0));
+    // Quit for real once Postgres has stopped (an update downloaded on Windows installs on 'quit').
+    void shutdown().finally(() => app.quit());
   });
 
   // Closing the window leaves Meld running in the menu bar (phone access keeps working).
@@ -160,17 +180,20 @@ function runApp() {
   void app.whenReady().then(async () => {
     Menu.setApplicationMenu(
       Menu.buildFromTemplate([
-        process.platform === 'darwin' ? { role: 'appMenu' } : { role: 'fileMenu' },
+        process.platform === 'darwin' ? macAppMenu() : { role: 'fileMenu' },
         { role: 'editMenu' },
         { role: 'viewMenu' },
         { role: 'windowMenu' },
+        { role: 'help', submenu: [{ label: 'What’s New in Meld', click: () => showWindow('/releases') }] },
       ]),
     );
-    createTray({
+    refreshTray = createTray({
       open: () => showWindow(),
       openSettings: () => showWindow('/settings'),
       quit: () => app.quit(),
+      updateItem: trayUpdateItem,
     });
+    updater.start();
     showWindow();
     try {
       await start();
@@ -179,4 +202,42 @@ function runApp() {
       if (!window) await dialog.showMessageBox({ type: 'error', message: 'Meld couldn’t start', detail: String(err) });
     }
   });
+}
+
+/** macOS's standard app menu, with Check for Updates… under About. */
+function macAppMenu(): MenuItemConstructorOptions {
+  return {
+    role: 'appMenu',
+    submenu: [
+      { role: 'about' },
+      { label: 'Check for Updates…', enabled: updater.enabled, click: () => checkFromMenu() },
+      { type: 'separator' },
+      { role: 'services' },
+      { type: 'separator' },
+      { role: 'hide' },
+      { role: 'hideOthers' },
+      { role: 'unhide' },
+      { type: 'separator' },
+      { role: 'quit' },
+    ],
+  };
+}
+
+/** The release notes page shows what the check finds (and the update button). */
+function checkFromMenu() {
+  showWindow('/releases');
+  void updater.check(true);
+}
+
+function trayUpdateItem(): MenuItemConstructorOptions | null {
+  const s = updater.current;
+  const openAndDownload = () => {
+    showWindow('/releases');
+    void updater.download();
+  };
+  if (s.status === 'available') return { label: `Update to Meld ${s.version}…`, click: openAndDownload };
+  if (s.status === 'downloading') return { label: `Downloading Meld ${s.version}… ${s.percent}%`, enabled: false };
+  if (s.status === 'ready') return { label: `Restart to Update to ${s.version}`, click: () => updater.install() };
+  if (s.status === 'error' && s.version) return { label: `Update to Meld ${s.version}…`, click: openAndDownload };
+  return null;
 }

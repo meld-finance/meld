@@ -57,4 +57,10 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 
 The app's version lives in `apps/desktop/package.json` (it's what About Meld shows). To release, bump it there (`npm version 0.2.0 -w apps/desktop --no-git-tag-version`), commit, and push the matching tag: `git tag v0.2.0 && git push origin v0.2.0`. That runs `.github/workflows/release.yml`, which fails if the tag and `package.json` disagree, builds the Apple silicon and Intel `.dmg` files and attaches them to a draft GitHub Release with generated notes. Check the draft, then publish it. Add the signing secrets listed at the top of that workflow to sign and notarize the builds.
 
+Publishing the release is what ships it to people already running Meld. The workflow also attaches a `.zip` per architecture and a `latest-mac.yml`; the Mac app checks for that file on GitHub shortly after it opens and every 4 hours. When it finds a newer version it shows **Update available** at the top of the window, a dot on What's new in the account menu, an item in the menu bar menu, and one macOS notification. One click downloads the update in the background; **Restart to update** installs it (it also installs the next time Meld quits). Updating needs signed builds. Drafts and pre-releases are never offered.
+
+The release notes are what Meld shows on its **What's new** page (account menu → What's new, Settings → About, or Help → What's New in Meld), so write them for users. An `## Install` section, `**Full Changelog**` lines and the generated "by @someone in …" credits are left out in the app. Markdown headings, lists, `**bold**`, links and `>` quotes all render.
+
+To try the update UI without a release, run `npm run desktop:dev` with `MELD_FAKE_UPDATE=0.9.0`: Meld acts as if 0.9.0 were out, and its download and restart steps are simulated.
+
 The landing page lives in `site/` and is published to GitHub Pages by `.github/workflows/pages.yml` whenever `site/` changes on `main`. Preview it with `npm run site:dev` (http://127.0.0.1:8000), which reloads the page whenever a file in `site/` changes.

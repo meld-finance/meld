@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { Menu, Tray, app, nativeImage, shell } from 'electron';
+import { Menu, Tray, app, nativeImage, shell, type MenuItemConstructorOptions } from 'electron';
 import { logFile } from './log';
 import { paths } from './paths';
 
@@ -14,8 +14,19 @@ function trayIcon() {
   return icon;
 }
 
-/** The menu bar (or notification area) item: Meld keeps running there with the window closed, so a phone can still reach it. */
-export function createTray(actions: { open: () => void; openSettings: () => void; quit: () => void }) {
+type TrayActions = {
+  open: () => void;
+  openSettings: () => void;
+  quit: () => void;
+  /** "Update to Meld 0.3.0…" and the like, when there's an update; read each time the menu is rebuilt. */
+  updateItem: () => MenuItemConstructorOptions | null;
+};
+
+/**
+ * The menu bar (or notification area) item: Meld keeps running there with the window closed, so a phone can still reach it.
+ * Returns a function that rebuilds the menu (call it when the update state changes).
+ */
+export function createTray(actions: TrayActions) {
   const tray = new Tray(trayIcon());
   tray.setToolTip('Meld');
   // On Windows a click on the icon opens the app and a right-click shows the menu.
@@ -23,8 +34,10 @@ export function createTray(actions: { open: () => void; openSettings: () => void
 
   const update = () => {
     const openAtLogin = app.getLoginItemSettings().openAtLogin;
+    const updateItem = actions.updateItem();
     tray.setContextMenu(
       Menu.buildFromTemplate([
+        ...(updateItem ? [updateItem, { type: 'separator' as const }] : []),
         { label: 'Open Meld', click: actions.open },
         { label: 'Phone Access…', click: actions.openSettings },
         { type: 'separator' },
@@ -45,5 +58,5 @@ export function createTray(actions: { open: () => void; openSettings: () => void
     );
   };
   update();
-  return tray;
+  return update;
 }

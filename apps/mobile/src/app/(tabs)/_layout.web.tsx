@@ -8,11 +8,13 @@ import { Icon, type IconName } from '@/components/icon';
 import { Logo } from '@/components/logo';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { UpdatePill } from '@/components/update-controls';
 import { Spacing } from '@/constants/theme';
 import { useAccents } from '@/hooks/use-accents';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { ChatPanelProvider, useChatPanel } from '@/lib/chat-panel';
+import { pendingVersion, useUpdateState } from '@/lib/desktop';
 import { useAlerts, useProfile } from '@/lib/queries';
 import { useThemePref, type ThemePref } from '@/lib/theme-pref';
 
@@ -224,6 +226,7 @@ function TopBar({ phone }: { phone: boolean }) {
   const { logout, canLock } = useAuth();
   const profile = useProfile();
   const unread = useAlerts().data?.unread ?? 0;
+  const updateVersion = pendingVersion(useUpdateState());
   const [open, setOpen] = useState(false);
   const name = profile.data?.displayName?.trim();
   const firstName = name?.split(/\s+/)[0];
@@ -240,6 +243,7 @@ function TopBar({ phone }: { phone: boolean }) {
           <Logo />
         </View>
       )}
+      <UpdatePill compact={phone} />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Ask Meld about this page"
@@ -305,6 +309,15 @@ function TopBar({ phone }: { phone: boolean }) {
               }}>
               Settings
             </MenuItem>
+            <MenuItem
+              icon="tag"
+              dot={!!updateVersion}
+              onPress={() => {
+                setOpen(false);
+                router.push('/releases');
+              }}>
+              What’s new
+            </MenuItem>
             {/* Phones have no sidebar, so the theme toggle lives here. */}
             {phone && (
               <View style={styles.menuTheme}>
@@ -323,7 +336,8 @@ function TopBar({ phone }: { phone: boolean }) {
   );
 }
 
-function MenuItem({ icon, onPress, children }: { icon: IconName; onPress: () => void; children: ReactNode }) {
+/** `dot` marks something new behind the item (an update, on What's new). */
+function MenuItem({ icon, onPress, dot, children }: { icon: IconName; onPress: () => void; dot?: boolean; children: ReactNode }) {
   const theme = useTheme();
   return (
     <Pressable
@@ -335,6 +349,7 @@ function MenuItem({ icon, onPress, children }: { icon: IconName; onPress: () => 
       ]}>
       <Icon name={icon} size={16} themeColor="textSecondary" />
       <ThemedText type="small">{children}</ThemedText>
+      {dot && <View accessibilityLabel="Update available" style={[styles.menuDot, { backgroundColor: theme.tint }]} />}
     </Pressable>
   );
 }
@@ -432,6 +447,7 @@ const styles = StyleSheet.create({
   },
   menuPhone: { right: Spacing.three },
   menuTheme: { padding: Spacing.one },
+  menuDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 'auto' },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',

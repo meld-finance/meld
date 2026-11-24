@@ -15,4 +15,6 @@ export type LoginResponse = z.infer<typeof LoginResponse>;
 export type AppFeatures = {
   /** Cloud AI (ANTHROPIC_API_KEY) is set up: home and vehicle value lookups and policy PDF reading. */
   cloudAI: boolean;
+  /** The version running, when known (the Mac app passes it; Docker and dev read apps/desktop/package.json). */
+  version: string | null;
 };

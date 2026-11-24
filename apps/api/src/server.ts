@@ -25,10 +25,12 @@ import { registerPhoneAccessRoutes } from './routes/phone-access';
 import { registerPlaidRoutes } from './routes/plaid';
 import { registerProfileRoutes } from './routes/profile';
 import { registerRecurringRoutes } from './routes/recurring';
+import { registerReleaseRoutes } from './routes/releases';
 import { registerRetirementRoutes } from './routes/retirement';
 import { registerTaxRoutes } from './routes/tax';
 import { registerTransactionRoutes } from './routes/transactions';
 import { registerSetupRoutes, type SettingsDeps } from './routes/setup';
+import { ReleaseNotes, appVersion } from './services/releases';
 import type { PhoneAccessService } from './services/tailscale';
 import type { DocumentStorage } from './storage';
 import { API_PREFIX, registerWebApp } from './web';
@@ -47,6 +49,8 @@ export type AppDeps = {
   settings?: SettingsDeps;
   /** Phone access over Tailscale; only the desktop app has it. */
   phoneAccess?: PhoneAccessService | null;
+  /** Release notes from GitHub; tests can pass their own. */
+  releases?: ReleaseNotes;
 };
 
 const NO_SETTINGS: SettingsDeps = { fromEnv: new Set(), restart: () => {} };
@@ -132,7 +136,9 @@ async function registerApi(app: FastifyInstance, deps: AppDeps) {
   await registerSetupRoutes(app, env, deps.settings ?? NO_SETTINGS, true);
   if (deps.phoneAccess) await registerPhoneAccessRoutes(app, env, deps.phoneAccess);
   if (deps.chatgpt) await registerChatGPTRoutes(app, deps.chatgpt);
-  app.get('/features', async (): Promise<AppFeatures> => ({ cloudAI: deps.ai !== null }));
+  const version = appVersion(env);
+  app.get('/features', async (): Promise<AppFeatures> => ({ cloudAI: deps.ai !== null, version }));
+  await registerReleaseRoutes(app, deps.releases ?? new ReleaseNotes());
 
   await registerPlaidRoutes(app, deps);
   await registerAccountRoutes(app, deps);

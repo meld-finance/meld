@@ -2,6 +2,7 @@ import type {
   AlertList,
   AlertSettings,
   AppFeatures,
+  ReleaseList,
   AutopayLinkInput,
   BankNumberResult,
   EstateDesignationInput,
@@ -71,6 +72,7 @@ const PAGE_SIZE = 100;
 
 export const keys = {
   features: ['features'] as const,
+  releases: ['releases'] as const,
   accounts: ['accounts'] as const,
   items: ['items'] as const,
   transactions: (q: Omit<TransactionQuery, 'limit' | 'offset'>) => ['transactions', q] as const,
@@ -709,6 +711,11 @@ export function useDeleteChatSession() {
 /** What this install has set up (e.g. cloud AI); changes only when the API restarts. */
 export function useFeatures() {
   return useQuery({ queryKey: keys.features, queryFn: () => api<AppFeatures>('/features'), staleTime: 5 * 60_000 });
+}
+
+/** Meld's published releases (from GitHub, cached by the API) and the version running. */
+export function useReleases() {
+  return useQuery({ queryKey: keys.releases, queryFn: () => api<ReleaseList>('/releases'), staleTime: 30 * 60_000 });
 }
 
 // --- Recurring payments, autopay, alerts ---------------------------------------
