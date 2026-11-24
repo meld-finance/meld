@@ -1,6 +1,6 @@
 # Privacy: where your data goes
 
-Meld runs on your own computer. There is no Meld server, no account with the author, no analytics and no telemetry. Your data lives in the Postgres database and the `documents` folder on your machine: with the Mac app, both are in `~/Library/Application Support/Meld`, and its Postgres only listens on `127.0.0.1`.
+Meld runs on your own computer. There is no Meld server, no account with the author, no analytics and no telemetry. Your data lives in the Postgres database and the `documents` folder on your machine: with the Mac app, both are in `~/Library/Application Support/Meld` (`%APPDATA%\Meld` on Windows), and its Postgres only listens on `127.0.0.1`.
 
 Meld talks to these outside services only. Each one is optional except Plaid and GitHub's update check.
 
@@ -26,7 +26,7 @@ Anthropic's API doesn't train on your data by default and keeps it for a limited
 
 ## What's protected on disk
 
-- Plaid access tokens, full account and policy numbers kept for the family packet, uploaded insurance and estate PDFs, Plaid and Anthropic keys saved from the app, and your ChatGPT sign-in are encrypted (AES-256-GCM) with `ENCRYPTION_KEY`. The Mac app makes that key on first run and keeps it encrypted with your macOS Keychain; Docker reads it from `.env`. A copy of the data or documents folder can't be opened without it.
+- Plaid access tokens, full account and policy numbers kept for the family packet, uploaded insurance and estate PDFs, Plaid and Anthropic keys saved from the app, and your ChatGPT sign-in are encrypted (AES-256-GCM) with `ENCRYPTION_KEY`. The Mac app makes that key on first run and keeps it in your macOS Keychain (Windows: Credential Manager); Docker reads it from `.env`. A copy of the data or documents folder can't be opened without it.
 - The passphrase you choose in the app is stored only as a salted scrypt hash.
 - Everything else (transactions, balances, holdings) is stored unencrypted in the database, protected by your computer's own security. Turn on full-disk encryption (FileVault on macOS, BitLocker on Windows) if you haven't already.
 - With Docker, `.env` holds your secrets. `scripts/setup.sh` creates it readable only by you; don't commit or share it.
