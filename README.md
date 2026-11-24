@@ -4,7 +4,7 @@
 
 Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer: there's no Meld server and no account to create, and your data stays in a database on your machine.
 
-[Download for Mac](https://github.com/meld-finance/meld/releases/latest) · [Windows (preview)](#install-on-windows-preview) · [Website](https://meld-finance.github.io/meld/) · [Features](docs/features.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
+Download for Mac: [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) · [Windows (preview)](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe) · [Website](https://meld-finance.github.io/meld/) · [Features](docs/features.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
 
 ![Meld's Home screen: Ask Meld bar, net worth chart, cash and spending vitals, prioritized to-dos and upcoming bills](site/images/home.png)
 
@@ -79,7 +79,7 @@ The trade-off is setup: you bring your own free Plaid developer account, and Pla
 
 ## Install on a Mac
 
-1. [Download the latest release](https://github.com/meld-finance/meld/releases/latest): `Meld-<version>-arm64.dmg` for Apple silicon or `-x64.dmg` for Intel, and drag Meld to Applications. It's signed and notarized by Apple, so it opens like any other app.
+1. Download Meld for [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) (not sure? Apple menu → **About This Mac**: "Apple M…" is Apple silicon), open it and drag Meld to Applications. It's signed and notarized by Apple, so it opens like any other app.
 2. Meld walks you through setup the first time it opens: a passphrase (optional), your Plaid client ID and secrets (with a **Test keys** button), and optionally an Anthropic key or Ollama, which it finds by itself if it's running.
 3. Start with Plaid's Sandbox to look around (any bank, `user_good` / `pass_good`), then follow [docs/plaid.md](docs/plaid.md) to connect your real accounts and switch to production in **Settings**.
 
@@ -92,7 +92,7 @@ Everything stays on your Mac in `~/Library/Application Support/Meld`: a Postgres
 
 Windows 10 and 11, 64-bit Intel/AMD. The Windows app is new and hasn't had much testing yet, so expect rough edges and please [open an issue](https://github.com/meld-finance/meld/issues) if something breaks.
 
-1. [Download the latest release](https://github.com/meld-finance/meld/releases/latest): `Meld-<version>-x64-setup.exe`. It installs for your user only, with no admin prompt.
+1. [Download the installer](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe) and run it. It installs for your user only, with no admin prompt.
 2. The installer isn't code-signed yet, so Windows SmartScreen says it "protected your PC" the first time. Click **More info**, then **Run anyway**.
 3. Setup is the same as on a Mac (passphrase, Plaid keys, optional AI).
 

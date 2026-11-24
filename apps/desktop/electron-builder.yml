@@ -44,14 +44,19 @@ mac:
   # Postgres and the pdfkit package are signed along with the app when signing is set up.
   extendInfo:
     LSUIElement: false
+# The .dmg and the setup .exe have no version in their names, so the website and README can link
+# straight to releases/latest/download/<name>. Updates still work: the updater finds files through
+# latest-mac.yml / latest.yml and the release tag, not the file name.
 dmg:
   title: Meld
   # Name the arch on every build (electron-builder leaves x64 off by default).
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: ${productName}-${arch}.${ext}
+  # The updater only ever downloads the .zip, so skip the .dmg's blockmap and update-info entry.
+  writeUpdateInfo: false
 win:
   icon: build/icon.png
   target:
     - target: nsis
       arch: [x64]
 nsis:
-  artifactName: ${productName}-${version}-${arch}-setup.${ext}
+  artifactName: ${productName}-${arch}-setup.${ext}
