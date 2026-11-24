@@ -4,7 +4,7 @@
 
 Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer: there's no Meld server and no account to create, and your data stays in a database on your machine.
 
-[Download for Mac](https://github.com/meld-finance/meld/releases/latest) · [Website](https://meld-finance.github.io/meld/) · [Features](docs/features.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
+[Download for Mac](https://github.com/meld-finance/meld/releases/latest) · [Windows (preview)](#install-on-windows-preview) · [Website](https://meld-finance.github.io/meld/) · [Features](docs/features.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
 
 ![Meld's Home screen: Ask Meld bar, net worth chart, cash and spending vitals, prioritized to-dos and upcoming bills](site/images/home.png)
 
@@ -88,11 +88,21 @@ Everything stays on your Mac in `~/Library/Application Support/Meld`: a Postgres
 - **Change settings:** account menu → **Settings** (Plaid keys and environment, AI, passphrase on or off, phone access). Saving restarts Meld in a few seconds.
 - **Back up:** quit Meld, then copy `~/Library/Application Support/Meld`. The copy is only readable with this Mac's Keychain, so also keep a Time Machine backup (which includes the Keychain), or you'd have to re-link accounts after restoring elsewhere.
 
+## Install on Windows (preview)
+
+Windows 10 and 11, 64-bit Intel/AMD. The Windows app is new and hasn't had much testing yet, so expect rough edges and please [open an issue](https://github.com/meld-finance/meld/issues) if something breaks.
+
+1. [Download the latest release](https://github.com/meld-finance/meld/releases/latest): `Meld-<version>-x64-setup.exe`. It installs for your user only, with no admin prompt.
+2. The installer isn't code-signed yet, so Windows SmartScreen says it "protected your PC" the first time. Click **More info**, then **Run anyway**.
+3. Setup is the same as on a Mac (passphrase, Plaid keys, optional AI).
+
+Everything stays in `%APPDATA%\Meld`, and the encryption keys are kept in Windows Credential Manager (item `Meld`). Closing the window leaves Meld running in the notification area by the clock: click its icon to open Meld, or right-click for **Open at Login**, the data folder, the log and **Quit**. Updates work as on the Mac. To back up, quit Meld and copy `%APPDATA%\Meld`; restoring it on another PC means re-linking your banks, since the keys stay in this PC's Credential Manager.
+
 ## Use Meld on your phone
 
 Meld never opens itself to the internet. Your phone reaches it over [Tailscale](https://tailscale.com), a free private network that only your devices are on:
 
-1. Install Tailscale on your Mac and your phone and sign in to both with the same account.
+1. Install Tailscale on your computer and your phone and sign in to both with the same account.
 2. Turn on HTTPS certificates for your tailnet (one switch in the Tailscale admin console, under **DNS**).
 3. In Meld, open **Settings → Phone access** (or **Phone Access…** in the menu bar) and click **Turn on phone access**. Scan the QR code with your phone, unlock with your passphrase, and use **Add to Home Screen** so it opens like an app.
 
@@ -118,7 +128,7 @@ Open http://localhost:8080. Anything not in `.env` (passphrase, Plaid keys, AI) 
 
 ## Development
 
-Meld is a TypeScript monorepo: a Fastify API with Postgres, an Expo app (web now, iOS and Android later) and an Electron shell for macOS. [docs/development.md](docs/development.md) covers running it from source, building the Mac app and releases. Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+Meld is a TypeScript monorepo: a Fastify API with Postgres, an Expo app (web now, iOS and Android later) and an Electron shell for macOS and Windows. [docs/development.md](docs/development.md) covers running it from source, building the Mac and Windows apps and releases. Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 

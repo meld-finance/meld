@@ -3,7 +3,7 @@
 ```
 apps/api        Fastify + TypeScript API: Plaid, AI, data (Postgres via Drizzle); also serves the web app under /api
 apps/mobile     Expo (expo-router) app → web, iOS, Android
-apps/desktop    Electron app for macOS (Windows builds untested): bundled Postgres + the API + the web app, menu bar, Tailscale
+apps/desktop    Electron app for macOS and Windows (Windows is a preview): bundled Postgres + the API + the web app, menu bar / tray, Tailscale
 packages/shared Zod schemas + types shared by app and API
 ```
 
@@ -30,7 +30,7 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 - `npm run desktop:build` builds `apps/desktop/release/mac-<arch>/Meld.app` in a minute or two, for checking the real thing. `npm run desktop:dist` makes the `.dmg` for this Mac's architecture. For Intel Macs: `cd apps/desktop && node scripts/build.mjs --arch x64 && npx electron-builder --x64`.
 - Packaged, the API is one esbuild bundle run in an Electron utility process, Postgres is the [embedded-postgres](https://github.com/leinelissen/embedded-postgres) build thinned to one architecture, and the web app is the same Expo export Docker serves. Logs: menu bar → **Show Log**.
 - **Keys.** Meld's encryption key, session secret and Postgres password are one item in the macOS Keychain (Windows: Credential Manager), service `Meld`, account `secrets` (`secrets:<folder>` for other data folders, e.g. `secrets:Meld Dev`). Losing it means re-linking every bank, and Meld refuses to start rather than make new keys over existing data. Builds before this kept them in `secrets.bin`, encrypted with Electron's safeStorage; the first start of a newer build copies them into the Keychain and renames the file `secrets.bin.migrated`.
-- **Windows.** `npm run desktop:dist` on a Windows machine makes `Meld-<version>-x64-setup.exe` with Windows Postgres (`@embedded-postgres/windows-x64`). Build each platform on its own OS. Not yet tested on Windows.
+- **Windows.** The app has to be built on the OS it's for, so the Windows installer is built in CI: `.github/workflows/windows.yml` runs on every pull request that touches `apps/desktop/`, and on demand (`gh workflow run windows.yml --ref <branch>`, or Actions → **Windows build** → **Run workflow**). Download `Meld-<version>-x64-setup.exe` from the run's **windows** artifact (`gh run download <run-id> -n windows`). On a Windows machine, `npm run desktop:build` makes `apps/desktop/release/win-unpacked/Meld.exe` and `npm run desktop:dist` makes the installer, with Windows Postgres (`@embedded-postgres/windows-x64`). The installer is per-user (no admin prompt) and unsigned, so SmartScreen warns the first time (**More info → Run anyway**). Data lives in `%APPDATA%\Meld`, the keys in Credential Manager, and Meld keeps running in the notification area when its window closes. It builds cleanly but hasn't been tried end to end on Windows yet, so treat it as a preview.
 - **Sharing real data with dev.** Plaid bills per linked bank, so link each bank once (in the Mac app) and copy the data to `npm run dev` rather than linking it in both. Quit Meld first; both commands run its Postgres themselves, and macOS may ask once to let Electron use the "Meld" Keychain item.
   - `npm run desktop:seed-from-dev` (once): copies dev's production database and documents into the Mac app, which takes dev's `ENCRYPTION_KEY` so the Plaid tokens still work. It stops if the Mac app has banks dev doesn't.
   - `npm run dev:pull-desktop` (any time): replaces dev's production database and documents with the Mac app's, and sets dev's `ENCRYPTION_KEY` to match. It stops if dev has banks the Mac app doesn't. `MELD_TRANSFER_FORCE=1` overrides either check.
@@ -43,7 +43,8 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 | --- | --- |
 | `docker compose up -d --build` | Run all of Meld in Docker at http://localhost:8080 |
 | `npm run desktop:dev` | The desktop app against the API source and Expo dev server |
-| `npm run desktop:build` / `npm run desktop:dist` | Build `Meld.app` / the `.dmg` |
+| `npm run desktop:build` / `npm run desktop:dist` | Build `Meld.app` / the `.dmg` (`win-unpacked` / the setup `.exe` on Windows) |
+| `gh workflow run windows.yml --ref <branch>` | Build the Windows installer in CI from a Mac |
 | `npm run dev:pull-desktop` | Copy the Mac app's data into dev (`desktop:seed-from-dev` goes the other way, once) |
 | `npm run dev` | API + Expo web together |
 | `npm run dev:api` / `npm run dev:web` | Run one side only |
@@ -57,9 +58,9 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 
 ## Releases
 
-The app's version lives in `apps/desktop/package.json` (it's what About Meld shows). To release, bump it there (`npm version 0.2.0 -w apps/desktop --no-git-tag-version`), commit, and push the matching tag: `git tag v0.2.0 && git push origin v0.2.0`. That runs `.github/workflows/release.yml`, which fails if the tag and `package.json` disagree, builds the Apple silicon and Intel `.dmg` files and attaches them to a draft GitHub Release with generated notes. Check the draft, then publish it. Add the signing secrets listed at the top of that workflow to sign and notarize the builds.
+The app's version lives in `apps/desktop/package.json` (it's what About Meld shows). To release, bump it there (`npm version 0.2.0 -w apps/desktop --no-git-tag-version`), commit, and push the matching tag: `git tag v0.2.0 && git push origin v0.2.0`. That runs `.github/workflows/release.yml`, which fails if the tag and `package.json` disagree, builds the Apple silicon and Intel `.dmg` files and the Windows installer, and attaches them to a draft GitHub Release with generated notes. Check the draft, then publish it. Add the signing secrets listed at the top of that workflow to sign and notarize the builds.
 
-Publishing the release is what ships it to people already running Meld. The workflow also attaches a `.zip` per architecture and a `latest-mac.yml`; the Mac app checks for that file on GitHub shortly after it opens and every 4 hours. When it finds a newer version it shows **Update available** at the top of the window, a dot on What's new in the account menu, an item in the menu bar menu, and one macOS notification. One click downloads the update in the background; **Restart to update** installs it (it also installs the next time Meld quits). Updating needs signed builds. Drafts and pre-releases are never offered.
+Publishing the release is what ships it to people already running Meld. The workflow also attaches a `.zip` per architecture and a `latest-mac.yml`; the Mac app checks for that file on GitHub shortly after it opens and every 4 hours. Windows copies read `latest.yml` and download the new setup `.exe`, which installs when Meld restarts or quits. When it finds a newer version it shows **Update available** at the top of the window, a dot on What's new in the account menu, an item in the menu bar menu, and one macOS notification. One click downloads the update in the background; **Restart to update** installs it (it also installs the next time Meld quits). Updating the Mac app needs signed builds (the Windows installer updates unsigned). Drafts and pre-releases are never offered.
 
 The release notes are what Meld shows on its **What's new** page (account menu → What's new, Settings → About, or Help → What's New in Meld), so write them for users. An `## Install` section, `**Full Changelog**` lines and the generated "by @someone in …" credits are left out in the app. Markdown headings, lists, `**bold**`, links and `>` quotes all render.
 
