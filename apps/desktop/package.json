@@ -1,7 +1,7 @@
 {
   "name": "@meld/desktop",
   "productName": "Meld",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Meld for macOS: your whole financial picture, on your own computer.",
   "private": true,
   "license": "AGPL-3.0-only",
