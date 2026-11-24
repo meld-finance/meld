@@ -572,7 +572,7 @@ async function captureAll(baseUrl, chatSessionId, profileDir) {
         name: 'retirement.png',
         url: `${baseUrl}/plan?tab=retirement`,
         width: 1520,
-        height: 2200,
+        height: 2400,
         expectSvg: true,
         extraMs: 800,
         prepare: () => {
@@ -583,12 +583,24 @@ async function captureAll(baseUrl, chatSessionId, profileDir) {
             const t = n.textContent?.trim();
             if (!t || !n.parentElement) continue;
             const r = n.parentElement.getBoundingClientRect();
-            if (r.width > 0 && r.height > 0 && r.left >= 243) items.push({ text: t, r });
+            if (r.width > 0 && r.height > 0 && r.left >= 243) items.push({ text: t, el: n.parentElement, r });
           }
+          const findCard = (el) => {
+            let cur = el;
+            while (cur && cur.parentElement) {
+              const cs = getComputedStyle(cur);
+              if (parseFloat(cs.borderRadius) >= 12 && cur.getBoundingClientRect().width > 350) return cur;
+              cur = cur.parentElement;
+            }
+            return el;
+          };
           const projectedAt = items.find((i) => i.text.startsWith('Projected at'));
-          const chance = items.find((i) => i.text === 'Chance of success');
+          const spendingHead = items.find((i) => i.text === 'Spending in retirement');
+          const incomeHead = items.find((i) => i.text === 'Income in retirement');
+          const spendingCard = findCard(spendingHead.el);
+          const incomeCard = findCard(incomeHead.el);
           const yStart = Math.max(0, Math.round(projectedAt.r.top) - 26);
-          const yEnd = Math.round(chance.r.top) - 34;
+          const yEnd = Math.round(Math.max(spendingCard.getBoundingClientRect().bottom, incomeCard.getBoundingClientRect().bottom)) + 24;
           return { x: 248, y: yStart, width: 1272, height: yEnd - yStart };
         },
       },

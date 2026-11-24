@@ -46,6 +46,6 @@ export function Card({ title, subtitle, tip, action, children, style }: Props) {
 const styles = StyleSheet.create({
   card: { padding: Spacing.four, borderRadius: Spacing.three + Spacing.one, borderWidth: 1, gap: Spacing.three },
   // Above the body, so an open dropdown in `action` draws over it.
-  header: { zIndex: 1, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.three },
-  titles: { flexShrink: 1, gap: Spacing.half },
+  header: { zIndex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.three },
+  titles: { flexGrow: 1, flexShrink: 1, flexBasis: 200, gap: Spacing.half },
 });

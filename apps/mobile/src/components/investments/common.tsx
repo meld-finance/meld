@@ -40,6 +40,7 @@ export function StatTile({
   change,
   tip,
   tone,
+  onPress,
 }: {
   label: string;
   /** A number is shown as whole dollars. */
@@ -49,19 +50,16 @@ export function StatTile({
   /** A plain-words explanation behind an ⓘ next to the label. */
   tip?: Tip;
   /** Colors the value, for a status. */
-  tone?: 'positive' | 'negative';
+  tone?: 'positive' | 'negative' | 'warning';
+  /** Makes the tile body tappable (kept separate from `WithTip` so buttons never nest). */
+  onPress?: () => void;
 }) {
   const theme = useTheme();
   const amount = typeof value === 'number' ? value : 0;
   const pct = change ? percentChange(amount, change.previous) : null;
   const up = change ? amount >= change.previous : true;
-  return (
-    <View style={[styles.tile, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-      <WithTip tip={tip}>
-        <ThemedText type="small" themeColor="textSecondary">
-          {label}
-        </ThemedText>
-      </WithTip>
+  const metrics = (
+    <>
       <ThemedText style={styles.value} themeColor={tone} numberOfLines={1}>
         {typeof value === 'number' ? formatWholeCurrency(value) : value}
       </ThemedText>
@@ -76,9 +74,29 @@ export function StatTile({
           </ThemedText>
         </View>
       ) : (
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="small" themeColor={onPress ? 'tint' : 'textSecondary'}>
           {change ? `Nothing to compare for ${change.against}` : caption}
         </ThemedText>
+      )}
+    </>
+  );
+  return (
+    <View style={[styles.tile, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      <WithTip tip={tip}>
+        <ThemedText type="small" themeColor="textSecondary">
+          {label}
+        </ThemedText>
+      </WithTip>
+      {onPress ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${label}: ${value}. ${caption ?? ''}`}
+          onPress={onPress}
+          style={({ hovered, pressed }) => [styles.tileAction, hovered && styles.tileHovered, pressed && styles.tilePressed]}>
+          {metrics}
+        </Pressable>
+      ) : (
+        metrics
       )}
     </View>
   );
@@ -220,6 +238,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   pressed: { opacity: 0.7 },
+  tileAction: { gap: Spacing.one },
+  tileHovered: { opacity: 0.85 },
+  tilePressed: { opacity: 0.7 },
   bars: { gap: Spacing.three },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   badge: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
