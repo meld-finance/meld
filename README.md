@@ -6,7 +6,7 @@ Meld brings your bank accounts, cards, investments, loans and insurance into one
 
 [Download for Mac](https://github.com/meld-finance/meld/releases/latest) · [Website](https://meld-finance.github.io/meld/) · [Features](docs/features.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
 
-![Meld's Home screen: to-dos with deadlines, the next two weeks of bills, and Ask Meld](site/images/home.jpg)
+![Meld's Home screen: Ask Meld bar, net worth chart, cash and spending vitals, prioritized to-dos and upcoming bills](site/images/home.png)
 
 <sub>Screenshots use Plaid's sandbox test bank, not real data.</sub>
 
@@ -33,12 +33,12 @@ With Meld you link your accounts once. The same data answers this week's questio
 
 <table>
   <tr>
-    <td width="50%"><img src="site/images/recurring.jpg" alt="Recurring: subscriptions, bills, and autopays checked as Covered"></td>
-    <td width="50%"><img src="site/images/spending.jpg" alt="Spending overview against last year, with insights"></td>
+    <td width="50%"><img src="site/images/recurring.png" alt="Recurring: subscriptions, bills, and autopays checked as Covered"></td>
+    <td width="50%"><img src="site/images/spending.png" alt="Spending overview against last year, with insights"></td>
   </tr>
   <tr>
-    <td><img src="site/images/retirement.jpg" alt="Retirement projection, on track, with Social Security claiming options"></td>
-    <td><img src="site/images/tax.jpg" alt="Tax estimate and year-end checklist"></td>
+    <td><img src="site/images/retirement.png" alt="Retirement projection, on track, with life events and Social Security claiming options"></td>
+    <td><img src="site/images/tax.png" alt="Tax estimate and year-end checklist"></td>
   </tr>
 </table>
 
