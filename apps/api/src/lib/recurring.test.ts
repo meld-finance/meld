@@ -22,6 +22,7 @@ const txn = (date: string, amount: number, name: string, extra: Partial<Recurrin
   name,
   merchantName: null,
   category: 'ENTERTAINMENT',
+  plaidCategory: null,
   detailed: null,
   ...extra,
 });
@@ -92,6 +93,36 @@ describe('detectRecurring', () => {
     const amounts = [88, 142, 120, 97, 76, 131];
     const [s] = detectRecurring(monthly('2026-05-22', 6, (i) => amounts[i]!, 'PG&E WEB ONLINE', { category: 'RENT_AND_UTILITIES' }), TODAY);
     expect(s).toMatchObject({ kind: 'bill', amountVaries: true, amount: 97, priceChange: null });
+  });
+
+  it('keeps a utility bill whose amount drifts by a little each month, as varying', () => {
+    const amounts = [41.74, 41.11, 41.63, 43.11, 43.44];
+    const [s] = detectRecurring(monthly('2026-06-04', 5, (i) => amounts[i]!, 'PGANDE'), TODAY);
+    expect(s).toMatchObject({ kind: 'bill', amountVaries: true });
+  });
+
+  it('keeps a subscription after a price rise it has held for months', () => {
+    const [s] = detectRecurring(monthly('2025-11-10', 13, (i) => (i < 4 ? 16.99 : 18.99), 'Spotify'), TODAY);
+    expect(s).toMatchObject({ kind: 'subscription', amountVaries: false, amount: 18.99, priceChange: null });
+  });
+
+  it('keeps a subscription with a one-off extra charge in between', () => {
+    const txns = [...monthly('2026-04-22', 7, 20, 'ANTHROPIC'), txn('2026-08-23', 35, 'ANTHROPIC')];
+    const [s] = detectRecurring(txns, TODAY);
+    expect(s).toMatchObject({ kind: 'subscription', amountVaries: false, amount: 20 });
+  });
+
+  it('keeps a subscription charged in another currency, which moves by cents', () => {
+    const amounts = [10.87, 10.91, 10.79, 10.84, 10.93, 10.81];
+    const [s] = detectRecurring(monthly('2026-05-03', 6, (i) => amounts[i]!, 'OBSIDIAN'), TODAY);
+    expect(s).toMatchObject({ kind: 'subscription', amountVaries: false });
+  });
+
+  it('calls insurance a bill under your own category name, or by what Plaid says it is', () => {
+    const [yours] = detectRecurring(monthly('2026-04-04', 7, 1582.38, 'KAISER PAY', { category: 'Insurance' }), TODAY);
+    expect(yours!.kind).toBe('bill');
+    const [plaids] = detectRecurring(monthly('2026-04-04', 7, 1582.38, 'KAISER PAY', { category: 'Health', plaidCategory: 'MEDICAL' }), TODAY);
+    expect(plaids!.kind).toBe('bill');
   });
 
   it('ignores everyday spending at varying amounts and dates', () => {

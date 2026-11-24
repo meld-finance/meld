@@ -58,8 +58,10 @@ export type RecurringTxn = {
   amount: number;
   name: string;
   merchantName: string | null;
-  /** Effective primary category. */
+  /** Effective primary category: yours if you've set one, else Plaid's. */
   category: string | null;
+  /** Plaid's primary category, which still says what the charge is after you rename its category. */
+  plaidCategory: string | null;
   /** Plaid's detailed category. */
   detailed: string | null;
 };
@@ -99,6 +101,8 @@ export function merchantKey(t: Pick<RecurringTxn, 'name' | 'merchantName'>): str
 /** Categories whose amounts naturally move from month to month. */
 const BILL_CATEGORIES = new Set(['RENT_AND_UTILITIES', 'LOAN_PAYMENTS', 'GOVERNMENT_AND_NON_PROFIT', 'MEDICAL']);
 const BILL_DETAILED = /^(LOAN_PAYMENTS|RENT_AND_UTILITIES|GENERAL_SERVICES_(INSURANCE|CHILDCARE|EDUCATION))/;
+/** Your own category names that mean a bill. */
+const BILL_CATEGORY_NAMES = /\b(insurance|utility|utilities|rent|mortgage|loans?|childcare|daycare|tuition|tax(es)?)\b/i;
 /** One-off spending that can repeat at the same price by chance; two such charges a year apart aren't a subscription. */
 const CHANCE_CATEGORIES = new Set(['FOOD_AND_DRINK', 'TRAVEL', 'TRANSPORTATION', 'GENERAL_MERCHANDISE', 'ENTERTAINMENT']);
 
@@ -109,11 +113,34 @@ const median = (xs: number[]) => {
 };
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** Within 2% (and 50¢) of `ref`: the same price. */
+const samePrice = (a: number, ref: number) => Math.abs(a - ref) <= Math.max(0.5, ref * 0.02);
+
 /** Amounts within 2% of their median (and 50¢): a steady price. */
 function steady(amounts: number[]): boolean {
   if (!amounts.length) return false;
   const m = median(amounts);
-  return amounts.every((a) => Math.abs(a - m) <= Math.max(0.5, m * 0.02));
+  return amounts.every((a) => samePrice(a, m));
+}
+
+/** How many of the latest charges say whether the price is steady now, whatever it was before. */
+const RECENT_CHARGES = 6;
+
+/** Drops a one-off charge between two at the same price: an extra usage charge, a prorated plan change. */
+function withoutBlips(amounts: number[]): number[] {
+  return amounts.filter(
+    (a, i) => i === 0 || i === amounts.length - 1 || samePrice(a, amounts[i - 1]!) || !samePrice(amounts[i + 1]!, amounts[i - 1]!),
+  );
+}
+
+/**
+ * The amount moves more than 2% and changes more often than it holds, like a utility. A
+ * subscription's price rise is a change it then holds; currency conversion moves it by cents.
+ */
+function varies(amounts: number[]): boolean {
+  if (amounts.length < 2 || steady(amounts)) return false;
+  const changes = amounts.slice(1).filter((a, i) => Math.abs(a - amounts[i]!) >= 0.01).length;
+  return changes / (amounts.length - 1) > 0.5;
 }
 
 function coefficientOfVariation(xs: number[]): number {
@@ -162,7 +189,8 @@ function onePerDay(txns: RecurringTxn[]): RecurringTxn[] {
 
 function detectKind(last: RecurringTxn, amountVaries: boolean): RecurringKind {
   if (last.amount < 0) return 'income';
-  if ((last.category && BILL_CATEGORIES.has(last.category)) || (last.detailed && BILL_DETAILED.test(last.detailed))) return 'bill';
+  const billCategory = [last.category, last.plaidCategory].some((c) => c && (BILL_CATEGORIES.has(c) || BILL_CATEGORY_NAMES.test(c)));
+  if (billCategory || (last.detailed && BILL_DETAILED.test(last.detailed))) return 'bill';
   return amountVaries ? 'bill' : 'subscription';
 }
 
@@ -175,12 +203,13 @@ function buildSeries(key: string, txns: RecurringTxn[], cadence: Cadence, today:
   const last = sorted.at(-1)!;
   const amounts = sorted.map((t) => Math.abs(t.amount));
   const lastAmount = amounts.at(-1)!;
-  const earlier = amounts.slice(0, -1);
-  const steadyBefore = earlier.length >= 2 && steady(earlier);
-  const amountVaries = !steadyBefore && !steady(amounts);
-  const previous = earlier.at(-1);
+  // Only the latest charges count: a price rise a year ago doesn't make a subscription vary.
+  const recent = withoutBlips(amounts.slice(-RECENT_CHARGES));
+  const amountVaries = varies(recent);
+  const [before, previous] = recent.slice(-3, -1);
+  // A new price on the last charge, after at least two at the old one.
   const priceChange =
-    steadyBefore && previous !== undefined && Math.abs(lastAmount - previous) > Math.max(0.5, previous * 0.02)
+    !amountVaries && before !== undefined && previous !== undefined && samePrice(previous, before) && !samePrice(lastAmount, previous)
       ? { from: previous, to: lastAmount, date: last.date }
       : null;
   // A steady series charges what it charged last; a varying one, about its recent median.
