@@ -1,4 +1,4 @@
-# Builds the Windows installer (Meld-<version>-x64-setup.exe) on a Windows runner, since the app
+# Builds the Windows installer (Meld-x64-setup.exe) on a Windows runner, since the app
 # has to be built on the OS it's for. Runs on pull requests that touch the desktop app, on demand
 # (Actions → Windows build → Run workflow), and from release.yml for tagged releases. The installer
 # is attached to the run as the "windows" artifact.
