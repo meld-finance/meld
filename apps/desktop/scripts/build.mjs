@@ -1,5 +1,6 @@
 // Builds everything the desktop app needs into dist/:
 //   dist/main.js              the Electron main process
+//   dist/preload.cjs          the window's preload (window.meldDesktop: version and updates)
 //   dist/resources/api        the API as one bundled file, its migrations, and pdfkit
 //   dist/resources/web        the Expo web export (API under /api, same origin)
 //   dist/resources/postgres   Postgres for this machine's platform and architecture
@@ -35,6 +36,17 @@ await build({
   target: 'node24',
   external: ['electron'],
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
+  logLevel: 'warning',
+});
+// A sandboxed preload must be one CommonJS file.
+await build({
+  entryPoints: [path.join(desktop, 'src/preload.ts')],
+  outfile: path.join(dist, 'preload.cjs'),
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  target: 'node24',
+  external: ['electron'],
   logLevel: 'warning',
 });
 if (mainOnly) process.exit(0);

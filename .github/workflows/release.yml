@@ -2,6 +2,11 @@
 # to build the Mac app for Apple silicon and Intel and attach the .dmg files to a draft GitHub
 # Release. Review the draft, then publish it.
 #
+# Publishing is what ships the update: installed copies of Meld read latest-mac.yml from the
+# newest published release, offer the update, and download the .zip for their architecture.
+# The release notes are what the app shows on its What's New page, so write them for users.
+# Self-updating needs signed builds (Squirrel.Mac checks the signature).
+#
 # Signing and notarization are optional: add these repository secrets to turn them on
 # (see electron-builder's docs). Without them the app is unsigned.
 #   CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
@@ -46,27 +51,43 @@ jobs:
             echo "::error::Tag $GITHUB_REF_NAME doesn't match apps/desktop/package.json version $version. Bump the version, commit, and tag v$version."
             exit 1
           fi
-      - name: Build the ${{ matrix.arch }} .dmg
+      - name: Build the ${{ matrix.arch }} .dmg and update .zip
         working-directory: apps/desktop
         run: |
           node scripts/build.mjs --arch ${{ matrix.arch }}
           npx electron-builder --${{ matrix.arch }} --publish never
+          # Each job writes its own latest-mac.yml; the release job merges them.
+          mv release/latest-mac.yml release/latest-mac-${{ matrix.arch }}.yml
       - uses: actions/upload-artifact@v4
         with:
-          name: dmg-${{ matrix.arch }}
-          path: apps/desktop/release/*.dmg
+          name: mac-${{ matrix.arch }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/latest-mac-*.yml
           if-no-files-found: error
 
   release:
     needs: mac
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: apps/desktop/scripts
       - uses: actions/download-artifact@v4
         with:
-          pattern: dmg-*
+          pattern: mac-*
+          path: out
           merge-multiple: true
+      - name: Merge the update info for both architectures
+        run: node apps/desktop/scripts/merge-update-info.mjs out/latest-mac.yml out/latest-mac-arm64.yml out/latest-mac-x64.yml
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
           generate_release_notes: true
-          files: "*.dmg"
+          files: |
+            out/*.dmg
+            out/*.zip
+            out/*.blockmap
+            out/latest-mac.yml

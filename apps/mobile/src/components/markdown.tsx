@@ -1,18 +1,20 @@
 import { Fragment } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Fonts, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
- * Renders the Markdown subset the AI is asked to use: paragraphs, ### headings,
- * bullet and numbered lists, tables, **bold**, *italic* and `code`.
+ * Renders the Markdown subset the AI is asked to use (paragraphs, ### headings,
+ * bullet and numbered lists, tables, **bold**, *italic* and `code`) plus what release
+ * notes use: [links](https://…) and > quotes.
  * Anything else shows as plain text, so partial text mid-stream renders sensibly.
  */
 type Block =
   | { kind: 'heading'; text: string }
   | { kind: 'paragraph'; text: string }
+  | { kind: 'quote'; text: string }
   | { kind: 'list'; ordered: boolean; items: string[] }
   | { kind: 'table'; header: string[]; rows: string[][] };
 
@@ -20,6 +22,9 @@ const BULLET = /^\s*[-*•]\s+(.*)$/;
 const NUMBERED = /^\s*\d+[.)]\s+(.*)$/;
 const TABLE_ROW = /^\s*\|.*\|\s*$/;
 const TABLE_DIVIDER = /^\s*\|?\s*:?-{2,}/;
+const QUOTE = /^\s*>\s?(.*)$/;
+/** Only web links open; anything else (javascript:, file:) shows as its text. */
+const LINK = /^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/;
 
 const cells = (line: string) =>
   line
@@ -59,6 +64,14 @@ export function parseMarkdown(source: string): Block[] {
       blocks.push({ kind: 'table', header, rows });
       continue;
     }
+    const quote = QUOTE.exec(line);
+    if (quote) {
+      flush();
+      const last = blocks.at(-1);
+      if (last?.kind === 'quote' && QUOTE.test(lines[i - 1] ?? '')) last.text += ` ${quote[1]!.trim()}`;
+      else blocks.push({ kind: 'quote', text: quote[1]!.trim() });
+      continue;
+    }
     const bullet = BULLET.exec(line);
     const numbered = bullet ? null : NUMBERED.exec(line);
     if (bullet || numbered) {
@@ -84,10 +97,21 @@ export function parseMarkdown(source: string): Block[] {
 
 function Inline({ text }: { text: string }) {
   const theme = useTheme();
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g).filter(Boolean);
+  const parts = text.split(/(\[[^\]]+\]\([^)\s]+\)|\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g).filter(Boolean);
   return (
     <>
       {parts.map((part, i) => {
+        if (part.startsWith('[')) {
+          const link = LINK.exec(part);
+          if (link) {
+            return (
+              <Text key={i} accessibilityRole="link" style={{ color: theme.tint }} onPress={() => void Linking.openURL(link[2]!)}>
+                {link[1]}
+              </Text>
+            );
+          }
+          return <Fragment key={i}>{part.replace(/^\[([^\]]+)\]\([^)]*\)$/, '$1')}</Fragment>;
+        }
         if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
           return <Text key={i} style={styles.bold}>{part.slice(2, -2)}</Text>;
         }
@@ -131,14 +155,17 @@ function Table({ header, rows }: { header: string[]; rows: string[][] }) {
   );
 }
 
-export function Markdown({ text }: { text: string }) {
+/** `document`: long-form text like release notes, with headings that stand above bold lines. Chat answers use the default. */
+export function Markdown({ text, variant = 'chat' }: { text: string; variant?: 'chat' | 'document' }) {
+  const theme = useTheme();
+  const doc = variant === 'document';
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, doc && styles.docRoot]}>
       {parseMarkdown(text).map((block, i) => {
         switch (block.kind) {
           case 'heading':
             return (
-              <ThemedText key={i} type="smallBold" style={styles.heading}>
+              <ThemedText key={i} type={doc ? 'cardTitle' : 'smallBold'} style={doc ? styles.docHeading : styles.heading}>
                 <Inline text={block.text} />
               </ThemedText>
             );
@@ -147,6 +174,14 @@ export function Markdown({ text }: { text: string }) {
               <ThemedText key={i}>
                 <Inline text={block.text} />
               </ThemedText>
+            );
+          case 'quote':
+            return (
+              <View key={i} style={[styles.quote, { borderColor: theme.border }]}>
+                <ThemedText themeColor="textSecondary">
+                  <Inline text={block.text} />
+                </ThemedText>
+              </View>
             );
           case 'list':
             return (
@@ -172,10 +207,13 @@ export function Markdown({ text }: { text: string }) {
 const styles = StyleSheet.create({
   root: { gap: Spacing.two },
   heading: { marginTop: Spacing.one },
+  docRoot: { gap: Spacing.two + Spacing.one },
+  docHeading: { marginTop: Spacing.two },
   bold: { fontWeight: '700' },
   italic: { fontStyle: 'italic' },
   code: { fontFamily: Fonts?.mono, borderRadius: 4, paddingHorizontal: 3 },
   list: { gap: Spacing.one },
+  quote: { borderLeftWidth: 3, paddingLeft: Spacing.three },
   listItem: { flexDirection: 'row', gap: Spacing.two },
   marker: { minWidth: 16 },
   shrink: { flexShrink: 1 },

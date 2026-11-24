@@ -10,6 +10,7 @@ directories:
   buildResources: build
 files:
   - dist/main.js
+  - dist/preload.cjs
   - build/trayTemplate*.png
   - build/icon.png
   - package.json
@@ -23,11 +24,20 @@ extraResources:
     filter: ["**/*"]
 asar: true
 npmRebuild: false
+# Where the app looks for updates (electron-updater reads the latest-mac.yml attached to the newest
+# published release). Builds never publish themselves: the release workflow uploads the files.
+publish:
+  provider: github
+  owner: meld-finance
+  repo: meld
 mac:
   category: public.app-category.finance
   icon: build/icon.png
+  # The .dmg is for first installs; the .zip is what the app downloads to update itself.
   target:
     - target: dmg
+    - target: zip
+  artifactName: ${productName}-${version}-${arch}-mac.${ext}
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist

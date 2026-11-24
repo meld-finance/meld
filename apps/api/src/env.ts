@@ -87,6 +87,8 @@ const EnvSchema = z
     TAILSCALE_CONTROL: flag,
     /** Phone access over Tailscale was turned on (re-applied at start). */
     PHONE_ACCESS: flag,
+    /** The version running, shown in the app; the Mac app sets it. Empty reads apps/desktop/package.json. */
+    MELD_VERSION: z.string().default(''),
   })
   .transform((env, ctx) => {
     const DATABASE_URL = env.DATABASE_URL ?? databaseUrlFor(env, env.PLAID_ENV);

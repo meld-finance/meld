@@ -16,9 +16,11 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@meld/shared": "*",
     "@napi-rs/keyring": "2.1.2",
     "electron": "45.2.3",
     "electron-builder": "26.18.0",
+    "electron-updater": "6.8.11",
     "esbuild": "0.28.2",
     "postgres": "^3.4.9",
     "typescript": "~6.0.3"
