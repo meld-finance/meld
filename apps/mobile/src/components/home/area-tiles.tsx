@@ -1,8 +1,5 @@
 import {
   insuranceTotals,
-  type BudgetStatus,
-  type CashPlan,
-  type CategorySpend,
   type EstateSummary,
   type InsurancePolicy,
   type RetirementProjection,
@@ -21,18 +18,20 @@ import { formatCompactCurrency, formatWholeCurrency } from '@/lib/format';
 import { AREAS, type Area } from '@/lib/home';
 
 type Status = 'good' | 'attention' | 'setup';
-const STATUS: Record<Status, { label: string; color: 'positive' | 'warning' | 'textSecondary' }> = {
-  good: { label: 'On track', color: 'positive' },
-  attention: { label: 'Needs attention', color: 'warning' },
-  setup: { label: 'Set up', color: 'textSecondary' },
+
+const STATUS_BADGE: Record<Exclude<Status, 'setup'>, { label: string; color: 'positive' | 'warning'; bg: 'green' | 'orange' }> = {
+  good: { label: 'On track', color: 'positive', bg: 'green' },
+  attention: { label: 'Needs attention', color: 'warning', bg: 'orange' },
 };
 
 type Tile = {
   area: Area;
   title: string;
   value: string;
+  setupHeadline?: string;
   caption: string;
-  status: Status | null;
+  status: Status;
+  statusLabel?: string;
   /** 0–1, drawn as a bar under the value; null for none. */
   progress: number | null;
   href: Href;
@@ -40,9 +39,6 @@ type Tile = {
 
 export type AreaSources = {
   today: string;
-  cash: CashPlan | undefined;
-  spending: CategorySpend[] | undefined;
-  budgets: BudgetStatus[] | undefined;
   retirement: { projection: RetirementProjection | null; missing: string[] } | undefined;
   tax: TaxPlan | undefined;
   estate: EstateSummary | undefined;
@@ -50,58 +46,25 @@ export type AreaSources = {
 };
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n));
-const months = (n: number) => `${n.toFixed(n < 10 ? 1 : 0).replace(/\.0$/, '')} mo`;
 
-/** One tile per part of the plan, in the order you'd check them; a tile waits for its data. */
+/** Four long-term planning & protection pillars: Retirement, Taxes, Estate, and Insurance. */
 function buildTiles(s: AreaSources): Tile[] {
   const tiles: Tile[] = [];
-
-  if (s.cash) {
-    const e = s.cash.emergency;
-    tiles.push(
-      e.runwayMonths === null
-        ? { area: 'cash', title: 'Emergency fund', value: formatWholeCurrency(s.cash.totals.emergency), caption: 'Add your monthly spending to size it', status: 'setup', progress: null, href: '/accounts?tab=cash' }
-        : {
-            area: 'cash',
-            title: 'Emergency fund',
-            value: months(e.runwayMonths),
-            caption: `of spending covered · target ${e.targetMonths} mo`,
-            status: e.gap !== null && e.gap < 0 ? 'attention' : 'good',
-            progress: e.targetMonths ? clamp(e.runwayMonths / e.targetMonths) : null,
-            href: '/accounts?tab=cash',
-          },
-    );
-  }
-
-  if (s.spending) {
-    const spent = s.spending.reduce((sum, c) => sum + c.amount, 0);
-    const over = (s.budgets ?? []).filter((b) => b.spent > b.monthlyTarget).length;
-    const budgeted = (s.budgets ?? []).length;
-    const typical = s.cash?.spending.average ?? null;
-    const [y, m, d] = s.today.split('-').map(Number) as [number, number, number];
-    const monthShare = d / new Date(y, m, 0).getDate();
-    tiles.push({
-      area: 'spending',
-      title: 'Spending this month',
-      value: formatWholeCurrency(spent),
-      caption: [
-        typical ? `of a typical ${formatWholeCurrency(typical)}` : null,
-        budgeted ? (over ? `${over} of ${budgeted} budgets over` : `all ${budgeted} budgets on track`) : null,
-      ]
-        .filter(Boolean)
-        .join(' · ') || 'So far this month',
-      // Ahead of pace when this share of a typical month is already gone with more of the month to go.
-      status: over || (typical && spent > typical * Math.max(monthShare, 0.5) * 1.1) ? 'attention' : typical || budgeted ? 'good' : null,
-      progress: typical ? clamp(spent / typical) : null,
-      href: '/spending',
-    });
-  }
 
   if (s.retirement) {
     const { projection: p, missing } = s.retirement;
     tiles.push(
       missing.length || !p
-        ? { area: 'retirement', title: 'Retirement', value: '—', caption: `Add your ${missing.join(' and ') || 'plan'} to project it`, status: 'setup', progress: null, href: '/plan?tab=retirement' }
+        ? {
+            area: 'retirement',
+            title: 'Retirement',
+            value: '—',
+            setupHeadline: 'Project retirement',
+            caption: `Add your ${missing.join(' and ') || 'plan'} to see if your savings last.`,
+            status: 'setup',
+            progress: null,
+            href: '/plan?tab=retirement',
+          }
         : p.gap <= 0
           ? {
               area: 'retirement',
@@ -116,7 +79,7 @@ function buildTiles(s: AreaSources): Tile[] {
               area: 'retirement',
               title: 'Retirement',
               value: `${Math.round(clamp(p.atRetirement / p.needed) * 100)}%`,
-              caption: `of what you'll need · short ${formatCompactCurrency(p.gap)}`,
+              caption: `of what you’ll need · short ${formatCompactCurrency(p.gap)}`,
               status: 'attention',
               progress: clamp(p.atRetirement / p.needed),
               href: '/plan?tab=retirement',
@@ -129,70 +92,128 @@ function buildTiles(s: AreaSources): Tile[] {
     const open = t.checklist.filter((c) => !c.done).length;
     const total = t.checklist.length;
     const due = t.balanceDue;
-    tiles.push({
-      area: 'tax',
-      title: `${t.year} taxes`,
-      value:
-        due !== null
-          ? due > 0
-            ? `Owe ~${formatWholeCurrency(due)}`
-            : `Refund ~${formatWholeCurrency(-due)}`
-          : t.totalTax !== null
-            ? formatWholeCurrency(t.totalTax)
-            : '—',
-      caption: [
-        due === null && t.totalTax !== null ? 'estimated tax' : null,
-        total ? `${total - open} of ${total} moves done` : null,
-        t.missing.length ? 'profile details missing' : null,
-      ]
-        .filter(Boolean)
-        .join(' · ') || 'No deadlines left this year',
-      status: t.missing.length ? 'setup' : open || (due !== null && due > 0) ? 'attention' : 'good',
-      progress: total ? (total - open) / total : null,
-      href: '/plan?tab=tax',
-    });
+    tiles.push(
+      t.missing.length > 0
+        ? {
+            area: 'tax',
+            title: `${t.year} taxes`,
+            value: '—',
+            setupHeadline: `Estimate ${t.year} taxes`,
+            caption: 'Add income and filing status to see brackets and tax moves.',
+            status: 'setup',
+            progress: null,
+            href: '/plan?tab=tax',
+          }
+        : {
+            area: 'tax',
+            title: `${t.year} taxes`,
+            value:
+              due !== null
+                ? due > 0
+                  ? `Owe ~${formatWholeCurrency(due)}`
+                  : `Refund ~${formatWholeCurrency(-due)}`
+                : t.totalTax !== null
+                  ? formatWholeCurrency(t.totalTax)
+                  : '—',
+            caption:
+              [
+                due === null && t.totalTax !== null ? 'estimated tax' : null,
+                total ? `${total - open} of ${total} moves done` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ') || 'No deadlines left this year',
+            status: open || (due !== null && due > 0) ? 'attention' : 'good',
+            progress: total ? (total - open) / total : null,
+            href: '/plan?tab=tax',
+          },
+    );
   }
 
   if (s.estate) {
     const r = s.estate.readiness;
-    tiles.push({
-      area: 'estate',
-      title: 'Estate',
-      value: r.total ? `${Math.round((r.done / r.total) * 100)}%` : '—',
-      caption: `${r.done} of ${r.total} steps · ${r.documents.done} of ${r.documents.total} documents`,
-      status: r.done >= r.total ? 'good' : r.done === 0 ? 'setup' : 'attention',
-      progress: r.total ? r.done / r.total : null,
-      href: '/plan?tab=estate',
-    });
+    tiles.push(
+      r.done === 0
+        ? {
+            area: 'estate',
+            title: 'Estate',
+            value: '—',
+            setupHeadline: 'Organize your estate',
+            caption: 'Track beneficiaries, store key documents, and export a family packet.',
+            status: 'setup',
+            progress: null,
+            href: '/plan?tab=estate',
+          }
+        : {
+            area: 'estate',
+            title: 'Estate',
+            value: r.total ? `${Math.round((r.done / r.total) * 100)}%` : '—',
+            caption: `${r.done} of ${r.total} steps · ${r.documents.done} of ${r.documents.total} documents`,
+            status: r.done >= r.total ? 'good' : 'attention',
+            progress: r.total ? r.done / r.total : null,
+            href: '/plan?tab=estate',
+          },
+    );
   }
 
   if (s.policies) {
     const totals = insuranceTotals(s.policies, s.today);
     const disability = totals.longTermDisabilityMonthly || totals.shortTermDisabilityMonthly;
-    tiles.push({
-      area: 'insurance',
-      title: 'Insurance',
-      value: totals.lifeCoverage ? formatCompactCurrency(totals.lifeCoverage) : disability ? `${formatWholeCurrency(disability)}/mo` : '—',
-      caption: s.policies.length
-        ? [totals.lifeCoverage ? 'life coverage' : disability ? 'disability benefit' : null, disability && totals.lifeCoverage ? `${formatWholeCurrency(disability)}/mo disability` : null, `${s.policies.length} ${s.policies.length === 1 ? 'policy' : 'policies'}`]
-            .filter(Boolean)
-            .join(' · ')
-        : 'Add life and disability policies',
-      status: s.policies.length ? null : 'setup',
-      progress: null,
-      href: '/plan?tab=insurance',
-    });
+    tiles.push(
+      s.policies.length === 0
+        ? {
+            area: 'insurance',
+            title: 'Insurance',
+            value: '—',
+            setupHeadline: 'Check family coverage',
+            caption: 'Upload a policy PDF or log employer life and disability benefits.',
+            status: 'setup',
+            progress: null,
+            href: '/plan?tab=insurance',
+          }
+        : {
+            area: 'insurance',
+            title: 'Insurance',
+            value: totals.lifeCoverage
+              ? formatCompactCurrency(totals.lifeCoverage)
+              : disability
+                ? `${formatWholeCurrency(disability)}/mo`
+                : '—',
+            caption: [
+              totals.lifeCoverage ? 'life coverage' : disability ? 'disability benefit' : null,
+              disability && totals.lifeCoverage ? `${formatWholeCurrency(disability)}/mo disability` : null,
+              `${s.policies.length} ${s.policies.length === 1 ? 'policy' : 'policies'}`,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+            status: 'good',
+            statusLabel: `${s.policies.length} active`,
+            progress: null,
+            href: '/plan?tab=insurance',
+          },
+    );
   }
 
   return tiles;
 }
 
-/** How each part of your financial life is doing, one tile each, linking to its page. */
-export function AreaTiles(props: AreaSources) {
+/** Symmetrical grid of long-term plan & protection tiles. */
+export function AreaTiles({ columns, ...sources }: AreaSources & { columns: 1 | 2 | 4 }) {
+  const tiles = buildTiles(sources);
+  if (tiles.length === 0) return null;
+
+  const rows: Tile[][] = [];
+  for (let i = 0; i < tiles.length; i += columns) {
+    rows.push(tiles.slice(i, i + columns));
+  }
+
   return (
     <View style={styles.grid}>
-      {buildTiles(props).map((t) => (
-        <AreaTile key={t.area} tile={t} />
+      {rows.map((row, idx) => (
+        <View key={idx} style={styles.row}>
+          {row.map((t) => (
+            <AreaTile key={t.area} tile={t} />
+          ))}
+        </View>
       ))}
     </View>
   );
@@ -200,11 +221,45 @@ export function AreaTiles(props: AreaSources) {
 
 function AreaTile({ tile: t }: { tile: Tile }) {
   const theme = useTheme();
+  const accents = useAccents();
   const viz = useVizColors();
   const area = AREAS[t.area];
-  const accent = useAccents()[area.accent];
-  const status = t.status && STATUS[t.status];
-  const fill = t.status === 'attention' ? viz.warning : t.status === 'good' ? viz.good : viz.series1;
+  const accent = accents[area.accent];
+
+  if (t.status === 'setup') {
+    return (
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => router.push(t.href)}
+        style={({ hovered, pressed }) => [
+          styles.tile,
+          styles.setupTile,
+          { backgroundColor: theme.backgroundElement, borderColor: hovered ? accent.fg : theme.border },
+          pressed && styles.pressed,
+        ]}>
+        <View style={styles.top}>
+          <View style={[styles.badge, { backgroundColor: accent.bg }]}>
+            <Icon name={area.icon} size={18} color={accent.fg} />
+          </View>
+          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1} style={styles.title}>
+            {t.title}
+          </ThemedText>
+        </View>
+        <ThemedText style={styles.setupHeadline} numberOfLines={1}>
+          {t.setupHeadline ?? t.title}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.caption} numberOfLines={2}>
+          {t.caption}
+        </ThemedText>
+        <ThemedText type="smallBold" themeColor="tint" style={styles.setupCta}>
+          Set up →
+        </ThemedText>
+      </Pressable>
+    );
+  }
+
+  const badge = STATUS_BADGE[t.status];
+  const fill = t.status === 'attention' ? viz.warning : viz.good;
 
   return (
     <Pressable
@@ -222,11 +277,11 @@ function AreaTile({ tile: t }: { tile: Tile }) {
         <ThemedText type="small" numberOfLines={1} style={styles.title}>
           {t.title}
         </ThemedText>
-        {status && (
-          <ThemedText type="smallBold" themeColor={status.color} style={styles.status} numberOfLines={1}>
-            {status.label}
+        <View style={[styles.statusPill, { backgroundColor: accents[badge.bg].bg }]}>
+          <ThemedText type="smallBold" themeColor={badge.color} style={styles.statusText} numberOfLines={1}>
+            {t.statusLabel ?? badge.label}
           </ThemedText>
-        )}
+        </View>
       </View>
       <ThemedText style={styles.value} numberOfLines={1}>
         {t.value}
@@ -247,23 +302,30 @@ function AreaTile({ tile: t }: { tile: Tile }) {
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
+  grid: { gap: Spacing.three },
+  row: { flexDirection: 'row', gap: Spacing.three },
   tile: {
-    flexGrow: 1,
-    flexBasis: 220,
-    minWidth: 200,
+    flex: 1,
+    minWidth: 0,
     padding: Spacing.three,
     borderRadius: Spacing.three + Spacing.one,
     borderWidth: 1,
     gap: Spacing.two,
   },
+  setupTile: {
+    borderStyle: 'dashed',
+    borderWidth: 1.5,
+  },
   top: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   badge: { width: 32, height: 32, borderRadius: Spacing.two, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, minWidth: 0 },
-  status: { fontSize: 12 },
-  value: { fontSize: 22, lineHeight: 28, fontWeight: 700, letterSpacing: -0.3 },
+  statusPill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  statusText: { fontSize: 11, lineHeight: 15 },
+  value: { fontSize: 24, lineHeight: 30, fontWeight: 700, letterSpacing: -0.4 },
+  setupHeadline: { fontSize: 17, lineHeight: 22, fontWeight: 700, letterSpacing: -0.2 },
   track: { height: 6, borderRadius: 3, overflow: 'hidden' },
   fill: { height: 6, borderRadius: 3 },
-  caption: { fontSize: 13 },
+  caption: { fontSize: 13, lineHeight: 18 },
+  setupCta: { fontSize: 13, lineHeight: 18, marginTop: 'auto', paddingTop: 2 },
   pressed: { opacity: 0.75 },
 });

@@ -1,6 +1,6 @@
 import { router, type Href } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { Card } from '@/components/card';
 import { Icon } from '@/components/icon';
@@ -13,32 +13,111 @@ import { formatDate, formatWholeCurrency } from '@/lib/format';
 import { AREAS, daysBetween, type Task } from '@/lib/home';
 import { useDismissAlert, useSetChecklistDone } from '@/lib/queries';
 
-const COLLAPSED = 6;
+const COLLAPSED = 4;
+
+type Filter = 'all' | 'urgent' | 'moves' | 'tax';
 
 const countdown = (days: number) => (days < 0 ? 'past due' : days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`);
 
-/** Everything across Meld that wants something from you, in one list, most pressing first. */
-export function TaskList({ tasks, today, loading, style }: { tasks: Task[]; today: string; loading: boolean; style?: object }) {
+/** Alerts and high-leverage financial moves across Meld, sorted by urgency and dollar impact. */
+export function TaskList({ tasks, today, loading, style }: { tasks: Task[]; today: string; loading: boolean; style?: ViewStyle }) {
   const theme = useTheme();
+  const accents = useAccents();
   const [expanded, setExpanded] = useState(false);
-  const shown = expanded ? tasks : tasks.slice(0, COLLAPSED);
+  const [filter, setFilter] = useState<Filter>('all');
+
   const pressing = tasks.filter((t) => t.urgency !== 'later').length;
+  const movesCount = tasks.filter((t) => t.kind === 'move').length;
+  const taxCount = tasks.filter((t) => t.kind === 'checklist').length;
+
+  const nonEmptyBuckets = [pressing > 0, movesCount > 0, taxCount > 0].filter(Boolean).length;
+  const showFilters = tasks.length > 3 && nonEmptyBuckets >= 2;
+
+  const activeFilter: Filter =
+    filter === 'urgent' && pressing === 0
+      ? 'all'
+      : filter === 'moves' && movesCount === 0
+        ? 'all'
+        : filter === 'tax' && taxCount === 0
+          ? 'all'
+          : filter;
+
+  const filtered =
+    activeFilter === 'urgent'
+      ? tasks.filter((t) => t.urgency !== 'later')
+      : activeFilter === 'moves'
+        ? tasks.filter((t) => t.kind === 'move')
+        : activeFilter === 'tax'
+          ? tasks.filter((t) => t.kind === 'checklist')
+          : tasks;
+
+  const shown = expanded ? filtered : filtered.slice(0, COLLAPSED);
+
+  const filterOptions: { key: Filter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: tasks.length },
+    ...(pressing > 0 ? [{ key: 'urgent' as const, label: 'Urgent', count: pressing }] : []),
+    ...(movesCount > 0 ? [{ key: 'moves' as const, label: 'Money moves', count: movesCount }] : []),
+    ...(taxCount > 0 ? [{ key: 'tax' as const, label: 'Tax checklist', count: taxCount }] : []),
+  ];
 
   return (
     <Card
-      title="Your to-dos"
+      title="Worth your attention"
       subtitle={
         tasks.length === 0
           ? undefined
           : pressing
-            ? `${pressing} need attention soon · ${tasks.length} in all, from bills, cash, taxes, estate and your plan`
-            : `${tasks.length} across bills, cash, taxes, estate and your plan. Nothing urgent.`
+            ? `${pressing} ${pressing === 1 ? 'needs' : 'need'} attention soon · ${tasks.length} total`
+            : `${tasks.length} opportunities across your accounts and plans`
       }
       style={style}>
+      {showFilters && (
+        <View style={styles.filters}>
+          {filterOptions.map((o) => {
+            const selected = o.key === activeFilter;
+            return (
+              <Pressable
+                key={o.key}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => {
+                  setFilter(o.key);
+                  setExpanded(false);
+                }}
+                style={({ hovered, pressed }) => [
+                  styles.filterChip,
+                  selected
+                    ? { backgroundColor: theme.tint, borderColor: theme.tint }
+                    : { backgroundColor: theme.background, borderColor: hovered ? theme.tint : theme.border },
+                  pressed && styles.pressed,
+                ]}>
+                <ThemedText type="small" style={[styles.filterText, { color: selected ? '#ffffff' : theme.textSecondary }]}>
+                  {o.label} ({o.count})
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
       {tasks.length === 0 ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          {loading ? 'Checking your accounts and plans…' : 'You’re all caught up. New to-dos show up here as bills come due, deadlines approach or your plans change.'}
-        </ThemedText>
+        loading ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            Checking your accounts and plans…
+          </ThemedText>
+        ) : (
+          <View style={styles.empty}>
+            <View style={[styles.emptyBadge, { backgroundColor: accents.green.bg }]}>
+              <Icon name="check" size={18} color={accents.green.fg} strokeWidth={2.5} />
+            </View>
+            <View style={styles.emptyText}>
+              <ThemedText type="smallBold">You’re all caught up</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                New items appear here as bills come due, deadlines approach, or opportunities open up.
+              </ThemedText>
+            </View>
+          </View>
+        )
       ) : (
         <View>
           {shown.map((t, i) => (
@@ -48,10 +127,11 @@ export function TaskList({ tasks, today, loading, style }: { tasks: Task[]; toda
           ))}
         </View>
       )}
-      {tasks.length > COLLAPSED && (
+
+      {filtered.length > COLLAPSED && (
         <Pressable onPress={() => setExpanded((e) => !e)} style={styles.more}>
-          <ThemedText type="small" themeColor="tint">
-            {expanded ? 'Show less' : `Show all ${tasks.length}`}
+          <ThemedText type="smallBold" themeColor="tint">
+            {expanded ? 'Show less' : `Show all ${filtered.length}`}
           </ThemedText>
         </Pressable>
       )}
@@ -61,8 +141,9 @@ export function TaskList({ tasks, today, loading, style }: { tasks: Task[]; toda
 
 function TaskRow({ task: t, today }: { task: Task; today: string }) {
   const theme = useTheme();
+  const accents = useAccents();
   const area = AREAS[t.area];
-  const accent = useAccents()[area.accent];
+  const accent = accents[area.accent];
   const chat = useStartChat();
   const dismiss = useDismissAlert();
   const days = t.due ? daysBetween(today, t.due) : null;
@@ -71,28 +152,24 @@ function TaskRow({ task: t, today }: { task: Task; today: string }) {
   const meta = [
     area.label,
     t.due && days !== null && `${t.dueLabel ?? 'Due'} ${formatDate(t.due)} · ${countdown(days)}`,
-    t.impact ? `worth ~${formatWholeCurrency(t.impact)}` : null,
   ].filter(Boolean);
 
   return (
     <View style={styles.row}>
-      {t.checklist ? (
-        <ChecklistBox year={t.checklist.year} id={t.checklist.id} />
-      ) : (
+      <View style={styles.badgeWrap}>
         <View style={[styles.badge, { backgroundColor: accent.bg }]}>
           <Icon name={area.icon} size={18} color={accent.fg} />
         </View>
-      )}
+        {flag && <View style={[styles.urgencyDot, { backgroundColor: theme[flag], borderColor: theme.backgroundElement }]} />}
+      </View>
+
       <Pressable
         accessibilityRole="link"
         onPress={() => router.push(t.href as Href)}
         style={({ pressed }) => [styles.body, pressed && styles.pressed]}>
-        <View style={styles.titleRow}>
-          {flag && <View style={[styles.dot, { backgroundColor: theme[flag] }]} />}
-          <ThemedText type="smallBold" style={styles.title}>
-            {t.title}
-          </ThemedText>
-        </View>
+        <ThemedText type="smallBold" style={styles.title}>
+          {t.title}
+        </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
           {t.detail}
         </ThemedText>
@@ -100,34 +177,45 @@ function TaskRow({ task: t, today }: { task: Task; today: string }) {
           {meta.join(' · ')}
         </ThemedText>
       </Pressable>
-      {t.question && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Ask Meld about: ${t.title}`}
-          disabled={chat.isPending}
-          onPress={() => chat.start(t.question!)}
-          style={({ hovered, pressed }) => [
-            styles.ask,
-            { borderColor: hovered ? theme.tint : theme.border },
-            pressed && styles.pressed,
-          ]}>
-          <Icon name="sparkles" size={16} themeColor="tint" />
-        </Pressable>
-      )}
-      {t.alertId && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Dismiss: ${t.title}`}
-          disabled={dismiss.isPending}
-          onPress={() => dismiss.mutate({ id: t.alertId!, dismissed: true })}
-          style={({ hovered, pressed }) => [
-            styles.ask,
-            { borderColor: hovered ? theme.tint : theme.border },
-            pressed && styles.pressed,
-          ]}>
-          <Icon name="close" size={16} themeColor="textSecondary" />
-        </Pressable>
-      )}
+
+      <View style={styles.actions}>
+        {t.impact !== null && t.impact > 0 && (
+          <View style={[styles.impactPill, { backgroundColor: accents.green.bg }]}>
+            <ThemedText type="smallBold" style={[styles.impactText, { color: accents.green.fg }]}>
+              +{formatWholeCurrency(t.impact)}
+            </ThemedText>
+          </View>
+        )}
+        {t.checklist && <ChecklistBox year={t.checklist.year} id={t.checklist.id} />}
+        {t.question && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Ask Meld about: ${t.title}`}
+            disabled={chat.isPending}
+            onPress={() => chat.start(t.question!)}
+            style={({ hovered, pressed }) => [
+              styles.actionButton,
+              { borderColor: hovered ? theme.tint : theme.border },
+              pressed && styles.pressed,
+            ]}>
+            <Icon name="sparkles" size={15} themeColor="tint" />
+          </Pressable>
+        )}
+        {t.alertId && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Dismiss: ${t.title}`}
+            disabled={dismiss.isPending}
+            onPress={() => dismiss.mutate({ id: t.alertId!, dismissed: true })}
+            style={({ hovered, pressed }) => [
+              styles.actionButton,
+              { borderColor: hovered ? theme.tint : theme.border },
+              pressed && styles.pressed,
+            ]}>
+            <Icon name="close" size={15} themeColor="textSecondary" />
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
@@ -143,23 +231,55 @@ function ChecklistBox({ year, id }: { year: number; id: string }) {
       accessibilityLabel="Mark done"
       hitSlop={8}
       onPress={() => setDone.mutate({ id, done: true })}
-      style={({ hovered }) => [styles.check, { borderColor: hovered ? theme.tint : theme.textSecondary }]}>
-      {setDone.isPending && <Icon name="check" size={14} themeColor="tint" strokeWidth={2.5} />}
+      style={({ hovered, pressed }) => [
+        styles.actionButton,
+        { borderColor: hovered ? theme.positive : theme.border },
+        pressed && styles.pressed,
+      ]}>
+      {({ hovered }) => (
+        <Icon
+          name="check"
+          size={15}
+          themeColor={setDone.isPending || hovered ? 'positive' : 'textSecondary'}
+          strokeWidth={2.2}
+        />
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  filterChip: {
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  filterText: { fontSize: 12, lineHeight: 16, fontWeight: 600 },
+  empty: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two },
+  emptyBadge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  emptyText: { flex: 1, gap: 2 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three, paddingVertical: Spacing.three },
   divider: { borderTopWidth: StyleSheet.hairlineWidth },
+  badgeWrap: { position: 'relative', marginTop: 2 },
   badge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  check: { width: 22, height: 22, margin: 7, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  urgencyDot: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+  },
   body: { flex: 1, minWidth: 0, gap: Spacing.half },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   title: { flexShrink: 1 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  meta: { marginTop: Spacing.one, fontSize: 13 },
-  ask: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  meta: { marginTop: Spacing.half, fontSize: 12, lineHeight: 16 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0, paddingTop: 2 },
+  impactPill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  impactText: { fontSize: 12, lineHeight: 16 },
+  actionButton: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   more: { alignSelf: 'flex-start' },
   pressed: { opacity: 0.6 },
 });
