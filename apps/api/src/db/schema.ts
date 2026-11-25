@@ -1,3 +1,17 @@
+/**
+ * Postgres schema (Drizzle ORM). Run `npm run db:generate` after any change.
+ *
+ * Sections:
+ *   - Institutions & Plaid (institutions, plaidItems)
+ *   - Accounts & transactions (accounts, transactions, categoryRules)
+ *   - Investments (securities, priceHistory, holdings, investmentTransactions)
+ *   - Liabilities (liabilities)
+ *   - Insurance & documents (documents, insurancePolicies)
+ *   - Manual assets, snapshots, budgets, profile (manualAssets, balanceSnapshots, budgets, userProfile, taxSettings, cashSettings, retirementScenarios, retirementSimulations)
+ *   - Recurring payments, autopay, alerts (recurringOverrides, autopayLinks, alerts, alertSettings)
+ *   - Estate (estateDocuments, estateDesignations, estateSettings)
+ *   - AI chat (chatSessions, chatMessages)
+ */
 import type {
   AlertSettings,
   Beneficiary,

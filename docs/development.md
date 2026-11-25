@@ -55,6 +55,9 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 | `npm run db:migrate` | Apply migrations to the sandbox and production databases |
 | `npm run typecheck` | Typecheck all packages |
 | `npm test` | Run tests (DB tests use `TEST_DATABASE_URL`; create it once with `docker compose exec db createdb -U meld meld_test`) |
+| `npm run test:unit` / `npm run test:db` | Run parallel unit tests (no Postgres needed) / serial Postgres DB tests |
+| `npm run check:changed` | Run docs audit, typecheck, lint, and unit tests scoped to changed workspaces |
+| `npm run ui:snap -- <path>` | Capture 1440px desktop and 390px mobile PNGs of running web UI routes |
 | `npm run site:screenshots` | Re-capture 2× landing page PNGs from `meld_sandbox` and sync dimensions |
 | `npm run site:check` | Verify landing page screenshots are 2× PNGs matching `site/index.html` |
 | `npm run docs:build` | Generate the web documentation portal (`site/docs/`) and Ask Meld's feature guide index (`apps/api/src/ai/meld-docs.generated.ts`) from Markdown |
