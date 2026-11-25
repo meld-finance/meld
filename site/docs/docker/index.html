@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Self-Hosting with Docker — Meld Docs</title>
-<meta name="description" content="Run Meld 24/7 on a home server, Mac mini, or NAS with Docker Compose, backups, and Ollama.">
+<meta name="description" content="Run Meld on Linux, a NAS, or a headless server that starts without anyone logging in.">
 <meta name="theme-color" content="#1a7fe6">
 <link rel="icon" type="image/png" href="../../favicon.png">
 <link rel="apple-touch-icon" href="../../apple-touch-icon.png">
@@ -45,6 +45,7 @@
     <div class="nav-group">
       <div class="nav-group-title">Using Meld</div>
       <ul class="nav-list">
+        <li><a class="nav-link" href="../install/">Install</a></li>
         <li><a class="nav-link" href="../features/">Features &amp; Guide</a></li>
         <li><a class="nav-link" href="../plaid/">Plaid Bank Setup</a></li>
         <li><a class="nav-link" href="../phone-access/">Phone Access (Tailscale)</a></li>
@@ -77,7 +78,7 @@
           <span aria-current="page">Self-Hosting with Docker</span>
         </nav>
         <h1>Self-hosting Meld with Docker</h1>
-        <p class="doc-summary">Run Meld 24/7 on a home server, Mac mini, or NAS with Docker Compose, backups, and Ollama.</p>
+        <p class="doc-summary">Run Meld on Linux, a NAS, or a headless server that starts without anyone logging in.</p>
         <div class="doc-meta">
           <span class="doc-meta-pill">2 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/docker.md">View docs/docker.md on GitHub ↗</a>
@@ -97,7 +98,16 @@
         </nav>
       </details>
       <div class="prose">
-        <p>Docker runs Meld on any machine that stays on—a home server, Mac mini, NAS, or Linux box. It starts two containers: Postgres (<code>db</code>) and Meld (<code>meld</code>), which serves both the web app and the API on <code>127.0.0.1:8080</code>.</p>
+        <p>Most people don't need Docker. The <a href="../install/">Mac and Windows app</a> keeps running in the menu bar or notification area after you close its window, and on a computer that doesn't sleep it's already an always-on setup (see <a href="../install/#keep-it-running">Keep it running</a>).</p>
+
+<p>Use Docker when:</p>
+
+<ul>
+<li><strong>The machine runs Linux or is a NAS.</strong> There's no desktop app for these.</li>
+<li><strong>Meld has to come back on its own after a reboot.</strong> The desktop app starts when someone logs in; the Docker containers restart when the machine boots, with nobody logged in.</li>
+</ul>
+
+<p>It starts two containers: Postgres (<code>db</code>) and Meld (<code>meld</code>), which serves both the web app and the API on <code>127.0.0.1:8080</code>.</p>
 
 <h2 id="start-meld">Start Meld<a class="heading-anchor" href="#start-meld" aria-label="Link to Start Meld">#</a></h2>
 

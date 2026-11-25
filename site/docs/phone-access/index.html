@@ -45,6 +45,7 @@
     <div class="nav-group">
       <div class="nav-group-title">Using Meld</div>
       <ul class="nav-list">
+        <li><a class="nav-link" href="../install/">Install</a></li>
         <li><a class="nav-link" href="../features/">Features &amp; Guide</a></li>
         <li><a class="nav-link" href="../plaid/">Plaid Bank Setup</a></li>
         <li><a class="nav-link active" href="../phone-access/" aria-current="page">Phone Access (Tailscale)</a></li>
@@ -123,10 +124,11 @@
 
 <h2 id="keeping-it-reachable">Keeping it reachable<a class="heading-anchor" href="#keeping-it-reachable" aria-label="Link to Keeping it reachable">#</a></h2>
 
-<ul>
-<li>On Mac and Windows, closing Meld's window keeps it running in the menu bar / notification tray so your phone can still connect while your computer is awake. Turn on <strong>Open at Login</strong> from the menu bar / tray icon if you want Meld ready after a restart.</li>
-<li>If you want Meld reachable 24/7 even when your laptop is asleep, run Meld on a home server, NAS, or always-on computer with Docker instead — see the <a href="../docker/">Docker setup guide</a>.</li>
-</ul>
+<p>Your phone can reach Meld whenever your computer is awake and Meld is running. Closing Meld's window keeps it running in the menu bar or notification area.</p>
+
+<p>For 24/7 access, run the app on a computer that stays on (a Mac mini or desktop PC is ideal): turn on <strong>Open at Login</strong> from Meld's menu bar or notification-area icon and stop the computer from sleeping. <a href="../install/#keep-it-running">Keep it running</a> has the exact settings. A laptop that sleeps when you close it takes Meld offline until you open it again.</p>
+
+<p>On Linux or a NAS, or if Meld must start after a reboot without anyone logging in, use <a href="../docker/">Docker</a> instead.</p>
 
 <h2 id="troubleshooting">Troubleshooting<a class="heading-anchor" href="#troubleshooting" aria-label="Link to Troubleshooting">#</a></h2>
 

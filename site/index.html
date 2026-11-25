@@ -799,14 +799,14 @@
       </div>
       <ul class="table-notes">
         <li><strong>Partly:</strong> AI assistants answer questions about linked accounts but don't track or plan. ProjectionLab has no bank sync (type balances in, or import from Monarch, YNAB or Lunch Money); Boldin syncs only on PlannerPlus. Self-hosted apps sync through SimpleFIN ($15/yr) and need a server for it.</li>
-        <li><strong>Meld's setup:</strong> a Mac app plus a free Plaid developer account (free for up to 10 bank logins—each with any number of accounts—and Plaid usually approves production access automatically). Docker is optional.</li>
+        <li><strong>Meld's setup:</strong> a Mac or Windows app plus a free Plaid developer account (free for up to 10 bank logins—each with any number of accounts—and Plaid usually approves production access automatically). Docker is optional.</li>
         <li>US list prices for annual plans as of November 2026 (Monarch Plus is $199.99/yr). ChatGPT and Claude are monthly: ChatGPT Finances works on every US plan, including Free; Claude Personal Finance needs Pro ($17/mo billed yearly), Max ($100/mo) or Ultra ($200/mo). Meld isn't affiliated with any of these companies or projects.</li>
       </ul>
 
       <div class="tradeoffs">
         <div class="card">
           <h3>The trade-offs</h3>
-          <p>You set up your own free Plaid developer account before connecting real banks—Plaid should approve production access automatically for personal use. There's no app in the App Store yet: it's a Mac app you reach from your phone over a private network, or a Docker server you run. It's built for one household.</p>
+          <p>You set up your own free Plaid developer account before connecting real banks—Plaid should approve production access automatically for personal use. There's no app in the App Store yet: it's a Mac or Windows app you reach from your phone over a private network (or Docker, on Linux or a NAS). It's built for one household.</p>
         </div>
         <div class="card">
           <h3>Why it's worth it</h3>
@@ -853,7 +853,7 @@
       <div class="steps">
         <div class="step">
           <h3>Download Meld</h3>
-          <p>Get the <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg">Apple silicon</a> or <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg">Intel</a> Mac app and drag it to Applications. It’s signed and notarized by Apple. On Windows, run the <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe">installer (preview)</a>.</p>
+          <p>Get the <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg">Apple silicon</a> or <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg">Intel</a> Mac app and drag it to Applications. The first time you open it, macOS checks that you meant to open an app from the Internet: click <strong>Open</strong>. It’s signed and notarized by Apple. On Windows, run the <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe">installer (preview)</a>.</p>
         </div>
         <div class="step">
           <h3>Set it up</h3>
@@ -864,6 +864,7 @@
           <p>Look around with test data (<code>user_good</code> / <code>pass_good</code>), then <a href="docs/plaid/">connect your real accounts</a>.</p>
         </div>
       </div>
+      <p class="fineprint" style="margin-top:20px"><a href="docs/install/">Full install guide →</a> · <a href="docs/install/#keep-it-running">Keep Meld running around the clock →</a></p>
     </div>
   </section>
 
@@ -875,11 +876,11 @@
           <p style="margin-top:10px">Check balances, upcoming autopays or Ask Meld from your phone without opening Meld to the internet. Your phone reaches your computer over <a href="https://tailscale.com">Tailscale</a>, a free private network only your devices are on.</p>
         </div>
         <ol class="phone-steps">
-          <li>Install Tailscale on <strong>both your Mac and your phone</strong>, and sign in to both with the same account.</li>
+          <li>Install Tailscale on <strong>both your computer and your phone</strong>, and sign in to both with the same account.</li>
           <li>Turn on HTTPS certificates in the Tailscale admin console, then click <strong>Turn on phone access</strong> in Meld's Settings.</li>
           <li>Scan the QR code with your phone and use <strong>Add to Home Screen</strong> so Meld opens like an app.</li>
         </ol>
-        <p class="fineprint" style="margin:0"><a href="docs/phone-access/">Phone &amp; Tailscale setup guide →</a> · Running an always-on server instead? <a href="docs/docker/">Docker setup guide →</a></p>
+        <p class="fineprint" style="margin:0"><a href="docs/phone-access/">Setup guide →</a> · <a href="docs/install/#keep-it-running">Keep it on 24/7 →</a> · <a href="docs/docker/">Linux or NAS →</a></p>
         <div class="shot plain"><img src="images/phone-settings.png" width="752" height="362" loading="lazy" alt="Meld Settings Phone access card showing a sample QR code and private Tailscale URL https://macbook.tail1234.ts.net"></div>
       </div>
       <div class="phone-col">
@@ -904,6 +905,7 @@
     <nav>
       <a href="https://github.com/meld-finance/meld">GitHub</a>
       <a href="docs/">Docs</a>
+      <a href="docs/install/">Install</a>
       <a href="docs/features/">All features</a>
       <a href="docs/phone-access/">Phone access</a>
       <a href="docs/docker/">Docker</a>

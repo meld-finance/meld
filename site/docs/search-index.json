@@ -1,6 +1,70 @@
 [
   {
     "isPage": true,
+    "pageTitle": "Install",
+    "group": "Using Meld",
+    "heading": "",
+    "url": "install/",
+    "text": "Install the Mac or Windows app, get through first-run setup, and keep Meld running around the clock."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Install",
+    "group": "Using Meld",
+    "heading": "Mac",
+    "url": "install/#mac",
+    "text": "Download Meld for Apple silicon or Intel. Not sure which? Apple menu → About This Mac: \"Apple M…\" is Apple silicon. Open the .dmg and drag Meld into Applications. Open Meld from Applications. The first time, macOS asks: \"Meld\" is an app downloaded from the Internet. Are you sure you want to open it? Click Open. This dialog appears for every app you download outside the App Store. Meld is signed and notarized by Apple, so you won't see the \"cannot be opened\" warning that unsigned apps get, and macOS won't ask again. Meld's window opens and it puts an icon in the menu bar. Closing the window leaves Meld running there; use the icon to reopen it, turn on Open at Login, show the data folder or the log, or Quit. Your data lives in ~/Library/Application Support/Meld. The keys that encrypt it are in your macOS Keychain (item Meld)."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Install",
+    "group": "Using Meld",
+    "heading": "Windows (preview)",
+    "url": "install/#windows-preview",
+    "text": "Windows 10 or 11, 64-bit Intel/AMD. The Windows app is new and hasn't had much testing yet, so expect rough edges and please open an issue if something breaks. Download the installer and run it. It installs for your user only, with no admin prompt. The installer isn't code-signed yet, so Windows SmartScreen says \"Windows protected your PC\" the first time. Click More info, then Run anyway. Meld opens and puts an icon in the notification area by the clock. Closing the window leaves Meld running there: click the icon to open Meld, or right-click it for Open at Login, the data folder, the log and Quit. Your data lives in %APPDATA%\\Meld. The keys that encrypt it are in Windows Credential Manager (item Meld)."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Install",
+    "group": "Using Meld",
+    "heading": "First run",
+    "url": "install/#first-run",
+    "text": "Meld walks you through setup the first time it opens: Passphrase (optional). It locks Meld in the browser and on your phone. You can turn it on or off later. Plaid keys: your client ID and secrets, with a Test keys button. Plaid setup shows where to find them. AI (optional): Ollama for free local models (Meld finds it if it's running), a ChatGPT plan, or an Anthropic API key. Start with Plaid's Sandbox to look around (pick any bank, sign in with user_good / pass_good), then follow Plaid setup to connect your real accounts and switch to production in Settings."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Install",
+    "group": "Using Meld",
+    "heading": "Keep it running",
+    "url": "install/#keep-it-running",
+    "text": "Meld syncs your accounts, checks bills and sends alerts while it's running, and your phone can reach it over phone access whenever your computer is awake. You don't need a server for an always-on setup. Run the app on a computer that stays on, such as a Mac mini or a desktop PC: Turn on Open at Login from Meld's menu bar or notification-area icon, so it starts again after a restart. Stop the computer from going to sleep: Mac: System Settings → Energy → turn on Prevent automatic sleeping when the display is off. On a MacBook it's under Battery → Options, and only applies while plugged in. Windows: Settings → System → Power & battery → Screen, sleep & hibernate timeouts → set sleep when plugged in to Never. Meld starts when you sign in, not when the computer boots, so after a power cut or update it waits until someone logs in. If that matters, or the machine runs Linux or is a NAS (which the desktop app doesn't support), run Meld with Docker instead."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Install",
+    "group": "Using Meld",
+    "heading": "Updates",
+    "url": "install/#updates",
+    "text": "Meld checks GitHub for a new version shortly after it opens and every 4 hours. When one is out, it shows Update available at the top of the window and in the menu bar or notification-area menu. One click downloads it in the background; Restart to update installs it, or it installs the next time Meld quits."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Install",
+    "group": "Using Meld",
+    "heading": "Back up",
+    "url": "install/#back-up",
+    "text": "Quit Meld, then copy its data folder (~/Library/Application Support/Meld or %APPDATA%\\Meld). The copy can only be read with the keys in this computer's Keychain or Credential Manager. On a Mac, a Time Machine backup includes the Keychain. Without the keys you'd have to re-link your banks after restoring on another computer."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Install",
+    "group": "Using Meld",
+    "heading": "Uninstall",
+    "url": "install/#uninstall",
+    "text": "Quit Meld, then delete the app (drag it from Applications to the Trash on a Mac; Settings → Apps on Windows). Your data folder and the Meld Keychain or Credential Manager item stay behind until you delete them too."
+  },
+  {
+    "isPage": true,
     "pageTitle": "Features & Guide",
     "group": "Using Meld",
     "heading": "",
@@ -165,7 +229,7 @@
     "group": "Using Meld",
     "heading": "Keeping it reachable",
     "url": "phone-access/#keeping-it-reachable",
-    "text": "On Mac and Windows, closing Meld's window keeps it running in the menu bar / notification tray so your phone can still connect while your computer is awake. Turn on Open at Login from the menu bar / tray icon if you want Meld ready after a restart. If you want Meld reachable 24/7 even when your laptop is asleep, run Meld on a home server, NAS, or always-on computer with Docker instead — see the Docker setup guide."
+    "text": "Your phone can reach Meld whenever your computer is awake and Meld is running. Closing Meld's window keeps it running in the menu bar or notification area. For 24/7 access, run the app on a computer that stays on (a Mac mini or desktop PC is ideal): turn on Open at Login from Meld's menu bar or notification-area icon and stop the computer from sleeping. Keep it running has the exact settings. A laptop that sleeps when you close it takes Meld offline until you open it again. On Linux or a NAS, or if Meld must start after a reboot without anyone logging in, use Docker instead."
   },
   {
     "isPage": false,
@@ -181,7 +245,7 @@
     "group": "Using Meld",
     "heading": "",
     "url": "docker/",
-    "text": "Run Meld 24/7 on a home server, Mac mini, or NAS with Docker Compose, backups, and Ollama."
+    "text": "Run Meld on Linux, a NAS, or a headless server that starts without anyone logging in."
   },
   {
     "isPage": false,

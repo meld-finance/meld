@@ -2,7 +2,14 @@
 
 # Self-hosting Meld with Docker
 
-Docker runs Meld on any machine that stays on—a home server, Mac mini, NAS, or Linux box. It starts two containers: Postgres (`db`) and Meld (`meld`), which serves both the web app and the API on `127.0.0.1:8080`.
+Most people don't need Docker. The [Mac and Windows app](install.md) keeps running in the menu bar or notification area after you close its window, and on a computer that doesn't sleep it's already an always-on setup (see [Keep it running](install.md#keep-it-running)).
+
+Use Docker when:
+
+- **The machine runs Linux or is a NAS.** There's no desktop app for these.
+- **Meld has to come back on its own after a reboot.** The desktop app starts when someone logs in; the Docker containers restart when the machine boots, with nobody logged in.
+
+It starts two containers: Postgres (`db`) and Meld (`meld`), which serves both the web app and the API on `127.0.0.1:8080`.
 
 ## Start Meld
 
