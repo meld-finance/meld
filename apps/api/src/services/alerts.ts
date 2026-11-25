@@ -231,6 +231,14 @@ export function evaluateAlerts(db: Db, notify: Notifier = ntfyNotifier, today = 
   return run;
 }
 
+/**
+ * Resolves once every alert check queued so far has finished. Some routes start a check without
+ * waiting for it, so tests wait on this before wiping the database out from under one.
+ */
+export async function alertChecksSettled(): Promise<void> {
+  await running;
+}
+
 async function runEvaluation(db: Db, notify: Notifier, today: string) {
   const settings = await getAlertSettings(db);
   const candidates = await alertCandidates(db, settings, today);
