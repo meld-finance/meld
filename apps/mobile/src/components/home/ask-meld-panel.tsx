@@ -30,13 +30,13 @@ export function AskMeldPanel({ style, suggestions = SUGGESTIONS }: { style?: obj
         <ThemedText style={styles.title}>Ask Meld</ThemedText>
       </View>
       <ThemedText themeColor="textSecondary">
-        Get answers, recommendations and tax strategies based on your full picture.
+        Get answers about your finances, tax strategies, or how to use Meld.
       </ThemedText>
 
       <View style={[styles.inputWrap, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
         <TextInput
           style={[styles.input, { color: theme.text }]}
-          placeholder="What would you like to know?"
+          placeholder="Ask about your money or Meld…"
           placeholderTextColor={theme.textSecondary}
           value={question}
           onChangeText={setQuestion}

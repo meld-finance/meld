@@ -45,8 +45,14 @@ const UPCOMING_DAYS = 14;
 /** Ask Meld's starters when there are no to-dos to ask about. */
 const DEFAULT_QUESTIONS = [
   'Am I on track for retirement?',
-  'Should I pay extra on my mortgage?',
   'Any tax strategies I should consider?',
+  'How do I get the most out of Meld?',
+];
+
+const EMPTY_QUESTIONS = [
+  'How do I link my bank accounts with Plaid?',
+  'What features does Meld have?',
+  'What data stays on my computer vs. goes to the cloud?',
 ];
 
 function greeting(hour = new Date().getHours()) {
@@ -205,7 +211,7 @@ export default function HomeScreen() {
           <Button label="Link your first account" onPress={() => router.push('/accounts')} />
         </View>
       </Card>
-      <AskMeldBar suggestions={DEFAULT_QUESTIONS} compact={compact} />
+      <AskMeldBar suggestions={EMPTY_QUESTIONS} compact={compact} />
     </>
   ) : (
     <>

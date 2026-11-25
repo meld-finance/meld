@@ -143,7 +143,7 @@ export class ChatGPTProvider implements ChatProvider {
       {
         type: 'namespace',
         name: TOOL_NAMESPACE,
-        description: 'Read-only lookups over the user’s own financial data in Meld.',
+        description: 'Read-only lookups over the user’s financial data and Meld feature guides.',
         tools: tools.map(toFunctionTool),
       },
     ];

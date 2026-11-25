@@ -9,22 +9,22 @@ DOC_PATTERN='^(docs/.*\.md|PRIVACY\.md|SECURITY\.md|CONTRIBUTING\.md|scripts/bui
 if printf '%s\n' "$STAGED" | grep -Eq "$DOC_PATTERN"; then
   if ! node scripts/build-docs.mjs --check; then
     echo ""
-    echo "Pre-commit: site/docs/ is out of sync with documentation sources."
-    echo "Run 'npm run docs:build && git add site/docs' and re-commit."
+    echo "Pre-commit: generated docs (site/docs/ or apps/api/src/ai/meld-docs.generated.ts) are out of sync with documentation sources."
+    echo "Run 'npm run docs:build && git add site/docs apps/api/src/ai/meld-docs.generated.ts' and re-commit."
     exit 1
   fi
 
   UNSTAGED_DOCS=$(
     {
-      git diff --name-only -- site/docs
-      git ls-files --others --exclude-standard -- site/docs
+      git diff --name-only -- site/docs apps/api/src/ai/meld-docs.generated.ts
+      git ls-files --others --exclude-standard -- site/docs apps/api/src/ai/meld-docs.generated.ts
     } | sort -u
   )
   if [ -n "$UNSTAGED_DOCS" ]; then
     echo ""
-    echo "Pre-commit: generated files in site/docs/ have unstaged or untracked changes:"
+    echo "Pre-commit: generated doc files have unstaged or untracked changes:"
     printf '%s\n' "$UNSTAGED_DOCS" | sed 's/^/  - /'
-    echo "Run 'git add site/docs' and re-commit."
+    echo "Run 'git add site/docs apps/api/src/ai/meld-docs.generated.ts' and re-commit."
     exit 1
   fi
 fi
