@@ -24,8 +24,13 @@ const MIN_WIDTHS = {
   'recurring.png': 1800,
   'spending.png': 1800,
   'accounts.png': 1800,
+  'cash.png': 1600,
+  'investments.png': 1600,
+  'estate.png': 1600,
   'retirement.png': 1800,
   'tax.png': 1800,
+  'phone-settings.png': 900,
+  'mobile-home.png': 700,
 };
 
 const args = process.argv.slice(2);
@@ -290,7 +295,8 @@ function terminateProcess(proc) {
   });
 }
 
-function buildInitScript({ interceptNetWorth = false } = {}) {
+function buildInitScript({ interceptNetWorth = false, interceptPhoneSettings = false } = {}) {
+  const needsFetchHook = interceptNetWorth || interceptPhoneSettings;
   return `(() => {
     try { localStorage.setItem('meld.theme', 'light'); } catch {}
     const RealDate = Date;
@@ -307,50 +313,85 @@ function buildInitScript({ interceptNetWorth = false } = {}) {
     window.Date = FixedDate;
 
     ${
-      interceptNetWorth
+      needsFetchHook
         ? `
     const origFetch = window.fetch.bind(window);
     window.fetch = async (input, init) => {
       const url = typeof input === 'string' ? input : input?.url || '';
-      const res = await origFetch(input, init);
-      if (!url.includes('/api/networth/history')) return res;
-      const raw = await res.clone().json().catch(() => null);
-      if (!Array.isArray(raw) || raw.length === 0) return res;
-      const last = raw[raw.length - 1];
-      const hasCliff = raw.length < 15 || (Math.min(...raw.map((p) => p.netWorth)) < 0 && last.netWorth > 0);
-      if (!hasCliff) return res;
-
-      const count = 183;
-      const endDate = new RealDate(last.date + 'T00:00:00Z');
-      const endAssets = Number(last.assets);
-      const endLiab = Number(last.liabilities);
-      const startAssets = Math.round((endAssets - 30365) * 100) / 100;
-      const startLiab = Math.round((endLiab + 12194) * 100) / 100;
-      const points = [];
-      for (let i = count; i >= 0; i--) {
-        const d = new RealDate(endDate);
-        d.setUTCDate(d.getUTCDate() - i);
-        const t = (count - i) / count;
-        const wave = i === 0 ? 0 : (Math.sin(t * Math.PI * 5.5) * 4200 + Math.cos(t * Math.PI * 11) * 1600) * (1 - Math.pow(t, 6));
-        const assets = Math.round((startAssets + (endAssets - startAssets) * t + wave) * 100) / 100;
-        const liabilities = Math.round((startLiab + (endLiab - startLiab) * t) * 100) / 100;
-        points.push({ date: d.toISOString().slice(0, 10), assets, liabilities, netWorth: Math.round((assets - liabilities) * 100) / 100 });
+      ${
+        interceptPhoneSettings
+          ? `
+      if (url.includes('/api/phone-access')) {
+        return new Response(
+          JSON.stringify({ state: 'on', machine: 'macbook.tail1234.ts.net', url: 'https://macbook.tail1234.ts.net' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }`
+          : ''
       }
-      return new Response(JSON.stringify(points), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      const res = await origFetch(input, init);
+      ${
+        interceptPhoneSettings
+          ? `
+      if (url.includes('/api/setup/status')) {
+        const raw = await res.clone().json().catch(() => null);
+        if (raw && typeof raw === 'object') {
+          return new Response(JSON.stringify({ ...raw, phoneAccess: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+      }`
+          : ''
+      }
+      ${
+        interceptNetWorth
+          ? `
+      if (url.includes('/api/networth/history')) {
+        const raw = await res.clone().json().catch(() => null);
+        if (!Array.isArray(raw) || raw.length === 0) return res;
+        const last = raw[raw.length - 1];
+        const hasCliff = raw.length < 15 || (Math.min(...raw.map((p) => p.netWorth)) < 0 && last.netWorth > 0);
+        if (!hasCliff) return res;
+
+        const count = 183;
+        const endDate = new RealDate(last.date + 'T00:00:00Z');
+        const endAssets = Number(last.assets);
+        const endLiab = Number(last.liabilities);
+        const startAssets = Math.round((endAssets - 30365) * 100) / 100;
+        const startLiab = Math.round((endLiab + 12194) * 100) / 100;
+        const points = [];
+        for (let i = count; i >= 0; i--) {
+          const d = new RealDate(endDate);
+          d.setUTCDate(d.getUTCDate() - i);
+          const t = (count - i) / count;
+          const wave = i === 0 ? 0 : (Math.sin(t * Math.PI * 5.5) * 4200 + Math.cos(t * Math.PI * 11) * 1600) * (1 - Math.pow(t, 6));
+          const assets = Math.round((startAssets + (endAssets - startAssets) * t + wave) * 100) / 100;
+          const liabilities = Math.round((startLiab + (endLiab - startLiab) * t) * 100) / 100;
+          points.push({ date: d.toISOString().slice(0, 10), assets, liabilities, netWorth: Math.round((assets - liabilities) * 100) / 100 });
+        }
+        return new Response(JSON.stringify(points), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }`
+          : ''
+      }
+      return res;
     };`
         : ''
     }
   })();`;
 }
 
-async function captureShot(cdp, { url, width, height, expectSvg = true, extraMs = 600, interceptNetWorth = false, prepare }) {
+async function captureShot(
+  cdp,
+  { url, width, height, mobile = false, expectSvg = true, extraMs = 600, interceptNetWorth = false, interceptPhoneSettings = false, prepare },
+) {
   const { browserContextId } = await cdp.send('Target.createBrowserContext');
   try {
     const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank', browserContextId });
     const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
     await cdp.send('Page.enable', {}, sessionId);
     await cdp.send('Runtime.enable', {}, sessionId);
-    await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 2, mobile: false }, sessionId);
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 2, mobile }, sessionId);
     await cdp.send(
       'Emulation.setEmulatedMedia',
       {
@@ -362,7 +403,11 @@ async function captureShot(cdp, { url, width, height, expectSvg = true, extraMs 
       },
       sessionId,
     );
-    await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: buildInitScript({ interceptNetWorth }) }, sessionId);
+    await cdp.send(
+      'Page.addScriptToEvaluateOnNewDocument',
+      { source: buildInitScript({ interceptNetWorth, interceptPhoneSettings }) },
+      sessionId,
+    );
 
     await cdp.send('Page.navigate', { url }, sessionId);
     await waitForPageReady(cdp, sessionId, { expectSvg, extraMs });
@@ -400,7 +445,7 @@ async function waitForPageReady(cdp, sessionId, { expectSvg, extraMs }) {
         expression: `(() => {
           if (document.readyState !== 'complete') return false;
           const text = document.body?.innerText || '';
-          if (!text.trim() || text.includes('Loading…') || text.includes('Checking your accounts')) return false;
+          if (!text.trim() || text.includes('Loading…') || text.includes('Checking your accounts') || text.includes('Checking Tailscale…')) return false;
           if (${expectSvg}) {
             const svgs = [...document.querySelectorAll('svg')];
             if (!svgs.some((s) => s.getBoundingClientRect().width > 100)) return false;
@@ -569,6 +614,147 @@ async function captureAll(baseUrl, chatSessionId, profileDir) {
         },
       },
       {
+        name: 'cash.png',
+        url: `${baseUrl}/accounts?tab=cash`,
+        width: 1440,
+        height: 1400,
+        expectSvg: false,
+        extraMs: 600,
+        prepare: async () => {
+          const items = [];
+          const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          let n;
+          while ((n = w.nextNode())) {
+            const t = n.textContent?.trim();
+            if (!t || !n.parentElement) continue;
+            const r = n.parentElement.getBoundingClientRect();
+            if (r.width > 0 && r.height > 0 && r.left >= 243) items.push({ text: t, el: n.parentElement, r });
+          }
+          const findCard = (el) => {
+            let cur = el;
+            while (cur && cur.parentElement) {
+              const cs = getComputedStyle(cur);
+              if (parseFloat(cs.borderRadius) >= 12 && cur.getBoundingClientRect().width > 350) return cur;
+              cur = cur.parentElement;
+            }
+            return el;
+          };
+          // Keep the 4 StatTiles, Runway meter, and the top "Where your cash is" card (hiding suggestions so height balances Investments).
+          const emergencyTile = items.find((i) => i.text === 'Emergency cash');
+          const waysHead = items.find((i) => i.text === 'Ways to put your cash to work');
+          if (waysHead) {
+            let sec = waysHead.el.parentElement;
+            while (sec && sec.children.length < 4) sec = sec.parentElement;
+            if (sec) sec.style.display = 'none';
+          }
+          await new Promise((r) => setTimeout(r, 80));
+          const itemsAfter = [];
+          const w2 = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          while ((n = w2.nextNode())) {
+            const t = n.textContent?.trim();
+            if (!t || !n.parentElement) continue;
+            const r = n.parentElement.getBoundingClientRect();
+            if (r.width > 0 && r.height > 0 && r.left >= 243) itemsAfter.push({ text: t, el: n.parentElement, r });
+          }
+          const whereHead = itemsAfter.find((i) => i.text === 'Where your cash is');
+          const whereCard = whereHead ? findCard(whereHead.el) : null;
+          const yStart = Math.max(0, Math.round(emergencyTile.r.top) - 36);
+          const yEnd = Math.round(whereCard ? Math.min(whereCard.getBoundingClientRect().top + 150, whereCard.getBoundingClientRect().bottom + 18) : yStart + 505);
+          return { x: 248, y: yStart, width: 1192, height: Math.max(480, yEnd - yStart) };
+        },
+      },
+      {
+        name: 'investments.png',
+        url: `${baseUrl}/accounts?tab=investments`,
+        width: 1440,
+        height: 1400,
+        expectSvg: true,
+        extraMs: 600,
+        prepare: () => {
+          const items = [];
+          const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          let n;
+          while ((n = w.nextNode())) {
+            const t = n.textContent?.trim();
+            if (!t || !n.parentElement) continue;
+            const r = n.parentElement.getBoundingClientRect();
+            if (r.width > 0 && r.height > 0 && r.left >= 243) items.push({ text: t, el: n.parentElement, r });
+          }
+          const findCard = (el) => {
+            let cur = el;
+            while (cur && cur.parentElement) {
+              const cs = getComputedStyle(cur);
+              if (parseFloat(cs.borderRadius) >= 12 && cur.getBoundingClientRect().width > 350) return cur;
+              cur = cur.parentElement;
+            }
+            return el;
+          };
+          const totalTile = items.find((i) => i.text === 'Total invested');
+          const allocHead = items.find((i) => i.text === 'Asset allocation');
+          const acctsHead = items.find((i) => i.text === 'Your accounts');
+          const allocCard = findCard(allocHead.el);
+          const acctsCard = findCard(acctsHead.el);
+          const yStart = Math.max(0, Math.round(totalTile.r.top) - 36);
+          const yEnd = Math.round(Math.max(allocCard.getBoundingClientRect().bottom, acctsCard.getBoundingClientRect().bottom)) + 24;
+          return { x: 248, y: yStart, width: 1192, height: yEnd - yStart };
+        },
+      },
+      {
+        name: 'estate.png',
+        url: `${baseUrl}/plan?tab=estate`,
+        width: 1440,
+        height: 3600,
+        expectSvg: false,
+        extraMs: 600,
+        prepare: async () => {
+          const texts = () => {
+            const out = [];
+            const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+            let n;
+            while ((n = w.nextNode())) {
+              const t = n.textContent?.trim();
+              if (!t || !n.parentElement) continue;
+              const r = n.parentElement.getBoundingClientRect();
+              if (r.width > 0 && r.height > 0 && r.left >= 243) out.push({ text: t, el: n.parentElement, r });
+            }
+            return out;
+          };
+          const findCard = (el) => {
+            let cur = el;
+            while (cur && cur.parentElement) {
+              const cs = getComputedStyle(cur);
+              if (parseFloat(cs.borderRadius) >= 12 && cur.getBoundingClientRect().width > 350) return cur;
+              cur = cur.parentElement;
+            }
+            return el;
+          };
+          const items = texts();
+          const checklistHead = items.find((i) => i.text === 'Checklist');
+          const accountsHead = items.filter((i) => i.text === 'Accounts and policies').at(-1);
+          const docsHead = items.find((i) => i.text === 'Documents and trusts');
+          const contactsHead = items.find((i) => i.text === 'Contacts and instructions');
+          const packetHead = items.filter((i) => i.text === 'Family packet').at(-1);
+
+          // Trim intermediate cards and lower target groups so Checklist, missing beneficiaries, and Family packet fit cleanly.
+          if (docsHead) findCard(docsHead.el).style.display = 'none';
+          if (contactsHead) findCard(contactsHead.el).style.display = 'none';
+          if (accountsHead) {
+            const acCard = findCard(accountsHead.el);
+            for (const ch of [...acCard.children]) {
+              const t = ch.innerText || '';
+              if (t.includes('Bank accounts') || t.includes('Property') || t.includes('Leave them to my will')) {
+                ch.style.display = 'none';
+              }
+            }
+          }
+          await new Promise((r) => setTimeout(r, 100));
+
+          const yStart = Math.max(0, Math.round(findCard(checklistHead.el).getBoundingClientRect().top) - 18);
+          const yEnd = Math.round(findCard(packetHead.el).getBoundingClientRect().bottom) + 18;
+          return { x: 248, y: yStart, width: 1192, height: yEnd - yStart };
+        },
+      },
+      {
         name: 'retirement.png',
         url: `${baseUrl}/plan?tab=retirement`,
         width: 1520,
@@ -671,6 +857,58 @@ async function captureAll(baseUrl, chatSessionId, profileDir) {
           return { x: 0, y: yStart, width: 740, height: yEnd - yStart };
         },
       },
+      {
+        name: 'phone-settings.png',
+        url: `${baseUrl}/settings`,
+        width: 1080,
+        height: 1200,
+        expectSvg: true,
+        extraMs: 600,
+        interceptPhoneSettings: true,
+        prepare: () => {
+          const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          let n, headEl = null;
+          while ((n = w.nextNode())) {
+            if (n.textContent?.trim() === 'Phone access' && n.parentElement) {
+              headEl = n.parentElement;
+              break;
+            }
+          }
+          let card = headEl;
+          while (card && card.parentElement) {
+            const cs = getComputedStyle(card);
+            if (parseFloat(cs.borderRadius) >= 12 && card.getBoundingClientRect().width > 350) break;
+            card = card.parentElement;
+          }
+          const r = card.getBoundingClientRect();
+          return { x: Math.round(r.left), y: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) };
+        },
+      },
+      {
+        name: 'mobile-home.png',
+        url: `${baseUrl}/`,
+        width: 390,
+        height: 844,
+        mobile: true,
+        expectSvg: true,
+        extraMs: 600,
+        interceptNetWorth: true,
+        prepare: async () => {
+          const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+          let n, hideBtn = null;
+          while ((n = w.nextNode())) {
+            if (n.textContent?.trim() === 'Hide' && n.parentElement) {
+              hideBtn = n.parentElement;
+              break;
+            }
+          }
+          if (hideBtn) {
+            hideBtn.click();
+            await new Promise((r) => setTimeout(r, 350));
+          }
+          return { x: 0, y: 0, width: 390, height: 844 };
+        },
+      },
     ];
 
     for (const spec of specs) {
@@ -679,7 +917,7 @@ async function captureAll(baseUrl, chatSessionId, profileDir) {
       writeFileSync(outPath, buf);
       const { width: pxW, height: pxH } = readPngDimensions(buf);
       results.push({ name: spec.name, pxW, pxH, bytes: buf.length });
-      console.log(`  ✓ ${spec.name.padEnd(15)} ${pxW}×${pxH} (${Math.round(pxW / 2)}×${Math.round(pxH / 2)} @1x, ${Math.round(buf.length / 1024)} KB)`);
+      console.log(`  ✓ ${spec.name.padEnd(18)} ${pxW}×${pxH} (${Math.round(pxW / 2)}×${Math.round(pxH / 2)} @1x, ${Math.round(buf.length / 1024)} KB)`);
     }
   } finally {
     await cdp.close();

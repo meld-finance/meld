@@ -1,20 +1,21 @@
-import type {
-  Account,
-  AlertSettings,
-  AutopayAmount,
-  AutopayLinkInput,
-  AutopayObligation,
-  AutopayStatus,
-  AutopaySuggestion,
-  RecurringKind,
-  RecurringOverride,
-  RecurringSeries,
-  RecurringSummary,
-  UpcomingItem,
+import {
+  accountDisplayName,
+  type Account,
+  type AlertSettings,
+  type AutopayAmount,
+  type AutopayLinkInput,
+  type AutopayObligation,
+  type AutopayStatus,
+  type AutopaySuggestion,
+  type RecurringKind,
+  type RecurringOverride,
+  type RecurringSeries,
+  type RecurringSummary,
+  type UpcomingItem,
 } from '@meld/shared';
 import { and, eq, gte, inArray, lt, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { accounts, autopayLinks, liabilities, recurringOverrides, transactions } from '../db/schema';
+import { accounts, autopayLinks, institutions, liabilities, recurringOverrides, transactions } from '../db/schema';
 import { HttpError } from '../lib/http';
 import { localDate } from '../lib/networth';
 import {
@@ -227,8 +228,8 @@ export async function getAutopayStatuses(
     const payee = accountById.get(link.payeeAccountId);
     const funding = accountById.get(link.fundingAccountId);
     const before = obligationsBefore(link, links, payments, series, accountById, settings, today);
-    const payeeName = payee?.name ?? 'This account';
-    const fundingName = funding?.name ?? 'The bank account';
+    const payeeName = payee ? accountDisplayName(payee) : 'This account';
+    const fundingName = funding ? accountDisplayName(funding) : 'The bank account';
     const fundingBalance = funding ? (funding.availableBalance ?? funding.currentBalance) : null;
     return {
       id: link.id,
@@ -277,7 +278,13 @@ function obligationsBefore(
     if (p.paid || !p.dueDate || !p.amount || p.dueDate > due || p.dueDate < today) continue;
     // Same-day payments: count each against the other only one way, so the earlier-created one goes first.
     if (p.dueDate === due && other.createdAt > link.createdAt) continue;
-    out.push({ name: accountById.get(other.payeeAccountId)?.name ?? 'Another autopay', date: p.dueDate, amount: p.amount, source: 'autopay' });
+    const otherPayee = accountById.get(other.payeeAccountId);
+    out.push({
+      name: otherPayee ? accountDisplayName(otherPayee) : 'Another autopay',
+      date: p.dueDate,
+      amount: p.amount,
+      source: 'autopay',
+    });
   }
 
   const autopayPayments = sameFunding.map((l) => payments.get(l.id)!);
@@ -302,6 +309,9 @@ export async function suggestAutopayLinks(db: Db, linkedPayees: Set<string>, tod
     .select({
       accountId: transactions.accountId,
       accountName: accounts.name,
+      officialName: accounts.officialName,
+      mask: accounts.mask,
+      institutionName: institutions.name,
       type: accounts.type,
       date: transactions.date,
       amount: transactions.amount,
@@ -310,6 +320,7 @@ export async function suggestAutopayLinks(db: Db, linkedPayees: Set<string>, tod
     })
     .from(transactions)
     .innerJoin(accounts, eq(accounts.id, transactions.accountId))
+    .leftJoin(institutions, eq(institutions.id, accounts.institutionId))
     .where(
       and(
         eq(accounts.hidden, false),
@@ -330,6 +341,13 @@ export async function suggestAutopayLinks(db: Db, linkedPayees: Set<string>, tod
     );
   const received = rows.filter((r) => r.type !== 'depository' && !linkedPayees.has(r.accountId));
   const sent = rows.filter((r) => r.type === 'depository');
+  const display = (r: (typeof rows)[number]) =>
+    accountDisplayName({
+      name: r.accountName,
+      officialName: r.officialName,
+      institutionName: r.institutionName,
+      mask: r.mask,
+    });
 
   const pairs = new Map<string, AutopaySuggestion & { amounts: number[] }>();
   for (const r of received) {
@@ -338,9 +356,9 @@ export async function suggestAutopayLinks(db: Db, linkedPayees: Set<string>, tod
     const key = `${r.accountId}|${match.accountId}`;
     const entry = pairs.get(key) ?? {
       payeeAccountId: r.accountId,
-      payeeName: r.accountName,
+      payeeName: display(r),
       fundingAccountId: match.accountId,
-      fundingName: match.accountName,
+      fundingName: display(match),
       payments: 0,
       lastDate: r.date,
       lastAmount: -r.amount,

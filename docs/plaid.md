@@ -1,3 +1,5 @@
+[Meld home page](https://meld-finance.github.io/meld/) · [README](../README.md) · [Features](features.md) · [Phone access](phone-access.md) · [Docker setup](docker.md)
+
 # Connecting your accounts with Plaid
 
 Meld pulls balances, transactions, investments and loans from your banks and brokerages through [Plaid](https://plaid.com). You use **your own** Plaid account, so the connection is between you, Plaid and your bank. Meld's author never sees your keys or your data.
@@ -22,7 +24,7 @@ New Plaid teams in the US and Canada get a free **Trial** plan with real data:
 
 To get it:
 
-1. In the Plaid Dashboard, request production access. If asked about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself.
+1. In the Plaid Dashboard, request production access. For personal use, Plaid usually approves it automatically. If asked about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself.
 2. Once approved, copy your **Production secret** from **Developers → Keys**.
 3. In `.env`, set `PLAID_PRODUCTION_SECRET` and `PLAID_ENV=production`, then restart Meld (`docker compose up -d`).
 

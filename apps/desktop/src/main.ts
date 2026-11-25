@@ -184,7 +184,13 @@ function runApp() {
         { role: 'editMenu' },
         { role: 'viewMenu' },
         { role: 'windowMenu' },
-        { role: 'help', submenu: [{ label: 'What’s New in Meld', click: () => showWindow('/releases') }] },
+        {
+        role: 'help',
+        submenu: [
+          { label: 'Meld Website', click: () => void shell.openExternal('https://meld-finance.github.io/meld/') },
+          { label: 'What’s New in Meld', click: () => showWindow('/releases') },
+        ],
+      },
       ]),
     );
     refreshTray = createTray({

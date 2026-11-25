@@ -1,5 +1,5 @@
 import type { OllamaDetectResult } from '@meld/shared';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -7,6 +7,7 @@ import { Chip } from '@/components/chip';
 import { Field, Input, formStyles } from '@/components/form-fields';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { detectOllama, testAnthropicKey, type AIForm } from '@/lib/setup';
 
 import { KeyTest } from './key-test';
@@ -20,7 +21,20 @@ const SUGGESTED_MODEL = 'qwen3.5';
  * Optional AI: an Anthropic API key (all AI features) and/or Ollama (local models,
  * for Ask Meld only). `savedKey` is the masked saved key from Settings.
  */
-export function AIFields({ value, onChange, savedKey }: { value: AIForm; onChange: (next: AIForm) => void; savedKey?: string }) {
+export function AIFields({
+  value,
+  onChange,
+  savedKey,
+  afterAnthropic,
+  inSetup,
+}: {
+  value: AIForm;
+  onChange: (next: AIForm) => void;
+  savedKey?: string;
+  afterAnthropic?: ReactNode;
+  inSetup?: boolean;
+}) {
+  const theme = useTheme();
   const set = (patch: Partial<AIForm>) => onChange({ ...value, ...patch });
   const [detecting, setDetecting] = useState(false);
   const [detected, setDetected] = useState<OllamaDetectResult | null>(null);
@@ -44,9 +58,9 @@ export function AIFields({ value, onChange, savedKey }: { value: AIForm; onChang
   return (
     <View style={styles.fields}>
       <ThemedText type="small" themeColor="textSecondary">
-        Both are optional, and Meld works without either. An Anthropic key turns on every AI feature: Ask Meld, reading
-        insurance PDFs, and home and car value lookups. Ollama runs models on this computer, so nothing leaves it, but only
-        for Ask Meld. To use your ChatGPT plan for Ask Meld instead, sign in under “ChatGPT plan” in Settings.
+        {inSetup
+          ? 'All AI options are optional—Meld works without them. An Anthropic key turns on every AI feature (Ask Meld, reading insurance PDFs, and home/car value lookups). Ollama runs completely free local models on this computer for Ask Meld so nothing leaves your machine. You can also connect a ChatGPT plan in Settings after setup.'
+          : 'All AI options are optional—Meld works without them. An Anthropic key turns on every AI feature (Ask Meld, reading insurance PDFs, and home/car value lookups). Ollama runs completely free local models on this computer for Ask Meld so nothing leaves your machine, or sign in with your ChatGPT plan below.'}
       </ThemedText>
 
       <ThemedText type="cardTitle">Anthropic (Claude)</ThemedText>
@@ -67,8 +81,11 @@ export function AIFields({ value, onChange, savedKey }: { value: AIForm; onChang
         . Questions you ask, with the account data they need, are sent to Anthropic; you pay Anthropic for what you use.
       </ThemedText>
       <KeyTest disabled={!value.anthropicApiKey && !savedKey} run={() => testAnthropicKey(value.anthropicApiKey)} />
+      {afterAnthropic}
 
-      <ThemedText type="cardTitle">Ollama (local models)</ThemedText>
+      <View style={[styles.subsection, { borderTopColor: theme.border }]}>
+        <ThemedText type="cardTitle">Ollama (local models)</ThemedText>
+      </View>
       <Field label="Ollama address">
         <Input
           value={value.ollamaUrl}
@@ -132,4 +149,5 @@ export function AIFields({ value, onChange, savedKey }: { value: AIForm; onChang
 
 const styles = StyleSheet.create({
   fields: { gap: Spacing.three },
+  subsection: { paddingTop: Spacing.three, borderTopWidth: StyleSheet.hairlineWidth },
 });

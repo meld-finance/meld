@@ -1,5 +1,54 @@
-import { CASH_PROFILE, estimatePayoff, lookThrough, normalizeWeights, taxTreatment, type SecurityProfile } from '@meld/shared';
+import { accountDisplayName, CASH_PROFILE, estimatePayoff, lookThrough, normalizeWeights, taxTreatment, type SecurityProfile } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
+
+describe('accountDisplayName', () => {
+  it('shows institution, official name, and mask without duplicating the institution', () => {
+    expect(
+      accountDisplayName({
+        name: 'CREDIT CARD',
+        officialName: 'Customized Cash Rewards',
+        institutionName: 'Bank of America',
+        mask: '4686',
+      }),
+    ).toBe('Bank of America · Customized Cash Rewards ••4686');
+
+    expect(
+      accountDisplayName({
+        name: 'CREDIT CARD',
+        officialName: 'Chase Sapphire Reserve',
+        institutionName: 'Chase',
+        mask: '2646',
+      }),
+    ).toBe('Chase Sapphire Reserve ••2646');
+
+    expect(
+      accountDisplayName({
+        name: 'CREDIT CARD',
+        officialName: null,
+        institutionName: 'Chase',
+        mask: '4686',
+      }),
+    ).toBe('Chase · CREDIT CARD ••4686');
+
+    expect(
+      accountDisplayName({
+        name: 'Adv Plus Banking',
+        officialName: 'Adv Plus Banking',
+        institutionName: 'Bank of America',
+        mask: '9012',
+      }),
+    ).toBe('Bank of America · Adv Plus Banking ••9012');
+
+    expect(
+      accountDisplayName({
+        name: 'Sapphire',
+        officialName: null,
+        institutionName: null,
+        mask: null,
+      }),
+    ).toBe('Sapphire');
+  });
+});
 
 describe('estimatePayoff', () => {
   it('matches a standard amortization (30y, 6%, $200k → $1,199.11/mo)', () => {

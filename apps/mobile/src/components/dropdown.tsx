@@ -1,10 +1,16 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useRef, useState, type ComponentRef } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+const MAX_WIDTH = 360;
+const EDGE = Spacing.three;
+const GAP = Spacing.one;
+
+type Rect = { x: number; y: number; width: number; height: number };
 
 type Props<T extends string> = {
   options: { value: T; label: string }[];
@@ -15,20 +21,59 @@ type Props<T extends string> = {
   openUp?: boolean;
 };
 
-/** A compact select: the current choice, opening a list of options below it. */
+/** A compact select: the current choice, opening a list of options in a window-level menu. */
 export function Dropdown<T extends string>({ options, value, onChange, accessibilityLabel, openUp }: Props<T>) {
   const theme = useTheme();
-  const [open, setOpen] = useState(false);
+  const window = useWindowDimensions();
+  const anchor = useRef<ComponentRef<typeof Pressable>>(null);
+  const [at, setAt] = useState<Rect | null>(null);
+  const open = !!at;
   const current = options.find((o) => o.value === value) ?? options[0];
 
+  const close = () => setAt(null);
+  const toggle = () => {
+    if (at) {
+      close();
+      return;
+    }
+    anchor.current?.measureInWindow((x, y, width, height) => setAt({ x, y, width, height }));
+  };
+
+  const place = (() => {
+    if (!at) return null;
+    const maxAllowedW = Math.min(Math.max(at.width, MAX_WIDTH), window.width - EDGE * 2);
+    const fitsRightFromLeft = at.x + maxAllowedW <= window.width - EDGE;
+    const left = Math.max(EDGE, at.x);
+    const right = Math.max(EDGE, window.width - (at.x + at.width));
+    const horizontal = fitsRightFromLeft
+      ? {
+          left,
+          minWidth: Math.min(at.width, window.width - left - EDGE),
+          maxWidth: Math.min(maxAllowedW, window.width - left - EDGE),
+        }
+      : {
+          right,
+          minWidth: Math.min(at.width, window.width - right - EDGE),
+          maxWidth: Math.min(maxAllowedW, window.width - right - EDGE),
+        };
+    const spaceBelow = window.height - (at.y + at.height + GAP) - EDGE;
+    const spaceAbove = at.y - GAP - EDGE;
+    const placeUp = openUp ? spaceAbove >= 120 || spaceAbove > spaceBelow : spaceBelow < 180 && spaceAbove > spaceBelow;
+    return {
+      ...horizontal,
+      ...(placeUp ? { bottom: window.height - at.y + GAP } : { top: at.y + at.height + GAP }),
+      maxHeight: Math.max(120, Math.min(320, placeUp ? spaceAbove : spaceBelow)),
+    };
+  })();
+
   return (
-    // Raised so the open list draws over the content that follows.
-    <View style={[styles.wrap, open && styles.raised]}>
+    <View style={styles.wrap}>
       <Pressable
+        ref={anchor}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         accessibilityState={{ expanded: open }}
-        onPress={() => setOpen(!open)}
+        onPress={toggle}
         style={({ hovered }) => [
           styles.trigger,
           { backgroundColor: theme.backgroundElement, borderColor: hovered || open ? theme.tint : theme.border },
@@ -38,35 +83,39 @@ export function Dropdown<T extends string>({ options, value, onChange, accessibi
         </ThemedText>
         <Icon name="chevronDown" size={16} themeColor="textSecondary" />
       </Pressable>
-      {open && (
-        <View style={[styles.menu, openUp ? styles.menuUp : styles.menuDown, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-          {options.map((o) => (
-            <Pressable
-              key={o.value}
-              accessibilityRole="menuitem"
-              accessibilityState={{ selected: o.value === value }}
-              onPress={() => {
-                onChange(o.value);
-                setOpen(false);
-              }}
-              style={({ hovered }) => [
-                styles.option,
-                (hovered || o.value === value) && { backgroundColor: theme.backgroundSelected },
-              ]}>
-              <ThemedText type={o.value === value ? 'smallBold' : 'small'} numberOfLines={1}>
-                {o.label}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </View>
-      )}
+      <Modal transparent visible={open} onRequestClose={close} animationType="none">
+        <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityLabel="Close menu" />
+        {place && (
+          <View style={[styles.menu, place, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            <ScrollView keyboardShouldPersistTaps="handled" bounces={false}>
+              {options.map((o) => (
+                <Pressable
+                  key={o.value}
+                  accessibilityRole="menuitem"
+                  accessibilityState={{ selected: o.value === value }}
+                  onPress={() => {
+                    onChange(o.value);
+                    close();
+                  }}
+                  style={({ hovered }) => [
+                    styles.option,
+                    (hovered || o.value === value) && { backgroundColor: theme.backgroundSelected },
+                  ]}>
+                  <ThemedText type={o.value === value ? 'smallBold' : 'small'}>
+                    {o.label}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { position: 'relative' },
-  raised: { zIndex: 10 },
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -80,19 +129,14 @@ const styles = StyleSheet.create({
   label: { flex: 1 },
   menu: {
     position: 'absolute',
-    right: 0,
-    minWidth: '100%',
-    maxWidth: 320,
     borderWidth: 1,
     borderRadius: Spacing.two,
     paddingVertical: Spacing.one,
     shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
-  menuDown: { top: '100%', marginTop: Spacing.one },
-  menuUp: { bottom: '100%', marginBottom: Spacing.one },
   option: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
 });

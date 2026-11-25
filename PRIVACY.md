@@ -1,3 +1,5 @@
+[Meld home page](https://meld-finance.github.io/meld/) · [README](README.md) · [Security](SECURITY.md) · [Features](docs/features.md)
+
 # Privacy: where your data goes
 
 Meld runs on your own computer. There is no Meld server, no account with the author, no analytics and no telemetry. Your data lives in the Postgres database and the `documents` folder on your machine: with the Mac app, both are in `~/Library/Application Support/Meld` (`%APPDATA%\Meld` on Windows), and its Postgres only listens on `127.0.0.1`.

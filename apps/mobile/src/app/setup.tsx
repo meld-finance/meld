@@ -108,7 +108,7 @@ export default function SetupScreen() {
       )}
       {step === 2 && (
         <Card title="AI (optional)">
-          <AIFields value={ai} onChange={setAI} />
+          <AIFields value={ai} onChange={setAI} inSetup />
         </Card>
       )}
 

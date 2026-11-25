@@ -51,3 +51,16 @@ export function ownedBalance(account: { currentBalance: number | null; ownership
 export function isLiabilityType(type: AccountType): boolean {
   return type === 'credit' || type === 'loan' || type === 'mortgage';
 }
+
+/** Full human-readable account label: institution, official (or short) name, and last 4 digits. */
+export function accountDisplayName(a: {
+  name: string;
+  officialName?: string | null;
+  institutionName?: string | null;
+  mask?: string | null;
+}): string {
+  const base = a.officialName?.trim() || a.name.trim();
+  const inst = a.institutionName?.trim();
+  const withInst = inst && !base.toLowerCase().includes(inst.toLowerCase()) ? `${inst} · ${base}` : base;
+  return a.mask ? `${withInst} ••${a.mask}` : withInst;
+}

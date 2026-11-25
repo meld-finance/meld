@@ -4,7 +4,7 @@
 
 Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer: there's no Meld server and no account to create, and your data stays in a database on your machine.
 
-Download for Mac: [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) · [Windows (preview)](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe) · [Website](https://meld-finance.github.io/meld/) · [Features](docs/features.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
+Download for Mac: [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) · [Windows (preview)](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe) · [Website](https://meld-finance.github.io/meld/) · [Features](docs/features.md) · [Phone access](docs/phone-access.md) · [Docker](docs/docker.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
 
 ![Meld's Home screen: Ask Meld bar, net worth chart, cash and spending vitals, prioritized to-dos and upcoming bills](site/images/home.png)
 
@@ -12,33 +12,35 @@ Download for Mac: [Apple silicon](https://github.com/meld-finance/meld/releases/
 
 ## Why Meld
 
-Meld started because no single app answered everyday money questions and long-term ones from the same, complete set of accounts:
+Meld started because no single app answered everyday money questions and long-term ones from the same, complete set of accounts—with automatic bank syncing instead of time-consuming, one-time CSV imports:
 
-- **Retirement planners** (ProjectionLab, Boldin) do the long view well, but balances are typed in by hand, or synced only on a paid plan or through another app, and they don't tell you what you spent last month or which bills went up.
+- **Retirement planners** (ProjectionLab, Boldin) do the long view well, but balances are typed in by hand, imported via one-time CSVs, or synced only on a paid plan or through another app, and they don't tell you what you spent last month or which bills went up.
 - **Budgeting apps** (Monarch, YNAB, Copilot) track spending for a yearly fee, and leave retirement, taxes, insurance and estate planning to a spreadsheet.
 - **AI assistants** (ChatGPT and Claude) can now link bank accounts, but that's one more place to connect everything, and they see only what you link, not your home, policies, tax estimate or retirement plan.
-- **Self-hosted apps** (Actual, Firefly III) are free and keep your data yours, but they're mostly about budgeting, and bank syncing usually means running a server with Docker and paying for SimpleFIN.
+- **Self-hosted apps** (Actual, Firefly III) are free and keep your data yours, but they're mostly about budgeting, and bank syncing usually means running a server with Docker, paying for SimpleFIN, or doing manual CSV imports.
 
-With Meld you link your accounts once. The same data answers this week's questions (what's recurring, where the money went, will autopay clear) and the big ones (am I on track, what will I owe), and Ask Meld sees all of it when you ask for tax or money advice.
+With Meld you link your accounts once and they sync automatically every few hours—no tedious CSV imports. The same live data answers this week's questions (where the money went, what's recurring, will autopay clear) and the big ones (am I on track, what will I owe, is my estate in order), and Ask Meld sees all of it when you ask for tax or money advice.
 
 ## What it does
 
-- **Know a payment will clear before it's due.** Meld finds your subscriptions, bills and paychecks, checks that each autopay's bank account will hold enough on the day, and alerts you (on your phone too, with ntfy) when one won't.
-- **See where your money went, and what changed.** Spending against the same period last year, drill-downs by category and merchant, your own category rules and budgets. Card payments and transfers aren't counted twice.
-- **Everything you own and owe on one screen.** Banks, cards, brokerages, loans and mortgages through Plaid, plus your home, car and life insurance cash value, with daily net worth.
-- **A straight answer on retirement.** A projection in today's dollars with Social Security, property, what-if scenarios and 1,000 simulated markets.
-- **No surprises in April.** This year's federal and California tax estimate from your real income and trades, and a year-end checklist of moves with deadlines.
-- **Investments, cash, insurance and estate.** Time-weighted returns and look-through allocation, emergency fund runway, coverage read from your policy PDFs, and a family packet that lists every account and who to call.
-- **Ask Meld.** Ask about your own numbers with Claude, your ChatGPT Go, Plus, Pro or Business plan (no API key needed), or a local model through Ollama. It can read your data but never change it.
+- **Accounts & net worth.** Banks, cards, brokerages, 401(k)s, loans and mortgages through Plaid, plus your home, car and life insurance cash value, with daily net worth.
+- **Spending.** Where it went and what changed against the same period last year, drill-downs by category and merchant, custom category rules and monthly budgets. Card payments and transfers aren't counted twice.
+- **Bills & autopay.** Meld finds your subscriptions, bills and paychecks, checks that each autopay's bank account will hold enough on the due date, and alerts you (on your phone too, with ntfy) when one won't.
+- **Cash & emergency fund.** Liquid cash across checking, savings, money market funds and T-bills, estimated APY, months of runway from your real spending, and idle-cash nudges.
+- **Investments across all your accounts.** See your overall asset allocation across multiple brokerage and retirement accounts combined, look-through sector/region/bond exposure inside funds, time-weighted returns and dividend income.
+- **Retirement.** A projection in today's dollars with Social Security, property sales, life events, what-if scenarios and 1,000 simulated markets.
+- **Estate & family packet.** Flags missing beneficiaries and documents, keeps trusts/wills/POAs and contacts organized, and exports a PDF family packet (optionally password-protected) listing every account and who to call.
+- **Tax & insurance.** Federal and California tax estimates with a year-end checklist, plus life and disability policy coverage read from PDFs and checked against your family's needs.
+- **Ask Meld.** Ask about your own numbers using free local models through Ollama, your ChatGPT Go, Plus, Pro or Business plan (no API key needed), or Claude.
 
 <table>
   <tr>
-    <td width="50%"><img src="site/images/recurring.png" alt="Recurring: subscriptions, bills, and autopays checked as Covered"></td>
+    <td width="50%"><img src="site/images/accounts.png" alt="Accounts and net worth across banks, cards, investments, loans and property"></td>
     <td width="50%"><img src="site/images/spending.png" alt="Spending overview against last year, with insights"></td>
   </tr>
   <tr>
+    <td><img src="site/images/recurring.png" alt="Recurring: subscriptions, bills, and autopays checked as Covered"></td>
     <td><img src="site/images/retirement.png" alt="Retirement projection, on track, with life events and Social Security claiming options"></td>
-    <td><img src="site/images/tax.png" alt="Tax estimate and year-end checklist"></td>
   </tr>
 </table>
 
@@ -48,7 +50,7 @@ More in [docs/features.md](docs/features.md).
 
 | | Price | What it covers | Bank syncing | Where your data lives | Setup |
 | --- | --- | --- | --- | --- | --- |
-| **Meld** | **Free** | Spending, bills, investments, retirement, tax, insurance, estate, and AI over all of it | Your own Plaid keys (free for up to 10 bank logins) | **Your Mac or your server** | 🟡 Some setup: a Mac app plus a free Plaid developer account (Plaid approves it before real banks connect). Docker is optional |
+| **Meld** | **Free** | Spending, bills, investments, retirement, tax, insurance, estate, and AI over all of it | Your own Plaid keys (free for up to 10 bank logins; any number of accounts per login) | **Your Mac or your server** | 🟡 Some setup: a Mac app plus a free Plaid developer account (usually approved automatically). Docker is optional |
 | ***Budgeting apps*** | | | | | |
 | Monarch | $99.99/yr ($199.99 Plus) | Spending, budgets, net worth | Built in | Their servers | 🟢 Easy |
 | YNAB | $109/yr | Budgeting | Built in | Their servers | 🟢 Easy |
@@ -66,16 +68,16 @@ More in [docs/features.md](docs/features.md).
 
 🟢 Easy: sign up and go. 🟡 Some setup: an app to install and accounts to make, no command line. 🔴 Technical: run a server with Docker, a database and a web address.
 
-<sub>US list prices for annual plans as of November 2026. Meld isn't affiliated with these companies or projects.</sub>
+<sub>US list prices for annual plans as of November 2026 (Monarch Plus is $199.99/yr). ChatGPT and Claude are monthly: ChatGPT Finances works on every US plan, including Free; Claude Personal Finance needs Pro ($17/mo billed yearly), Max ($100/mo) or Ultra ($200/mo). Meld isn't affiliated with these companies or projects.</sub>
 
-The trade-off is setup: you bring your own free Plaid developer account, and Plaid approves it before real banks connect. That's also the point: no company sits between you and your bank, and there's no account database to leak.
+The trade-off is setup: you create your own free Plaid developer account (Plaid should approve production access automatically for personal use). That's also why it's worth it: your data sits in a database on your own computer with no central service storing it, and you use your own Plaid keys to connect directly to your banks.
 
 > **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice. Check anything important with a professional.
 
 ## What you need
 
-- **Your own [Plaid](https://dashboard.plaid.com/signup) developer account.** Meld has no server of its own, so it connects to your banks with your Plaid keys. Sandbox (fake data) is free and instant. Real accounts need Plaid to approve production access; the free Trial plan covers up to 10 bank logins. [docs/plaid.md](docs/plaid.md) walks through it.
-- **Optional:** an [Anthropic API key](https://console.anthropic.com/) for Ask Meld with Claude, PDF extraction and value lookups (you pay Anthropic for usage), a ChatGPT Go, Plus, Pro or Business plan for Ask Meld (sign in under **Settings → ChatGPT plan**), or [Ollama](https://ollama.com) for a local chat model.
+- **Your own [Plaid](https://dashboard.plaid.com/signup) developer account.** Meld has no server of its own, so it connects directly to your banks with your Plaid keys. Sandbox (fake data) is free and instant. Real accounts need Plaid production access (usually approved automatically); the free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank. [docs/plaid.md](docs/plaid.md) walks through it.
+- **Optional AI:** [Ollama](https://ollama.com) for completely free local chat models, a ChatGPT Go, Plus, Pro or Business plan (sign in under **Settings → AI → ChatGPT plan**), or an [Anthropic API key](https://console.anthropic.com/) for Ask Meld with Claude, PDF extraction and value lookups.
 
 ## Install on a Mac
 
@@ -102,29 +104,11 @@ Everything stays in `%APPDATA%\Meld`, and the encryption keys are kept in Window
 
 Meld never opens itself to the internet. Your phone reaches it over [Tailscale](https://tailscale.com), a free private network that only your devices are on:
 
-1. Install Tailscale on your computer and your phone and sign in to both with the same account.
+1. Install Tailscale on **both your computer and your phone** and sign in to both with the same account.
 2. Turn on HTTPS certificates for your tailnet (one switch in the Tailscale admin console, under **DNS**).
 3. In Meld, open **Settings → Phone access** (or **Phone Access…** in the menu bar) and click **Turn on phone access**. Scan the QR code with your phone, unlock with your passphrase, and use **Add to Home Screen** so it opens like an app.
 
-Your phone can reach Meld while your Mac is awake and Meld is running. For an always-on setup, run it on a home server with Docker instead.
-
-## Always-on or self-hosted (Docker)
-
-Docker runs Meld on any machine that's always on (a home server, a NAS, a Linux box): one container for Postgres and one for Meld, which serves the web app and the API.
-
-```sh
-git clone https://github.com/meld-finance/meld.git && cd meld
-./scripts/setup.sh            # creates .env with fresh secrets (and, if you like, your passphrase)
-docker compose up -d --build
-```
-
-Open http://localhost:8080. Anything not in `.env` (passphrase, Plaid keys, AI) is asked for the first time Meld opens and saved in the `meld-config` volume; values in `.env` always win.
-
-- **Update:** `git pull && docker compose up -d --build --remove-orphans`. Database migrations run automatically.
-- **Stop:** `docker compose down`. Your data stays in Docker volumes (`meld-db`, `meld-documents`, `meld-config`); `docker compose down -v` deletes it.
-- **Back up:** `docker compose exec db pg_dump -U meld meld > meld-backup.sql`, and keep `.env` somewhere safe too: without its `ENCRYPTION_KEY` you'd have to re-link your accounts.
-- **Change settings:** in the app (**Settings**) for anything not set in `.env`; otherwise edit `.env`, then `docker compose up -d`.
-- **From your phone:** Meld only listens on `localhost`, and its login is a single passphrase, so don't open it to the internet. Put the server and your phone on [Tailscale](https://tailscale.com) and run `tailscale serve --bg 8080` on the server, which adds HTTPS and keeps it off the public internet.
+Full instructions and troubleshooting live in [docs/phone-access.md](docs/phone-access.md). Your phone can reach Meld while your Mac is awake and Meld is running; for an always-on server setup with Docker, see [docs/docker.md](docs/docker.md).
 
 ## Development
 

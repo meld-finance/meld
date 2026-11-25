@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { TabList, TabSlot, TabTrigger, Tabs, type TabListProps, type TabTriggerSlotProps } from 'expo-router/ui';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Linking, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { ChatPanel } from '@/components/chat/chat-panel';
 import { Icon, type IconName } from '@/components/icon';
@@ -22,6 +22,8 @@ import { useThemePref, type ThemePref } from '@/lib/theme-pref';
 const COMPACT_BELOW = 1000;
 /** Below this window width (phones) the nav moves to a bottom tab bar, leaving the page the full width. */
 const PHONE_BELOW = 640;
+const WEBSITE_URL = 'https://meld-finance.github.io/meld/';
+const DOCS_URL = 'https://github.com/meld-finance/meld/blob/main/docs/features.md';
 
 // Web: a left sidebar instead of a bottom tab bar. Keep the order in step with _layout.tsx.
 export default function TabLayout() {
@@ -114,9 +116,22 @@ function Sidebar({ compact, children, style: _style, ...props }: TabListProps & 
       <View style={styles.nav}>{children}</View>
       <View style={[styles.footer, compact && styles.footerCompact]}>
         {!compact && (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.tagline}>
-            All your money.{'\n'}All your goals. One place.
-          </ThemedText>
+          <>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.tagline}>
+              All your money.{'\n'}All your goals. One place.
+            </ThemedText>
+            <View style={styles.footerLinks}>
+              <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => void Linking.openURL(WEBSITE_URL)}>
+                Website
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                ·
+              </ThemedText>
+              <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => void Linking.openURL(DOCS_URL)}>
+                Docs
+              </ThemedText>
+            </View>
+          </>
         )}
         <ThemeToggle compact={compact} />
       </View>
@@ -318,6 +333,14 @@ function TopBar({ phone }: { phone: boolean }) {
               }}>
               What’s new
             </MenuItem>
+            <MenuItem
+              icon="arrowUpRight"
+              onPress={() => {
+                setOpen(false);
+                void Linking.openURL(WEBSITE_URL);
+              }}>
+              Website
+            </MenuItem>
             {/* Phones have no sidebar, so the theme toggle lives here. */}
             {phone && (
               <View style={styles.menuTheme}>
@@ -394,6 +417,7 @@ const styles = StyleSheet.create({
   footer: { marginTop: 'auto', gap: Spacing.three },
   footerCompact: { alignItems: 'center' },
   tagline: { paddingHorizontal: Spacing.two },
+  footerLinks: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.two },
   themeToggle: { flexDirection: 'row', borderWidth: 1, borderRadius: Spacing.five, padding: Spacing.half, gap: Spacing.half },
   themeOption: { padding: Spacing.two, borderRadius: Spacing.five, alignItems: 'center' },
   themeOptionWide: { flex: 1 },

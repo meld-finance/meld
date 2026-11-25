@@ -1,4 +1,4 @@
-import { AlertSettings, type AlertSeverity } from '@meld/shared';
+import { accountDisplayName, AlertSettings, type AlertSeverity } from '@meld/shared';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, Switch, View } from 'react-native';
 
@@ -108,9 +108,8 @@ function SettingsForm({ initial }: { initial: AlertSettings }) {
       <Section label="Low balance" detail="Warn when a bank account drops below the amount you enter. Leave blank for no alert.">
         {banks.map((b) => (
           <View key={b.id} style={styles.inline}>
-            <ThemedText type="small" style={styles.grow} numberOfLines={1}>
-              {b.name}
-              {b.mask ? ` ••${b.mask}` : ''}
+            <ThemedText type="small" style={styles.grow} numberOfLines={2}>
+              {accountDisplayName(b)}
             </ThemedText>
             <Input
               value={minimums[b.id] ?? ''}
@@ -118,7 +117,7 @@ function SettingsForm({ initial }: { initial: AlertSettings }) {
               placeholder="Off"
               keyboardType="decimal-pad"
               inputMode="decimal"
-              accessibilityLabel={`Minimum balance for ${b.name}, dollars`}
+              accessibilityLabel={`Minimum balance for ${accountDisplayName(b)}, dollars`}
               style={[styles.amount, num(minimums[b.id] ?? '') !== null && !(num(minimums[b.id]!)! >= 0) && { borderColor: theme.negative }]}
             />
           </View>
