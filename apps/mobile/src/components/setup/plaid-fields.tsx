@@ -10,7 +10,7 @@ import { KeyTest } from './key-test';
 
 const KEYS_URL = 'https://dashboard.plaid.com/developers/keys';
 const SIGNUP_URL = 'https://dashboard.plaid.com/signup';
-const PLAID_DOCS_URL = 'https://github.com/meld-finance/meld/blob/main/docs/plaid.md';
+const PLAID_DOCS_URL = 'https://meld-finance.github.io/meld/docs/plaid/';
 
 /**
  * Plaid client ID, secrets and environment. `saved` holds the masked secrets from

@@ -1,4 +1,4 @@
-[Meld home page](https://meld-finance.github.io/meld/) · [README](../README.md) · [Features](features.md) · [Phone access](phone-access.md) · [Docker setup](docker.md)
+[Meld home page](https://meld-finance.github.io/meld/) · [Docs](https://meld-finance.github.io/meld/docs/) · [README](../README.md) · [Features](features.md) · [Phone access](phone-access.md) · [Docker setup](docker.md)
 
 # Connecting your accounts with Plaid
 

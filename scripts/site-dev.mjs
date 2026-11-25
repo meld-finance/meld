@@ -1,10 +1,13 @@
-// Serves site/ locally and reloads open pages whenever a file in it changes.
+// Serves site/ locally, rebuilds site/docs/ on Markdown changes, and reloads open pages.
 // Usage: npm run site:dev  (PORT=8000 by default)
-import { createReadStream, statSync, watch } from 'node:fs';
+import { createReadStream, existsSync, statSync, watch } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 
-const root = resolve(import.meta.dirname, '..', 'site');
+import { buildDocs } from './build-docs.mjs';
+
+const repoRoot = resolve(import.meta.dirname, '..');
+const root = join(repoRoot, 'site');
 const port = Number(process.env.PORT ?? 8000);
 const host = process.env.HOST ?? '127.0.0.1';
 const types = {
@@ -22,6 +25,12 @@ const types = {
 const reloadScript = `<script>new EventSource('/__reload').onmessage = () => location.reload();</script>`;
 const clients = new Set();
 
+try {
+  buildDocs();
+} catch (err) {
+  console.error('Initial docs build failed:', err.message);
+}
+
 createServer((req, res) => {
   const path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (path === '/__reload') {
@@ -34,7 +43,13 @@ createServer((req, res) => {
   let file = join(root, normalize(path));
   if (!file.startsWith(root)) return void res.writeHead(403).end();
   try {
-    if (statSync(file).isDirectory()) file = join(file, 'index.html');
+    if (statSync(file).isDirectory()) {
+      if (!path.endsWith('/')) {
+        res.writeHead(301, { Location: `${path}/` });
+        return void res.end();
+      }
+      file = join(file, 'index.html');
+    }
     statSync(file);
   } catch {
     return void res.writeHead(404).end('Not found');
@@ -52,10 +67,28 @@ createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': type });
     createReadStream(file).pipe(res);
   }
-}).listen(port, host, () => console.log(`Serving site/ at http://${host}:${port} — reloads on change`));
+}).listen(port, host, () => console.log(`Serving site/ at http://${host}:${port} (docs at http://${host}:${port}/docs/) — reloads on change`));
 
-let timer;
+let siteTimer;
 watch(root, { recursive: true }, () => {
-  clearTimeout(timer);
-  timer = setTimeout(() => clients.forEach((c) => c.write('data: reload\n\n')), 100);
+  clearTimeout(siteTimer);
+  siteTimer = setTimeout(() => clients.forEach((c) => c.write('data: reload\n\n')), 100);
 });
+
+let docsTimer;
+function scheduleDocsRebuild() {
+  clearTimeout(docsTimer);
+  docsTimer = setTimeout(() => {
+    try {
+      buildDocs();
+    } catch (err) {
+      console.error('Docs rebuild failed:', err.message);
+    }
+  }, 120);
+}
+
+for (const rel of ['docs', 'PRIVACY.md', 'SECURITY.md', 'CONTRIBUTING.md', 'scripts/build-docs.mjs']) {
+  const target = join(repoRoot, rel);
+  if (!existsSync(target)) continue;
+  watch(target, { recursive: statSync(target).isDirectory() }, scheduleDocsRebuild);
+}

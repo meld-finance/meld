@@ -23,7 +23,7 @@ const COMPACT_BELOW = 1000;
 /** Below this window width (phones) the nav moves to a bottom tab bar, leaving the page the full width. */
 const PHONE_BELOW = 640;
 const WEBSITE_URL = 'https://meld-finance.github.io/meld/';
-const DOCS_URL = 'https://github.com/meld-finance/meld/blob/main/docs/features.md';
+const DOCS_URL = 'https://meld-finance.github.io/meld/docs/';
 
 // Web: a left sidebar instead of a bottom tab bar. Keep the order in step with _layout.tsx.
 export default function TabLayout() {

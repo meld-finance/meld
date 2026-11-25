@@ -11,7 +11,7 @@ import { usePhoneAccess, useSetPhoneAccess, useSetupStatus } from '@/lib/setup';
 
 const INSTALL_URL = 'https://tailscale.com/download';
 const HTTPS_URL = 'https://tailscale.com/kb/1153/enabling-https';
-const PHONE_DOCS_URL = 'https://github.com/meld-finance/meld/blob/main/docs/phone-access.md';
+const PHONE_DOCS_URL = 'https://meld-finance.github.io/meld/docs/phone-access/';
 const QR_SIZE = 168;
 
 function Link({ url, children }: { url: string; children: string }) {

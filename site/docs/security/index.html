@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en" data-docs-root="..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security — Meld Docs</title>
+<meta name="description" content="Threat model, localhost-only design, AES-256-GCM encryption at rest, and how to report vulnerabilities.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../favicon.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../"><img src="../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../features/">Features &amp; Guide</a></li>
+        <li><a class="nav-link" href="../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../privacy/">Privacy</a></li>
+        <li><a class="nav-link active" href="../security/" aria-current="page">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../development/">Development</a></li>
+        <li><a class="nav-link" href="../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Privacy &amp; Security</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Security</span>
+        </nav>
+        <h1>Security</h1>
+        <p class="doc-summary">Threat model, localhost-only design, AES-256-GCM encryption at rest, and how to report vulnerabilities.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">2 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/SECURITY.md">View SECURITY.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#reporting-a-vulnerability">Reporting a vulnerability</a>
+          <a class="depth-2" href="#what-meld-is-built-to-protect-against">What Meld is built to protect against</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Meld holds your financial data, so security reports are very welcome.</p>
+
+<h2 id="reporting-a-vulnerability">Reporting a vulnerability<a class="heading-anchor" href="#reporting-a-vulnerability" aria-label="Link to Reporting a vulnerability">#</a></h2>
+
+<p>Please report it privately: the repository's <strong>Security</strong> tab → <strong>Report a vulnerability</strong> (<a href="https://github.com/meld-finance/meld/security/advisories/new" target="_blank" rel="noopener">direct link</a>). Don't open a public issue or PR for it.</p>
+
+<p>Include what's affected, how to reproduce it (with Plaid Sandbox data, never real accounts), and what someone could do with it. Meld has one maintainer, so a reply may take a few days. Once a fix is out, you'll be credited in the advisory unless you'd rather not be.</p>
+
+<p>Only the latest release and <code>main</code> get security fixes.</p>
+
+<h2 id="what-meld-is-built-to-protect-against">What Meld is built to protect against<a class="heading-anchor" href="#what-meld-is-built-to-protect-against" aria-label="Link to What Meld is built to protect against">#</a></h2>
+
+<p>Meld is single-user software for one household on hardware you control. It's designed around these assumptions:</p>
+
+<ul>
+<li><strong>It isn't on the public internet.</strong> The API and Postgres listen on <code>127.0.0.1</code> only, and Docker publishes Meld's port on <code>127.0.0.1</code>. Phone access goes over <a href="https://tailscale.com" target="_blank" rel="noopener">Tailscale</a>, so only your own devices can reach it. Don't put Meld behind a public reverse proxy or port forward: its login is a single passphrase.</li>
+<li><strong>Login</strong> is a single passphrase that issues a bearer token. A passphrase chosen in the app is stored only as a salted scrypt hash (<code>APP_PASSPHRASE</code> in <code>.env</code> is plain text, so keep <code>.env</code> readable only by you). Login attempts are limited to 10 per 15 minutes. Until a passphrase is set (or you choose to go without one), the API serves only first-run setup. The passphrase can be turned off in setup or Settings, which leaves every route open to anyone who can reach Meld, so only do that on a computer you alone use and with phone access off or a tailnet only you are on.</li>
+<li><strong>Secrets at rest:</strong> Plaid access tokens, uploaded PDFs, full account and policy numbers you enter, and Plaid and Anthropic keys saved from the app are encrypted with AES-256-GCM using <code>ENCRYPTION_KEY</code>. The Mac app keeps that key encrypted with the macOS Keychain; Docker reads it from <code>.env</code>. Other data (transactions, balances, holdings) is stored unencrypted in Postgres, so use full-disk encryption.</li>
+<li><strong>Data sent elsewhere</strong> is limited to the services in <a href="../privacy/">PRIVACY.md</a>. Long digit runs are masked before anything goes to an AI model.</li>
+</ul>
+
+<p>Things that are in scope: a way to reach the API or data without the passphrase, getting around the rate limit, reading encrypted values without the key, data sent somewhere PRIVACY.md doesn't say, prompt injection through synced data (merchant names, PDFs) that makes Ask Meld leak or do something it shouldn't, and vulnerabilities in how the Mac app or Docker image is built.</p>
+
+<p>Out of scope: attacks that need you to have already exposed Meld to the internet against this advice, someone with full access to your unlocked computer, and issues in Plaid, Anthropic, Tailscale or ntfy themselves (report those to them).</p>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../privacy/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Privacy</span>
+      </a>
+      <a class="pager-card next" href="../development/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Development</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#reporting-a-vulnerability">Reporting a vulnerability</a></li>
+          <li><a class="toc-link depth-2" href="#what-meld-is-built-to-protect-against">What Meld is built to protect against</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../">Home</a>
+      <a href="../">Docs</a>
+      <a href="../privacy/">Privacy</a>
+      <a href="../security/">Security</a>
+      <a href="../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../docs.js" defer></script>
+</body>
+</html>

@@ -61,7 +61,7 @@ function SettingsCards({ view }: { view: SettingsView }) {
 
 const ABOUT_LINKS = [
   { label: 'Website', url: 'https://meld-finance.github.io/meld/' },
-  { label: 'Docs', url: 'https://github.com/meld-finance/meld/blob/main/docs/features.md' },
+  { label: 'Docs', url: 'https://meld-finance.github.io/meld/docs/' },
   { label: 'Source', url: 'https://github.com/meld-finance/meld' },
 ];
 

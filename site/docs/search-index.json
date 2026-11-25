@@ -1,0 +1,354 @@
+[
+  {
+    "isPage": true,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "",
+    "url": "features/",
+    "text": "How accounts, spending, autopay, cash, investments, retirement, tax, insurance, estate, and Ask Meld work."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "Linking accounts (Plaid)",
+    "url": "features/#linking-accounts-plaid",
+    "text": "Use Accounts → Link account in the web app. Accounts and balances sync immediately; transaction history (up to 2 years) arrives over the next minute or so and is fetched automatically. Every linked connection also re-syncs every 6 hours while the API is running, or on demand with Refresh. Sandbox (PLAID_ENV=sandbox): pick any institution and sign in with user_good / pass_good. Real accounts (PLAID_ENV=production): needs Plaid production access (usually approved automatically); the free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank (see Connecting your accounts with Plaid). Set PLAID_PRODUCTION_SECRET. Each environment has its own secret and its own database (SANDBOX_DATABASE_URL, PRODUCTION_DATABASE_URL), so sandbox data never mixes with real data. Switching is just PLAID_ENV plus an API restart. If a bank needs you to sign in again, the connection shows Reconnect, which reopens Plaid Link in update mode. Linking on iOS/Android arrives with the mobile phase; use the web app until then."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "Overview & budgets",
+    "url": "features/#overview--budgets",
+    "text": "The app has five tabs: Home, Ask Meld, Accounts (sub-tabs Accounts, Cash and Investments), Spending (Overview, Transactions, Recurring, Budgets) and Plan (Retirement, Tax, Insurance, Estate, Profile). Net worth = linked balances + manual assets (home, vehicles; add them on the Accounts tab) + life insurance cash surrender value − credit, loan and mortgage balances. Meld records one snapshot per day (after each sync and every 6 hours), so the trend line starts after the second day. Cash flow counts cash and credit card accounts only. Transfers between your accounts and credit card payments are excluded, so card purchases aren't double counted. Income is anything categorized INCOME; spending is everything else, net of refunds. Recategorize a transaction to change where it counts. Drill into a category by tapping it on Spending → Overview (Spending Breakdown, Top Movers, Where You Spend the Most): spending by subcategory and merchant against a year earlier, and the transactions behind it. Subcategories are Plaid's detailed categories (e.g. Groceries vs. Restaurants under Food and drink) unless you set your own. Recategorize by tapping any transaction: pick a category and subcategory, or type new ones. Turn on Always categorize matching transactions this way to create a rule: new transactions whose merchant or description contains the text you give are categorized as they sync, and optionally past matches you haven't changed by hand are updated too. The longest matching pattern wins, and a hand edit always overrides a rule. Manage rules from Spending → Transactions → Rules; deleting one puts its transactions back to their original category. Budgets are monthly targets per category, set under Spending → Budgets."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "Recurring payments, autopay & alerts",
+    "url": "features/#recurring-payments-autopay--alerts",
+    "text": "Spending → Recurring finds charges and deposits that repeat on a schedule (weekly to yearly) in up to two years of card and bank transactions: subscriptions, bills (utilities, insurance, loans, and anything whose amount varies) and income. A merchant with more than one subscription (an app store) or a membership among other purchases is split by amount. Each series shows its cadence, expected amount, monthly cost, next date, and a badge when a steady price changes. Series that stopped charging are listed separately, since they may have been canceled. Tap one to change its kind, rename it, see its charges, or mark it Not recurring. Corrections are kept in recurring_overrides; the series are worked out from transactions each time. Transfers and card payments aren't counted, as in cash flow. Autopay links a card or loan to the bank account that pays it, paying the statement balance, minimum, current balance or a fixed amount (a loan pays its scheduled payment). For a card on the statement balance, Meld takes Plaid's last statement less payments since, due on the statement's due date. Once that's paid, or before the next statement is out, it estimates from the current balance. It then checks the bank account's available balance against everything else due from it first: other autopays, recurring bills charged to it, and (optionally) paychecks expected into it at least a day before. Each autopay shows Covered, Tight (less than your cushion left), Short, Paid or Unknown, with the breakdown. Meld also suggests links when a bank payment and a card payment of the same amount line up a few days apart. Coming up lists the next 30 days of recurring charges, paychecks and autopay payments. Alerts (the bell on web, and a card on Home) are checked after every sync, every 6 hours, and when you change autopay or alert settings: an autopay its bank account won't cover (urgent), or that leaves less than your cushion. Estimated amounts only alert within a week of the due date. a bank account below a minimum you set any charge at or above an amount you set a subscription or bill whose steady price went up a new recurring charge (shown in the app only, by default) a bank connection that needs you to sign in again Alerts about a state clear themselves once it's fixed; a dismissed one comes back only if it gets worse. Settings are on the Alerts page (alert_settings). Push to your phone with ntfy: install the app, subscribe to a long random topic, and paste its URL under Alerts. Pick whether to push urgent alerts only, warnings and urgent (the default), or everything. Alert text includes account names and amounts, so use your own ntfy server to keep it off the public one (see PRIVACY.md). Ask Meld reads all of this through get_recurring."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "Cash & emergency fund",
+    "url": "features/#cash--emergency-fund",
+    "text": "Accounts → Cash gathers liquid cash: checking, savings, money market and cash management accounts, money market funds, T-bill ETFs (SGOV, BIL…) and brokerage sweep cash. CDs, HSAs and cash in retirement accounts aren't counted toward the emergency fund. Each position's rate is estimated: bank accounts from each interest posting in about the last three months against the average daily balance since the posting before (worked back from today's balance through the transactions), compounded monthly into an APY, taking the median across postings, cash ETFs from a year of distributions (Yahoo Finance), and money market funds as roughly the 3-month Treasury yield (^IRX), which is also the \"high-yield rate now\" benchmark. Only tickers are sent. You can enter any rate yourself. The emergency fund target is a number of months (6 by default) of your average monthly spending over the last 12 complete months, or a monthly figure you enter. The page shows your runway in months and how far above or below the target you are. Rule-based nudges: move low-earning cash to a high-yield account (keeping a month of spending in checking), invest cash beyond the target, put idle cash in retirement accounts to work, and fill in missing rates. Positions can be set aside (e.g. for a down payment) so they don't count. Settings live in cash_settings; Ask Meld reads it all through get_cash_plan."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "Investments & loans",
+    "url": "features/#investments--loans",
+    "text": "Holdings (with cost basis and gain/loss), investment transactions (2 years), and loan/card details (rate, payment, due date, escrow) sync with every refresh when the institution supports Plaid's Investments and Liabilities products. Accounts → Investments has five views. Overview: totals, asset allocation and accounts. Performance: gains over 1M/3M/YTD/1Y/all and each calendar year, kept separate from deposits and withdrawals, with time-weighted growth rates (annualized past a year), in total and by account. History before Meld's first daily snapshot is estimated by replaying investment transactions backward from today's holdings against daily closes from Yahoo Finance (only tickers are sent; cached in price_history). Holdings without a public ticker (e.g. 401(k) pooled funds) are priced from their own transactions instead, and accounts with little transaction history are flagged. Exposure: sector, region and bond-type breakdowns plus your largest positions. Income: dividends, interest and reinvestment from investment transactions, with yield. Holdings: every position, filterable by account or search. All count only your ownership share of joint accounts. Look-through exposure (what's inside your funds) is an AI estimate from each fund's published allocation, looked up once per security when you open Investments and refreshed every 90 days. It needs ANTHROPIC_API_KEY; only tickers and fund names are sent. Tap any account for details. Loans and cards show a payoff estimate at the current payment. Hide from totals on an account's page excludes it from net worth, cash flow, budgets and lists (e.g. a closed or duplicate account). Hidden accounts are listed at the bottom of the Accounts tab. Full account numbers that Plaid returns for loans are dropped before storage."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "Plan: retirement",
+    "url": "features/#plan-retirement",
+    "text": "Plan → Retirement projects your savings to retirement age, compares that with what you'll need for your money to last to the age you plan for, and shows the gap and the extra monthly saving that closes it. The chart shows your balance by age, growing until you retire and drawn down after. Everything is in today's dollars: the return is after inflation (5% by default), and spending, contributions, Social Security and pension are today's amounts. Social Security is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assumes you earn your current pay from 22 until you retire (up to 35 years), and for a married couple takes the lower of one earner plus a spousal benefit and two equal earners. Meld adjusts the benefit for the age you claim (67 by default): less before full retirement age, 8% a year more after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age. Every visible investment account counts at your ownership share, except 529, Coverdell, UTMA/UGMA and other education or custodial accounts. Turn off any account you're saving for something else (a down payment, say), and add cash set aside for retirement as Other savings. Empty fields use suggestions: age from your profile's birth year, retirement at 65, planning to 95, and spending from your last 12 full months of cash flow. Edits update the projection as you type; Save assumptions keeps them. Properties you'd sell to fund retirement can count too. Turn on a home from the Accounts tab and set the age you'd sell it, its mortgage, and net rent per year (rent minus costs). At that age your share of the price (grown 1% a year after inflation by default, less 6% selling costs) minus what's left on the mortgage joins your savings; rent counts as saving before retirement and as income after, until the sale. The mortgage balance is projected from its rate and payment; taxes on the gain aren't included. Ask Meld can read the plan and try what-ifs (\"what if I retire at 60?\") without changing what you saved."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "Plan: tax",
+    "url": "features/#plan-tax",
+    "text": "Plan → Tax estimates this year's (or last year's) federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It's an estimate, not a return. Income starts from your profile's household gross income and filing status. Pre-tax 401(k) deferrals and HSA contributions are projected from what your 401(k) and HSA accounts report. Dividends, interest and fund distributions come from taxable accounts and bank interest. The year is projected as this year so far plus whatever came in over the rest of last year, so December distributions count. A dividend's qualified share comes from what the fund holds: its stocks, apart from REITs. Realized gains are rebuilt from buys and sells with average cost, because Plaid reports one cost basis per holding and no lots. Holding periods follow shares in the order they were bought. Enter your broker's figures to replace the estimate. Tax inputs (per year, in tax_settings) cover what Meld can't see: self-employment profit other income withholding and estimated payments property tax and other itemized deductions HSA coverage whether you have a workplace plan a flat state rate for states without tables Tables: Federal brackets, deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs. The 2025 figures include the One Big Beautiful Bill changes. California uses FTB's 2025 schedules (2026's aren't out yet), adding back HSA money and taxing gains as ordinary income. States without an income tax owe nothing. Tables live in packages/shared/src/tax-tables.ts; add a year there when the IRS and FTB publish it. Suggestions are fixed rules, each with the estimated tax saved this year. They cover: tax-loss harvesting, with wash-sale warnings for purchases in the last 30 days in any account gain harvesting at 0% 401(k), HSA and IRA room a backdoor Roth, with a pro-rata warning when pre-tax IRAs have money in them a SEP IRA or solo 401(k) for self-employment income Roth conversion room in low brackets an underpayment warning Tap one to ask Ask Meld about it."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "Plan: insurance",
+    "url": "features/#plan-insurance",
+    "text": "Add life and disability policies under Plan → Insurance, including coverage through work. It totals your life coverage, monthly disability benefit and yearly premiums. Term policies past their end date aren't counted. Whole and universal life policies count toward net worth at their surrender value, and are listed under Insurance cash value on the Accounts tab, which links back to each policy. Upload PDF on the Add policy page sends a policy, certificate or benefits summary to the AI provider (Claude by default), which fills in the form and flags anything it inferred or couldn't find. Nothing is saved until you check the fields and press Save. Needs ANTHROPIC_API_KEY; without it the page explains how to turn it on and you fill in the form by hand. Attach PDF keeps a copy of the policy document with any policy, new or existing, with no AI involved: nothing is sent anywhere. Replace PDF and Remove take effect when you save, and the old file is deleted. Uploaded PDFs are encrypted with ENCRYPTION_KEY and stored in data/documents/ (gitignored; change with DOCUMENTS_DIR). PDFs saved before encryption was added are encrypted the next time the API starts. A PDF is deleted with its policy, when you cancel the draft, or after a day if it was never saved. A policy's full number is optional and stored encrypted with ENCRYPTION_KEY. It's printed in the family packet, and everywhere else the app only shows the last 4. PDF extraction only ever reads the last 4."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "Plan: estate",
+    "url": "features/#plan-estate",
+    "text": "Plan → Estate checks that everything you own passes the way you intend, keeps your estate documents in one place, and builds a packet your family can use. It helps you organize; it isn't legal advice. Checklist: four steps that check themselves off: every account and policy set up, the core documents on file, someone to call, and a current family packet. Accounts and policies: a To do list first, each row saying what's missing in a sentence. Rows that are already set up fold away under Set up. When several accounts would go through probate with nothing set up, Leave them to my will marks them all “By will” in one go. Each account, home or other asset (tap it, or On death on an account's page) records how it passes: a beneficiary designation transfer or payable on death (or a TOD deed for property) joint with survivorship one of your trusts by will Beneficiaries are primary or contingent, with shares, as the institution has them on file. Life policies use the beneficiaries on the policy. Kept in estate_designations, apart from synced data. Full account numbers for the packet are optional, typed in on the account's estate screen and stored encrypted with ENCRYPTION_KEY. The app only ever shows the last 4. For a linked checking or savings account, Get from bank fetches the number through Plaid Auth. Auth must be enabled for your Plaid account, and Plaid bills it once per connection. The first time, Meld asks you to reconnect the bank and allow account numbers. Set PLAID_ADDITIONAL_CONSENTED_PRODUCTS=auth to ask for that when you link new banks. Readiness checks (pure rules in apps/api/src/lib/estate.ts), shown on the row they're about: a retirement account, HSA or life policy with no beneficiary (a new account is called out) accounts and property that would go through probate, or sit outside your revocable trust once you have one shares that don't add to 100%, your estate named as beneficiary, or a minor child from your profile named directly no contingent beneficiary designations and documents not reviewed in the interval you pick (3 years by default) a missing will, financial power of attorney or healthcare directive, and no guardian named when you have minor children a child born after a will or trust was signed a document drafted in another state than your profile's Documents and trusts (estate_documents): missing core documents are listed as rows to add. Each document records its type, date signed, state, when you last reviewed it, where the signed original is kept, the people it names (trustees, successor trustees, executor, agents, guardians) with contact details, the attorney, and an optional scanned PDF, encrypted like policy PDFs. Contacts and instructions (estate_settings): executor, attorney, CPA, advisor, employer HR and others; a note on where to find logins (Meld never stores passwords); and a letter to your family. Family packet: Export PDF builds a PDF from today's data on your machine, optionally encrypted (AES-256) with a password. It holds instructions, who to call, first steps, every document and who it names, each account and policy with how it passes and its beneficiaries, property, debts, and bills on autopay or to cancel. Print it or keep it with your will. Meld remembers what it contained (a hash, not a copy) and flags it as out of date when beneficiaries, documents, contacts or accounts change, or after a year. Balance changes alone don't count. Export works in the web app for now. Alerts: an account or policy with no beneficiary, and an out-of-date packet, show under Alerts (informational, so not pushed by default). Turn them off with Estate planning on the Alerts page. Ask Meld reads all of this through get_estate_plan, with names and roles but no contact details."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Features & Guide",
+    "group": "Using Meld",
+    "heading": "Ask Meld (AI chat)",
+    "url": "features/#ask-meld-ai-chat",
+    "text": "Ask Meld answers questions about your money: spending, debt payoff, investments, tax moves, insurance gaps. Answers stream in and conversations are saved. The Ask Meld page lists past conversations. On web, the sparkle button next to your name opens a chat panel beside the page you're on, with questions about that page. The AI looks things up with read-only tools (accounts, transactions, totals by merchant or category, cash flow, budgets, holdings, investment activity, loan terms, insurance, profile). It can't change anything. Each new conversation also starts with a short snapshot of your balances and profile. Add your income, filing status, state, age and employer benefits under Plan → Profile (also in the account menu on web) for better tax and insurance answers. Uses Claude through a provider interface in apps/api/src/ai/provider.ts, so other providers can be added. Chat defaults to ANTHROPIC_CHAT_MODEL (default claude-sonnet-5-5), property value lookups use ANTHROPIC_LOOKUP_MODEL (default claude-haiku-5-5), and policy PDF extraction ANTHROPIC_MODEL (default claude-opus-5-5). Pick the model under the chat box: any of ANTHROPIC_CHAT_MODELS (Opus, Sonnet, Haiku by default; Haiku costs least), a ChatGPT model on your own plan, or a local model through Ollama. The choice is remembered, and you can switch mid-conversation. Local models: install Ollama and pull a model that supports tool calling (e.g. ollama pull qwen3.5), then use Settings → AI → Find Ollama, or set OLLAMA_URL=http://127.0.0.1:11434 (http://host.docker.internal:11434 when Meld runs in Docker) and restart the API. Every installed model with tool support is listed, or set OLLAMA_CHAT_MODELS to choose. Local models are free and keep your data on your machine, but answer less reliably than Claude. Chat works with only Ollama set up; the other AI features still need ANTHROPIC_API_KEY. ChatGPT plan: with ChatGPT Go, Plus, Pro or Business, choose Settings → AI → ChatGPT plan → Continue with ChatGPT and sign in. Ask Meld then lists the ChatGPT models your plan offers, billed to your plan's usage instead of an API key (set a limit or disconnect Meld at chatgpt.com/settings/usage). It takes effect without a restart. The browser returns to Meld at http://127.0.0.1:1455; if Meld runs in Docker or you sign in from another device, that page won't load, so copy its address into the box Settings shows. The sign-in is kept encrypted with ENCRYPTION_KEY in chatgpt.json next to Meld's settings file (CHATGPT_AUTH_FILE overrides). Free plans can't share usage; ChatGPT shows \"A required permission is unavailable\" and Meld explains it. On Business, an admin first sets Use ChatGPT plan to Allowed for Meld under Tenant settings → External access at admin.openai.com. It covers chat only; PDF reading and value lookups still need ANTHROPIC_API_KEY. Privacy: with a Claude model, your question and the data the AI looks up are sent to Anthropic, or to OpenAI with a ChatGPT model; with a local Ollama model they stay on your machine. Long digit runs (account, card and policy numbers) are masked first either way."
+  },
+  {
+    "isPage": true,
+    "pageTitle": "Plaid Bank Setup",
+    "group": "Using Meld",
+    "heading": "",
+    "url": "plaid/",
+    "text": "Set up your own free Plaid developer keys, try Sandbox test data, and switch to live bank connections."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Plaid Bank Setup",
+    "group": "Using Meld",
+    "heading": "1. Sandbox (fake data, to try Meld)",
+    "url": "plaid/#1-sandbox-fake-data-to-try-meld",
+    "text": "Sign up at https://dashboard.plaid.com/signup. Open Developers → Keys and copy your client_id and Sandbox secret. In .env, set PLAID_CLIENT_ID, PLAID_SANDBOX_SECRET and PLAID_ENV=sandbox. Start Meld, go to Accounts → Link account, pick any bank and sign in with user_good / pass_good."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Plaid Bank Setup",
+    "group": "Using Meld",
+    "heading": "2. Your real accounts (Trial plan)",
+    "url": "plaid/#2-your-real-accounts-trial-plan",
+    "text": "New Plaid teams in the US and Canada get a free Trial plan with real data: Up to 10 connections (Plaid calls them \"Items\"). One connection is one login at one institution, however many accounts sit behind it; a bank login with checking, savings and a card is one. Removing a connection doesn't give the slot back, so don't link and unlink to experiment. Use Sandbox for that. It includes the products Meld uses: Transactions, Investments and Liabilities. Banks that sign you in on their own site (OAuth), such as Chase, Bank of America and Wells Fargo, work on the Trial plan. Some brokerages, Schwab for example, can take a few business days to switch on after you get production access. To get it: In the Plaid Dashboard, request production access. For personal use, Plaid usually approves it automatically. If asked about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself. Once approved, copy your Production secret from Developers → Keys. In .env, set PLAID_PRODUCTION_SECRET and PLAID_ENV=production, then restart Meld (docker compose up -d). Real data goes into its own database (meld), separate from sandbox data (meld_sandbox), so switching back and forth never mixes them. Read Plaid's terms yourself. When you hold Plaid keys you're Plaid's customer, and their developer policy and terms apply to you. Decide for yourself whether your use fits them."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Plaid Bank Setup",
+    "group": "Using Meld",
+    "heading": "When a bank needs you to sign in again",
+    "url": "plaid/#when-a-bank-needs-you-to-sign-in-again",
+    "text": "Banks expire connections from time to time: some every 6 to 12 months, some once a year. When that happens the account shows Reconnect in Meld. Press it and sign in again; your history is kept."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Plaid Bank Setup",
+    "group": "Using Meld",
+    "heading": "More than 10 connections?",
+    "url": "plaid/#more-than-10-connections",
+    "text": "Plaid's paid plans charge a monthly fee per connection. For a household that outgrows the Trial plan, consolidating logins (one login per institution) usually helps. Support for cheaper alternatives such as SimpleFIN Bridge may come later."
+  },
+  {
+    "isPage": true,
+    "pageTitle": "Phone Access (Tailscale)",
+    "group": "Using Meld",
+    "heading": "",
+    "url": "phone-access/",
+    "text": "Reach Meld securely from your phone over your own Tailscale tailnet without exposing it to the internet."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Phone Access (Tailscale)",
+    "group": "Using Meld",
+    "heading": "What you need beforehand",
+    "url": "phone-access/#what-you-need-beforehand",
+    "text": "Tailscale installed on this computer (Mac or Windows) and signed in to your Tailscale account: download Tailscale. Tailscale installed on your phone (iOS App Store or Google Play) and signed in to the same Tailscale account. HTTPS certificates enabled for your tailnet: in the Tailscale admin console under DNS, click Enable HTTPS (see Tailscale's HTTPS guide). This lets Tailscale give your computer a private https://...ts.net address with a valid certificate."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Phone Access (Tailscale)",
+    "group": "Using Meld",
+    "heading": "Turn on phone access (Mac & Windows app)",
+    "url": "phone-access/#turn-on-phone-access-mac--windows-app",
+    "text": "Open Meld on your computer and go to Account menu → Settings → Phone access (or click Phone Access… in the macOS menu bar / Windows notification tray). If Tailscale isn't running or HTTPS isn't enabled yet, Meld tells you what's missing. Fix that step and click Check again. Click Turn on phone access. The first time you use tailscale serve, Tailscale may ask you to enable Serve on your tailnet with a one-click approval link. Follow that link if shown, then click Turn on phone access again. Meld shows a QR code and a private https://...ts.net address. Make sure Tailscale is connected on your phone, scan the QR code with your phone's camera (or type the address in Safari / Chrome), and unlock with your Meld passphrase. Add to Home Screen on your phone so Meld opens full-screen like a native app: iPhone (Safari): Tap the Share button → Add to Home Screen. Android (Chrome): Tap the ⋮ menu → Add to home screen (or Install app)."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Phone Access (Tailscale)",
+    "group": "Using Meld",
+    "heading": "Keeping it reachable",
+    "url": "phone-access/#keeping-it-reachable",
+    "text": "On Mac and Windows, closing Meld's window keeps it running in the menu bar / notification tray so your phone can still connect while your computer is awake. Turn on Open at Login from the menu bar / tray icon if you want Meld ready after a restart. If you want Meld reachable 24/7 even when your laptop is asleep, run Meld on a home server, NAS, or always-on computer with Docker instead — see the Docker setup guide."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Phone Access (Tailscale)",
+    "group": "Using Meld",
+    "heading": "Troubleshooting",
+    "url": "phone-access/#troubleshooting",
+    "text": "Page won't load on your phone: Check that Tailscale is connected on both your phone and your computer, signed in to the same Tailscale account, and that your computer isn't asleep. Certificate or HTTPS warning: Confirm Enable HTTPS is switched on in the Tailscale admin console → DNS, then click Check again in Meld's Phone access card. Docker server: On a Docker host, Meld runs 127.0.0.1:8080, so use tailscale serve --bg 8080 on the host machine (covered in docs/docker.md)."
+  },
+  {
+    "isPage": true,
+    "pageTitle": "Self-Hosting with Docker",
+    "group": "Using Meld",
+    "heading": "",
+    "url": "docker/",
+    "text": "Run Meld 24/7 on a home server, Mac mini, or NAS with Docker Compose, backups, and Ollama."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Self-Hosting with Docker",
+    "group": "Using Meld",
+    "heading": "Start Meld",
+    "url": "docker/#start-meld",
+    "text": "You need Docker (with Docker Compose) and Git. Open http://localhost:8080 in your browser. Any settings not set in .env (passphrase, Plaid keys, AI options) are asked on first run and saved in the meld-config Docker volume; values in .env always take precedence over settings saved in the app."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Self-Hosting with Docker",
+    "group": "Using Meld",
+    "heading": "Update",
+    "url": "docker/#update",
+    "text": "Database migrations run automatically when the container starts."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Self-Hosting with Docker",
+    "group": "Using Meld",
+    "heading": "Stop",
+    "url": "docker/#stop",
+    "text": "Your database, uploaded documents, and app settings are preserved in Docker volumes (meld-db, meld-documents, meld-config). (docker compose down -v deletes those volumes—avoid -v unless you want to wipe everything.)"
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Self-Hosting with Docker",
+    "group": "Using Meld",
+    "heading": "Back up",
+    "url": "docker/#back-up",
+    "text": "Keep .env somewhere safe too: without its ENCRYPTION_KEY, encrypted Plaid tokens, documents, and saved settings cannot be decrypted, so you would need to re-link your accounts."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Self-Hosting with Docker",
+    "group": "Using Meld",
+    "heading": "Change settings",
+    "url": "docker/#change-settings",
+    "text": "For anything not set in .env, change it in Account menu → Settings inside the app. For anything set in .env, edit .env and restart the container:"
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Self-Hosting with Docker",
+    "group": "Using Meld",
+    "heading": "Using Ollama from Docker",
+    "url": "docker/#using-ollama-from-docker",
+    "text": "If Ollama runs directly on the host machine (outside Docker), set the Ollama address to http://host.docker.internal:11434 in Settings → AI (or OLLAMA_URL=http://host.docker.internal:11434 in .env)."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Self-Hosting with Docker",
+    "group": "Using Meld",
+    "heading": "Phone access over Tailscale",
+    "url": "docker/#phone-access-over-tailscale",
+    "text": "Meld only binds to 127.0.0.1:8080, and its login is a single passphrase, so don't expose it to the public internet. To reach it from your phone: Install Tailscale on the Docker host and on your phone, signed in to the same Tailscale account, and enable HTTPS certificates in the Tailscale admin console (DNS → Enable HTTPS). On the Docker host, run: Tailscale will give you a private https://...ts.net URL that proxies securely over your tailnet to 127.0.0.1:8080 without exposing Meld to the public internet. See docs/phone-access.md for adding Meld to your phone's home screen."
+  },
+  {
+    "isPage": true,
+    "pageTitle": "Privacy",
+    "group": "Privacy & Security",
+    "heading": "",
+    "url": "privacy/",
+    "text": "Every outside service Meld talks to, what is sent, how digit masking works, and what is encrypted on disk."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Privacy",
+    "group": "Privacy & Security",
+    "heading": "What's protected on disk",
+    "url": "privacy/#whats-protected-on-disk",
+    "text": "Plaid access tokens, full account and policy numbers kept for the family packet, uploaded insurance and estate PDFs, Plaid and Anthropic keys saved from the app, and your ChatGPT sign-in are encrypted (AES-256-GCM) with ENCRYPTION_KEY. The Mac app makes that key on first run and keeps it in your macOS Keychain (Windows: Credential Manager); Docker reads it from .env. A copy of the data or documents folder can't be opened without it. The passphrase you choose in the app is stored only as a salted scrypt hash. Everything else (transactions, balances, holdings) is stored unencrypted in the database, protected by your computer's own security. Turn on full-disk encryption (FileVault on macOS, BitLocker on Windows) if you haven't already. With Docker, .env holds your secrets. scripts/setup.sh creates it readable only by you; don't commit or share it."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Privacy",
+    "group": "Privacy & Security",
+    "heading": "Reporting a security problem",
+    "url": "privacy/#reporting-a-security-problem",
+    "text": "Please report it privately through GitHub (the repository's Security tab → Report a vulnerability) rather than in a public issue. SECURITY.md has the details."
+  },
+  {
+    "isPage": true,
+    "pageTitle": "Security",
+    "group": "Privacy & Security",
+    "heading": "",
+    "url": "security/",
+    "text": "Threat model, localhost-only design, AES-256-GCM encryption at rest, and how to report vulnerabilities."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Security",
+    "group": "Privacy & Security",
+    "heading": "Reporting a vulnerability",
+    "url": "security/#reporting-a-vulnerability",
+    "text": "Please report it privately: the repository's Security tab → Report a vulnerability (direct link). Don't open a public issue or PR for it. Include what's affected, how to reproduce it (with Plaid Sandbox data, never real accounts), and what someone could do with it. Meld has one maintainer, so a reply may take a few days. Once a fix is out, you'll be credited in the advisory unless you'd rather not be. Only the latest release and main get security fixes."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Security",
+    "group": "Privacy & Security",
+    "heading": "What Meld is built to protect against",
+    "url": "security/#what-meld-is-built-to-protect-against",
+    "text": "Meld is single-user software for one household on hardware you control. It's designed around these assumptions: It isn't on the public internet. The API and Postgres listen on 127.0.0.1 only, and Docker publishes Meld's port on 127.0.0.1. Phone access goes over Tailscale, so only your own devices can reach it. Don't put Meld behind a public reverse proxy or port forward: its login is a single passphrase. Login is a single passphrase that issues a bearer token. A passphrase chosen in the app is stored only as a salted scrypt hash (APP_PASSPHRASE in .env is plain text, so keep .env readable only by you). Login attempts are limited to 10 per 15 minutes. Until a passphrase is set (or you choose to go without one), the API serves only first-run setup. The passphrase can be turned off in setup or Settings, which leaves every route open to anyone who can reach Meld, so only do that on a computer you alone use and with phone access off or a tailnet only you are on. Secrets at rest: Plaid access tokens, uploaded PDFs, full account and policy numbers you enter, and Plaid and Anthropic keys saved from the app are encrypted with AES-256-GCM using ENCRYPTION_KEY. The Mac app keeps that key encrypted with the macOS Keychain; Docker reads it from .env. Other data (transactions, balances, holdings) is stored unencrypted in Postgres, so use full-disk encryption. Data sent elsewhere is limited to the services in PRIVACY.md. Long digit runs are masked before anything goes to an AI model. Things that are in scope: a way to reach the API or data without the passphrase, getting around the rate limit, reading encrypted values without the key, data sent somewhere PRIVACY.md doesn't say, prompt injection through synced data (merchant names, PDFs) that makes Ask Meld leak or do something it shouldn't, and vulnerabilities in how the Mac app or Docker image is built. Out of scope: attacks that need you to have already exposed Meld to the internet against this advice, someone with full access to your unlocked computer, and issues in Plaid, Anthropic, Tailscale or ntfy themselves (report those to them)."
+  },
+  {
+    "isPage": true,
+    "pageTitle": "Development",
+    "group": "Developers",
+    "heading": "",
+    "url": "development/",
+    "text": "Monorepo layout, local setup, desktop Electron builds, common commands, and the release workflow."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Development",
+    "group": "Developers",
+    "heading": "Desktop app",
+    "url": "development/#desktop-app",
+    "text": "npm run desktop:dev opens the Electron app against the API source and the Expo dev server (hot reload on both), with its own Postgres and data in ~/Library/Application Support/Meld Dev. Stop npm run dev first: both use port 4000. Set MELD_USER_DATA=<folder> to try a fresh first run. npm run desktop:build builds apps/desktop/release/mac-<arch>/Meld.app in a minute or two, for checking the real thing. npm run desktop:dist makes the .dmg for this Mac's architecture. For Intel Macs: cd apps/desktop && node scripts/build.mjs --arch x64 && npx electron-builder --x64. Packaged, the API is one esbuild bundle run in an Electron utility process, Postgres is the embedded-postgres build thinned to one architecture, and the web app is the same Expo export Docker serves. Logs: menu bar → Show Log. Keys. Meld's encryption key, session secret and Postgres password are one item in the macOS Keychain (Windows: Credential Manager), service Meld, account secrets (secrets:<folder> for other data folders, e.g. secrets:Meld Dev). Losing it means re-linking every bank, and Meld refuses to start rather than make new keys over existing data. Builds before this kept them in secrets.bin, encrypted with Electron's safeStorage; the first start of a newer build copies them into the Keychain and renames the file secrets.bin.migrated. Windows. The app has to be built on the OS it's for, so the Windows installer is built in CI: .github/workflows/windows.yml runs on every pull request that touches apps/desktop/, and on demand (gh workflow run windows.yml --ref <branch>, or Actions → Windows build → Run workflow). Download Meld-x64-setup.exe from the run's windows artifact (gh run download <run-id> -n windows). On a Windows machine, npm run desktop:build makes apps/desktop/release/win-unpacked/Meld.exe and npm run desktop:dist makes the installer, with Windows Postgres (@embedded-postgres/windows-x64). The installer is per-user (no admin prompt) and unsigned, so SmartScreen warns the first time (More info → Run anyway). Data lives in %APPDATA%\\Meld, the keys in Credential Manager, and Meld keeps running in the notification area when its window closes. It builds cleanly but hasn't been tried end to end on Windows yet, so treat it as a preview. Sharing real data with dev. Plaid bills per linked bank, so link each bank once (in the Mac app) and copy the data to npm run dev rather than linking it in both. Quit Meld first; both commands run its Postgres themselves, and macOS may ask once to let Electron use the \"Meld\" Keychain item. npm run desktop:seed-from-dev (once): copies dev's production database and documents into the Mac app, which takes dev's ENCRYPTION_KEY so the Plaid tokens still work. It stops if the Mac app has banks dev doesn't. npm run dev:pull-desktop (any time): replaces dev's production database and documents with the Mac app's, and sets dev's ENCRYPTION_KEY to match. It stops if dev has banks the Mac app doesn't. MELD_TRANSFER_FORCE=1 overrides either check. Both set PLAID_SHARED_ITEMS=true in .env, so unlinking a bank in dev removes it there only and the Mac app keeps it. Restart npm run dev and the Docker container afterwards. Signing and notarization happen when CSC_LINK/CSC_KEY_PASSWORD and APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID are set (see electron-builder's docs); otherwise the build is unsigned."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Development",
+    "group": "Developers",
+    "heading": "Common commands",
+    "url": "development/#common-commands",
+    "text": "Command What it does docker compose up -d --build Run all of Meld in Docker at http://localhost:8080 npm run desktop:dev The desktop app against the API source and Expo dev server npm run desktop:build / npm run desktop:dist Build Meld.app / the .dmg (win-unpacked / the setup .exe on Windows) gh workflow run windows.yml --ref <branch> Build the Windows installer in CI from a Mac npm run dev:pull-desktop Copy the Mac app's data into dev (desktop:seed-from-dev goes the other way, once) npm run dev API + Expo web together npm run dev:api / npm run dev:web Run one side only npm run db:up Start only Postgres (for npm run dev) npm run db:generate Create a migration after editing apps/api/src/db/schema.ts npm run db:migrate Apply migrations to the sandbox and production databases npm run typecheck Typecheck all packages npm test Run tests (DB tests use TEST_DATABASE_URL; create it once with docker compose exec db createdb -U meld meld_test) npm run site:screenshots Re-capture 2× landing page PNGs from meld_sandbox and sync dimensions npm run site:check Verify landing page screenshots are 2× PNGs matching site/index.html npm run docs:build Generate the web documentation portal (site/docs/) from Markdown npm run docs:check Verify site/docs/ is in sync and all doc links/anchors resolve npm run docs:audit Check working-tree code changes against mapped documentation files npm run hooks:install Enable .githooks/ (core.hooksPath) for doc-sync pre-commit checks"
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Development",
+    "group": "Developers",
+    "heading": "Releases",
+    "url": "development/#releases",
+    "text": "The app's version lives in apps/desktop/package.json (it's what About Meld shows). To release, bump it there (npm version 0.2.0 -w apps/desktop --no-git-tag-version), commit, and push the matching tag: git tag v0.2.0 && git push origin v0.2.0. That runs .github/workflows/release.yml, which fails if the tag and package.json disagree, builds the Apple silicon and Intel .dmg files and the Windows installer, and attaches them to a draft GitHub Release with generated notes. The .dmg files and the setup .exe have no version in their names (Meld-arm64.dmg, Meld-x64.dmg, Meld-x64-setup.exe), so the README and website link to releases/latest/download/<name> and never need updating. Check the draft, then publish it. Add the signing secrets listed at the top of that workflow to sign and notarize the builds. Publishing the release is what ships it to people already running Meld. The workflow also attaches a .zip per architecture and a latest-mac.yml; the Mac app checks for that file on GitHub shortly after it opens and every 4 hours. Windows copies read latest.yml and download the new setup .exe, which installs when Meld restarts or quits. When it finds a newer version it shows Update available at the top of the window, a dot on What's new in the account menu, an item in the menu bar menu, and one macOS notification. One click downloads the update in the background; Restart to update installs it (it also installs the next time Meld quits). Updating the Mac app needs signed builds (the Windows installer updates unsigned). Drafts and pre-releases are never offered. The release notes are what Meld shows on its What's new page (account menu → What's new, Settings → About, or Help → What's New in Meld), so write them for users. An ## Install section, Full Changelog lines and the generated \"by @someone in …\" credits are left out in the app. Markdown headings, lists, bold, links and > quotes all render. To try the update UI without a release, run npm run desktop:dev with MELD_FAKE_UPDATE=0.9.0: Meld acts as if 0.9.0 were out, and its download and restart steps are simulated. The landing page lives in site/ and the web documentation portal lives in site/docs/ (generated from docs/*.md, PRIVACY.md, SECURITY.md, and CONTRIBUTING.md); both are published to GitHub Pages by .github/workflows/pages.yml whenever site/, docs, or scripts/build-docs.mjs change on main. Preview locally with npm run site:dev (http://127.0.0.1:8000, docs at http://127.0.0.1:8000/docs/), which automatically rebuilds site/docs/ and reloads the page whenever Markdown or site files change. Run npm run docs:build after editing Markdown docs and npm run docs:check to verify everything stays in sync (enforced by CI, .githooks/pre-commit, .claude/settings.json, and CLAUDE.md/AGENTS.md). Enable the git pre-commit hook anytime with npm run hooks:install. When UI changes affect the landing page, run npm run site:screenshots (requires Chrome and meld_sandbox) to re-capture 2× Retina PNGs and sync site/index.html dimensions, check callout pin positions in npm run site:dev, and verify with npm run site:check."
+  },
+  {
+    "isPage": true,
+    "pageTitle": "Contributing",
+    "group": "Developers",
+    "heading": "",
+    "url": "contributing/",
+    "text": "Guidelines for issues, pull requests, schema migrations, documentation checks, and licensing."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Contributing",
+    "group": "Developers",
+    "heading": "Before you start",
+    "url": "contributing/#before-you-start",
+    "text": "For anything bigger than a bug fix, open an issue first so we can agree on the approach. Meld is single-user and local-first on purpose. Changes that send more data to outside services, or add accounts, telemetry or a hosted backend, are unlikely to be accepted. Never paste real financial data, Plaid keys or .env contents into issues or PRs. Use Plaid Sandbox data for screenshots and repros."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Contributing",
+    "group": "Developers",
+    "heading": "Running it",
+    "url": "contributing/#running-it",
+    "text": "Follow Development setup in the README. Plaid Sandbox (user_good / pass_good) is enough for nearly all work. For the Mac app, npm run desktop:dev runs it from source and npm run desktop:build builds Meld.app to check the packaged version."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Contributing",
+    "group": "Developers",
+    "heading": "Before opening a PR",
+    "url": "contributing/#before-opening-a-pr",
+    "text": "Schema changes: edit apps/api/src/db/schema.ts, then npm run db:generate and commit the new migration. Shared request/response types live in packages/shared as Zod schemas; change them there, not in each app. If your change alters features, setup, environment variables, commands, privacy flows, or security assumptions, update the corresponding Markdown doc (docs/*.md, PRIVACY.md, SECURITY.md, CONTRIBUTING.md) and regenerate site/docs/ with npm run docs:build (or enable the pre-commit check via npm run hooks:install). If you change what data leaves the machine, update PRIVACY.md."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Contributing",
+    "group": "Developers",
+    "heading": "License",
+    "url": "contributing/#license",
+    "text": "By contributing you agree that your contributions are licensed under the GNU AGPL v3, the same as the rest of Meld."
+  }
+]

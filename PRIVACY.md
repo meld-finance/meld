@@ -1,4 +1,4 @@
-[Meld home page](https://meld-finance.github.io/meld/) · [README](README.md) · [Security](SECURITY.md) · [Features](docs/features.md)
+[Meld home page](https://meld-finance.github.io/meld/) · [Docs](https://meld-finance.github.io/meld/docs/) · [README](README.md) · [Security](SECURITY.md) · [Features](docs/features.md)
 
 # Privacy: where your data goes
 

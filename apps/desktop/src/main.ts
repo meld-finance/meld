@@ -188,6 +188,7 @@ function runApp() {
         role: 'help',
         submenu: [
           { label: 'Meld Website', click: () => void shell.openExternal('https://meld-finance.github.io/meld/') },
+          { label: 'Meld Documentation', click: () => void shell.openExternal('https://meld-finance.github.io/meld/docs/') },
           { label: 'What’s New in Meld', click: () => showWindow('/releases') },
         ],
       },

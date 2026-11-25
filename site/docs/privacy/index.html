@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en" data-docs-root="..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — Meld Docs</title>
+<meta name="description" content="Every outside service Meld talks to, what is sent, how digit masking works, and what is encrypted on disk.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../favicon.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../"><img src="../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../features/">Features &amp; Guide</a></li>
+        <li><a class="nav-link" href="../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link active" href="../privacy/" aria-current="page">Privacy</a></li>
+        <li><a class="nav-link" href="../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../development/">Development</a></li>
+        <li><a class="nav-link" href="../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Privacy &amp; Security</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Privacy</span>
+        </nav>
+        <h1>Privacy: where your data goes</h1>
+        <p class="doc-summary">Every outside service Meld talks to, what is sent, how digit masking works, and what is encrypted on disk.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">4 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/PRIVACY.md">View PRIVACY.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#whats-protected-on-disk">What's protected on disk</a>
+          <a class="depth-2" href="#reporting-a-security-problem">Reporting a security problem</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Meld runs on your own computer. There is no Meld server, no account with the author, no analytics and no telemetry. Your data lives in the Postgres database and the <code>documents</code> folder on your machine: with the Mac app, both are in <code>~/Library/Application Support/Meld</code> (<code>%APPDATA%\Meld</code> on Windows), and its Postgres only listens on <code>127.0.0.1</code>.</p>
+
+<p>Meld talks to these outside services only. Each one is optional except Plaid and GitHub's update check.</p>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th scope="col">Service</th><th scope="col">When</th><th scope="col">What's sent</th></tr></thead>
+<tbody>
+<tr><td><strong>Plaid</strong> (with your own keys)</td><td>Linking accounts and every sync (every 6 hours, or on <strong>Refresh</strong>)</td><td>Your bank sign-in goes to Plaid and your bank through Plaid's own window, never through Meld. Meld receives balances, transactions, holdings, investment activity and loan details. Tapping <strong>Get from bank</strong> on an account's estate screen also fetches that checking or savings account's full number (Plaid Auth); it's kept, encrypted, only if you save it.</td></tr>
+<tr><td><strong>GitHub</strong></td><td>The Mac app checks for updates shortly after it opens and every 4 hours; the <strong>What's new</strong> page loads the release notes</td><td>Nothing about you or your finances: just requests for Meld's public release list, which GitHub sees coming from your IP address like any download. An update is downloaded from GitHub only when you click <strong>Update</strong>.</td></tr>
+<tr><td><strong>Yahoo Finance</strong></td><td>Accounts → Investments → Performance</td><td>Ticker symbols only, to fetch daily prices.</td></tr>
+<tr><td><strong>Anthropic</strong> (if you add an API key)</td><td>Ask Meld with a Claude model</td><td>Your question, a short snapshot of balances and profile, and whatever the AI looks up to answer (for example matching transactions, holdings or budgets).</td></tr>
+<tr><td></td><td>Plan → Insurance → Upload PDF</td><td>The <strong>whole PDF</strong> you upload.</td></tr>
+<tr><td></td><td>Home or vehicle value lookup</td><td>The property address, or the vehicle's year, make, model, mileage and ZIP code.</td></tr>
+<tr><td></td><td>Accounts → Investments → Exposure</td><td>Fund tickers and names.</td></tr>
+<tr><td><strong>OpenAI</strong> (if you sign in with ChatGPT)</td><td>Ask Meld with a ChatGPT model, on your ChatGPT plan</td><td>The same as Ask Meld above. Requests are sent with <code>store: false</code>.</td></tr>
+<tr><td><strong>Ollama</strong> (if you set it up)</td><td>Ask Meld with a local model</td><td>The same as Ask Meld above, but to Ollama on your own machine or network, so it never leaves your control.</td></tr>
+<tr><td><strong>Tailscale</strong> (if you turn on phone access)</td><td>While it's on</td><td>Your phone reaches Meld over your own tailnet, encrypted end to end between your devices. Tailscale's servers coordinate the connection but can't see Meld's traffic. Off by default.</td></tr>
+<tr><td><strong>ntfy</strong> (if you enter a topic URL under Alerts)</td><td>Each alert at or above the severity you pick, and <strong>Send test</strong></td><td>The alert's title and message: account and merchant names, amounts and due dates. Anyone who knows the topic name can read a topic on the public ntfy.sh server, so pick a long random one, or run your own ntfy server to keep alerts on your network. Off unless you set it up; alerts otherwise stay in the app.</td></tr>
+</tbody>
+</table>
+</div>
+
+<p><strong>Estate planning</strong> (Plan → Estate) sends nothing anywhere by itself. The family packet PDF is built on your computer and downloaded to it. It lists your accounts, balances, beneficiaries and contacts, plus any full account and policy numbers you enter, so treat it like a bank statement: give it a password, and keep the printout somewhere safe. With a Claude model, Ask Meld can read beneficiary and document names and roles through <code>get_estate_plan</code>. Phone numbers, emails, full account and policy numbers, your letter and your logins note are never sent.</p>
+
+<p>Before anything goes to an AI model, runs of 9 or more digits (account, card and policy numbers) are replaced with <code>••••</code> and the last 4 digits. Full loan account numbers from Plaid are dropped before storage. PDF extraction only reads the last 4 characters of a policy number; the full one is kept only if you type it in.</p>
+
+<p>Anthropic's API doesn't train on your data by default and keeps it for a limited time for safety reviews; see <a href="https://privacy.claude.com" target="_blank" rel="noopener">Anthropic's privacy center</a> for the current policy. If you'd rather nothing goes to a cloud AI, add no Anthropic key and use Ollama for chat. PDF upload, value lookups and look-through exposure are then turned off.</p>
+
+<h2 id="whats-protected-on-disk">What's protected on disk<a class="heading-anchor" href="#whats-protected-on-disk" aria-label="Link to What's protected on disk">#</a></h2>
+
+<ul>
+<li>Plaid access tokens, full account and policy numbers kept for the family packet, uploaded insurance and estate PDFs, Plaid and Anthropic keys saved from the app, and your ChatGPT sign-in are encrypted (AES-256-GCM) with <code>ENCRYPTION_KEY</code>. The Mac app makes that key on first run and keeps it in your macOS Keychain (Windows: Credential Manager); Docker reads it from <code>.env</code>. A copy of the data or documents folder can't be opened without it.</li>
+<li>The passphrase you choose in the app is stored only as a salted scrypt hash.</li>
+<li>Everything else (transactions, balances, holdings) is stored unencrypted in the database, protected by your computer's own security. Turn on full-disk encryption (FileVault on macOS, BitLocker on Windows) if you haven't already.</li>
+<li>With Docker, <code>.env</code> holds your secrets. <code>scripts/setup.sh</code> creates it readable only by you; don't commit or share it.</li>
+</ul>
+
+<h2 id="reporting-a-security-problem">Reporting a security problem<a class="heading-anchor" href="#reporting-a-security-problem" aria-label="Link to Reporting a security problem">#</a></h2>
+
+<p>Please report it privately through GitHub (the repository's <strong>Security</strong> tab → <strong>Report a vulnerability</strong>) rather than in a public issue. <a href="../security/">SECURITY.md</a> has the details.</p>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../docker/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Self-Hosting with Docker</span>
+      </a>
+      <a class="pager-card next" href="../security/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Security</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#whats-protected-on-disk">What's protected on disk</a></li>
+          <li><a class="toc-link depth-2" href="#reporting-a-security-problem">Reporting a security problem</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../">Home</a>
+      <a href="../">Docs</a>
+      <a href="../privacy/">Privacy</a>
+      <a href="../security/">Security</a>
+      <a href="../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../docs.js" defer></script>
+</body>
+</html>

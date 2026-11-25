@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en" data-docs-root=".">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meld Documentation — Guides, Privacy, Security &amp; Development</title>
+<meta name="description" content="Guides for installing, connecting banks, securing your setup, and developing Meld.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="./docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    
+    <div class="brand-group">
+      <a class="brand" href="../"><img src="../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="./">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<main>
+  <section class="hub-hero">
+    <div class="hub-wrap">
+      <span class="eyebrow">Meld Documentation</span>
+      <h1>Everything you need to <span class="soft">run Meld yourself.</span></h1>
+      <p class="hub-lede">Guides for installing, connecting banks, securing your setup, and developing Meld.</p>
+      <button type="button" class="hub-search-bar" data-search-open>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span>Search features, Plaid, Docker, privacy…</span>
+        <kbd>⌘K</kbd>
+      </button>
+      <div class="quick-chips">
+        <a class="quick-chip" href="./features/">Features overview</a>
+        <a class="quick-chip" href="./plaid/">Connect Plaid</a>
+        <a class="quick-chip" href="./phone-access/">Phone access</a>
+        <a class="quick-chip" href="./docker/">Docker self-hosting</a>
+        <a class="quick-chip" href="./privacy/">Privacy model</a>
+      </div>
+    </div>
+  </section>
+  <div class="hub-main">
+    <div class="hub-wrap">
+      <section class="hub-section" aria-labelledby="group-using-meld">
+      <div class="hub-section-head">
+        <h2 id="group-using-meld">Using Meld</h2>
+        <p>Everything you need to connect accounts, understand each screen, and reach Meld from your phone or server.</p>
+      </div>
+      <div class="doc-grid">
+        <a class="doc-card" href="./features/">
+        <div class="doc-card-top">
+          <span class="doc-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg></span>
+          <span class="doc-card-meta">10 sections · 17 min</span>
+        </div>
+        <h3>Features &amp; Guide <span class="arrow" aria-hidden="true">→</span></h3>
+        <p>How accounts, spending, autopay, cash, investments, retirement, tax, insurance, estate, and Ask Meld work.</p>
+      </a>
+      <a class="doc-card" href="./plaid/">
+        <div class="doc-card-top">
+          <span class="doc-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+          <span class="doc-card-meta">4 sections · 2 min</span>
+        </div>
+        <h3>Plaid Bank Setup <span class="arrow" aria-hidden="true">→</span></h3>
+        <p>Set up your own free Plaid developer keys, try Sandbox test data, and switch to live bank connections.</p>
+      </a>
+      <a class="doc-card" href="./phone-access/">
+        <div class="doc-card-top">
+          <span class="doc-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M12 18h.01"/></svg></span>
+          <span class="doc-card-meta">4 sections · 2 min</span>
+        </div>
+        <h3>Phone Access (Tailscale) <span class="arrow" aria-hidden="true">→</span></h3>
+        <p>Reach Meld securely from your phone over your own Tailscale tailnet without exposing it to the internet.</p>
+      </a>
+      <a class="doc-card" href="./docker/">
+        <div class="doc-card-top">
+          <span class="doc-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg></span>
+          <span class="doc-card-meta">7 sections · 2 min</span>
+        </div>
+        <h3>Self-Hosting with Docker <span class="arrow" aria-hidden="true">→</span></h3>
+        <p>Run Meld 24/7 on a home server, Mac mini, or NAS with Docker Compose, backups, and Ollama.</p>
+      </a>
+      </div>
+    </section>
+    <section class="hub-section" aria-labelledby="group-privacy-security">
+      <div class="hub-section-head">
+        <h2 id="group-privacy-security">Privacy &amp; Security</h2>
+        <p>Exactly what data stays on disk, what leaves your machine, and how Meld protects your household data.</p>
+      </div>
+      <div class="doc-grid">
+        <a class="doc-card" href="./privacy/">
+        <div class="doc-card-top">
+          <span class="doc-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+          <span class="doc-card-meta">2 sections · 4 min</span>
+        </div>
+        <h3>Privacy <span class="arrow" aria-hidden="true">→</span></h3>
+        <p>Every outside service Meld talks to, what is sent, how digit masking works, and what is encrypted on disk.</p>
+      </a>
+      <a class="doc-card" href="./security/">
+        <div class="doc-card-top">
+          <span class="doc-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></span>
+          <span class="doc-card-meta">2 sections · 2 min</span>
+        </div>
+        <h3>Security <span class="arrow" aria-hidden="true">→</span></h3>
+        <p>Threat model, localhost-only design, AES-256-GCM encryption at rest, and how to report vulnerabilities.</p>
+      </a>
+      </div>
+    </section>
+    <section class="hub-section" aria-labelledby="group-developers">
+      <div class="hub-section-head">
+        <h2 id="group-developers">Developers</h2>
+        <p>Build from source, run desktop and mobile workspaces, ship releases, and contribute pull requests.</p>
+      </div>
+      <div class="doc-grid">
+        <a class="doc-card" href="./development/">
+        <div class="doc-card-top">
+          <span class="doc-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>
+          <span class="doc-card-meta">3 sections · 7 min</span>
+        </div>
+        <h3>Development <span class="arrow" aria-hidden="true">→</span></h3>
+        <p>Monorepo layout, local setup, desktop Electron builds, common commands, and the release workflow.</p>
+      </a>
+      <a class="doc-card" href="./contributing/">
+        <div class="doc-card-top">
+          <span class="doc-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg></span>
+          <span class="doc-card-meta">4 sections · 1 min</span>
+        </div>
+        <h3>Contributing <span class="arrow" aria-hidden="true">→</span></h3>
+        <p>Guidelines for issues, pull requests, schema migrations, documentation checks, and licensing.</p>
+      </a>
+      </div>
+    </section>
+      <div class="install-band">
+        <div>
+          <h2>New to Meld?</h2>
+          <p>Download the Mac or Windows app, start with Plaid Sandbox in minutes, or deploy on your own server with Docker.</p>
+        </div>
+        <div class="install-actions">
+          <a class="btn btn-primary" href="../#install">Download Meld</a>
+          <a class="btn" href="./plaid/">Plaid setup</a>
+          <a class="btn" href="./docker/">Docker guide</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../">Home</a>
+      <a href="./">Docs</a>
+      <a href="./privacy/">Privacy</a>
+      <a href="./security/">Security</a>
+      <a href="./contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="./docs.js" defer></script>
+</body>
+</html>

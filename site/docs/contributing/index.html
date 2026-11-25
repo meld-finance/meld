@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en" data-docs-root="..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contributing — Meld Docs</title>
+<meta name="description" content="Guidelines for issues, pull requests, schema migrations, documentation checks, and licensing.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../favicon.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../"><img src="../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../features/">Features &amp; Guide</a></li>
+        <li><a class="nav-link" href="../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../development/">Development</a></li>
+        <li><a class="nav-link active" href="../contributing/" aria-current="page">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Developers</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Contributing</span>
+        </nav>
+        <h1>Contributing to Meld</h1>
+        <p class="doc-summary">Guidelines for issues, pull requests, schema migrations, documentation checks, and licensing.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">1 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/CONTRIBUTING.md">View CONTRIBUTING.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#before-you-start">Before you start</a>
+          <a class="depth-2" href="#running-it">Running it</a>
+          <a class="depth-2" href="#before-opening-a-pr">Before opening a PR</a>
+          <a class="depth-2" href="#license">License</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Thanks for helping. Meld is a side project with one maintainer, so small, focused pull requests are the easiest to review and merge.</p>
+
+<h2 id="before-you-start">Before you start<a class="heading-anchor" href="#before-you-start" aria-label="Link to Before you start">#</a></h2>
+
+<ul>
+<li>For anything bigger than a bug fix, open an issue first so we can agree on the approach.</li>
+<li>Meld is single-user and local-first on purpose. Changes that send more data to outside services, or add accounts, telemetry or a hosted backend, are unlikely to be accepted.</li>
+<li>Never paste real financial data, Plaid keys or <code>.env</code> contents into issues or PRs. Use Plaid Sandbox data for screenshots and repros.</li>
+</ul>
+
+<h2 id="running-it">Running it<a class="heading-anchor" href="#running-it" aria-label="Link to Running it">#</a></h2>
+
+<p>Follow <strong>Development setup</strong> in the <a href="https://github.com/meld-finance/meld#readme" target="_blank" rel="noopener">README</a>. Plaid Sandbox (<code>user_good</code> / <code>pass_good</code>) is enough for nearly all work. For the Mac app, <code>npm run desktop:dev</code> runs it from source and <code>npm run desktop:build</code> builds <code>Meld.app</code> to check the packaged version.</p>
+
+<h2 id="before-opening-a-pr">Before opening a PR<a class="heading-anchor" href="#before-opening-a-pr" aria-label="Link to Before opening a PR">#</a></h2>
+
+<div class="code-block">
+  <div class="code-bar">
+    <span class="code-lang">sh</span>
+    <button type="button" class="code-copy" aria-label="Copy code"><span class="copy-text">Copy</span></button>
+  </div>
+  <pre><code>npm run typecheck
+npm test                      # DB tests need TEST_DATABASE_URL (see README)
+npm run lint -w @meld/mobile
+npm run site:check
+npm run docs:check</code></pre>
+</div>
+
+<ul>
+<li>Schema changes: edit <code>apps/api/src/db/schema.ts</code>, then <code>npm run db:generate</code> and commit the new migration.</li>
+<li>Shared request/response types live in <code>packages/shared</code> as Zod schemas; change them there, not in each app.</li>
+<li>If your change alters features, setup, environment variables, commands, privacy flows, or security assumptions, update the corresponding Markdown doc (<code>docs/*.md</code>, <code>PRIVACY.md</code>, <code>SECURITY.md</code>, <code>CONTRIBUTING.md</code>) and regenerate <code>site/docs/</code> with <code>npm run docs:build</code> (or enable the pre-commit check via <code>npm run hooks:install</code>).</li>
+<li>If you change what data leaves the machine, update <a href="../privacy/">PRIVACY.md</a>.</li>
+</ul>
+
+<h2 id="license">License<a class="heading-anchor" href="#license" aria-label="Link to License">#</a></h2>
+
+<p>By contributing you agree that your contributions are licensed under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE" target="_blank" rel="noopener">GNU AGPL v3</a>, the same as the rest of Meld.</p>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../development/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Development</span>
+      </a>
+      <div></div>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#before-you-start">Before you start</a></li>
+          <li><a class="toc-link depth-2" href="#running-it">Running it</a></li>
+          <li><a class="toc-link depth-2" href="#before-opening-a-pr">Before opening a PR</a></li>
+          <li><a class="toc-link depth-2" href="#license">License</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../">Home</a>
+      <a href="../">Docs</a>
+      <a href="../privacy/">Privacy</a>
+      <a href="../security/">Security</a>
+      <a href="../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../docs.js" defer></script>
+</body>
+</html>
