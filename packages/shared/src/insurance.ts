@@ -149,7 +149,12 @@ export type InsuranceTotals = {
   cashValue: number;
 };
 
-export function insuranceTotals(policies: InsurancePolicyInput[], today: string): InsuranceTotals {
+export type InsuranceTotalsPolicy = Pick<
+  InsurancePolicyInput,
+  'type' | 'termEndDate' | 'coverageAmount' | 'premiumAmount' | 'premiumFrequency' | 'cashValue' | 'cashSurrenderValue' | 'loanBalance'
+>;
+
+export function insuranceTotals(policies: InsuranceTotalsPolicy[], today: string): InsuranceTotals {
   const totals: InsuranceTotals = {
     lifeCoverage: 0,
     shortTermDisabilityMonthly: 0,

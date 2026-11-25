@@ -179,11 +179,13 @@ describe('ChatGPTProvider', () => {
     ]);
     expect(requests[0]).toMatchObject({
       model: 'gpt-6.1-sol',
-      instructions: 'SYSTEM\n\nSNAPSHOT',
+      instructions: 'SYSTEM',
       store: false,
       stream: true,
+      reasoning: { effort: 'low' },
+      prompt_cache_key: 'meld-ask-v1',
       input: [
-        { role: 'user', content: 'Earlier question' },
+        { role: 'user', content: 'SNAPSHOT\n\nEarlier question' },
         { role: 'user', content: 'What is my checking balance?' },
       ],
       tools: [{ type: 'namespace', name: 'meld', tools: [{ type: 'function', name: 'get_balance', strict: false }] }],
@@ -201,6 +203,40 @@ describe('ChatGPTProvider', () => {
       ['user', null],
       ['assistant', 'You have $1,200.'],
     ]);
+  });
+
+  it('retries without reasoning/cache tuning if the endpoint returns 400 for them', async () => {
+    const auth = new ChatGPTAuth(tempFile(), key);
+    await signIn(auth);
+    const requests: Record<string, unknown>[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(init.body as string) as Record<string, unknown>;
+        requests.push(body);
+        if ('reasoning' in body) {
+          return Response.json({ error: { message: 'Unsupported parameter: reasoning' } }, { status: 400 });
+        }
+        return sse([
+          { type: 'response.output_text.delta', delta: 'OK' },
+          { type: 'response.completed', response: { output: [] } },
+        ]);
+      }),
+    );
+
+    const res = await new ChatGPTProvider(auth).chat({
+      model: 'gpt-legacy',
+      system: 'SYS',
+      snapshot: '',
+      history: [],
+      userText: 'Hi',
+      tools: [],
+      onEvent: () => {},
+    });
+    expect(res.outcome).toBe('complete');
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).not.toHaveProperty('reasoning');
+    expect(requests[1]).not.toHaveProperty('prompt_cache_key');
   });
 
   it('explains a plan usage limit', async () => {

@@ -153,11 +153,12 @@ describe.skipIf(!testDatabaseUrl)('chat routes (Postgres)', () => {
       ['fake:small', 'Small', 'Cheap'],
     ]);
 
-    const session = (await app.inject({ method: 'POST', url: '/chat/sessions', headers })).json();
+    const session = (await app.inject({ method: 'POST', url: '/chat/sessions', headers, payload: { page: 'your retirement plan', model: 'fake:small' } })).json();
     const send = (model: string) =>
       app.inject({ method: 'POST', url: `/chat/sessions/${session.id}/messages`, headers, payload: { text: 'Hi', model } });
     await send('fake:small');
     expect(calls.at(-1)!.model).toBe('small');
+    expect(calls.at(-1)!.snapshot).toContain('your retirement plan');
 
     const unknown = await send('fake:huge');
     expect(unknown.statusCode).toBe(400);

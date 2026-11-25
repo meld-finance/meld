@@ -1,4 +1,5 @@
 import {
+  ChatCreateSessionRequest,
   ChatSendRequest,
   type ChatModelList,
   type ChatMessageView,
@@ -88,11 +89,12 @@ export async function registerChatRoutes(app: FastifyInstance, { env, db, ai, ch
 
   app.get('/chat/models', (): Promise<ChatModelList> => chatModels.list());
 
-  app.post('/chat/sessions', async () => {
-    await chatModels.resolve(undefined);
+  app.post('/chat/sessions', async (req) => {
+    const body = parse(ChatCreateSessionRequest, req.body);
+    await chatModels.resolve(body?.model);
     const [row] = await db
       .insert(chatSessions)
-      .values({ context: await buildSnapshot(db) })
+      .values({ context: await buildSnapshot(db, undefined, body?.page) })
       .returning(summaryColumns);
     return toSummary(row!);
   });

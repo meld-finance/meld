@@ -79,7 +79,7 @@
         <h1>Features</h1>
         <p class="doc-summary">How accounts, spending, autopay, cash, investments, retirement, tax, insurance, estate, and Ask Meld work.</p>
         <div class="doc-meta">
-          <span class="doc-meta-pill">17 min read</span>
+          <span class="doc-meta-pill">18 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features.md">View docs/features.md on GitHub ↗</a>
         </div>
       </div>
@@ -96,6 +96,7 @@
           <a class="depth-2" href="#plan-insurance">Plan: insurance</a>
           <a class="depth-2" href="#plan-estate">Plan: estate</a>
           <a class="depth-2" href="#ask-meld-ai-chat">Ask Meld (AI chat)</a>
+          <a class="depth-2" href="#external-agents-mcp-server">External agents (MCP server)</a>
         </nav>
       </details>
       <div class="prose">
@@ -264,13 +265,30 @@
 
 <ul>
 <li><strong>Ask Meld</strong> answers questions about your money: spending, debt payoff, investments, tax moves, insurance gaps. Answers stream in and conversations are saved. The Ask Meld page lists past conversations. On web, the sparkle button next to your name opens a chat panel beside the page you're on, with questions about that page.</li>
-<li>The AI looks things up with read-only tools (accounts, transactions, totals by merchant or category, cash flow, budgets, holdings, investment activity, loan terms, insurance, profile). It can't change anything. Each new conversation also starts with a short snapshot of your balances and profile.</li>
+<li><strong>Progressive context &amp; tools:</strong> Each new conversation starts with a tiny orientation summary (net worth totals, account/policy/alert counts, basic profile, and the page you asked from) rather than dumping every account and policy upfront. The AI then fetches only what your question needs through read-only, summary-first tools (<code>get_financial_overview</code>, <code>get_accounts</code>, filtered <code>get_holdings</code>, <code>get_net_worth</code> with 30d/90d/YTD/1y deltas and optional sampled history, transactions, spending/budgets, loans, and specialist planning tools like <code>get_tax_plan</code>, <code>get_retirement_plan</code>, <code>get_estate_plan</code>, <code>get_recurring</code>, <code>get_cash_plan</code>, and <code>get_insurance_policies</code>). It can't change anything.</li>
+<li><strong>Fast responses by default:</strong> Claude uses <code>low</code> effort on Sonnet/Haiku and <code>medium</code> on Opus (override with <code>ANTHROPIC_CHAT_EFFORT</code>), caches the static prompt prefix across sessions, and defers specialist planning tool schemas via Anthropic tool search when supported. ChatGPT sets low reasoning effort, Ollama disables hidden thinking tokens by default (<code>OLLAMA_THINK=1</code> re-enables them), and <code>get_investment_performance</code> / <code>get_cash_plan</code> use cached market data instead of blocking chat on slow external price lookups.</li>
 <li>Add your income, filing status, state, age and employer benefits under <strong>Plan → Profile</strong> (also in the account menu on web) for better tax and insurance answers.</li>
 <li>Uses Claude through a provider interface in <code>apps/api/src/ai/provider.ts</code>, so other providers can be added. Chat defaults to <code>ANTHROPIC_CHAT_MODEL</code> (default <code>claude-sonnet-5-5</code>), property value lookups use <code>ANTHROPIC_LOOKUP_MODEL</code> (default <code>claude-haiku-5-5</code>), and policy PDF extraction <code>ANTHROPIC_MODEL</code> (default <code>claude-opus-5-5</code>).</li>
 <li><strong>Pick the model</strong> under the chat box: any of <code>ANTHROPIC_CHAT_MODELS</code> (Opus, Sonnet, Haiku by default; Haiku costs least), a ChatGPT model on your own plan, or a local model through <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a>. The choice is remembered, and you can switch mid-conversation.</li>
 <li><strong>Local models:</strong> install Ollama and pull a model that supports tool calling (e.g. <code>ollama pull qwen3.5</code>), then use <strong>Settings → AI → Find Ollama</strong>, or set <code>OLLAMA_URL=http://127.0.0.1:11434</code> (<code>http://host.docker.internal:11434</code> when Meld runs in Docker) and restart the API. Every installed model with tool support is listed, or set <code>OLLAMA_CHAT_MODELS</code> to choose. Local models are free and keep your data on your machine, but answer less reliably than Claude. Chat works with only Ollama set up; the other AI features still need <code>ANTHROPIC_API_KEY</code>.</li>
 <li><strong>ChatGPT plan:</strong> with ChatGPT Go, Plus, Pro or Business, choose <strong>Settings → AI → ChatGPT plan → Continue with ChatGPT</strong> and sign in. Ask Meld then lists the ChatGPT models your plan offers, billed to your plan's usage instead of an API key (set a limit or disconnect Meld at <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener">chatgpt.com/settings/usage</a>). It takes effect without a restart. The browser returns to Meld at <code>http://127.0.0.1:1455</code>; if Meld runs in Docker or you sign in from another device, that page won't load, so copy its address into the box Settings shows. The sign-in is kept encrypted with <code>ENCRYPTION_KEY</code> in <code>chatgpt.json</code> next to Meld's settings file (<code>CHATGPT_AUTH_FILE</code> overrides). Free plans can't share usage; ChatGPT shows &quot;A required permission is unavailable&quot; and Meld explains it. On Business, an admin first sets <strong>Use ChatGPT plan</strong> to Allowed for Meld under <strong>Tenant settings → External access</strong> at admin.openai.com. It covers chat only; PDF reading and value lookups still need <code>ANTHROPIC_API_KEY</code>.</li>
 <li>Privacy: with a Claude model, your question and the data the AI looks up are sent to Anthropic, or to OpenAI with a ChatGPT model; with a local Ollama model they stay on your machine. Long digit runs (account, card and policy numbers) are masked first either way.</li>
+</ul>
+
+<h2 id="external-agents-mcp-server">External agents (MCP server)<a class="heading-anchor" href="#external-agents-mcp-server" aria-label="Link to External agents (MCP server)">#</a></h2>
+
+<p>For advanced workflows, Meld can also expose your financial data as a read-only <strong>Model Context Protocol (MCP)</strong> server so external agents (such as Claude Code, Cursor, Codex, or Claude Desktop) can answer questions directly.</p>
+
+<ul>
+<li><strong>Off by default:</strong> Turn it on in <strong>Settings → External agents (MCP)</strong> (no restart needed). Enabling generates a dedicated bearer token (<code>meld_mcp_…</code>) shown once—Meld keeps only a SHA-256 hash—or set <code>MCP_ENABLED=1</code> and <code>MCP_TOKEN</code> in <code>.env</code> for Docker/headless installs.</li>
+<li><strong>Endpoint &amp; clients:</strong> Served over Streamable HTTP at <code>/api/mcp</code> in the desktop app and Docker (or <code>/mcp</code> in <code>npm run dev</code>). <strong>Settings → External agents (MCP)</strong> gives copy-pasteable configs for <strong>Claude Code</strong>, <strong>Cursor / HTTP JSON</strong>, and the thin stdio bridge (<code>scripts/meld-mcp.mjs</code>) for stdio-only clients.</li>
+<li><p><strong>What's exposed (read-only):</strong></p>
+<ul>
+<li><strong>Tools:</strong> All 20 read-only tools from Ask Meld (<code>get_financial_overview</code>, <code>get_accounts</code>, <code>get_net_worth</code>, <code>get_holdings</code>, <code>get_cashflow</code>, <code>search_transactions</code>, <code>get_tax_plan</code>, <code>get_retirement_plan</code>, <code>get_estate_plan</code>, <code>get_recurring</code>, <code>get_cash_plan</code>, <code>get_insurance_policies</code>, etc.), marked <code>readOnlyHint: true</code>.</li>
+<li><strong>Resources:</strong> <code>meld://overview</code> (live compact summary), <code>meld://conventions</code>, <code>meld://docs/retirement</code>, <code>meld://docs/tax</code>, and <code>meld://docs/recurring</code> for progressive documentation loading.</li>
+<li><strong>Prompts:</strong> <code>financial-checkup</code>, <code>spending-review</code>, <code>tax-plan-review</code>, and <code>retirement-checkup</code>.</li>
+</ul></li>
+<li><strong>Security:</strong> Restricted to localhost (<code>127.0.0.1</code>/<code>localhost</code>) by default even when Tailscale phone access is on (override with <code>MCP_ALLOW_REMOTE=1</code>), always requires the dedicated MCP bearer token even when passphrase login is turned off, and applies the same digit masking and privacy boundaries as Ask Meld. See <a href="../privacy/">PRIVACY.md</a> and <a href="../security/">SECURITY.md</a>.</li>
 </ul>
       </div>
       <nav class="pager" aria-label="Page navigation">
@@ -295,6 +313,7 @@
           <li><a class="toc-link depth-2" href="#plan-insurance">Plan: insurance</a></li>
           <li><a class="toc-link depth-2" href="#plan-estate">Plan: estate</a></li>
           <li><a class="toc-link depth-2" href="#ask-meld-ai-chat">Ask Meld (AI chat)</a></li>
+          <li><a class="toc-link depth-2" href="#external-agents-mcp-server">External agents (MCP server)</a></li>
     </ul>
   </aside>
 </div>

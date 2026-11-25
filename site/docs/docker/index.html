@@ -92,6 +92,7 @@
           <a class="depth-2" href="#back-up">Back up</a>
           <a class="depth-2" href="#change-settings">Change settings</a>
           <a class="depth-2" href="#using-ollama-from-docker">Using Ollama from Docker</a>
+          <a class="depth-2" href="#external-agents-mcp">External agents (MCP)</a>
           <a class="depth-2" href="#phone-access-over-tailscale">Phone access over Tailscale</a>
         </nav>
       </details>
@@ -169,6 +170,10 @@ docker compose up -d --build</code></pre>
 
 <p>If Ollama runs directly on the host machine (outside Docker), set the Ollama address to <code>http://host.docker.internal:11434</code> in <strong>Settings → AI</strong> (or <code>OLLAMA_URL=http://host.docker.internal:11434</code> in <code>.env</code>).</p>
 
+<h2 id="external-agents-mcp">External agents (MCP)<a class="heading-anchor" href="#external-agents-mcp" aria-label="Link to External agents (MCP)">#</a></h2>
+
+<p>Turn on <strong>Settings → External agents (MCP)</strong> (persisted encrypted in <code>/data/config/mcp.json</code> inside <code>meld-config</code>), or set <code>MCP_ENABLED=1</code> and a long random <code>MCP_TOKEN</code> in <code>.env</code>. In Docker, the endpoint is <code>http://127.0.0.1:8080/api/mcp</code> (<code>http://127.0.0.1:${MELD_PORT:-8080}/api/mcp</code>). Keep <code>MCP_ALLOW_REMOTE</code> unset so only local processes on the Docker host can reach it.</p>
+
 <h2 id="phone-access-over-tailscale">Phone access over Tailscale<a class="heading-anchor" href="#phone-access-over-tailscale" aria-label="Link to Phone access over Tailscale">#</a></h2>
 
 <p>Meld only binds to <code>127.0.0.1:8080</code>, and its login is a single passphrase, so don't expose it to the public internet. To reach it from your phone:</p>
@@ -209,6 +214,7 @@ docker compose up -d --build</code></pre>
           <li><a class="toc-link depth-2" href="#back-up">Back up</a></li>
           <li><a class="toc-link depth-2" href="#change-settings">Change settings</a></li>
           <li><a class="toc-link depth-2" href="#using-ollama-from-docker">Using Ollama from Docker</a></li>
+          <li><a class="toc-link depth-2" href="#external-agents-mcp">External agents (MCP)</a></li>
           <li><a class="toc-link depth-2" href="#phone-access-over-tailscale">Phone access over Tailscale</a></li>
     </ul>
   </aside>

@@ -59,6 +59,8 @@ const EnvSchema = z
     ANTHROPIC_CHAT_MODEL: z.string().default('claude-sonnet-5-5'),
     /** Other Claude models offered in the Ask model picker. */
     ANTHROPIC_CHAT_MODELS: list('claude-opus-5-5,claude-sonnet-5-5,claude-haiku-5-5'),
+    /** Effort for Ask Meld Claude chat turns; empty picks 'medium' for Opus and 'low' otherwise. */
+    ANTHROPIC_CHAT_EFFORT: z.enum(['', 'low', 'medium', 'high']).default(''),
     /** Property value lookups are a chain of web searches; a fast model finishes them several times sooner. */
     ANTHROPIC_LOOKUP_MODEL: z.string().default('claude-haiku-5-5'),
 
@@ -66,11 +68,22 @@ const EnvSchema = z
     OLLAMA_URL: z.union([z.url(), z.literal('')]).default(''),
     /** Models offered in the picker; empty lists every installed model that supports tool calling. */
     OLLAMA_CHAT_MODELS: csv,
-    /** Context window to request. Ollama's default is too small for the system prompt, snapshot and tools. */
-    OLLAMA_CONTEXT_LENGTH: z.coerce.number().int().positive().default(32768),
+    /** Context window to request from Ollama. */
+    OLLAMA_CONTEXT_LENGTH: z.coerce.number().int().positive().default(16384),
+    /** Let thinking-capable Ollama models emit hidden thinking tokens; off by default for faster chat. */
+    OLLAMA_THINK: flag,
 
     /** Sign in with ChatGPT's tokens, encrypted; defaults to next to MELD_CONFIG_FILE, else <repo>/data/chatgpt.json. */
     CHATGPT_AUTH_FILE: z.string().default(''),
+
+    /** Opt-in read-only MCP server for external agents (off by default). */
+    MCP_ENABLED: flag,
+    /** Static bearer token for /mcp when configured in .env; overrides Settings → External agents. */
+    MCP_TOKEN: z.string().default(''),
+    /** Encrypted MCP settings; defaults to next to MELD_CONFIG_FILE, else <repo>/data/mcp.json. */
+    MCP_CONFIG_FILE: z.string().default(''),
+    /** Allow non-loopback requests to /mcp (for example over Tailscale) when authenticated. */
+    MCP_ALLOW_REMOTE: flag,
 
     /** Uploaded documents; defaults to <repo>/data/documents. */
     DOCUMENTS_DIR: z.string().default(''),

@@ -73,6 +73,7 @@ describe('OllamaProvider.chat', () => {
       { type: 'text', text: '$1,200.' },
     ]);
     expect(requests[0]!.options).toEqual({ num_ctx: 8192 });
+    expect(requests[0]).toMatchObject({ think: false });
     // Other providers' turns come through as text; internal ones are dropped.
     expect(requests[0]!.messages.map((m) => [m.role, m.content])).toEqual([
       ['system', 'SYSTEM\n\nSNAPSHOT'],
@@ -90,6 +91,35 @@ describe('OllamaProvider.chat', () => {
       ['assistant', 'You have $1,200.'],
     ]);
     expect(result.messages[1]!.content.display?.lookups).toEqual(['Checked checking']);
+  });
+
+  it('retries without think: false if Ollama rejects the option', async () => {
+    const requests: Record<string, unknown>[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: URL, init: RequestInit) => {
+        const body = JSON.parse(init.body as string) as Record<string, unknown>;
+        requests.push(body);
+        if ('think' in body) {
+          return Response.json({ error: 'model does not support think option' }, { status: 400 });
+        }
+        return ndjson([{ message: { role: 'assistant', content: 'Hi there.' }, done: true, done_reason: 'stop' }]);
+      }),
+    );
+
+    const provider = new OllamaProvider('http://127.0.0.1:11434', [], 8192);
+    const res = await provider.chat({
+      model: 'llama3.2',
+      system: 'SYS',
+      snapshot: '',
+      history: [],
+      userText: 'Hi',
+      tools: [],
+      onEvent: () => {},
+    });
+    expect(res.outcome).toBe('complete');
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).not.toHaveProperty('think');
   });
 
   it('says when Ollama isn’t reachable', async () => {

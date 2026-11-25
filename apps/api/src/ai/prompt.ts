@@ -1,11 +1,8 @@
-import { currentValue, hasCashValue, insuranceTotals, isCashValueStale, netCashValue } from '@meld/shared';
-import { eq } from 'drizzle-orm';
+import { insuranceTotals, netCashValue } from '@meld/shared';
+import { and, count, eq, isNull } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { accounts, manualAssets } from '../db/schema';
-import { localDate } from '../lib/networth';
-import { listAccounts } from '../services/accounts';
-import { listPolicies } from '../services/insurance';
-import { getNetWorth } from '../services/overview';
+import { accounts, alerts, insurancePolicies, manualAssets } from '../db/schema';
+import { computeNetWorth, localDate } from '../lib/networth';
 import { getProfile } from '../services/profile';
 import { maskNumbers } from './chat-tools';
 
@@ -13,7 +10,7 @@ import { maskNumbers } from './chat-tools';
 export const SYSTEM_PROMPT = `You are the financial analyst inside Meld, a private app that brings together one person's bank accounts, cards, investments, loans, insurance and budget. You're talking with that person about their own money.
 
 How to work:
-- Base answers on their actual data. A snapshot is below; use the tools for detail (transactions, holdings, loan terms, policies) and for anything that may have changed. Don't guess numbers you can look up.
+- Base answers on their actual data. Only a tiny summary snapshot is below; call the read-only tools (and tool search when specialist planning tools like tax, retirement, estate, cash, recurring, or insurance are deferred) for exact balances, transactions, holdings, loan terms, and plans. Don't guess numbers you can look up.
 - Show the numbers behind a conclusion and state your assumptions (tax year, growth or interest rates, income). Keep math simple enough to follow.
 - When data needed for a good answer is missing, say what's missing and how it changes the answer (for example: no disability coverage on file, no profile income, an account not linked). Suggest adding it in Meld (Profile, Insurance, Retirement, or Accounts).
 - Give specific, practical options with trade-offs, ordered by impact. Recommendations are welcome; be clear about what depends on facts you don't have.
@@ -31,55 +28,77 @@ Data conventions:
 
 Formatting: the app renders a small Markdown subset: paragraphs, **bold**, *italic*, \`code\`, bullet and numbered lists, ### headings, and simple tables. Lead with the answer, then the supporting detail. Be concise; use a table when comparing options or listing several figures.`;
 
-const round = (n: number | null) => (n === null ? null : Math.round(n));
+const round = (n: number) => Math.round(n);
 
 /**
- * A compact picture of the person's finances, captured when a chat session starts.
- * Kept fixed for the session so the prompt prefix stays cacheable; tools supply fresh detail.
+ * A tiny orientation header captured when a chat session starts (~150-200 tokens).
+ * Kept compact and fixed for the session so prompts stay fast and cacheable; tools supply detail.
  */
-export async function buildSnapshot(db: Db, today = localDate()): Promise<string> {
-  const [profile, netWorth, accountList, manual, policies] = await Promise.all([
+export async function buildSnapshot(db: Db, today = localDate(), page?: string): Promise<string> {
+  const [profile, accountRows, manualRows, policyRows, [openAlertsRow]] = await Promise.all([
     getProfile(db),
-    getNetWorth(db),
-    listAccounts(db, eq(accounts.hidden, false)),
     db
       .select({
-        kind: manualAssets.kind,
-        name: manualAssets.name,
+        type: accounts.type,
+        currentBalance: accounts.currentBalance,
+        ownershipPercent: accounts.ownershipPercent,
+      })
+      .from(accounts)
+      .where(eq(accounts.hidden, false)),
+    db
+      .select({
         value: manualAssets.value,
         valueAsOf: manualAssets.valueAsOf,
         depreciationPercent: manualAssets.depreciationPercent,
+        ownershipPercent: manualAssets.ownershipPercent,
       })
       .from(manualAssets),
-    listPolicies(db),
+    db
+      .select({
+        type: insurancePolicies.type,
+        termEndDate: insurancePolicies.termEndDate,
+        coverageAmount: insurancePolicies.coverageAmount,
+        premiumAmount: insurancePolicies.premiumAmount,
+        premiumFrequency: insurancePolicies.premiumFrequency,
+        cashValue: insurancePolicies.cashValue,
+        cashSurrenderValue: insurancePolicies.cashSurrenderValue,
+        loanBalance: insurancePolicies.loanBalance,
+      })
+      .from(insurancePolicies),
+    db.select({ n: count() }).from(alerts).where(and(isNull(alerts.dismissedAt), isNull(alerts.resolvedAt))),
   ]);
+
+  const cashValues = policyRows.flatMap((p) => {
+    const v = netCashValue(p);
+    return v === null ? [] : [v];
+  });
+  const netWorth = computeNetWorth(accountRows, manualRows, cashValues);
+
+  const compactProfile: Record<string, unknown> = {};
+  if (profile.birthYear !== null) compactProfile.birthYear = profile.birthYear;
+  if (profile.filingStatus !== null) compactProfile.filingStatus = profile.filingStatus;
+  if (profile.state !== null) compactProfile.state = profile.state;
+  if (profile.dependents !== null) compactProfile.dependents = profile.dependents;
+  if (profile.children.length) compactProfile.childrenCount = profile.children.length;
+  if (profile.annualGrossIncome !== null) compactProfile.annualGrossIncome = profile.annualGrossIncome;
+
   const snapshot = {
     asOf: today,
-    profile,
-    netWorth: { ...netWorth, byType: netWorth.byType.map((t) => ({ ...t, total: round(t.total) })) },
-    accounts: accountList.map((a) => ({
-      name: a.name,
-      institution: a.institutionName,
-      type: a.type,
-      subtype: a.subtype,
-      balance: round(a.currentBalance),
-      ...(a.ownershipPercent !== null && { ownershipPercent: a.ownershipPercent }),
-    })),
-    manualAssets: manual.map(({ kind, name, ...m }) => ({ kind, name, value: round(currentValue(m)) })),
-    insurance: {
-      totals: insuranceTotals(policies, today),
-      policies: policies.map((p) => ({
-        type: p.type,
-        carrier: p.carrier,
-        coverage: p.coverageAmount,
-        employerProvided: p.employerProvided,
-        ...(hasCashValue(p.type) && {
-          surrenderValue: round(netCashValue(p)),
-          valuesAsOf: p.valuesAsOf,
-          valuesStale: isCashValueStale(p, today),
-        }),
-      })),
+    ...(page ? { page } : {}),
+    profile: compactProfile,
+    netWorth: {
+      assets: round(netWorth.assets),
+      liabilities: round(netWorth.liabilities),
+      netWorth: round(netWorth.netWorth),
+      byType: netWorth.byType.map((t) => ({ ...t, total: round(t.total) })),
     },
+    counts: {
+      accounts: accountRows.length,
+      manualAssets: manualRows.length,
+      insurancePolicies: policyRows.length,
+      openAlerts: openAlertsRow?.n ?? 0,
+    },
+    insuranceTotals: insuranceTotals(policyRows, today),
   };
-  return `Snapshot of the person's finances as of ${today} (balances rounded; use tools for exact and current figures):\n${JSON.stringify(maskNumbers(snapshot))}`;
+  return `Snapshot of the person's finances as of ${today} (summary only; use tools for account, transaction, holding, and plan detail):\n${JSON.stringify(maskNumbers(snapshot))}`;
 }

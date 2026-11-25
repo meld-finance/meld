@@ -33,6 +33,7 @@ import type {
   CategoryRuleCreate,
   CategoryRuleResult,
   CategorySpend,
+  ChatCreateSessionRequest,
   ChatModelList,
   ChatSessionDetail,
   ChatSessionSummary,
@@ -698,7 +699,15 @@ export function useChatSession(id: string) {
 }
 
 export function useCreateChatSession() {
-  return useMutation({ mutationFn: () => api<ChatSessionSummary>('/chat/sessions', { method: 'POST' }) });
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body?: ChatCreateSessionRequest) =>
+      api<ChatSessionSummary>('/chat/sessions', { method: 'POST', body: JSON.stringify(body ?? {}) }),
+    onSuccess: (session) => {
+      // Seed the session detail cache so Conversation doesn't wait on GET /chat/sessions/:id before streaming.
+      qc.setQueryData<ChatSessionDetail>(keys.chatSession(session.id), { ...session, messages: [] });
+    },
+  });
 }
 
 export function useDeleteChatSession() {

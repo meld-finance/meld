@@ -1,6 +1,5 @@
-import { z } from 'zod';
 import { HttpError } from '../lib/http';
-import { MAX_TOOL_ROUNDS, runTool, toolLabel, type ChatTool } from './chat-tools';
+import { MAX_TOOL_ROUNDS, runTool, toolLabel, toToolJsonSchema, type ChatTool } from './chat-tools';
 import type { ChatModelInfo, ChatProvider, ChatTurnInput, ChatTurnResult, StoredChatMessage } from './provider';
 
 const PROVIDER = 'ollama';
@@ -27,7 +26,7 @@ type ChatChunk = {
 function toToolDefinition(t: ChatTool) {
   return {
     type: 'function',
-    function: { name: t.name, description: t.description, parameters: z.toJSONSchema(t.input, { io: 'input' }) },
+    function: { name: t.name, description: t.description, parameters: toToolJsonSchema(t.input) },
   };
 }
 
@@ -70,12 +69,14 @@ export class OllamaProvider implements ChatProvider {
   readonly name = PROVIDER;
   private local: boolean;
   private cached: { at: number; models: ChatModelInfo[] } | null = null;
+  private noThinkOption = new Set<string>();
 
   /** `models` empty means every installed model that supports tools. */
   constructor(
     private baseUrl: string,
     private models: string[],
     private contextLength: number,
+    private think = false,
   ) {
     this.local = isLoopback(baseUrl);
   }
@@ -137,11 +138,19 @@ export class OllamaProvider implements ChatProvider {
     let streamedText = false;
 
     for (let step = 0; step < MAX_TOOL_ROUNDS; step++) {
-      const res = await this.request(
-        '/api/chat',
-        { model, messages, tools: toolDefs, stream: true, options: { num_ctx: this.contextLength } },
-        signal,
-      );
+      const baseBody = { model, messages, tools: toolDefs, stream: true, options: { num_ctx: this.contextLength } };
+      const omitThink = !this.think && !this.noThinkOption.has(model);
+      let res: Response;
+      try {
+        res = await this.request('/api/chat', omitThink ? { ...baseBody, think: false } : baseBody, signal);
+      } catch (err) {
+        if (omitThink && err instanceof HttpError && err.statusCode === 502 && /think/i.test(err.message)) {
+          this.noThinkOption.add(model);
+          res = await this.request('/api/chat', baseBody, signal);
+        } else {
+          throw err;
+        }
+      }
       let text = '';
       const toolCalls: ToolCall[] = [];
       let doneReason: string | undefined;
@@ -155,7 +164,15 @@ export class OllamaProvider implements ChatProvider {
           streamedText = true;
           onEvent({ type: 'text', text: piece });
         }
-        if (chunk.message?.tool_calls) toolCalls.push(...chunk.message.tool_calls);
+        if (chunk.message?.tool_calls) {
+          for (const tc of chunk.message.tool_calls) {
+            toolCalls.push(tc);
+            onEvent({
+              type: 'lookup',
+              label: toolLabel(toolsByName.get(tc.function.name), tc.function.name, parseArguments(tc.function.arguments)),
+            });
+          }
+        }
         if (chunk.done) doneReason = chunk.done_reason;
       }
 
@@ -170,7 +187,6 @@ export class OllamaProvider implements ChatProvider {
       if (doneReason === 'length') return { messages: stored, outcome: 'truncated' };
       if (!calls.length) return { messages: stored, outcome: 'complete' };
 
-      lookups.forEach((label) => onEvent({ type: 'lookup', label }));
       const results: Message[] = await Promise.all(
         calls.map(async (c) => {
           const r = await runTool(toolsByName.get(c.function.name), c.input);

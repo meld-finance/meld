@@ -1,6 +1,10 @@
 import type {
   AISettings,
   ChatGPTStatus,
+  McpConfigUpdate,
+  McpStatus,
+  McpTokenResponse,
+  McpUpdateResponse,
   PhoneAccess,
   KeyTestResult,
   OllamaDetectResult,
@@ -22,6 +26,7 @@ const keys = {
   settings: ['settings'] as const,
   phone: ['phone-access'] as const,
   chatgpt: ['ai', 'chatgpt'] as const,
+  mcp: ['mcp', 'config'] as const,
 };
 /** How often to check whether the browser has finished signing in with ChatGPT. */
 const CHATGPT_POLL_MS = 1_500;
@@ -130,3 +135,33 @@ export const useFinishChatGPTSignIn = () =>
   useChatGPTMutation((url: string) => api<ChatGPTStatus>('/ai/chatgpt/callback', { method: 'POST', body: JSON.stringify({ url }) }));
 
 export const useChatGPTSignOut = () => useChatGPTMutation((_: void) => api<{ revoked: boolean }>('/ai/chatgpt', { method: 'DELETE' }));
+
+/** Read-only MCP server settings for external agents (Claude Code, Cursor, Codex). */
+export function useMcpStatus() {
+  return useQuery({ queryKey: keys.mcp, queryFn: () => api<McpStatus>('/mcp/config') });
+}
+
+export function useUpdateMcpConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: McpConfigUpdate) =>
+      api<McpUpdateResponse>('/mcp/config', { method: 'PUT', body: JSON.stringify(patch) }),
+    onSuccess: (res) => qc.setQueryData(keys.mcp, res.status),
+  });
+}
+
+export function useRotateMcpToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<McpTokenResponse>('/mcp/token', { method: 'POST', body: '{}' }),
+    onSuccess: (res) => qc.setQueryData(keys.mcp, res.status),
+  });
+}
+
+export function useRevokeMcpToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<McpStatus>('/mcp/token', { method: 'DELETE' }),
+    onSuccess: (status) => qc.setQueryData(keys.mcp, status),
+  });
+}

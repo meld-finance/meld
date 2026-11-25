@@ -53,6 +53,10 @@ docker compose up -d
 
 If Ollama runs directly on the host machine (outside Docker), set the Ollama address to `http://host.docker.internal:11434` in **Settings → AI** (or `OLLAMA_URL=http://host.docker.internal:11434` in `.env`).
 
+## External agents (MCP)
+
+Turn on **Settings → External agents (MCP)** (persisted encrypted in `/data/config/mcp.json` inside `meld-config`), or set `MCP_ENABLED=1` and a long random `MCP_TOKEN` in `.env`. In Docker, the endpoint is `http://127.0.0.1:8080/api/mcp` (`http://127.0.0.1:${MELD_PORT:-8080}/api/mcp`). Keep `MCP_ALLOW_REMOTE` unset so only local processes on the Docker host can reach it.
+
 ## Phone access over Tailscale
 
 Meld only binds to `127.0.0.1:8080`, and its login is a single passphrase, so don't expose it to the public internet. To reach it from your phone:
