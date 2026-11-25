@@ -79,7 +79,7 @@
         <h1>Security</h1>
         <p class="doc-summary">Threat model, localhost-only design, AES-256-GCM encryption at rest, and how to report vulnerabilities.</p>
         <div class="doc-meta">
-          <span class="doc-meta-pill">2 min read</span>
+          <span class="doc-meta-pill">3 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/SECURITY.md">View SECURITY.md on GitHub ↗</a>
         </div>
       </div>
@@ -110,6 +110,7 @@
 <li><strong>Login</strong> is a single passphrase that issues a bearer token. A passphrase chosen in the app is stored only as a salted scrypt hash (<code>APP_PASSPHRASE</code> in <code>.env</code> is plain text, so keep <code>.env</code> readable only by you). Login attempts are limited to 10 per 15 minutes. Until a passphrase is set (or you choose to go without one), the API serves only first-run setup. The passphrase can be turned off in setup or Settings, which leaves every route open to anyone who can reach Meld, so only do that on a computer you alone use and with phone access off or a tailnet only you are on.</li>
 <li><strong>Secrets at rest:</strong> Plaid access tokens, uploaded PDFs, full account and policy numbers you enter, and Plaid and Anthropic keys saved from the app are encrypted with AES-256-GCM using <code>ENCRYPTION_KEY</code>. The Mac app keeps that key encrypted with the macOS Keychain; Docker reads it from <code>.env</code>. Other data (transactions, balances, holdings) is stored unencrypted in Postgres, so use full-disk encryption.</li>
 <li><strong>Data sent elsewhere</strong> is limited to the services in <a href="../privacy/">PRIVACY.md</a>. Long digit runs are masked before anything goes to an AI model.</li>
+<li><strong>External agents (MCP)</strong> is off by default and strictly read-only (<code>readOnlyHint: true</code>). Enabling it in Settings issues a random bearer token (<code>meld_mcp_…</code>) stored only as a SHA-256 hash inside <code>mcp.json</code> (encrypted with <code>ENCRYPTION_KEY</code>), or configured via <code>MCP_TOKEN</code> in <code>.env</code>. Unlike app UI routes when <code>APP_PASSPHRASE_OFF=1</code>, <code>/mcp</code> <strong>always</strong> requires the dedicated MCP bearer token (and rejects regular app login JWTs), refuses non-loopback <code>Host</code> headers, forwarded/Tailscale headers, and foreign <code>Origin</code> headers (unless <code>MCP_ALLOW_REMOTE=1</code> is set). Because synced transaction descriptions and security names come from outside banks, avoid connecting an external agent that also holds unattended write, shell, or web-exfiltration tools if you want to minimize indirect prompt-injection risk.</li>
 </ul>
 
 <p>Things that are in scope: a way to reach the API or data without the passphrase, getting around the rate limit, reading encrypted values without the key, data sent somewhere PRIVACY.md doesn't say, prompt injection through synced data (merchant names, PDFs) that makes Ask Meld leak or do something it shouldn't, and vulnerabilities in how the Mac app or Docker image is built.</p>

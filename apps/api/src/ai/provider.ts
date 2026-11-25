@@ -77,10 +77,13 @@ export function createAIProvider(env: Env): AIProvider | null {
   switch (env.AI_PROVIDER) {
     case 'anthropic':
       return env.ANTHROPIC_API_KEY
-        ? new AnthropicProvider(env.ANTHROPIC_API_KEY, env.ANTHROPIC_MODEL, env.ANTHROPIC_LOOKUP_MODEL, [
-            env.ANTHROPIC_CHAT_MODEL,
-            ...env.ANTHROPIC_CHAT_MODELS,
-          ])
+        ? new AnthropicProvider(
+            env.ANTHROPIC_API_KEY,
+            env.ANTHROPIC_MODEL,
+            env.ANTHROPIC_LOOKUP_MODEL,
+            [env.ANTHROPIC_CHAT_MODEL, ...env.ANTHROPIC_CHAT_MODELS],
+            env.ANTHROPIC_CHAT_EFFORT || undefined,
+          )
         : null;
   }
 }

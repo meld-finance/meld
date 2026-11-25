@@ -414,10 +414,16 @@ async function runRefresh(db: Db, tickers: string[], from: string, to: string, f
   }
 }
 
+export type PerformanceOptions = {
+  /** 'blocking' awaits Yahoo closes; 'background' uses cached closes and refreshes asynchronously; 'none' skips fetching. */
+  refresh?: 'blocking' | 'background' | 'none';
+};
+
 export async function getInvestmentPerformance(
   db: Db,
   fetchCloses: FetchCloses = fetchYahooCloses,
   today = localDate(),
+  options: PerformanceOptions = {},
 ): Promise<InvestmentPerformance> {
   const from = shiftYears(today, -HISTORY_YEARS);
   const accountRows = await db
@@ -474,7 +480,12 @@ export async function getInvestmentPerformance(
         .where(inArray(securities.id, securityIds))
     : [];
   const tickers = [...new Set(securityRows.filter((s) => !isCash(s) && s.ticker).map((s) => s.ticker!))];
-  await refreshPrices(db, tickers, from, today, fetchCloses);
+  const refreshMode = options.refresh ?? 'blocking';
+  if (refreshMode === 'blocking') {
+    await refreshPrices(db, tickers, from, today, fetchCloses);
+  } else if (refreshMode === 'background' && tickers.length) {
+    void refreshPrices(db, tickers, from, today, fetchCloses).catch(() => {});
+  }
   const priceRows = tickers.length
     ? await db.select().from(priceHistory).where(inArray(priceHistory.ticker, tickers))
     : [];

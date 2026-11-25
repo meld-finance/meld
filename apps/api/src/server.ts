@@ -10,6 +10,7 @@ import { registerAuth } from './auth';
 import type { Db } from './db/client';
 import type { Env } from './env';
 import { HttpError } from './lib/http';
+import type { McpConfig } from './mcp/config';
 import { getPlaidError } from './plaid/client';
 import type { SyncDeps } from './plaid/sync';
 import { registerAccountRoutes } from './routes/accounts';
@@ -20,6 +21,7 @@ import { registerChatGPTRoutes } from './routes/chatgpt';
 import { registerEstateRoutes } from './routes/estate';
 import { registerInsuranceRoutes } from './routes/insurance';
 import { registerManualAssetRoutes } from './routes/manual-assets';
+import { registerMcpRoutes } from './routes/mcp';
 import { registerOverviewRoutes } from './routes/overview';
 import { registerPhoneAccessRoutes } from './routes/phone-access';
 import { registerPlaidRoutes } from './routes/plaid';
@@ -44,6 +46,8 @@ export type AppDeps = {
   ai: AIProvider | null;
   /** Sign in with ChatGPT, for Ask Meld on the user's plan; tests can leave it out. */
   chatgpt?: ChatGPTAuth | null;
+  /** Opt-in read-only MCP server settings; defaults from env when omitted in tests. */
+  mcp?: McpConfig;
   storage: DocumentStorage;
   /** For changing settings from the app; tests can leave it out. */
   settings?: SettingsDeps;
@@ -154,4 +158,5 @@ async function registerApi(app: FastifyInstance, deps: AppDeps) {
   await registerAlertRoutes(app, deps);
   await registerEstateRoutes(app, deps);
   await registerChatRoutes(app, deps);
+  await registerMcpRoutes(app, deps);
 }

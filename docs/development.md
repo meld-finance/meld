@@ -61,6 +61,7 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 | `npm run docs:check` | Verify `site/docs/` is in sync and all doc links/anchors resolve |
 | `npm run docs:audit` | Check working-tree code changes against mapped documentation files |
 | `npm run hooks:install` | Enable `.githooks/` (`core.hooksPath`) for doc-sync pre-commit checks |
+| `node scripts/meld-mcp.mjs` | Stdio-to-Streamable-HTTP bridge for stdio-only MCP clients (`MELD_URL`, `MELD_MCP_TOKEN`) |
 
 ## Releases
 

@@ -1,42 +1,45 @@
 import {
   currentValue,
   estimatePayoff,
+  formatFullRetirementAge,
   insuranceTotals,
   lookThrough,
   Month,
+  netCashValue,
   projectRetirement,
   resolvePlan,
   RetirementPlan,
   SIMULATION_DEFAULTS,
   simulateRetirement,
-  formatFullRetirementAge,
   socialSecurityAtFullAge,
   TransactionQuery,
 } from '@meld/shared';
-import { and, asc, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, isNull, lte } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db } from '../db/client';
-import { accounts, investmentTransactions, manualAssets, securities } from '../db/schema';
-import { localDate } from '../lib/networth';
+import { accounts, alerts, investmentTransactions, manualAssets, securities } from '../db/schema';
+import { computeNetWorth, localDate } from '../lib/networth';
 import { listAccounts, listLiabilities } from '../services/accounts';
+import { listAlerts } from '../services/alerts';
 import { getCashPlan } from '../services/cash';
 import { getEstateSummary } from '../services/estate';
 import { listPolicies } from '../services/insurance';
 import { getInvestmentsSummary } from '../services/investments';
-import { getInvestmentPerformance } from '../services/performance';
 import {
   getBudgetStatus,
   getCashflow,
   getNetWorth,
   getNetWorthHistory,
+  getSnapshotAsOf,
   getSpendingByCategory,
+  shiftYears,
 } from '../services/overview';
+import { addDays, daysBetween, getInvestmentPerformance } from '../services/performance';
 import { getProfile } from '../services/profile';
-import { listAlerts } from '../services/alerts';
 import { getRecurringSummary } from '../services/recurring';
 import { getRetirement } from '../services/retirement';
 import { getTaxPlan } from '../services/tax';
-import { listCategories, queryTransactions, totalsByMerchant } from '../services/transactions';
+import { escapeLike, listCategories, queryTransactions, totalsByMerchant } from '../services/transactions';
 
 /**
  * A function the AI can call to look up the user's data. Provider-neutral:
@@ -46,6 +49,8 @@ export type ChatTool<I extends z.ZodObject = z.ZodObject> = {
   name: string;
   description: string;
   input: I;
+  /** Specialist tools can be deferred on providers that support tool search. */
+  deferLoading?: boolean;
   /** Shown in the app while the tool runs, e.g. "Checked spending for 2026-10". */
   label: (input: z.output<I>) => string;
   run: (input: z.output<I>) => Promise<unknown>;
@@ -59,16 +64,45 @@ const dateRange = {
   to: isoDate.optional().describe('End date, inclusive (YYYY-MM-DD)'),
 };
 
+const round = (n: number | null) => (n === null ? null : Math.round(n));
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Converts a Zod input schema to compact JSON Schema for LLM/MCP tool advertising.
+ * Strips `$schema` and long date/UUID regexes; `runTool` still validates with full Zod.
+ */
+export function toToolJsonSchema(schema: z.ZodObject): Record<string, unknown> {
+  const raw = z.toJSONSchema(schema, { io: 'input' }) as Record<string, unknown>;
+  const strip = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(strip);
+    if (!node || typeof node !== 'object') return node;
+    const obj = node as Record<string, unknown>;
+    const dropVerbosePattern =
+      obj.format === 'date' || obj.format === 'uuid' || (typeof obj.pattern === 'string' && obj.pattern.length > 40);
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (k === '$schema') continue;
+      if (k === 'pattern' && dropVerbosePattern) continue;
+      out[k] = strip(v);
+    }
+    return out;
+  };
+  return strip(raw) as Record<string, unknown>;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Masks long digit runs (account, card or policy numbers that may appear in
  * transaction descriptions) before anything is sent to the AI provider.
  */
 export function maskNumbers(value: unknown): unknown {
   return JSON.parse(
-    JSON.stringify(value, (_key, v) =>
+    JSON.stringify(value, (_key, v) => {
+      if (typeof v !== 'string' || UUID_RE.test(v)) return v;
       // 9+ digits, optionally grouped by spaces or dashes; ISO dates (8 digits) are left alone.
-      typeof v === 'string' ? v.replace(/\d(?:[ -]?\d){8,}/g, (m) => `••••${m.replace(/\D/g, '').slice(-4)}`) : v,
-    ),
+      return v.replace(/\d(?:[ -]?\d){8,}/g, (m) => `••••${m.replace(/\D/g, '').slice(-4)}`);
+    }),
   );
 }
 
@@ -93,12 +127,91 @@ export function toolLabel(tool: ChatTool | undefined, name: string, input: unkno
   return tool && parsed?.success ? tool.label(parsed.data) : name;
 }
 
+/** Compact overview used by `get_financial_overview` and the `meld://overview` MCP resource. */
+export async function buildOverview(db: Db, today = localDate()) {
+  const [profile, accountList, manual, policies, [openAlertsRow]] = await Promise.all([
+    getProfile(db),
+    listAccounts(db, eq(accounts.hidden, false)),
+    db
+      .select({
+        kind: manualAssets.kind,
+        name: manualAssets.name,
+        value: manualAssets.value,
+        ownershipPercent: manualAssets.ownershipPercent,
+        valueAsOf: manualAssets.valueAsOf,
+        depreciationPercent: manualAssets.depreciationPercent,
+      })
+      .from(manualAssets),
+    listPolicies(db),
+    db.select({ n: count() }).from(alerts).where(and(isNull(alerts.dismissedAt), isNull(alerts.resolvedAt))),
+  ]);
+  const cashValues = policies.flatMap((p) => {
+    const v = netCashValue(p);
+    return v === null ? [] : [v];
+  });
+  const netWorth = computeNetWorth(accountList, manual, cashValues);
+  return {
+    asOf: today,
+    profile,
+    netWorth: {
+      assets: round(netWorth.assets),
+      liabilities: round(netWorth.liabilities),
+      netWorth: round(netWorth.netWorth),
+      byType: netWorth.byType.map((t) => ({ ...t, total: round(t.total) })),
+    },
+    accounts: accountList.map((a) => ({
+      id: a.id,
+      name: a.name,
+      institution: a.institutionName,
+      type: a.type,
+      subtype: a.subtype,
+      balance: round(a.currentBalance),
+      ...(a.ownershipPercent !== null && { ownershipPercent: a.ownershipPercent }),
+    })),
+    manualAssets: manual.map(({ kind, name, ...m }) => ({
+      kind,
+      name,
+      value: round(currentValue(m)),
+      ...(m.ownershipPercent !== null && { ownershipPercent: m.ownershipPercent }),
+    })),
+    insuranceTotals: insuranceTotals(policies, today),
+    openAlertsCount: openAlertsRow?.n ?? 0,
+  };
+}
+
+function downsampleHistory<T extends { date: string }>(points: T[], granularity: 'monthly' | 'weekly' | 'daily'): T[] {
+  if (granularity === 'daily' || points.length <= 2) return points;
+  if (granularity === 'monthly') {
+    const byMonth = new Map<string, T>();
+    for (const p of points) byMonth.set(p.date.slice(0, 7), p);
+    return [...byMonth.values()];
+  }
+  const out: T[] = [points[0]!];
+  let lastKept = points[0]!.date;
+  for (let i = 1; i < points.length - 1; i++) {
+    const p = points[i]!;
+    if (daysBetween(lastKept, p.date) >= 7) {
+      out.push(p);
+      lastKept = p.date;
+    }
+  }
+  out.push(points.at(-1)!);
+  return out;
+}
+
 export function createChatTools(db: Db): ChatTool[] {
   return [
     tool({
+      name: 'get_financial_overview',
+      description: 'Compact overview: profile, net worth, account summary, manual assets, insurance totals, and open alert count.',
+      input: z.object({}),
+      label: () => 'Checked financial overview',
+      run: () => buildOverview(db),
+    }),
+    tool({
       name: 'get_accounts',
       description:
-        'All linked and manual accounts that count toward totals: name, institution, type (depository, credit, investment, loan, mortgage), subtype (checking, 401k, roth, ...), and balances. Balances on credit, loan and mortgage accounts are amounts owed. `currentBalance` is the full account balance; on a jointly held account `ownershipPercent` is the user’s share (null = 100%), and only the share counts toward net worth, cash flow, spending and budgets. Also returns manually entered assets such as a home or car; `value` is the full market value today (after any yearly `depreciationPercent` since `valueAsOf`) and `ownershipPercent` the user’s share (null = 100%), and only the share counts toward net worth.',
+        'Visible linked and manual accounts with ids, type, subtype, balances, credit limits, and ownershipPercent (null = 100%). Credit/loan/mortgage balances are amounts owed.',
       input: z.object({}),
       label: () => 'Checked accounts and balances',
       run: async () => {
@@ -135,26 +248,42 @@ export function createChatTools(db: Db): ChatTool[] {
     }),
     tool({
       name: 'get_net_worth',
-      description: 'Current net worth (assets minus debts) with totals by account type, plus the daily net-worth history for the last `days` days.',
-      input: z.object({ days: z.number().int().min(1).max(3650).default(365).describe('History length in days') }),
+      description: 'Current net worth, totals by type, and 30d/90d/YTD/1y changes. Pass historyDays to include trend points.',
+      input: z.object({
+        historyDays: z.number().int().min(1).max(3650).optional().describe('Include historical points over N days'),
+        granularity: z.enum(['monthly', 'weekly', 'daily']).default('monthly').describe('History point spacing'),
+      }),
       label: () => 'Checked net worth',
-      run: async ({ days }) => {
-        const since = new Date();
-        since.setDate(since.getDate() - days);
-        const [current, history] = await Promise.all([getNetWorth(db), getNetWorthHistory(db, localDate(since))]);
-        return { current, history };
+      run: async ({ historyDays, granularity }) => {
+        const today = localDate();
+        const yearStart = `${Number(today.slice(0, 4)) - 1}-12-31`;
+        const [current, d30, d90, ytd, y1, rawHistory] = await Promise.all([
+          getNetWorth(db),
+          getSnapshotAsOf(db, addDays(today, -30)),
+          getSnapshotAsOf(db, addDays(today, -90)),
+          getSnapshotAsOf(db, yearStart),
+          getSnapshotAsOf(db, shiftYears(today, -1)),
+          historyDays ? getNetWorthHistory(db, addDays(today, -historyDays)) : Promise.resolve(null),
+        ]);
+        const delta = (s: Awaited<ReturnType<typeof getSnapshotAsOf>>) =>
+          s ? { since: s.date, netWorth: s.netWorth, delta: round2(current.netWorth - s.netWorth) } : null;
+        return {
+          asOf: today,
+          current,
+          changes: { d30: delta(d30), d90: delta(d90), ytd: delta(ytd), y1: delta(y1) },
+          ...(rawHistory ? { history: downsampleHistory(rawHistory, granularity) } : {}),
+        };
       },
     }),
     tool({
       name: 'search_transactions',
-      description:
-        'Find individual bank and card transactions. Amount sign: positive = money out (purchases, payments), negative = money in (income, refunds). Amounts are the full transaction, even on jointly held accounts (see get_accounts `ownershipPercent`); totals from the other tools count only the user’s share. Combine filters as needed; results are newest first. Use spending_by_merchant or get_spending_by_category for totals instead of adding up pages of transactions.',
+      description: 'Search bank and card transactions (positive = out, negative = in), newest first. Use spending tools for totals.',
       input: z.object({
-        search: z.string().optional().describe('Text to match in the merchant or description'),
-        category: z.string().optional().describe('Exact category from list_categories, e.g. FOOD_AND_DRINK'),
+        search: z.string().optional().describe('Merchant or description text'),
+        category: z.string().optional().describe('Exact category from list_categories'),
         accountId: z.uuid().optional(),
         ...dateRange,
-        limit: z.number().int().min(1).max(200).default(50),
+        limit: z.number().int().min(1).max(200).default(25),
       }),
       label: (q) => (q.search ? `Searched transactions for “${q.search}”` : 'Searched transactions'),
       run: async (q) => {
@@ -177,40 +306,39 @@ export function createChatTools(db: Db): ChatTool[] {
     }),
     tool({
       name: 'spending_by_merchant',
-      description: 'Net totals per merchant over a date range (positive = net money out), largest first, counting only the user’s share of jointly held accounts. Optional category filter.',
+      description: 'Net spending totals by merchant over a date range (positive = net out), largest first, at user ownership share.',
       input: z.object({
         ...dateRange,
         category: z.string().optional(),
-        limit: z.number().int().min(1).max(100).default(25),
+        limit: z.number().int().min(1).max(100).default(20),
       }),
       label: () => 'Totaled spending by merchant',
       run: ({ limit, ...q }) => totalsByMerchant(db, q, limit),
     }),
     tool({
       name: 'list_categories',
-      description: 'Transaction categories in use (Plaid categories such as FOOD_AND_DRINK, plus any the user created).',
+      description: 'Transaction categories in use.',
       input: z.object({}),
       label: () => 'Listed spending categories',
       run: () => listCategories(db),
     }),
     tool({
       name: 'get_spending_by_category',
-      description:
-        'Spending by category for one month, from cash and card accounts. Excludes transfers between the user’s accounts and credit card payments; refunds are netted out. Jointly held accounts count at the user’s ownership share.',
+      description: 'Spending by category for one month (YYYY-MM), excluding transfers and card payments.',
       input: z.object({ month: Month.describe('YYYY-MM') }),
       label: ({ month }) => `Checked spending for ${month}`,
       run: ({ month }) => getSpendingByCategory(db, month),
     }),
     tool({
       name: 'get_cashflow',
-      description: 'Monthly income, spending and net for recent months (same rules as get_spending_by_category). Income is transactions categorized INCOME.',
+      description: 'Monthly income, spending, and net cash flow for recent months (excludes transfers and card payments).',
       input: z.object({ months: z.number().int().min(1).max(24).default(6) }),
       label: ({ months }) => `Checked cash flow for ${months} months`,
       run: ({ months }) => getCashflow(db, months),
     }),
     tool({
       name: 'get_budgets',
-      description: 'Monthly budget targets by category and how much has been spent against each in the given month.',
+      description: 'Monthly budget targets and spending by category for YYYY-MM.',
       input: z.object({ month: Month.describe('YYYY-MM') }),
       label: ({ month }) => `Checked budgets for ${month}`,
       run: ({ month }) => getBudgetStatus(db, month),
@@ -218,16 +346,39 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_holdings',
       description:
-        'Investment holdings across brokerage and retirement accounts: security, quantity, price, value, cost basis (for gains/losses), account, and tax treatment (taxable, tax_deferred, tax_free). Also the portfolio\'s approximate look-through exposure (inside funds) by asset class, stock sector, stock region and bond type, in dollars, and each holding\'s category. Values are the user\'s ownership share.',
-      input: z.object({}),
+        'Portfolio totals, look-through exposure (asset class/sector/region/bond type), account totals, and filtered holdings (ownership share).',
+      input: z.object({
+        accountId: z.uuid().optional().describe('Filter to one account'),
+        taxTreatment: z.enum(['taxable', 'tax_deferred', 'tax_free']).optional(),
+        ticker: z.string().optional().describe('Filter by ticker or fund name'),
+        limit: z.number().int().min(1).max(200).default(25),
+        includeHoldings: z.boolean().default(true).describe('False returns totals and exposure only'),
+      }),
       label: () => 'Checked investment holdings',
-      run: async () => {
+      run: async ({ accountId, taxTreatment, ticker, limit, includeHoldings }) => {
         const summary = await getInvestmentsSummary(db, null);
         const e = lookThrough(summary.holdings);
         const dollars = (w: Partial<Record<string, number>>) =>
           Object.fromEntries(Object.entries(w).map(([k, v]) => [k, Math.round(v!)]));
+        const needle = ticker?.trim().toLowerCase();
+        const filtered = summary.holdings.filter((h) => {
+          if (accountId && h.accountId !== accountId) return false;
+          if (taxTreatment && h.taxTreatment !== taxTreatment) return false;
+          if (needle && !h.ticker?.toLowerCase().includes(needle) && !h.name?.toLowerCase().includes(needle)) return false;
+          return true;
+        });
+        const shown = includeHoldings ? filtered.slice(0, limit) : [];
         return {
           totalValue: summary.totalValue,
+          totalHoldings: filtered.length,
+          returnedHoldings: shown.length,
+          byAccount: summary.accounts.map((a) => ({
+            id: a.id,
+            name: a.name,
+            subtype: a.subtype,
+            taxTreatment: a.taxTreatment,
+            value: a.value,
+          })),
           exposure: {
             assetClasses: dollars(e.assetClasses),
             notLookedUp: Math.round(e.unclassified),
@@ -235,7 +386,7 @@ export function createChatTools(db: Db): ChatTool[] {
             stockRegions: dollars(e.regions),
             bondTypes: dollars(e.bondTypes),
           },
-          holdings: summary.holdings.map((h) => ({
+          holdings: shown.map((h) => ({
             account: h.accountName,
             accountSubtype: h.accountSubtype,
             taxTreatment: h.taxTreatment,
@@ -253,50 +404,49 @@ export function createChatTools(db: Db): ChatTool[] {
       },
     }),
     tool({
+      name: 'get_loans_and_cards',
+      description: 'Mortgage, loan, and credit card terms: balance, APR, minimum payment, due date, escrow, and payoff estimate.',
+      input: z.object({}),
+      label: () => 'Checked loans and cards',
+      run: async () =>
+        (await listLiabilities(db)).map((l) => ({
+          ...l,
+          payoffAtCurrentPayment: estimatePayoff(l.balance, l.interestRatePct, l.minimumPayment),
+        })),
+    }),
+    tool({
+      name: 'get_profile',
+      description: 'User profile: birth year, filing status, state, dependents, children, income, occupation, employer benefits, and goals.',
+      input: z.object({}),
+      label: () => 'Checked your profile',
+      run: () => getProfile(db),
+    }),
+    tool({
       name: 'get_investment_performance',
-      description:
-        'How investments grew, with deposits and withdrawals kept apart from market gains, for 1 month, 3 months, year to date, 1 year, all history (up to 2 years) and each calendar year, in total and by account. `gain` is what markets, dividends and interest earned (end − start − contributions + withdrawals); `return` is the time-weighted return as a fraction and `annualized` its yearly rate (periods of a year or more). Values before `estimatedBefore` are estimated from transactions and market prices; holdings in `approximated` lack market prices, and accounts in `limitedHistory` have little transaction history, so treat those figures as rough. Values are the user\'s ownership share.',
+      description: 'Time-weighted investment returns and gains (1M, 3M, YTD, 1Y, all, calendar years), total and by account.',
+      deferLoading: true,
       input: z.object({}),
       label: () => 'Checked investment performance',
       run: async () => {
-        const { points: _points, ...performance } = await getInvestmentPerformance(db);
+        const { points: _points, ...performance } = await getInvestmentPerformance(db, undefined, undefined, { refresh: 'background' });
         return performance;
       },
     }),
     tool({
-      name: 'get_tax_plan',
-      description:
-        'Meld’s estimate of a year’s federal and state income tax from Plan → Tax: projected full-year income (wages after pre-tax 401(k), self-employment, interest, ordinary and qualified dividends, net short- and long-term gains), federal AGI, deduction, taxable income, tax by part (ordinary, capital gains, NIIT, additional Medicare, self-employment, child tax credit), the federal bracket and room left in it, room for 0% long-term gains, state tax, total and effective rate, `marginalRate` (federal + state on the next $1,000), and `balanceDue` after projected withholding (null when withholding wasn’t entered). `detected` is what synced accounts show so far this year: paychecks, contractor deposits, investment income in taxable accounts, realized gains rebuilt by average cost (`realizedRough` means rough), contributions by account type and pre-tax IRA balances. `harvest` lists taxable holdings with unrealized losses and any purchase in the last 30 days (wash-sale risk). `suggestions` are rule-based moves with the estimated tax saved this year. `checklist` puts dates on them for the year-end countdown: each item’s `due` date (last trading day for harvesting, last paycheck for 401(k) deferrals, Jan 15 for the Q4 estimated payment, the filing deadline for IRA/HSA/SEP contributions, Dec 31 for charity, FSA and RMDs), `dueLabel`, estimated `impact`, `general` when it rests on something Meld can’t see (an FSA, payroll timing), and `done` when the user ticked it off; only deadlines still ahead are listed. `notes` say where figures rest on assumptions. `missing` lists profile fields needed for an estimate. An estimate, not a filed return.',
-      input: z.object({ year: z.number().int().min(2000).max(2100).optional().describe('Tax year; this year when left out') }),
-      label: ({ year }) => `Checked your ${year ?? 'current'} tax estimate`,
-      run: ({ year }) => getTaxPlan(db, year ?? Number(localDate().slice(0, 4))),
-    }),
-    tool({
-      name: 'get_cash_plan',
-      description:
-        'Liquid cash and emergency fund from Accounts → Cash. `positions`: checking, savings and money market accounts (kind bank), money market funds and cash ETFs (fund) and brokerage sweep cash (sweep), each with its value (the user’s share), yearly rate `apy` as a fraction and where it came from (`entered` by the user, bank `interest` paid lately, fund `distributions` over the last year, or `assumed` to be about the Treasury rate), whether it’s in a tax-advantaged account (not available for emergencies) and whether the user `earmarked` it for something else. `totals`: emergency cash, the blended rate, interest a year and `missedInterest` (extra a year at the benchmark rate). `benchmark.apy` is what high-yield savings and money market funds pay now (3-month Treasury yield unless entered). `spending.monthly` is entered or the average of recent complete months; `emergency` is the target months, the target, months of runway and the gap (positive is extra cash, negative is a shortfall). `suggestions` are rule-based nudges with the extra interest a year where there is one.',
-      input: z.object({}),
-      label: () => 'Checked your cash and emergency fund',
-      run: () => getCashPlan(db),
-    }),
-    tool({
-      name: 'get_recurring',
-      description:
-        'Recurring charges, autopay and alerts from Spending → Recurring. `series`: subscriptions, bills and income (paychecks) Meld detected from transactions that repeat on a schedule, each with its cadence, expected `amount` (`amountVaries` for bills like utilities), `monthlyAmount`, the account charged, first/last/next dates, `status` (`active`, `stopped` when charges stopped and it may have been canceled, `ignored` when the user said it isn’t recurring) and `priceChange` when the latest charge differs from a steady price. `autopay`: cards and loans the user said are paid automatically from a bank account, each with the next `dueDate` and `amount` (`amountSource` statement, minimum, fixed, scheduled loan payment, or `estimate` from the current balance when the next statement isn’t out), the funding account’s balance, other payments and paychecks before the due date (`before`), `projectedAfter` and `health` (covered, tight, short, paid, unknown). `suggestions`: cards or loans that look paid from a bank account each month but have no autopay set up in Meld. `upcoming`: what’s due over the next 30 days. `alerts`: open and recent alerts (autopay shortfalls, low balances, large charges, price increases, new recurring charges, bank connections).',
-      input: z.object({}),
-      label: () => 'Checked recurring payments and alerts',
-      run: async () => {
-        const [summary, alerts] = await Promise.all([getRecurringSummary(db), listAlerts(db)]);
-        return { ...summary, alerts: alerts.alerts.filter((a) => !a.dismissedAt && !a.resolvedAt) };
-      },
-    }),
-    tool({
       name: 'get_investment_transactions',
-      description: 'Buys, sells, dividends, contributions and fees in investment accounts (up to 2 years), newest first.',
-      input: z.object({ ...dateRange, limit: z.number().int().min(1).max(500).default(100) }),
+      description: 'Investment buys, sells, dividends, contributions, and fees (up to 2 years), newest first.',
+      deferLoading: true,
+      input: z.object({
+        accountId: z.uuid().optional(),
+        ticker: z.string().optional(),
+        type: z.string().optional().describe('buy, sell, cash, transfer, fee'),
+        ...dateRange,
+        limit: z.number().int().min(1).max(200).default(30),
+      }),
       label: () => 'Checked investment activity',
-      run: ({ from, to, limit }) =>
-        db
+      run: ({ accountId, ticker, type, from, to, limit }) => {
+        const needle = ticker?.trim();
+        return db
           .select({
             date: investmentTransactions.date,
             account: accounts.name,
@@ -315,29 +465,156 @@ export function createChatTools(db: Db): ChatTool[] {
           .where(
             and(
               eq(accounts.hidden, false),
+              accountId ? eq(investmentTransactions.accountId, accountId) : undefined,
+              needle ? ilike(securities.tickerSymbol, `%${escapeLike(needle)}%`) : undefined,
+              type ? eq(investmentTransactions.type, type) : undefined,
               from ? gte(investmentTransactions.date, from) : undefined,
               to ? lte(investmentTransactions.date, to) : undefined,
             ),
           )
           .orderBy(desc(investmentTransactions.date), asc(investmentTransactions.name))
-          .limit(limit),
+          .limit(limit);
+      },
     }),
     tool({
-      name: 'get_loans_and_cards',
+      name: 'get_cash_plan',
+      description: 'Liquid cash positions, APYs, missed interest vs benchmark, and emergency fund runway.',
+      deferLoading: true,
+      input: z.object({ includeDetails: z.boolean().default(false).describe('Include full suggestion prose') }),
+      label: () => 'Checked your cash and emergency fund',
+      run: async ({ includeDetails }) => {
+        const plan = await getCashPlan(db, undefined, undefined, { rateTimeoutMs: 800 });
+        if (includeDetails) return plan;
+        return {
+          ...plan,
+          suggestions: plan.suggestions.map(({ id, kind, title, impact }) => ({ id, kind, title, impact })),
+        };
+      },
+    }),
+    tool({
+      name: 'get_recurring',
+      description: 'Recurring subscriptions, bills, paychecks, autopay coverage health, upcoming 30-day payments, and open alerts.',
+      deferLoading: true,
+      input: z.object({
+        includeStopped: z.boolean().default(false),
+        includeIgnored: z.boolean().default(false),
+        includeAutopayDetails: z.boolean().default(false),
+      }),
+      label: () => 'Checked recurring payments and alerts',
+      run: async ({ includeStopped, includeIgnored, includeAutopayDetails }) => {
+        const [summary, alertList] = await Promise.all([getRecurringSummary(db), listAlerts(db)]);
+        return {
+          ...summary,
+          series: summary.series.filter(
+            (s) => s.status === 'active' || (includeStopped && s.status === 'stopped') || (includeIgnored && s.status === 'ignored'),
+          ),
+          autopay: includeAutopayDetails
+            ? summary.autopay
+            : summary.autopay.map(({ before: _before, ...a }) => a),
+          alerts: alertList.alerts
+            .filter((a) => !a.dismissedAt && !a.resolvedAt)
+            .map(({ href: _href, ...a }) => a),
+        };
+      },
+    }),
+    tool({
+      name: 'get_tax_plan',
       description:
-        'Terms for mortgages, student loans, other loans and credit cards: balance, interest rate, payment, dates, escrow, and an estimated payoff time and total interest at the current payment.',
-      input: z.object({}),
-      label: () => 'Checked loans and cards',
-      run: async () =>
-        (await listLiabilities(db)).map((l) => ({
-          ...l,
-          payoffAtCurrentPayment: estimatePayoff(l.balance, l.interestRatePct, l.minimumPayment),
-        })),
+        'Estimated federal/state income tax, brackets, marginal rate, detected YTD income/gains, tax-loss harvest candidates, and year-end checklist.',
+      deferLoading: true,
+      input: z.object({
+        year: z.number().int().min(2000).max(2100).optional().describe('Tax year; current year if omitted'),
+        includeDetails: z.boolean().default(false).describe('Include bracket slices and full suggestion prose'),
+      }),
+      label: ({ year }) => `Checked your ${year ?? 'current'} tax estimate`,
+      run: async ({ year, includeDetails }) => {
+        const plan = await getTaxPlan(db, year ?? Number(localDate().slice(0, 4)));
+        if (includeDetails) return plan;
+        const federal = plan.federal ? (({ brackets: _b, ...rest }) => rest)(plan.federal) : null;
+        return {
+          ...plan,
+          federal,
+          suggestions: plan.suggestions.map(({ id, kind, title, impact }) => ({ id, kind, title, impact })),
+          checklist: plan.checklist.map(({ id, due, dueLabel, title, impact, general, done }) => ({
+            id,
+            due,
+            dueLabel,
+            title,
+            impact,
+            general,
+            done,
+          })),
+        };
+      },
+    }),
+    tool({
+      name: 'get_retirement_plan',
+      description:
+        'Retirement projection (today’s dollars): assumptions, accounts, property sales, spendingChanges, Social Security, gap, and optional Monte Carlo. Pass overrides for what-ifs.',
+      deferLoading: true,
+      input: RetirementPlan.pick({
+        retirementAge: true,
+        annualContribution: true,
+        annualSpending: true,
+        spendingChanges: true,
+        spendingDeclinePercent: true,
+        expectedReturn: true,
+        socialSecurityAge: true,
+      })
+        .partial()
+        .extend({
+          includeMonteCarlo: z.boolean().default(false).describe('Run Monte Carlo simulation'),
+        })
+        .describe('Optional what-if overrides and simulation flag'),
+      label: (input) => {
+        const { includeMonteCarlo: _mc, ...overrides } = input;
+        return Object.values(overrides).some((v) => v !== undefined) ? 'Ran a retirement what-if' : 'Checked your retirement plan';
+      },
+      run: async ({ includeMonteCarlo, ...overrides }) => {
+        const summary = await getRetirement(db);
+        const whatIf = Object.fromEntries(Object.entries(overrides).filter(([, v]) => v !== undefined && v !== null));
+        const plan = { ...summary.plan, ...whatIf };
+        const resolved = resolvePlan(plan, summary);
+        if (!resolved.inputs) return { missing: resolved.missing, accounts: summary.accounts };
+        const projection = projectRetirement(resolved.inputs);
+        const simulation = includeMonteCarlo ? simulateRetirement(resolved.inputs, SIMULATION_DEFAULTS) : null;
+        const { excludedAccountIds: _e, ...saved } = summary.plan;
+        return {
+          scenario: summary.scenario.name,
+          otherScenarios: summary.scenarios.filter((s) => !s.active).map((s) => s.name),
+          assumptions: resolved.inputs,
+          socialSecurity: {
+            ...socialSecurityAtFullAge(plan, summary.defaults, resolved.inputs.retirementAge),
+            fullRetirementAge: formatFullRetirementAge(summary.defaults.birthYear!),
+          },
+          defaulted: Object.entries(saved)
+            .filter(([k, v]) => v === null && !(k in whatIf))
+            .map(([k]) => k),
+          whatIf: Object.keys(whatIf).length ? whatIf : undefined,
+          accounts: summary.accounts.map(({ id: _id, ...a }) => a),
+          ...(simulation
+            ? {
+                monteCarlo: {
+                  trials: SIMULATION_DEFAULTS.trials,
+                  volatility: SIMULATION_DEFAULTS.volatility,
+                  successRate: Math.round(simulation.successRate * 1000) / 1000,
+                  atRetirement: { p10: simulation.atRetirement.p10, p50: simulation.atRetirement.p50, p90: simulation.atRetirement.p90 },
+                  medianDepletionAge: simulation.medianDepletionAge,
+                },
+              }
+            : {}),
+          projection: {
+            ...projection,
+            // Every five years keeps the result short; the last point shows what's left at the end.
+            points: projection.points.filter((p, i, all) => i % 5 === 0 || i === all.length - 1),
+          },
+        };
+      },
     }),
     tool({
       name: 'get_insurance_policies',
-      description:
-        'Life and disability insurance policies the user entered: type, carrier, coverage (death benefit, or MONTHLY benefit for disability), premium, dates, cash value / cash surrender value / policy loans for permanent life (with the statement date; the surrender value counts toward net worth), waiting period, benefit period, own-occupation, employer-provided, beneficiaries, notes. Includes totals.',
+      description: 'Life and disability insurance policies and totals (life = death benefit; disability = monthly benefit).',
+      deferLoading: true,
       input: z.object({}),
       label: () => 'Checked insurance policies',
       run: async () => {
@@ -351,7 +628,8 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_estate_plan',
       description:
-        'The user’s estate plan from Plan → Estate: how each account, property and life policy passes on death (`method`: beneficiary designation, transfer/payable on death, joint with survivorship, a trust, by will, or not set up), its named primary and contingent beneficiaries with shares, and a `status` (ok, missing = needs a beneficiary and has none, review = would go through probate or something looks off, n/a). Also the estate documents on file (trusts, will, powers of attorney, healthcare directive, guardianship) with signing and review dates and the roles of the people they name, the readiness checks Meld found, and whether the family packet is up to date. Organizing help, not legal advice: suggest an estate attorney for drafting or state-specific questions.',
+        'Estate plan summary: transfer methods, beneficiaries, estate documents, readiness checks, and family packet status (no contact details).',
+      deferLoading: true,
       input: z.object({}),
       label: () => 'Checked your estate plan',
       run: async () => {
@@ -372,66 +650,6 @@ export function createChatTools(db: Db): ChatTool[] {
           contacts: settings.contacts.map((c) => ({ role: c.role, name: c.name })),
           hasInstructions: !!settings.instructions,
           reviewIntervalYears: settings.reviewIntervalYears,
-        };
-      },
-    }),
-    tool({
-      name: 'get_profile',
-      description: 'The user’s profile: birth year, tax filing status, state, dependents, children (each with an id and birth year), gross income, occupation, employer benefits and goals. Fields may be null if not entered.',
-      input: z.object({}),
-      label: () => 'Checked your profile',
-      run: () => getProfile(db),
-    }),
-    tool({
-      name: 'get_retirement_plan',
-      description:
-        'The user’s retirement plan from Plan → Retirement: their assumptions (with which ones are Meld’s defaults), the investment accounts counted toward retirement and those left out (education/custodial accounts always; others by the user’s choice), properties the user plans to sell to fund retirement (`assumptions.sales`: sale age, net proceeds after appreciation, selling costs and the mortgage left, and net rent per year until the sale), and a year-by-year projection. All amounts are in today’s dollars with an after-inflation return. `needed` is the balance at retirement age that lasts to life expectancy, `gap` is needed minus projected (≤ 0 means on track), and `extraMonthly` is the added monthly contribution that closes the gap. `socialSecurity` gives the yearly benefit at full retirement age (from the user’s statement, or estimated from profile income when `estimated`); `assumptions.socialSecurityAnnual` is what’s received from the claiming age after the early or delayed adjustment. `annualSpending` is today’s yearly spending. `spendingChanges` are the user’s life events, each with a `kind`: `spending` adds `annualChange` to yearly spending in retirement (e.g. kids leaving home or a mortgage paid off; it doesn’t affect the years before retirement); `income` is money coming in (e.g. part-time work), which covers spending in retirement and is added to savings before it; `saving` changes the yearly contribution before retirement (e.g. a raise or catch-up contributions); and `once` is a one-time sum into (positive) or out of (negative) savings at `startAge` (e.g. an inheritance or a big purchase), ignoring `endAge`. Amounts are signed; yearly events run from `startAge` up to but not including `endAge` (null: for good); when `childId` names a child from the profile, the ages are that child’s, e.g. a child leaving home at 18; `monthly` only says the user entered it per month, `annualChange` is always yearly. Spending then falls `spendingDeclinePercent` a year after 75. `spendingChanges` in a what-if replaces the saved list. `projection.spendingAtRetirement` is spending in the first year of retirement. Pass any of the optional inputs to try a what-if scenario without changing the saved plan. The plan is the user’s active scenario (`scenario`); `otherScenarios` names the other saved versions they’ve made on Plan → Retirement. `monteCarlo` runs the plan with random yearly returns (lognormal, averaging the expected return, with `volatility` percent standard deviation): `successRate` is the share of trials where the money lasts to life expectancy, and `atRetirement` gives the 10th, 50th and 90th percentile balance at retirement age.',
-      input: RetirementPlan.pick({
-        retirementAge: true,
-        annualContribution: true,
-        annualSpending: true,
-        spendingChanges: true,
-        spendingDeclinePercent: true,
-        expectedReturn: true,
-        socialSecurityAge: true,
-      })
-        .partial()
-        .describe('Optional what-if overrides; omit to use the saved plan'),
-      label: (input) => (Object.keys(input).length ? 'Ran a retirement what-if' : 'Checked your retirement plan'),
-      run: async (overrides) => {
-        const summary = await getRetirement(db);
-        const whatIf = Object.fromEntries(Object.entries(overrides).filter(([, v]) => v !== undefined && v !== null));
-        const plan = { ...summary.plan, ...whatIf };
-        const resolved = resolvePlan(plan, summary);
-        if (!resolved.inputs) return { missing: resolved.missing, accounts: summary.accounts };
-        const projection = projectRetirement(resolved.inputs);
-        const simulation = simulateRetirement(resolved.inputs, SIMULATION_DEFAULTS);
-        const { excludedAccountIds: _e, ...saved } = summary.plan;
-        return {
-          scenario: summary.scenario.name,
-          otherScenarios: summary.scenarios.filter((s) => !s.active).map((s) => s.name),
-          assumptions: resolved.inputs,
-          socialSecurity: {
-            ...socialSecurityAtFullAge(plan, summary.defaults, resolved.inputs.retirementAge),
-            fullRetirementAge: formatFullRetirementAge(summary.defaults.birthYear!),
-          },
-          defaulted: Object.entries(saved)
-            .filter(([k, v]) => v === null && !(k in whatIf))
-            .map(([k]) => k),
-          whatIf: Object.keys(whatIf).length ? whatIf : undefined,
-          accounts: summary.accounts.map(({ id: _id, ...a }) => a),
-          monteCarlo: {
-            trials: SIMULATION_DEFAULTS.trials,
-            volatility: SIMULATION_DEFAULTS.volatility,
-            successRate: Math.round(simulation.successRate * 1000) / 1000,
-            atRetirement: { p10: simulation.atRetirement.p10, p50: simulation.atRetirement.p50, p90: simulation.atRetirement.p90 },
-            medianDepletionAge: simulation.medianDepletionAge,
-          },
-          projection: {
-            ...projection,
-            // Every five years keeps the result short; the last point shows what's left at the end.
-            points: projection.points.filter((p, i, all) => i % 5 === 0 || i === all.length - 1),
-          },
         };
       },
     }),

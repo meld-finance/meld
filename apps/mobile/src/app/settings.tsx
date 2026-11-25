@@ -9,6 +9,7 @@ import { Field, Input, formStyles } from '@/components/form-fields';
 import { Screen } from '@/components/screen';
 import { AIFields } from '@/components/setup/ai-fields';
 import { ChatGPTSection } from '@/components/setup/chatgpt-card';
+import { McpCard } from '@/components/setup/mcp-card';
 import { NoPassphraseNote } from '@/components/setup/no-passphrase-note';
 import { PhoneAccessCard } from '@/components/setup/phone-access-card';
 import { PlaidFields } from '@/components/setup/plaid-fields';
@@ -53,6 +54,7 @@ function SettingsCards({ view }: { view: SettingsView }) {
       </ThemedText>
       <PlaidCard view={view} fixed={fixed('plaid')} />
       <AICard view={view} fixed={fixed('ai')} />
+      <McpCard />
       <PassphraseCard on={view.passphrase} fixed={fixed('passphrase')} />
       <AboutCard />
     </>

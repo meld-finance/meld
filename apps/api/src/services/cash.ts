@@ -73,13 +73,20 @@ const yahooYield = cached(fetchYahooTrailingYield);
 const treasury = cached(() => fetchTreasuryYield());
 export const yahooRates: MarketRates = { fundYield: yahooYield, benchmark: () => treasury('^IRX') };
 
-async function orNull<T>(what: string, p: Promise<T | null>): Promise<T | null> {
-  try {
-    return await p;
-  } catch (err) {
+async function orNull<T>(what: string, p: Promise<T | null>, timeoutMs?: number): Promise<T | null> {
+  const safe = p.catch((err) => {
     console.warn(`[cash] ${what}: ${(err as Error).message}`);
     return null;
-  }
+  });
+  if (!timeoutMs || timeoutMs <= 0) return safe;
+  let timer: NodeJS.Timeout | undefined;
+  return Promise.race([
+    safe,
+    new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), timeoutMs);
+      timer.unref?.();
+    }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 // --- Settings -----------------------------------------------------------------------
@@ -368,7 +375,17 @@ export function bankApy(periods: InterestPeriod[]): number | null {
   return apy >= 0 && apy <= MAX_PLAUSIBLE_APY ? apy : null;
 }
 
-export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today = localDate()): Promise<CashPlan> {
+export type CashPlanOptions = {
+  /** Max wait for uncached market yield lookups; timed-out fetches still populate the in-memory cache. */
+  rateTimeoutMs?: number;
+};
+
+export async function getCashPlan(
+  db: Db,
+  rates: MarketRates = yahooRates,
+  today = localDate(),
+  options: CashPlanOptions = {},
+): Promise<CashPlan> {
   // The last RATE_MONTHS complete months.
   const months = recentMonths(RATE_MONTHS + 1, today);
   const from = `${months[0]}-01`;
@@ -441,7 +458,7 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
           )
           .groupBy(investmentTransactions.accountId, investmentTransactions.securityId)
       : [],
-    orNull('Treasury yield', rates.benchmark()),
+    orNull('Treasury yield', rates.benchmark(), options.rateTimeoutMs),
   ]);
 
   const firstOf = new Map(history.map((r) => [r.accountId, r.first]));
@@ -478,7 +495,7 @@ export async function getCashPlan(db: Db, rates: MarketRates = yahooRates, today
   const fundYields = new Map(
     await Promise.all(
       [...new Set(cashHoldings.filter((h) => !isSweep(h)).map((h) => h.ticker!))].map(
-        async (t) => [t, await orNull(`yield for ${t}`, rates.fundYield(t))] as const,
+        async (t) => [t, await orNull(`yield for ${t}`, rates.fundYield(t), options.rateTimeoutMs)] as const,
       ),
     ),
   );

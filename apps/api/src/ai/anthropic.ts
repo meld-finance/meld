@@ -4,7 +4,7 @@ import type { PropertyEstimate, SecurityProfile, VehicleDetails, VehicleEstimate
 import { z } from 'zod';
 import { HttpError } from '../lib/http';
 import { localDate } from '../lib/networth';
-import { MAX_TOOL_ROUNDS, runTool, toolLabel, type ChatTool } from './chat-tools';
+import { MAX_TOOL_ROUNDS, runTool, toolLabel, toToolJsonSchema, type ChatTool } from './chat-tools';
 import { EXTRACTION_PROMPT, ExtractionSchema, normalizeExtraction } from './insurance-extraction';
 import { normalizeValuation, valuationPrompt, ValuationSchema } from './property-valuation';
 import { normalizeVehicleValuation, vehicleValuationPrompt, VehicleValuationSchema } from './vehicle-valuation';
@@ -39,11 +39,12 @@ function toHttpError(err: unknown): never {
   throw err;
 }
 
-function toToolDefinition(t: ChatTool): Anthropic.Beta.BetaTool {
+function toToolDefinition(t: ChatTool, defer: boolean): Anthropic.Beta.BetaTool {
   return {
     name: t.name,
     description: t.description,
-    input_schema: z.toJSONSchema(t.input, { io: 'input' }) as Anthropic.Beta.BetaTool.InputSchema,
+    input_schema: toToolJsonSchema(t.input) as Anthropic.Beta.BetaTool.InputSchema,
+    ...(defer && t.deferLoading ? { defer_loading: true } : {}),
     // Stream tool inputs as generated; inputs are validated with Zod before running.
     eager_input_streaming: true,
   };
@@ -68,10 +69,13 @@ const CHAT_MODEL_INFO: Record<string, { label: string; note: string }> = {
   'claude-haiku-5-5': { label: 'Claude Haiku 5.5', note: 'Lowest cost' },
 };
 
+export type AnthropicChatEffort = 'low' | 'medium' | 'high';
+
 export class AnthropicProvider implements AIProvider {
   readonly name = PROVIDER;
   private client: Anthropic;
   private chatModels: string[];
+  private noDeferredTools = new Set<string>();
 
   /** `chatModels` are offered in the Ask picker; the first is the default. */
   constructor(
@@ -79,9 +83,15 @@ export class AnthropicProvider implements AIProvider {
     private model: string,
     private lookupModel: string,
     chatModels: string[],
+    private chatEffort?: AnthropicChatEffort,
   ) {
     this.client = new Anthropic({ apiKey });
     this.chatModels = [...new Set(chatModels)];
+  }
+
+  private effortFor(model: string): AnthropicChatEffort {
+    if (this.chatEffort) return this.chatEffort;
+    return model.includes('opus') ? 'medium' : 'low';
   }
 
   async listChatModels(): Promise<ChatModelInfo[]> {
@@ -185,7 +195,6 @@ export class AnthropicProvider implements AIProvider {
   }
 
   async chat({ model, system, snapshot, history, userText, tools, onEvent, signal }: ChatTurnInput): Promise<ChatTurnResult> {
-    const toolDefs = tools.map(toToolDefinition);
     const toolsByName = new Map(tools.map((t) => [t.name, t]));
     const userContent: Anthropic.Beta.BetaContentBlockParam[] = [{ type: 'text', text: userText }];
     const messages: MessageParam[] = [
@@ -196,18 +205,27 @@ export class AnthropicProvider implements AIProvider {
       { role: 'user', content: { provider: PROVIDER, native: userContent, display: { text: userText, lookups: [] } } },
     ];
     let streamedText = false;
+    const effort = this.effortFor(model);
+    const hasDeferred = tools.some((t) => t.deferLoading);
 
-    for (let step = 0; step < MAX_TOOL_ROUNDS; step++) {
+    const runStream = (useDeferred: boolean) => {
+      const toolDefs: Anthropic.Beta.BetaToolUnion[] = useDeferred
+        ? [
+            { type: 'tool_search_tool_bm25_20251119', name: 'tool_search_tool_bm25' },
+            ...tools.map((t) => toToolDefinition(t, true)),
+          ]
+        : tools.map((t) => toToolDefinition(t, false));
       const stream = this.client.beta.messages.stream(
         {
           model,
           max_tokens: 64000,
           ...FALLBACK,
-          output_config: { effort: 'high' },
-          // Caches the stable prefix (tools, system, earlier turns) across requests.
+          output_config: { effort },
+          // Caches the growing conversation across rounds and follow-up turns.
           cache_control: { type: 'ephemeral' },
           system: [
-            { type: 'text', text: system },
+            // Dedicated breakpoint on the static prompt keeps `tools + SYSTEM_PROMPT` cached across new sessions.
+            { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
             { type: 'text', text: snapshot },
           ],
           tools: toolDefs,
@@ -221,11 +239,35 @@ export class AnthropicProvider implements AIProvider {
           onEvent({ type: 'text', text: '\n\n' });
         }
       });
+      stream.on('contentBlock', (block) => {
+        if (block.type === 'tool_use') {
+          onEvent({ type: 'lookup', label: toolLabel(toolsByName.get(block.name), block.name, block.input) });
+        }
+      });
       stream.on('text', (text) => {
         streamedText = true;
         onEvent({ type: 'text', text });
       });
-      const message = await stream.finalMessage().catch(toHttpError);
+      return stream.finalMessage();
+    };
+
+    for (let step = 0; step < MAX_TOOL_ROUNDS; step++) {
+      const useDeferred = hasDeferred && !this.noDeferredTools.has(model);
+      let message: Anthropic.Beta.BetaMessage;
+      try {
+        message = await runStream(useDeferred);
+      } catch (err) {
+        if (
+          useDeferred &&
+          err instanceof Anthropic.BadRequestError &&
+          /defer_loading|tool_search/i.test(err.message)
+        ) {
+          this.noDeferredTools.add(model);
+          message = await runStream(false).catch(toHttpError);
+        } else {
+          toHttpError(err);
+        }
+      }
 
       const toolUses = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use');
       // A truncated tool call can't be answered or replayed, so the whole turn fails instead.
@@ -241,11 +283,11 @@ export class AnthropicProvider implements AIProvider {
         content: { provider: PROVIDER, native: assistantContent, display: { text: textOf(message.content), lookups } },
       });
 
+      if (message.stop_reason === 'pause_turn') continue;
       if (message.stop_reason === 'refusal') return { messages: stored, outcome: 'refused' };
       if (message.stop_reason === 'max_tokens') return { messages: stored, outcome: 'truncated' };
       if (message.stop_reason !== 'tool_use' || !toolUses.length) return { messages: stored, outcome: 'complete' };
 
-      lookups.forEach((label) => onEvent({ type: 'lookup', label }));
       // All results go back in one message, in order, so parallel calls stay paired.
       const results: Anthropic.Beta.BetaToolResultBlockParam[] = await Promise.all(
         toolUses.map(async (u) => {

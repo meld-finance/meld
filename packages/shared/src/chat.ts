@@ -28,6 +28,16 @@ export type ChatModelOption = {
 
 export type ChatModelList = { models: ChatModelOption[]; defaultId: string | null };
 
+export const ChatCreateSessionRequest = z
+  .object({
+    /** Current screen context when started from the UI (e.g. "your retirement plan"). */
+    page: z.string().trim().max(100).optional(),
+    /** Selected ChatModelOption id, so session creation validates only that provider. */
+    model: z.string().max(200).optional(),
+  })
+  .optional();
+export type ChatCreateSessionRequest = z.infer<typeof ChatCreateSessionRequest>;
+
 export const ChatSendRequest = z.object({
   text: z.string().trim().min(1).max(8000),
   /** A ChatModelOption id; the default model when omitted. */

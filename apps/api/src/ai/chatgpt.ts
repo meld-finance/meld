@@ -1,7 +1,6 @@
-import { z } from 'zod';
 import { HttpError } from '../lib/http';
 import { RESOURCE, type ChatGPTAuth } from './chatgpt-auth';
-import { MAX_TOOL_ROUNDS, runTool, toolLabel, type ChatTool } from './chat-tools';
+import { MAX_TOOL_ROUNDS, runTool, toolLabel, toToolJsonSchema, type ChatTool } from './chat-tools';
 import type { ChatModelInfo, ChatProvider, ChatTurnInput, ChatTurnResult, StoredChatMessage } from './provider';
 
 const PROVIDER = 'chatgpt';
@@ -44,7 +43,7 @@ function planError(error: ApiError | undefined, status?: number): HttpError {
 
 function toFunctionTool(t: ChatTool) {
   // Not strict: strict mode needs every property required, and Meld's tools have optional inputs.
-  return { type: 'function', name: t.name, description: t.description, parameters: z.toJSONSchema(t.input, { io: 'input' }), strict: false };
+  return { type: 'function', name: t.name, description: t.description, parameters: toToolJsonSchema(t.input), strict: false };
 }
 
 /** Earlier turns from another provider are replayed as plain text. */
@@ -90,6 +89,7 @@ async function* readEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<Str
 export class ChatGPTProvider implements ChatProvider {
   readonly name = PROVIDER;
   private cached: { at: number; account: string; models: ChatModelInfo[] } | null = null;
+  private noTuning = new Set<string>();
 
   constructor(private auth: ChatGPTAuth) {}
 
@@ -111,11 +111,10 @@ export class ChatGPTProvider implements ChatProvider {
     }
   }
 
-  private async request(path: string, body: unknown, signal?: AbortSignal): Promise<Response> {
+  private async rawRequest(path: string, body: unknown, signal?: AbortSignal): Promise<Response> {
     const token = await this.auth.accessToken();
-    let res: Response;
     try {
-      res = await fetch(`${RESOURCE}${path}`, {
+      return await fetch(`${RESOURCE}${path}`, {
         method: body === undefined ? 'GET' : 'POST',
         headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -125,11 +124,17 @@ export class ChatGPTProvider implements ChatProvider {
       if (signal?.aborted) throw err;
       throw new HttpError(503, 'Couldn’t reach ChatGPT. Check your internet connection.');
     }
-    if (!res.ok) {
-      const error = ((await res.json().catch(() => null)) as { error?: ApiError } | null)?.error;
-      if (error?.code === 'subscription_sharing_invalid_user') await this.auth.signedOutRemotely();
-      throw planError(error, res.status);
-    }
+  }
+
+  private async handleError(res: Response): Promise<never> {
+    const error = ((await res.json().catch(() => null)) as { error?: ApiError } | null)?.error;
+    if (error?.code === 'subscription_sharing_invalid_user') await this.auth.signedOutRemotely();
+    throw planError(error, res.status);
+  }
+
+  private async request(path: string, body: unknown, signal?: AbortSignal): Promise<Response> {
+    const res = await this.rawRequest(path, body, signal);
+    if (!res.ok) await this.handleError(res);
     return res;
   }
 
@@ -145,27 +150,38 @@ export class ChatGPTProvider implements ChatProvider {
     const toolsByName = new Map(tools.map((t) => [t.name, t]));
     const userItem: Item = { role: 'user', content: userText };
     const input: Item[] = [...history.flatMap(toItems), userItem].map(forReplay);
+    // Inject the dynamic per-session snapshot into the first user message so `instructions` stays static and cacheable across sessions.
+    if (snapshot && input[0]?.role === 'user' && typeof input[0].content === 'string') {
+      input[0] = { ...input[0], content: `${snapshot}\n\n${input[0].content}` };
+    }
     const stored: StoredChatMessage[] = [
       { role: 'user', content: { provider: PROVIDER, native: [userItem], display: { text: userText, lookups: [] } } },
     ];
     let streamedText = false;
 
     for (let step = 0; step < MAX_TOOL_ROUNDS; step++) {
-      const res = await this.request(
+      const baseBody = {
+        model,
+        // System-role items are rejected on this route; instructions carry the static system prompt.
+        instructions: system,
+        input,
+        tools: toolDefs,
+        // Plan usage requires both. Encrypted reasoning lets later rounds pick up where this one left off.
+        store: false,
+        stream: true,
+        include: ['reasoning.encrypted_content'],
+      };
+      const tuned = !this.noTuning.has(model);
+      let res = await this.rawRequest(
         '/responses',
-        {
-          model,
-          // System-role items are rejected on this route; instructions carry the prompt instead.
-          instructions: `${system}\n\n${snapshot}`,
-          input,
-          tools: toolDefs,
-          // Plan usage requires both. Encrypted reasoning lets later rounds pick up where this one left off.
-          store: false,
-          stream: true,
-          include: ['reasoning.encrypted_content'],
-        },
+        tuned ? { ...baseBody, reasoning: { effort: 'low' }, prompt_cache_key: 'meld-ask-v1' } : baseBody,
         signal,
       );
+      if (!res.ok && res.status === 400 && tuned) {
+        this.noTuning.add(model);
+        res = await this.rawRequest('/responses', baseBody, signal);
+      }
+      if (!res.ok) await this.handleError(res);
 
       let text = '';
       const output: Item[] = [];
@@ -179,6 +195,10 @@ export class ChatGPTProvider implements ChatProvider {
           onEvent({ type: 'text', text: event.delta });
         } else if (event.type === 'response.output_item.done' && event.item) {
           output.push(event.item);
+          if (event.item.type === 'function_call') {
+            const c = event.item as Item & FunctionCall;
+            onEvent({ type: 'lookup', label: toolLabel(toolsByName.get(c.name), c.name, parseArguments(c.arguments)) });
+          }
         } else if (event.type === 'response.completed') {
           if (!output.length) output.push(...(event.response?.output ?? []));
           outcome = 'complete';
@@ -206,7 +226,6 @@ export class ChatGPTProvider implements ChatProvider {
       if (refused) return { messages: stored, outcome: 'refused' };
       if (outcome !== 'complete' || !calls.length) return { messages: stored, outcome };
 
-      lookups.forEach((label) => onEvent({ type: 'lookup', label }));
       const results: Item[] = await Promise.all(
         calls.map(async (c) => {
           const r = await runTool(toolsByName.get(c.name), parseArguments(c.arguments));
