@@ -4,7 +4,7 @@
 
 Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer: there's no Meld server and no account to create, and your data stays in a database on your machine.
 
-Download for Mac: [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) · [Windows (preview)](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe) · [Website](https://meld-finance.github.io/meld/) · [Docs](https://meld-finance.github.io/meld/docs/) · [Features](docs/features.md) · [Phone access](docs/phone-access.md) · [Docker](docs/docker.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
+Download for Mac: [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) · [Windows (preview)](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe) · [Website](https://meld-finance.github.io/meld/) · [Docs](https://meld-finance.github.io/meld/docs/) · [Install](docs/install.md) · [Features](docs/features.md) · [Phone access](docs/phone-access.md) · [Docker](docs/docker.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
 
 ![Meld's Home screen: Ask Meld bar, net worth chart, cash and spending vitals, prioritized to-dos and upcoming bills](site/images/home.png)
 
@@ -50,7 +50,7 @@ More in [docs/features.md](docs/features.md).
 
 | | Price | What it covers | Bank syncing | Where your data lives | Setup |
 | --- | --- | --- | --- | --- | --- |
-| **Meld** | **Free** | Spending, bills, investments, retirement, tax, insurance, estate, and AI over all of it | Your own Plaid keys (free for up to 10 bank logins; any number of accounts per login) | **Your Mac or your server** | 🟡 Some setup: a Mac app plus a free Plaid developer account (usually approved automatically). Docker is optional |
+| **Meld** | **Free** | Spending, bills, investments, retirement, tax, insurance, estate, and AI over all of it | Your own Plaid keys (free for up to 10 bank logins; any number of accounts per login) | **Your computer or your server** | 🟡 Some setup: a Mac or Windows app plus a free Plaid developer account (usually approved automatically). Docker is optional |
 | ***Budgeting apps*** | | | | | |
 | Monarch | $99.99/yr ($199.99 Plus) | Spending, budgets, net worth | Built in | Their servers | 🟢 Easy |
 | YNAB | $109/yr | Budgeting | Built in | Their servers | 🟢 Easy |
@@ -81,9 +81,10 @@ The trade-off is setup: you create your own free Plaid developer account (Plaid 
 
 ## Install on a Mac
 
-1. Download Meld for [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) (not sure? Apple menu → **About This Mac**: "Apple M…" is Apple silicon), open it and drag Meld to Applications. It's signed and notarized by Apple, so it opens like any other app.
-2. Meld walks you through setup the first time it opens: a passphrase (optional), your Plaid client ID and secrets (with a **Test keys** button), and optionally an Anthropic key or Ollama, which it finds by itself if it's running.
-3. Start with Plaid's Sandbox to look around (any bank, `user_good` / `pass_good`), then follow [docs/plaid.md](docs/plaid.md) to connect your real accounts and switch to production in **Settings**.
+1. Download Meld for [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) (not sure? Apple menu → **About This Mac**: "Apple M…" is Apple silicon), open it and drag Meld to Applications.
+2. Open Meld. The first time, macOS asks whether you're sure you want to open an app downloaded from the Internet: click **Open**. Every app downloaded outside the App Store gets this once. Meld is signed and notarized by Apple, so you won't see the "cannot be opened" warning unsigned apps get.
+3. Meld walks you through setup the first time it opens: a passphrase (optional), your Plaid client ID and secrets (with a **Test keys** button), and optionally an Anthropic key or Ollama, which it finds by itself if it's running.
+4. Start with Plaid's Sandbox to look around (any bank, `user_good` / `pass_good`), then follow [docs/plaid.md](docs/plaid.md) to connect your real accounts and switch to production in **Settings**.
 
 Everything stays on your Mac in `~/Library/Application Support/Meld`: a Postgres database that only listens on `127.0.0.1`, uploaded documents, settings, and logs. The keys that encrypt Plaid tokens, documents and saved settings are made on first run and kept encrypted with your macOS Keychain. Closing the window leaves Meld running in the menu bar, where you can also turn on **Open at Login**, show the data folder or quit.
 
@@ -108,7 +109,13 @@ Meld never opens itself to the internet. Your phone reaches it over [Tailscale](
 2. Turn on HTTPS certificates for your tailnet (one switch in the Tailscale admin console, under **DNS**).
 3. In Meld, open **Settings → Phone access** (or **Phone Access…** in the menu bar) and click **Turn on phone access**. Scan the QR code with your phone, unlock with your passphrase, and use **Add to Home Screen** so it opens like an app.
 
-Full instructions and troubleshooting live in [docs/phone-access.md](docs/phone-access.md). Your phone can reach Meld while your Mac is awake and Meld is running; for an always-on server setup with Docker, see [docs/docker.md](docs/docker.md).
+Full instructions and troubleshooting live in [docs/phone-access.md](docs/phone-access.md).
+
+## Keep it running
+
+Your phone can reach Meld whenever your computer is awake and Meld is running, and that's also when it syncs your accounts and sends alerts. For an always-on setup you don't need a server: run the app on a computer that stays on (a Mac mini or desktop PC), turn on **Open at Login**, and stop the computer from sleeping. [docs/install.md](docs/install.md#keep-it-running) has the exact settings.
+
+Docker is for machines the app doesn't run on (Linux, a NAS) or for when Meld has to start after a reboot without anyone logging in. See [docs/docker.md](docs/docker.md).
 
 ## Development
 

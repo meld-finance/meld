@@ -87,7 +87,7 @@ export const DOC_RULES = [
   },
   {
     area: 'Desktop, tooling & schema',
-    docs: ['docs/development.md', 'CONTRIBUTING.md'],
+    docs: ['docs/development.md', 'docs/install.md', 'CONTRIBUTING.md'],
     match: (f) =>
       f.startsWith('apps/desktop/') ||
       f === 'package.json' ||

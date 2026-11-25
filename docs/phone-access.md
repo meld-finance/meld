@@ -24,8 +24,11 @@ Meld never opens itself to the public internet. Instead, your phone reaches Meld
 
 ## Keeping it reachable
 
-- On Mac and Windows, closing Meld's window keeps it running in the menu bar / notification tray so your phone can still connect while your computer is awake. Turn on **Open at Login** from the menu bar / tray icon if you want Meld ready after a restart.
-- If you want Meld reachable 24/7 even when your laptop is asleep, run Meld on a home server, NAS, or always-on computer with Docker instead — see the [Docker setup guide](docker.md).
+Your phone can reach Meld whenever your computer is awake and Meld is running. Closing Meld's window keeps it running in the menu bar or notification area.
+
+For 24/7 access, run the app on a computer that stays on (a Mac mini or desktop PC is ideal): turn on **Open at Login** from Meld's menu bar or notification-area icon and stop the computer from sleeping. [Keep it running](install.md#keep-it-running) has the exact settings. A laptop that sleeps when you close it takes Meld offline until you open it again.
+
+On Linux or a NAS, or if Meld must start after a reboot without anyone logging in, use [Docker](docker.md) instead.
 
 ## Troubleshooting
 

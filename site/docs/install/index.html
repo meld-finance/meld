@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en" data-docs-root="..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install — Meld Docs</title>
+<meta name="description" content="Install the Mac or Windows app, get through first-run setup, and keep Meld running around the clock.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../favicon.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../"><img src="../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link active" href="../install/" aria-current="page">Install</a></li>
+        <li><a class="nav-link" href="../features/">Features &amp; Guide</a></li>
+        <li><a class="nav-link" href="../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../development/">Development</a></li>
+        <li><a class="nav-link" href="../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Using Meld</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Install</span>
+        </nav>
+        <h1>Install Meld</h1>
+        <p class="doc-summary">Install the Mac or Windows app, get through first-run setup, and keep Meld running around the clock.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">4 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/install.md">View docs/install.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#mac">Mac</a>
+          <a class="depth-2" href="#windows-preview">Windows (preview)</a>
+          <a class="depth-2" href="#first-run">First run</a>
+          <a class="depth-2" href="#keep-it-running">Keep it running</a>
+          <a class="depth-2" href="#updates">Updates</a>
+          <a class="depth-2" href="#back-up">Back up</a>
+          <a class="depth-2" href="#uninstall">Uninstall</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Meld is a desktop app for macOS and Windows. It bundles everything it needs (its own Postgres database, the API and the web app), so there's nothing else to install and no command line. You'll want a free <a href="../plaid/">Plaid developer account</a> to connect banks; you can create it while Meld is open.</p>
+
+<h2 id="mac">Mac<a class="heading-anchor" href="#mac" aria-label="Link to Mac">#</a></h2>
+
+<ol>
+<li>Download Meld for <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg" target="_blank" rel="noopener">Apple silicon</a> or <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg" target="_blank" rel="noopener">Intel</a>. Not sure which? Apple menu → <strong>About This Mac</strong>: &quot;Apple M…&quot; is Apple silicon.</li>
+<li>Open the <code>.dmg</code> and drag <strong>Meld</strong> into <strong>Applications</strong>.</li>
+<li>Open Meld from Applications. The first time, macOS asks: <em>&quot;Meld&quot; is an app downloaded from the Internet. Are you sure you want to open it?</em> Click <strong>Open</strong>. This dialog appears for every app you download outside the App Store. Meld is signed and notarized by Apple, so you won't see the &quot;cannot be opened&quot; warning that unsigned apps get, and macOS won't ask again.</li>
+</ol>
+
+<p>Meld's window opens and it puts an icon in the menu bar. Closing the window leaves Meld running there; use the icon to reopen it, turn on <strong>Open at Login</strong>, show the data folder or the log, or <strong>Quit</strong>.</p>
+
+<p>Your data lives in <code>~/Library/Application Support/Meld</code>. The keys that encrypt it are in your macOS Keychain (item <code>Meld</code>).</p>
+
+<h2 id="windows-preview">Windows (preview)<a class="heading-anchor" href="#windows-preview" aria-label="Link to Windows (preview)">#</a></h2>
+
+<p>Windows 10 or 11, 64-bit Intel/AMD. The Windows app is new and hasn't had much testing yet, so expect rough edges and please <a href="https://github.com/meld-finance/meld/issues" target="_blank" rel="noopener">open an issue</a> if something breaks.</p>
+
+<ol>
+<li><a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe" target="_blank" rel="noopener">Download the installer</a> and run it. It installs for your user only, with no admin prompt.</li>
+<li>The installer isn't code-signed yet, so Windows SmartScreen says <em>&quot;Windows protected your PC&quot;</em> the first time. Click <strong>More info</strong>, then <strong>Run anyway</strong>.</li>
+</ol>
+
+<p>Meld opens and puts an icon in the notification area by the clock. Closing the window leaves Meld running there: click the icon to open Meld, or right-click it for <strong>Open at Login</strong>, the data folder, the log and <strong>Quit</strong>.</p>
+
+<p>Your data lives in <code>%APPDATA%\Meld</code>. The keys that encrypt it are in Windows Credential Manager (item <code>Meld</code>).</p>
+
+<h2 id="first-run">First run<a class="heading-anchor" href="#first-run" aria-label="Link to First run">#</a></h2>
+
+<p>Meld walks you through setup the first time it opens:</p>
+
+<ol>
+<li><strong>Passphrase</strong> (optional). It locks Meld in the browser and on your phone. You can turn it on or off later.</li>
+<li><strong>Plaid keys:</strong> your client ID and secrets, with a <strong>Test keys</strong> button. <a href="../plaid/">Plaid setup</a> shows where to find them.</li>
+<li><strong>AI</strong> (optional): <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> for free local models (Meld finds it if it's running), a ChatGPT plan, or an Anthropic API key.</li>
+</ol>
+
+<p>Start with Plaid's Sandbox to look around (pick any bank, sign in with <code>user_good</code> / <code>pass_good</code>), then follow <a href="../plaid/">Plaid setup</a> to connect your real accounts and switch to production in <strong>Settings</strong>.</p>
+
+<h2 id="keep-it-running">Keep it running<a class="heading-anchor" href="#keep-it-running" aria-label="Link to Keep it running">#</a></h2>
+
+<p>Meld syncs your accounts, checks bills and sends alerts while it's running, and your phone can reach it over <a href="../phone-access/">phone access</a> whenever your computer is awake. You don't need a server for an always-on setup. Run the app on a computer that stays on, such as a Mac mini or a desktop PC:</p>
+
+<ol>
+<li>Turn on <strong>Open at Login</strong> from Meld's menu bar or notification-area icon, so it starts again after a restart.</li>
+<li><p>Stop the computer from going to sleep:</p>
+<ul>
+<li><strong>Mac:</strong> System Settings → <strong>Energy</strong> → turn on <strong>Prevent automatic sleeping when the display is off</strong>. On a MacBook it's under <strong>Battery → Options</strong>, and only applies while plugged in.</li>
+<li><strong>Windows:</strong> Settings → System → <strong>Power &amp; battery</strong> → <strong>Screen, sleep &amp; hibernate timeouts</strong> → set sleep when plugged in to <strong>Never</strong>.</li>
+</ul></li>
+</ol>
+
+<p>Meld starts when you sign in, not when the computer boots, so after a power cut or update it waits until someone logs in. If that matters, or the machine runs Linux or is a NAS (which the desktop app doesn't support), run Meld with <a href="../docker/">Docker</a> instead.</p>
+
+<h2 id="updates">Updates<a class="heading-anchor" href="#updates" aria-label="Link to Updates">#</a></h2>
+
+<p>Meld checks GitHub for a new version shortly after it opens and every 4 hours. When one is out, it shows <strong>Update available</strong> at the top of the window and in the menu bar or notification-area menu. One click downloads it in the background; <strong>Restart to update</strong> installs it, or it installs the next time Meld quits.</p>
+
+<h2 id="back-up">Back up<a class="heading-anchor" href="#back-up" aria-label="Link to Back up">#</a></h2>
+
+<p>Quit Meld, then copy its data folder (<code>~/Library/Application Support/Meld</code> or <code>%APPDATA%\Meld</code>). The copy can only be read with the keys in this computer's Keychain or Credential Manager. On a Mac, a Time Machine backup includes the Keychain. Without the keys you'd have to re-link your banks after restoring on another computer.</p>
+
+<h2 id="uninstall">Uninstall<a class="heading-anchor" href="#uninstall" aria-label="Link to Uninstall">#</a></h2>
+
+<p>Quit Meld, then delete the app (drag it from Applications to the Trash on a Mac; <strong>Settings → Apps</strong> on Windows). Your data folder and the <code>Meld</code> Keychain or Credential Manager item stay behind until you delete them too.</p>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <div></div>
+      <a class="pager-card next" href="../features/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Features &amp; Guide</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#mac">Mac</a></li>
+          <li><a class="toc-link depth-2" href="#windows-preview">Windows (preview)</a></li>
+          <li><a class="toc-link depth-2" href="#first-run">First run</a></li>
+          <li><a class="toc-link depth-2" href="#keep-it-running">Keep it running</a></li>
+          <li><a class="toc-link depth-2" href="#updates">Updates</a></li>
+          <li><a class="toc-link depth-2" href="#back-up">Back up</a></li>
+          <li><a class="toc-link depth-2" href="#uninstall">Uninstall</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../">Home</a>
+      <a href="../">Docs</a>
+      <a href="../privacy/">Privacy</a>
+      <a href="../security/">Security</a>
+      <a href="../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../docs.js" defer></script>
+</body>
+</html>

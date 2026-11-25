@@ -24,6 +24,13 @@ export const DOC_GROUPS = [
     description: 'Everything you need to connect accounts, understand each screen, and reach Meld from your phone or server.',
     docs: [
       {
+        slug: 'install',
+        sourcePath: 'docs/install.md',
+        title: 'Install',
+        description: 'Install the Mac or Windows app, get through first-run setup, and keep Meld running around the clock.',
+        icon: 'download',
+      },
+      {
         slug: 'features',
         sourcePath: 'docs/features.md',
         title: 'Features & Guide',
@@ -48,7 +55,7 @@ export const DOC_GROUPS = [
         slug: 'docker',
         sourcePath: 'docs/docker.md',
         title: 'Self-Hosting with Docker',
-        description: 'Run Meld 24/7 on a home server, Mac mini, or NAS with Docker Compose, backups, and Ollama.',
+        description: 'Run Meld on Linux, a NAS, or a headless server that starts without anyone logging in.',
         icon: 'server',
       },
     ],
@@ -104,6 +111,8 @@ export const ALL_DOCS = DOC_GROUPS.flatMap((group) =>
 const DOC_BY_SOURCE = new Map(ALL_DOCS.map((doc) => [doc.sourcePath, doc]));
 
 const ICONS = {
+  download:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
   compass:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
   link:
@@ -833,6 +842,7 @@ ${renderTopBar({ docsRoot: '.', showMenuBtn: false })}
         <kbd>⌘K</kbd>
       </button>
       <div class="quick-chips">
+        <a class="quick-chip" href="./install/">Install</a>
         <a class="quick-chip" href="./features/">Features overview</a>
         <a class="quick-chip" href="./plaid/">Connect Plaid</a>
         <a class="quick-chip" href="./phone-access/">Phone access</a>
@@ -847,10 +857,10 @@ ${renderTopBar({ docsRoot: '.', showMenuBtn: false })}
       <div class="install-band">
         <div>
           <h2>New to Meld?</h2>
-          <p>Download the Mac or Windows app, start with Plaid Sandbox in minutes, or deploy on your own server with Docker.</p>
+          <p>Download the Mac or Windows app and start with Plaid Sandbox in minutes. On Linux or a NAS, run it with Docker.</p>
         </div>
         <div class="install-actions">
-          <a class="btn btn-primary" href="${SITE_HOME_REL}#install">Download Meld</a>
+          <a class="btn btn-primary" href="./install/">Install Meld</a>
           <a class="btn" href="./plaid/">Plaid setup</a>
           <a class="btn" href="./docker/">Docker guide</a>
         </div>
