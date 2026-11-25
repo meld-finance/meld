@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { createDb } from '../db/client';
 import { configuredDatabaseUrls } from '../env';
+import { alertChecksSettled } from '../services/alerts';
 
 export const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 
@@ -17,6 +18,9 @@ export async function setupTestDb() {
   await migrate(conn.db, { migrationsFolder: fileURLToPath(new URL('../../drizzle', import.meta.url)) });
 
   async function reset() {
+    // A route may have left an alert check running. Truncating under it can deadlock, or the
+    // check can write alerts into the next test's data.
+    await alertChecksSettled();
     const rows = await conn.db.execute<{ tablename: string }>(
       sql`select tablename from pg_tables where schemaname = 'public'`,
     );
