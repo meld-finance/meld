@@ -85,7 +85,7 @@ jobs:
           merge-multiple: true
       - name: Merge the update info for both architectures
         run: node apps/desktop/scripts/merge-update-info.mjs out/latest-mac.yml out/latest-mac-arm64.yml out/latest-mac-x64.yml
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           draft: true
           generate_release_notes: true
