@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
-import { Card } from '@/components/card';
 import { Field, Input, formStyles } from '@/components/form-fields';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { prefs } from '@/lib/prefs';
 import { useChatGPT, useChatGPTSignOut, useFinishChatGPTSignIn, useStartChatGPTSignIn } from '@/lib/setup';
 
@@ -16,7 +16,8 @@ const PLANS_URL = 'https://learn.chatgpt.com/docs/sign-in-with-chatgpt';
 const WELCOMED_KEY = 'chatgptWelcomed';
 
 /** Ask Meld on the user's ChatGPT plan, instead of an API key. Takes effect without saving or restarting. */
-export function ChatGPTCard() {
+export function ChatGPTSection() {
+  const theme = useTheme();
   const status = useChatGPT();
   const start = useStartChatGPTSignIn();
   const finish = useFinishChatGPTSignIn();
@@ -41,7 +42,13 @@ export function ChatGPTCard() {
   const error = start.error ?? finish.error ?? signOut.error;
 
   return (
-    <Card title="ChatGPT plan" subtitle={s?.state === 'signed-in' ? `Signed in${s.email ? ` as ${s.email}` : ''}` : undefined}>
+    <View style={[styles.section, { borderTopColor: theme.border }]}>
+      <View style={styles.header}>
+        <ThemedText type="cardTitle">ChatGPT plan</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {s?.state === 'signed-in' ? `Signed in${s.email ? ` as ${s.email}` : ''}` : 'Takes effect right away—no restart needed.'}
+        </ThemedText>
+      </View>
       {!s ? (
         <ThemedText type="small" themeColor={status.isError ? 'negative' : 'textSecondary'}>
           {status.isError ? `Couldn’t check ChatGPT: ${status.error.message}` : 'Checking…'}
@@ -129,10 +136,12 @@ export function ChatGPTCard() {
           {error.message}
         </ThemedText>
       )}
-    </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  section: { gap: Spacing.three, paddingTop: Spacing.three, borderTopWidth: StyleSheet.hairlineWidth },
+  header: { gap: Spacing.half },
   notice: { gap: Spacing.two, padding: Spacing.three, borderRadius: Spacing.two },
 });

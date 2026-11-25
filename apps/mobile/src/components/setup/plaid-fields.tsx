@@ -10,6 +10,7 @@ import { KeyTest } from './key-test';
 
 const KEYS_URL = 'https://dashboard.plaid.com/developers/keys';
 const SIGNUP_URL = 'https://dashboard.plaid.com/signup';
+const PLAID_DOCS_URL = 'https://github.com/meld-finance/meld/blob/main/docs/plaid.md';
 
 /**
  * Plaid client ID, secrets and environment. `saved` holds the masked secrets from
@@ -31,15 +32,21 @@ export function PlaidFields({
   return (
     <View style={styles.fields}>
       <ThemedText type="small" themeColor="textSecondary">
-        Meld uses Plaid to read your accounts. A Plaid developer account is free:{' '}
+        Meld uses Plaid to read your accounts. A Plaid developer account is free for up to 10 bank logins—and each login can
+        include any number of accounts at that bank (for example, checking, savings, and several cards at one bank count as 1
+        login).{' '}
         <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => void Linking.openURL(SIGNUP_URL)}>
-          sign up
+          Sign up
         </ThemedText>
-        , then copy your client ID and secrets from{' '}
+        , copy your client ID and secrets from{' '}
         <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => void Linking.openURL(KEYS_URL)}>
           Developers → Keys
         </ThemedText>
-        . They’re stored encrypted on this computer and sent only to Plaid.
+        , or see the{' '}
+        <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => void Linking.openURL(PLAID_DOCS_URL)}>
+          Plaid setup guide
+        </ThemedText>
+        . Keys are stored encrypted on this computer and sent only to Plaid.
       </ThemedText>
       <Field label="Client ID">
         <Input value={value.clientId} onChangeText={(clientId) => set({ clientId })} autoCapitalize="none" autoCorrect={false} />
@@ -71,7 +78,7 @@ export function PlaidFields({
       <ThemedText type="small" themeColor="textSecondary">
         {value.env === 'sandbox'
           ? 'Sandbox has made-up banks: pick any and sign in with user_good / pass_good. Its data is kept apart from real data, so you can switch to production any time.'
-          : 'Production needs Plaid to approve your account for real data, which is free for up to 10 bank logins.'}
+          : 'Production needs Plaid to approve your account for real data (usually approved automatically). The free Trial plan covers up to 10 bank logins—not 10 accounts—so each bank login can have as many accounts as you hold there.'}
       </ThemedText>
       <KeyTest
         label="Test keys"

@@ -1,3 +1,5 @@
+[Meld home page](https://meld-finance.github.io/meld/) · [README](README.md) · [Privacy](PRIVACY.md) · [Features](docs/features.md)
+
 # Security
 
 Meld holds your financial data, so security reports are very welcome.

@@ -6,7 +6,7 @@
 <title>Meld — your finances, on your own computer</title>
 <meta name="description" content="Meld puts your bank accounts, cards, investments, loans and insurance in one place, with an AI assistant that knows your numbers. Free and open source. It runs on your own computer: no subscription, no cloud, no account.">
 <meta property="og:title" content="Meld — your finances, on your own computer">
-<meta property="og:description" content="Accounts, spending, bills, retirement and tax planning, with an AI assistant. Free, open source and local: no subscription, no cloud, no account.">
+<meta property="og:description" content="Accounts, spending, bills, retirement, tax and estate planning, with an AI assistant. Free, open source and local: no subscription, no cloud, no account.">
 <meta property="og:image" content="https://meld-finance.github.io/meld/images/home.png">
 <meta name="theme-color" content="#1a7fe6">
 <link rel="icon" type="image/png" href="favicon.png">
@@ -29,8 +29,6 @@
     --bad-soft: #fbeceb;
     --warn: #8a5a00;
     --warn-soft: #fbf1dc;
-    --code-bg: #0f1b2d;
-    --code-text: #e6edf6;
     --shadow: 0 1px 2px rgb(15 27 45 / 6%), 0 8px 24px rgb(15 27 45 / 6%);
     --shot-shadow: 0 2px 4px rgb(15 27 45 / 6%), 0 18px 48px rgb(15 27 45 / 12%);
     --brand-1: #4033B0;
@@ -58,8 +56,6 @@
       --bad-soft: #3a1a1a;
       --warn: #f2c46b;
       --warn-soft: #33270f;
-      --code-bg: #060b15;
-      --code-text: #e6edf6;
       --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 25%);
       --shot-shadow: 0 2px 4px rgb(0 0 0 / 30%), 0 18px 48px rgb(0 0 0 / 40%);
       --brand-1: #9A8CFF;
@@ -87,8 +83,6 @@
     --bad-soft: #3a1a1a;
     --warn: #f2c46b;
     --warn-soft: #33270f;
-    --code-bg: #060b15;
-    --code-text: #e6edf6;
     --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 25%);
     --shot-shadow: 0 2px 4px rgb(0 0 0 / 30%), 0 18px 48px rgb(0 0 0 / 40%);
     --brand-1: #9A8CFF;
@@ -172,6 +166,8 @@
     background-color: #fbfcfe;
     background-image: radial-gradient(circle at 16px 14px, #ff5f57 4.5px, transparent 5px), radial-gradient(circle at 32px 14px, #febc2e 4.5px, transparent 5px), radial-gradient(circle at 48px 14px, #28c840 4.5px, transparent 5px); }
   .shot img { display: block; width: 100%; height: auto; border-radius: 0 0 14px 14px; }
+  .shot.plain::before { display: none; }
+  .shot.plain img { border-radius: 14px; }
   .shot .stage { position: relative; }
   .pin {
     position: absolute; transform: translate(-50%, -50%);
@@ -182,18 +178,32 @@
   }
   @media (max-width: 560px) { .pin { width: 22px; height: 22px; font-size: 12px; line-height: 22px; box-shadow: 0 0 0 3px rgb(26 127 230 / 22%); } }
 
+  /* Feature chapter navigation and sections */
+  .feature-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: -12px auto 12px; }
+  .feature-nav a {
+    display: inline-block; padding: 7px 14px; border-radius: 999px; font-size: 14px; font-weight: 600;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text); text-decoration: none;
+  }
+  .feature-nav a:hover { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
+
+  .chapter { padding: 32px 0 8px; }
+  .chapter + .chapter { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 52px; }
+  .chapter-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; margin-bottom: 12px; }
+  .chapter-head h3 { font-size: clamp(22px, 3vw, 26px); letter-spacing: -0.02em; margin: 0; }
+  .chapter-head p { margin: 0; color: var(--muted); font-size: 15px; }
+
   /* Feature rows */
-  .feature { display: grid; gap: 28px; align-items: center; padding: 48px 0; }
+  .feature { display: grid; gap: 28px; align-items: center; padding: 40px 0; }
   .feature + .feature { border-top: 1px solid var(--border); }
   @media (min-width: 900px) {
-    .feature { grid-template-columns: 1.45fr 1fr; gap: 56px; padding: 64px 0; }
+    .feature { grid-template-columns: 1.45fr 1fr; gap: 56px; padding: 52px 0; }
     .feature.flip { grid-template-columns: 1fr 1.45fr; }
     .feature.flip .shot-col { order: 2; }
   }
   .kicker { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-strong); margin: 0 0 8px; }
-  .feature h3 { font-size: clamp(24px, 3.2vw, 30px); line-height: 1.18; letter-spacing: -0.02em; margin: 0 0 12px; }
-  .feature .copy > p { color: var(--muted); font-size: 17px; margin: 0 0 22px; }
-  ol.notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+  .feature h3, .feature-card h3 { font-size: clamp(23px, 3vw, 29px); line-height: 1.18; letter-spacing: -0.02em; margin: 0 0 12px; }
+  .feature .copy > p, .feature-card .copy > p { color: var(--muted); font-size: 16px; margin: 0 0 20px; }
+  ol.notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 13px; }
   ol.notes li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; font-size: 15px; color: var(--muted); }
   ol.notes li strong { color: var(--text); font-weight: 600; }
   ol.notes li::before {
@@ -206,6 +216,23 @@
   .feature:has(li[data-n="3"]:hover) .pin[data-n="3"],
   .feature:has(li[data-n="4"]:hover) .pin[data-n="4"] { transform: translate(-50%, -50%) scale(1.3); box-shadow: 0 0 0 8px rgb(26 127 230 / 28%), 0 2px 6px rgb(15 27 45 / 30%); }
 
+  /* Two-up feature cards (Cash & Investments) */
+  .feature-pair { display: grid; gap: 28px; padding: 28px 0 44px; }
+  @media (min-width: 900px) { .feature-pair { grid-template-columns: 1fr 1fr; gap: 36px; align-items: stretch; } }
+  .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 24px; box-shadow: var(--shadow); display: grid; grid-template-rows: auto 1fr; gap: 22px; }
+  .feature-card .shot { box-shadow: none; }
+  .feature-card h3 { font-size: 22px; }
+
+  /* Compact insurance band */
+  .insurance-band {
+    display: grid; gap: 16px 28px; align-items: center;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px 28px; margin-bottom: 32px;
+    box-shadow: var(--shadow);
+  }
+  @media (min-width: 820px) { .insurance-band { grid-template-columns: auto 1fr; } }
+  .insurance-band .icon { margin-bottom: 0; width: 44px; height: 44px; border-radius: 12px; }
+  .insurance-band p { margin: 4px 0 0; color: var(--muted); font-size: 15px; }
+
   /* Ask Meld conversation */
   .chat { display: grid; gap: 14px; }
   .bubble { justify-self: end; max-width: 85%; background: var(--accent); color: var(--on-accent); padding: 12px 16px; border-radius: 16px 16px 4px 16px; font-size: 15px; font-weight: 500; }
@@ -213,7 +240,6 @@
   /* Sections */
   section { padding: 64px 0; }
   section.alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-  section.tight { padding-top: 16px; }
   h2 { font-size: clamp(28px, 4.4vw, 40px); letter-spacing: -0.025em; line-height: 1.15; margin: 0 0 12px; }
   .section-lede { color: var(--muted); font-size: 18px; margin: 0 0 36px; max-width: 42em; }
   .center { text-align: center; }
@@ -296,7 +322,7 @@
   /* Privacy flows */
   .flows { display: grid; gap: 12px; }
   .flow { display: grid; gap: 4px 20px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
-  @media (min-width: 720px) { .flow { grid-template-columns: 200px 1fr; } }
+  @media (min-width: 720px) { .flow { grid-template-columns: 220px 1fr; } }
   .flow strong { font-size: 15px; }
   .flow span { color: var(--muted); font-size: 15px; }
 
@@ -307,14 +333,34 @@
   .step::before { counter-increment: step; content: counter(step); position: absolute; left: 20px; top: 20px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-weight: 700; display: grid; place-items: center; font-size: 15px; }
   .step p { margin: 0; color: var(--muted); font-size: 15px; }
 
-  pre {
-    margin: 0; overflow-x: auto; background: var(--code-bg); color: var(--code-text);
-    padding: 18px 20px; border-radius: 12px; font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-  pre code { background: none; padding: 0; font: inherit; }
   .split { display: grid; gap: 32px; align-items: start; }
   @media (min-width: 900px) { .split { grid-template-columns: 1fr 1fr; } }
   .split p { color: var(--muted); }
+
+  /* Phone showcase */
+  .phone-showcase { display: grid; gap: 36px; align-items: center; }
+  @media (min-width: 900px) { .phone-showcase { grid-template-columns: 1.25fr 0.85fr; gap: 48px; } }
+  .phone-copy { display: grid; gap: 16px; }
+  .phone-copy p { margin: 0; color: var(--muted); }
+  .phone-copy .fineprint a { white-space: nowrap; }
+  .phone-steps { margin: 4px 0 4px; padding-left: 20px; color: var(--muted); font-size: 15px; display: grid; gap: 6px; }
+  .phone-steps strong { color: var(--text); }
+  .phone-col { display: flex; justify-content: center; }
+  .phone-frame {
+    width: 100%;
+    max-width: 320px;
+    padding: 12px;
+    border-radius: 36px;
+    background: #141c2b;
+    border: 2px solid #2b3850;
+    box-shadow: var(--shot-shadow);
+  }
+  .phone-notch {
+    width: 84px; height: 10px; border-radius: 999px; background: #090e18; margin: 2px auto 10px;
+  }
+  .phone-frame img {
+    display: block; width: 100%; height: auto; border-radius: 24px; background: #fff;
+  }
 
   .notice { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 16px 20px; border-radius: 0 12px 12px 0; color: var(--text); font-size: 15px; }
 
@@ -373,7 +419,7 @@
         <div class="promise">
           <div class="big">$0</div>
           <h3>Instead of $100–200 a year</h3>
-          <p>Popular budgeting apps charge an annual subscription. Meld is free software. Bank syncing goes through your own free Plaid account.</p>
+          <p>Popular budgeting apps charge an annual subscription. Meld is free software, and your own free Plaid account covers up to 10 bank logins—each with any number of accounts.</p>
         </div>
         <div class="promise">
           <div class="big">Your Mac</div>
@@ -381,9 +427,9 @@
           <p>Balances, transactions and documents live in a database on your computer, encrypted with a key held in your macOS Keychain. There's no Meld cloud to breach.</p>
         </div>
         <div class="promise">
-          <div class="big">Read-only</div>
-          <h3>AI that can look, not touch</h3>
-          <p>Ask Meld can read your numbers to answer you, but can't move money or change anything. Use Claude, or a local model so nothing leaves your machine.</p>
+          <div class="big">Your AI</div>
+          <h3>Free Ollama models, Claude, or ChatGPT</h3>
+          <p>Run completely free local models on your Mac with Ollama so nothing leaves your machine, or use your existing ChatGPT plan or a Claude API key.</p>
         </div>
       </div>
     </div>
@@ -392,12 +438,12 @@
   <section id="why">
     <div class="wrap">
       <h2>One place, instead of several apps that each see a slice</h2>
-      <p class="section-lede">Meld started because no single app answered everyday questions and long-term ones from the same, complete set of accounts. Each option covered part of it, and each meant linking or typing in everything again.</p>
+      <p class="section-lede">Meld started because no single app answered everyday questions and long-term ones from the same, complete set of accounts—with automatic syncing instead of time-consuming, one-time CSV imports.</p>
       <div class="grid">
         <div class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg></div>
           <h3>Retirement planners</h3>
-          <p>ProjectionLab and Boldin are great at the long view. But balances are typed in by hand, or synced only on a paid plan or through another app, and once the plan is set they can't tell you what you spent last month or which bills just went up.</p>
+          <p>ProjectionLab and Boldin are great at the long view. But balances are typed in by hand, imported via one-time CSVs, or synced only on a paid plan, and once the plan is set they can't tell you what you spent last month or which bills just went up.</p>
         </div>
         <div class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
@@ -412,177 +458,236 @@
         <div class="card">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg></div>
           <h3>Self-hosted apps</h3>
-          <p>Actual and Firefly III are free and keep your data yours. They're mostly about budgeting, though, and bank syncing usually means running a server with Docker and paying for SimpleFIN.</p>
+          <p>Actual and Firefly III are free and keep your data yours. They're mostly about budgeting, though, and getting bank data in usually means manual CSV imports or running a Docker server and paying for SimpleFIN.</p>
         </div>
       </div>
-      <div class="notice" style="margin-top:24px"><strong>Link your accounts once, and ask anything.</strong> The same synced data answers this week's questions (what's recurring, where the money went, will autopay clear) and the big ones (am I on track, what will I owe, what should I do before December 31). Ask Meld sees all of it, so its tax and money answers start from your whole picture instead of what you remember to paste in.</div>
+      <div class="notice" style="margin-top:24px"><strong>Automatic bank syncing—no tedious CSV imports.</strong> Link your accounts once and Meld keeps balances, holdings and transactions current automatically. The same live data answers this week's questions (where the money went, what's recurring, will autopay clear) and the big ones (am I on track, what will I owe, is my estate in order), without exporting spreadsheets or pasting numbers in.</div>
     </div>
   </section>
 
-  <section id="features" style="padding-bottom:0">
+  <section id="features" style="padding-bottom:16px">
     <div class="wrap center">
       <h2>See it in action</h2>
-      <p class="section-lede">Link your accounts once. Meld syncs them every few hours and does the rest. Screenshots use Plaid's sandbox test bank, not real data.</p>
+      <p class="section-lede">Link your accounts once. Meld syncs them every few hours and organizes your day-to-day money, investments, long-term plan and estate in one place. Screenshots use Plaid's sandbox test bank, not real data.</p>
+      <nav class="feature-nav" aria-label="Feature areas">
+        <a href="#everyday">Everyday money</a>
+        <a href="#cash-investments">Cash &amp; investments</a>
+        <a href="#planning">Retirement, estate &amp; tax</a>
+        <a href="#ask-meld">Ask Meld</a>
+      </nav>
     </div>
+
     <div class="wrap">
+      <div class="chapter" id="everyday">
+        <div class="chapter-head">
+          <h3>Everyday money</h3>
+          <p>Everything you own and owe, where your money goes, and whether upcoming autopays will clear.</p>
+        </div>
 
-      <div class="feature">
-        <div class="shot-col">
-          <div class="shot"><div class="stage">
-            <img src="images/recurring.png" width="1192" height="890" loading="lazy" alt="Recurring tab: subscriptions and bills per month, two autopays each marked Covered, and the next 30 days of charges">
-            <span class="pin" data-n="1" style="left:21.5%;top:20%">1</span>
-            <span class="pin" data-n="2" style="left:83.2%;top:49%">2</span>
-            <span class="pin" data-n="3" style="left:96.5%;top:72.5%">3</span>
-          </div></div>
-        </div>
-        <div class="copy">
-          <p class="kicker">Bills &amp; autopay</p>
-          <h3>Know a payment will clear before it's due</h3>
-          <p>Meld finds every subscription, bill and paycheck in your history, then checks that each autopay's bank account will actually hold enough on the day.</p>
-          <ol class="notes">
-            <li data-n="1"><span><strong>Found for you.</strong> Subscriptions, bills and income, spotted from two years of transactions, with a badge when a price goes up.</span></li>
-            <li data-n="2"><span><strong>Covered, tight or short.</strong> Each autopay is checked against the account's balance after everything else due from it first.</span></li>
-            <li data-n="3"><span><strong>The next 30 days.</strong> Every charge coming, with alerts on your phone when something won't clear.</span></li>
-          </ol>
-        </div>
-      </div>
-
-      <div class="feature flip">
-        <div class="shot-col">
-          <div class="shot"><div class="stage">
-            <img src="images/spending.png" width="1272" height="1079" loading="lazy" alt="Spending overview: total spending against the same period last year, monthly spending chart, category breakdown, top movers and AI insights">
-            <span class="pin" data-n="1" style="left:20.5%;top:4%">1</span>
-            <span class="pin" data-n="2" style="left:63.5%;top:23%">2</span>
-            <span class="pin" data-n="3" style="left:37.5%;top:69.5%">3</span>
-            <span class="pin" data-n="4" style="left:94.5%;top:5.5%">4</span>
-          </div></div>
-        </div>
-        <div class="copy">
-          <p class="kicker">Spending</p>
-          <h3>Where it went, and what changed</h3>
-          <p>Card payments and transfers between your own accounts are left out, so nothing is counted twice.</p>
-          <ol class="notes">
-            <li data-n="1"><span><strong>Against last year,</strong> not just last month, so seasonal spending doesn't fool you.</span></li>
-            <li data-n="2"><span><strong>Drill in.</strong> Tap a category to see its subcategories, merchants and transactions.</span></li>
-            <li data-n="3"><span><strong>Top movers</strong> show what grew or shrank, and which merchant drove it.</span></li>
-            <li data-n="4"><span><strong>Insights in plain English,</strong> with a one-tap follow-up to Ask Meld.</span></li>
-          </ol>
-        </div>
-      </div>
-
-      <div class="feature">
-        <div class="shot-col">
-          <div class="shot"><div class="stage">
-            <img src="images/accounts.png" width="1272" height="1200" loading="lazy" alt="Accounts tab: net worth, cash, investments and insurance totals, every account grouped by type, and a breakdown of what you own">
-            <span class="pin" data-n="1" style="left:15%;top:17.8%">1</span>
-            <span class="pin" data-n="2" style="left:57.5%;top:27%">2</span>
-            <span class="pin" data-n="3" style="left:95.5%;top:17%">3</span>
-          </div></div>
-        </div>
-        <div class="copy">
-          <p class="kicker">Accounts &amp; net worth</p>
-          <h3>Everything you own and owe, on one screen</h3>
-          <p>Checking, savings, cards, brokerages, 401(k)s, mortgages and loans from thousands of US banks through Plaid.</p>
-          <ol class="notes">
-            <li data-n="1"><span><strong>Net worth, tracked daily,</strong> so you can see the trend, not just today's number.</span></li>
-            <li data-n="2"><span><strong>Your home and car count too.</strong> Add them by hand, or let Meld look up an estimate.</span></li>
-            <li data-n="3"><span><strong>The big picture.</strong> What's in cash, investments and property, and what's owed against it.</span></li>
-          </ol>
-        </div>
-      </div>
-
-      <div class="feature flip">
-        <div class="shot-col">
-          <div class="shot"><div class="stage">
-            <img src="images/retirement.png" width="1272" height="1392" loading="lazy" alt="Retirement plan: projected savings at 62, amount needed, On track status, 100% chance of success, Balance and Cash flow projection chart, timeline, and Social Security claiming options">
-            <span class="pin" data-n="1" style="left:71.5%;top:4%">1</span>
-            <span class="pin" data-n="2" style="left:62%;top:25%">2</span>
-            <span class="pin" data-n="3" style="left:86.5%;top:71.5%">3</span>
-            <span class="pin" data-n="4" style="left:50.8%;top:42.6%">4</span>
-          </div></div>
-        </div>
-        <div class="copy">
-          <p class="kicker">Retirement</p>
-          <h3>Am I on track? A straight answer.</h3>
-          <p>A projection in today's dollars, built from your real balances and spending—with 1,000 simulated markets to test your odds when returns aren't smooth.</p>
-          <ol class="notes">
-            <li data-n="1"><span><strong>On track, or the gap to close,</strong> with how long the money lasts.</span></li>
-            <li data-n="2"><span><strong>Year by year</strong> from now to the end of the plan, including selling or renting out property.</span></li>
-            <li data-n="3"><span><strong>Social Security</strong> estimated from your income. Compare claiming at 62, 67 or 70.</span></li>
-            <li data-n="4"><span><strong>Life events.</strong> Model kids leaving home, a paid-off mortgage, college or spending changes right on the chart.</span></li>
-          </ol>
-        </div>
-      </div>
-
-      <div class="feature">
-        <div class="shot-col">
-          <div class="shot"><div class="stage">
-            <img src="images/tax.png" width="1192" height="844" loading="lazy" alt="Tax tab: estimated 2026 federal and California tax, effective and marginal rates, and a year-end checklist with deadlines">
-            <span class="pin" data-n="1" style="left:21%;top:13.5%">1</span>
-            <span class="pin" data-n="2" style="left:17.5%;top:40.5%">2</span>
-            <span class="pin" data-n="3" style="left:89%;top:51.7%">3</span>
-          </div></div>
-        </div>
-        <div class="copy">
-          <p class="kicker">Tax</p>
-          <h3>No surprises in April</h3>
-          <p>This year's federal and California estimate from your actual income, trades and accounts, updated as the year goes.</p>
-          <ol class="notes">
-            <li data-n="1"><span><strong>What you'll owe</strong> and your effective and marginal rates, before you file.</span></li>
-            <li data-n="2"><span><strong>A year-end countdown</strong> of moves that expire Dec 31: Roth conversions, withholding, charitable gifts, FSA money.</span></li>
-            <li data-n="3"><span><strong>Ask about any move</strong> and get the answer worked out with your numbers.</span></li>
-          </ol>
-        </div>
-      </div>
-
-      <div class="feature flip">
-        <div class="shot-col">
-          <div class="chat">
-            <div class="bubble">What am I paying for subscriptions each month, and is my emergency fund big enough?</div>
-            <div class="shot"><img src="images/ask.png" width="740" height="782" loading="lazy" alt="Ask Meld's answer: cash available for emergencies, months of spending covered, caveats about missing insurance, and four steps for the excess cash"></div>
+        <div class="feature">
+          <div class="shot-col">
+            <div class="shot"><div class="stage">
+              <img src="images/accounts.png" width="1272" height="1200" loading="lazy" alt="Accounts tab: net worth, cash, investments and insurance totals, every account grouped by type, and a breakdown of what you own">
+              <span class="pin" data-n="1" style="left:15%;top:17.8%">1</span>
+              <span class="pin" data-n="2" style="left:57.5%;top:27%">2</span>
+              <span class="pin" data-n="3" style="left:95.5%;top:17%">3</span>
+            </div></div>
+          </div>
+          <div class="copy">
+            <p class="kicker">Accounts &amp; net worth</p>
+            <h3>Everything you own and owe, on one screen</h3>
+            <p>Checking, savings, cards, brokerages, 401(k)s, mortgages and loans from thousands of US banks through Plaid.</p>
+            <ol class="notes">
+              <li data-n="1"><span><strong>Net worth, tracked daily,</strong> so you can see the trend, not just today's number.</span></li>
+              <li data-n="2"><span><strong>Your home and car count too.</strong> Add them by hand, or let Meld look up an estimate.</span></li>
+              <li data-n="3"><span><strong>The big picture.</strong> What's in cash, investments and property, and what's owed against it.</span></li>
+            </ol>
           </div>
         </div>
-        <div class="copy">
-          <p class="kicker">Ask Meld</p>
-          <h3>An AI that actually knows your numbers</h3>
-          <p>Ask in plain English. Meld looks up the accounts, transactions, holdings and plans it needs, and answers with specifics, not generic advice.</p>
-          <ol class="notes">
-            <li data-n="✓"><span><strong>Reads, never writes.</strong> It has read-only tools, so it can't move money or change your data.</span></li>
-            <li data-n="✓"><span><strong>Account numbers are masked</strong> before anything is sent.</span></li>
-            <li data-n="✓"><span><strong>Your choice of model:</strong> Claude for the best answers, or a free local model through Ollama so nothing leaves your Mac.</span></li>
-          </ol>
+
+        <div class="feature flip">
+          <div class="shot-col">
+            <div class="shot"><div class="stage">
+              <img src="images/spending.png" width="1272" height="1079" loading="lazy" alt="Spending overview: total spending against the same period last year, monthly spending chart, category breakdown, top movers and AI insights">
+              <span class="pin" data-n="1" style="left:20.5%;top:4%">1</span>
+              <span class="pin" data-n="2" style="left:63.5%;top:23%">2</span>
+              <span class="pin" data-n="3" style="left:37.5%;top:69.5%">3</span>
+              <span class="pin" data-n="4" style="left:94.5%;top:5.5%">4</span>
+            </div></div>
+          </div>
+          <div class="copy">
+            <p class="kicker">Spending</p>
+            <h3>Where it went, and what changed</h3>
+            <p>Card payments and transfers between your own accounts are left out, so nothing is counted twice.</p>
+            <ol class="notes">
+              <li data-n="1"><span><strong>Against last year,</strong> not just last month, so seasonal spending doesn't fool you.</span></li>
+              <li data-n="2"><span><strong>Drill in.</strong> Tap a category to see its subcategories, merchants and transactions.</span></li>
+              <li data-n="3"><span><strong>Top movers</strong> show what grew or shrank, and which merchant drove it.</span></li>
+              <li data-n="4"><span><strong>Insights in plain English,</strong> with a one-tap follow-up to Ask Meld.</span></li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="feature">
+          <div class="shot-col">
+            <div class="shot"><div class="stage">
+              <img src="images/recurring.png" width="1192" height="914" loading="lazy" alt="Recurring tab: subscriptions and bills per month, autopays with full card and bank names marked Covered, and the next 30 days of charges">
+              <span class="pin" data-n="1" style="left:21.5%;top:20%">1</span>
+              <span class="pin" data-n="2" style="left:83.2%;top:49%">2</span>
+              <span class="pin" data-n="3" style="left:96.5%;top:72.5%">3</span>
+            </div></div>
+          </div>
+          <div class="copy">
+            <p class="kicker">Bills &amp; autopay</p>
+            <h3>Know a payment will clear before it's due</h3>
+            <p>Meld finds every subscription, bill and paycheck in your history, then checks that each autopay's bank account will actually hold enough on the day.</p>
+            <ol class="notes">
+              <li data-n="1"><span><strong>Found for you.</strong> Subscriptions, bills and income, spotted from two years of transactions, with a badge when a price goes up.</span></li>
+              <li data-n="2"><span><strong>Covered, tight or short.</strong> Each autopay is checked against the account's balance after everything else due from it first.</span></li>
+              <li data-n="3"><span><strong>The next 30 days.</strong> Every charge coming, with alerts on your phone when something won't clear.</span></li>
+            </ol>
+          </div>
         </div>
       </div>
 
-    </div>
-  </section>
+      <div class="chapter" id="cash-investments">
+        <div class="chapter-head">
+          <h3>Cash &amp; investments</h3>
+          <p>See your emergency runway and combine every brokerage and retirement account into one true portfolio view.</p>
+        </div>
 
-  <section class="tight">
-    <div class="wrap">
-      <h2 style="font-size:clamp(22px,3vw,28px)">And the rest of your financial life</h2>
-      <p class="section-lede" style="margin-bottom:24px">The parts other apps leave to a spreadsheet.</p>
-      <div class="grid">
-        <div class="card">
-          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg></div>
-          <h3>Investments</h3>
-          <p>True time-weighted returns, asset allocation that looks inside your funds, dividend income and cost basis.</p>
+        <div class="feature-pair">
+          <div class="feature-card">
+            <div class="shot"><img src="images/cash.png" width="1192" height="515" loading="lazy" alt="Cash tab: emergency cash total, 6-month target, current yield, runway meter and cash positions across accounts"></div>
+            <div class="copy">
+              <p class="kicker">Cash &amp; emergency fund</p>
+              <h3>Know your runway, and spot idle cash</h3>
+              <p>Gathers checking, savings, money market funds, T-bill ETFs and brokerage sweep cash in one view, leaving out retirement cash and money set aside for other goals.</p>
+              <ol class="notes">
+                <li data-n="1"><span><strong>Real spending runway.</strong> Measures months covered from your actual average monthly spending, against your target.</span></li>
+                <li data-n="2"><span><strong>Estimated APY.</strong> Calculates interest rates from recent bank postings and fund distributions, and flags low-earning accounts.</span></li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="feature-card">
+            <div class="shot"><img src="images/investments.png" width="1192" height="501" loading="lazy" alt="Investments tab: total invested, stocks and bonds split, look-through asset allocation donut and accounts across brokerages"></div>
+            <div class="copy">
+              <p class="kicker">Investments</p>
+              <h3>Overall distribution across multiple brokerages</h3>
+              <p>Roll your 401(k)s, IRAs, HSAs and taxable brokerage accounts into a single portfolio view instead of guessing account by account.</p>
+              <ol class="notes">
+                <li data-n="1"><span><strong>Look-through allocation.</strong> Breaks down stocks, bonds, sectors and regions inside your funds across every account combined.</span></li>
+                <li data-n="2"><span><strong>Returns &amp; income.</strong> True time-weighted returns, dividend income and cost basis without mixing deposits with gains.</span></li>
+              </ol>
+            </div>
+          </div>
         </div>
-        <div class="card">
-          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M8 7h6a3 3 0 0 1 0 6h-4a3 3 0 0 0 0 6h6"/></svg></div>
-          <h3>Cash &amp; emergency fund</h3>
-          <p>Months of runway from your real spending, and which accounts are earning almost nothing.</p>
+      </div>
+
+      <div class="chapter" id="planning">
+        <div class="chapter-head">
+          <h3>Long-term planning &amp; estate</h3>
+          <p>Retirement odds, beneficiaries and an encrypted family packet, taxes, and insurance—built from your live numbers.</p>
         </div>
-        <div class="card">
+
+        <div class="feature">
+          <div class="shot-col">
+            <div class="shot"><div class="stage">
+              <img src="images/retirement.png" width="1272" height="1392" loading="lazy" alt="Retirement plan: projected savings at 62, amount needed, On track status, 100% chance of success, Balance and Cash flow projection chart, timeline, and Social Security claiming options">
+              <span class="pin" data-n="1" style="left:71.5%;top:4%">1</span>
+              <span class="pin" data-n="2" style="left:62%;top:25%">2</span>
+              <span class="pin" data-n="3" style="left:86.5%;top:71.5%">3</span>
+              <span class="pin" data-n="4" style="left:50.8%;top:42.6%">4</span>
+            </div></div>
+          </div>
+          <div class="copy">
+            <p class="kicker">Retirement</p>
+            <h3>Am I on track? A straight answer.</h3>
+            <p>A projection in today's dollars, built from your real balances and spending—with 1,000 simulated markets to test your odds when returns aren't smooth.</p>
+            <ol class="notes">
+              <li data-n="1"><span><strong>On track, or the gap to close,</strong> with how long the money lasts.</span></li>
+              <li data-n="2"><span><strong>Year by year</strong> from now to the end of the plan, including selling or renting out property.</span></li>
+              <li data-n="3"><span><strong>Social Security</strong> estimated from your income. Compare claiming at 62, 67 or 70.</span></li>
+              <li data-n="4"><span><strong>Life events.</strong> Model kids leaving home, a paid-off mortgage, college or spending changes right on the chart.</span></li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="feature flip">
+          <div class="shot-col">
+            <div class="shot"><div class="stage">
+              <img src="images/estate.png" width="1192" height="1088" loading="lazy" alt="Estate tab: readiness checklist, accounts missing beneficiary designations, core estate documents and Family packet PDF export">
+            </div></div>
+          </div>
+          <div class="copy">
+            <p class="kicker">Estate &amp; family packet</p>
+            <h3>Make sure your family knows what you have</h3>
+            <p>Track how every account and policy passes on death, store your core estate documents, and export one clear packet your family can actually use.</p>
+            <ol class="notes">
+              <li data-n="1"><span><strong>Spot missing beneficiaries.</strong> Flags retirement accounts, life policies and property headed for probate or missing contingent designations.</span></li>
+              <li data-n="2"><span><strong>Documents &amp; key people.</strong> Keep wills, trusts, powers of attorney, guardian notes, and attorney/CPA/executor contacts in one place.</span></li>
+              <li data-n="3"><span><strong>Family packet PDF.</strong> Exports an optional password-protected PDF of every account, how it passes, who to call and first steps—and flags when changes make it out of date.</span></li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="feature">
+          <div class="shot-col">
+            <div class="shot"><div class="stage">
+              <img src="images/tax.png" width="1192" height="844" loading="lazy" alt="Tax tab: estimated 2026 federal and California tax, effective and marginal rates, and a year-end checklist with deadlines">
+              <span class="pin" data-n="1" style="left:21%;top:13.5%">1</span>
+              <span class="pin" data-n="2" style="left:17.5%;top:40.5%">2</span>
+              <span class="pin" data-n="3" style="left:89%;top:51.7%">3</span>
+            </div></div>
+          </div>
+          <div class="copy">
+            <p class="kicker">Tax</p>
+            <h3>No surprises in April</h3>
+            <p>This year's federal and California estimate from your actual income, trades and accounts, updated as the year goes.</p>
+            <ol class="notes">
+              <li data-n="1"><span><strong>What you'll owe</strong> and your effective and marginal rates, before you file.</span></li>
+              <li data-n="2"><span><strong>A year-end countdown</strong> of moves that expire Dec 31: Roth conversions, withholding, charitable gifts, FSA money.</span></li>
+              <li data-n="3"><span><strong>Ask about any move</strong> and get the answer worked out with your numbers.</span></li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="insurance-band">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></div>
-          <h3>Insurance</h3>
-          <p>Upload a life or disability policy PDF and Meld reads the coverage, then checks it against your family's needs.</p>
-        </div>
-        <div class="card">
-          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6m-6 4h6"/></svg></div>
-          <h3>Estate &amp; family packet</h3>
-          <p>Flags missing beneficiaries and documents, then builds a PDF (password-protected if you like) telling your family what you have and who to call.</p>
+          <div>
+            <h3>Insurance policies</h3>
+            <p>Track term, whole and universal life policies plus employer or private disability coverage. Upload a policy PDF to fill in the details, check coverage against your family's needs, count cash surrender value in net worth, and include every policy in your family packet.</p>
+          </div>
         </div>
       </div>
+
+      <div class="chapter" id="ask-meld">
+        <div class="chapter-head">
+          <h3>Ask Meld</h3>
+          <p>An AI assistant over your entire financial picture—using free local models, ChatGPT, or Claude.</p>
+        </div>
+
+        <div class="feature flip" style="padding-top:28px">
+          <div class="shot-col">
+            <div class="chat">
+              <div class="bubble">What am I paying for subscriptions each month, and is my emergency fund big enough?</div>
+              <div class="shot"><img src="images/ask.png" width="740" height="782" loading="lazy" alt="Ask Meld's answer: cash available for emergencies, months of spending covered, caveats about missing insurance, and four steps for the excess cash"></div>
+            </div>
+          </div>
+          <div class="copy">
+            <p class="kicker">Ask Meld</p>
+            <h3>An AI that actually knows your numbers</h3>
+            <p>Ask in plain English. Meld looks up the accounts, transactions, holdings and plans it needs, and answers with specifics, not generic advice.</p>
+            <ol class="notes">
+              <li data-n="✓"><span><strong>Completely free local models</strong> through Ollama so nothing leaves your Mac, or connect your ChatGPT Go/Plus/Pro/Business plan or a Claude API key.</span></li>
+              <li data-n="✓"><span><strong>Account numbers are masked</strong> before anything is sent to a cloud model.</span></li>
+              <li data-n="✓"><span><strong>Built over all of Meld.</strong> Reads balances, spending, investments, retirement, taxes, insurance and estate together with read-only tools.</span></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -692,18 +797,18 @@
       </div>
       <ul class="table-notes">
         <li><strong>Partly:</strong> AI assistants answer questions about linked accounts but don't track or plan. ProjectionLab has no bank sync (type balances in, or import from Monarch, YNAB or Lunch Money); Boldin syncs only on PlannerPlus. Self-hosted apps sync through SimpleFIN ($15/yr) and need a server for it.</li>
-        <li><strong>Meld's setup:</strong> a Mac app plus a free Plaid developer account, which Plaid approves before real banks connect. Docker is optional.</li>
+        <li><strong>Meld's setup:</strong> a Mac app plus a free Plaid developer account (free for up to 10 bank logins—each with any number of accounts—and Plaid usually approves production access automatically). Docker is optional.</li>
         <li>US list prices for annual plans as of November 2026 (Monarch Plus is $199.99/yr). ChatGPT and Claude are monthly: ChatGPT Finances works on every US plan, including Free; Claude Personal Finance needs Pro ($17/mo billed yearly), Max ($100/mo) or Ultra ($200/mo). Meld isn't affiliated with any of these companies or projects.</li>
       </ul>
 
       <div class="tradeoffs">
         <div class="card">
-          <h3>The honest trade-offs</h3>
-          <p>You set up your own free Plaid developer account, and Plaid has to approve it before real banks connect. There's no app in the App Store yet: it's a Mac app you reach from your phone over a private network, or a Docker server you run. It's built for one household.</p>
+          <h3>The trade-offs</h3>
+          <p>You set up your own free Plaid developer account before connecting real banks—Plaid should approve production access automatically for personal use. There's no app in the App Store yet: it's a Mac app you reach from your phone over a private network, or a Docker server you run. It's built for one household.</p>
         </div>
         <div class="card">
           <h3>Why it's worth it</h3>
-          <p>Holding your own Plaid keys is the point: no company sits between you and your bank, and there's no account database to leak. When Mint shut down, its users had to start over somewhere else. Meld's history is a database on your Mac that no company can switch off.</p>
+          <p>Your data sits in a database on your own computer—there's no central service that stores your financial history, and no account with a vendor that can shut down or get breached. You use your own Plaid keys to connect directly to your banks.</p>
         </div>
       </div>
     </div>
@@ -718,8 +823,8 @@
       </div>
       <div class="costs">
         <div class="cost"><strong>Meld</strong><span class="price">$0</span><span class="why">Free and open source, with no paid tier.</span></div>
-        <div class="cost"><strong>Bank syncing (Plaid)</strong><span class="price">$0</span><span class="why">The free Trial plan covers up to 10 bank logins. Plaid's sandbox, with test data, is free and instant.</span></div>
-        <div class="cost"><strong>Ask Meld (optional)</strong><span class="price">$0 or pay per use</span><span class="why">A local model through Ollama is free. With Claude, you pay Anthropic only for what you ask; Haiku costs least.</span></div>
+        <div class="cost"><strong>Bank syncing (Plaid)</strong><span class="price">$0</span><span class="why">The free Trial plan covers up to 10 bank logins, and each login can hold any number of accounts (checking, savings, and cards at one bank still count as 1 login). Sandbox test data is free and instant.</span></div>
+        <div class="cost"><strong>Ask Meld (optional)</strong><span class="price">$0 or pay per use</span><span class="why">Local models through Ollama are completely free. You can also use an existing ChatGPT Go, Plus, Pro or Business plan at no extra cost, or pay Anthropic per question with a Claude API key.</span></div>
       </div>
     </div>
   </section>
@@ -730,8 +835,8 @@
       <p class="section-lede">There's no Meld server, no account with the author, no analytics and no telemetry. Here is everything that ever leaves your computer.</p>
       <div class="flows">
         <div class="flow"><strong>Plaid</strong><span>Your own keys. You sign in to your bank in Plaid's window, never Meld's; Meld receives balances, transactions, holdings and loan details. Access tokens are encrypted at rest.</span></div>
-        <div class="flow"><strong>Anthropic (optional)</strong><span>With a Claude model, your question and the data it looks up. Account, card and policy numbers are masked first.</span></div>
-        <div class="flow"><strong>Ollama (optional)</strong><span>The same chat with a local model, so nothing leaves your machine.</span></div>
+        <div class="flow"><strong>Ollama (optional)</strong><span>Run a local model on your own machine, so nothing ever leaves your computer.</span></div>
+        <div class="flow"><strong>Anthropic / OpenAI (optional)</strong><span>With a Claude key or your ChatGPT plan, only your question and the account data it looks up are sent. Account, card and policy numbers are masked first.</span></div>
         <div class="flow"><strong>Yahoo Finance</strong><span>Ticker symbols only, for daily prices.</span></div>
         <div class="flow"><strong>Your phone</strong><span>Over Tailscale, a private network of only your own devices. Meld never opens itself to the internet.</span></div>
       </div>
@@ -742,7 +847,7 @@
   <section id="install">
     <div class="wrap">
       <h2>Get started</h2>
-      <p class="section-lede">Try it with Plaid's test bank in a few minutes, then connect your real accounts once Plaid approves your keys.</p>
+      <p class="section-lede">Try it with Plaid's test bank in a few minutes, then connect your real accounts once Plaid approves your keys (usually automatically).</p>
       <div class="steps">
         <div class="step">
           <h3>Download Meld</h3>
@@ -750,7 +855,7 @@
         </div>
         <div class="step">
           <h3>Set it up</h3>
-          <p>Choose a passphrase and paste your <a href="https://dashboard.plaid.com/signup">Plaid keys</a>. Add an Anthropic key or Ollama to turn on Ask Meld (optional).</p>
+          <p>Choose a passphrase and paste your <a href="https://dashboard.plaid.com/signup">Plaid keys</a>. Turn on Ask Meld with free local Ollama models, your ChatGPT plan, or a Claude API key (optional).</p>
         </div>
         <div class="step">
           <h3>Try Sandbox, then go live</h3>
@@ -760,18 +865,27 @@
     </div>
   </section>
 
-  <section id="docker" class="alt">
-    <div class="wrap split">
-      <div>
-        <h2>On your phone, or always on</h2>
-        <p>Reach the Mac app from your phone over <a href="https://tailscale.com">Tailscale</a> while your Mac is awake: turn on phone access, scan the QR code and add Meld to your home screen.</p>
-        <p>For an always-on setup, run Meld with Docker on a home server, NAS or any Linux box. It listens on localhost only; reach it from your phone with <code>tailscale serve</code>.</p>
+  <section id="phone" class="alt">
+    <div class="wrap phone-showcase">
+      <div class="phone-copy">
+        <div>
+          <h2>Use Meld on your phone</h2>
+          <p style="margin-top:10px">Check balances, upcoming autopays or Ask Meld from your phone without opening Meld to the internet. Your phone reaches your computer over <a href="https://tailscale.com">Tailscale</a>, a free private network only your devices are on.</p>
+        </div>
+        <ol class="phone-steps">
+          <li>Install Tailscale on <strong>both your Mac and your phone</strong>, and sign in to both with the same account.</li>
+          <li>Turn on HTTPS certificates in the Tailscale admin console, then click <strong>Turn on phone access</strong> in Meld's Settings.</li>
+          <li>Scan the QR code with your phone and use <strong>Add to Home Screen</strong> so Meld opens like an app.</li>
+        </ol>
+        <p class="fineprint" style="margin:0"><a href="https://github.com/meld-finance/meld/blob/main/docs/phone-access.md">Phone &amp; Tailscale setup guide →</a> · Running an always-on server instead? <a href="https://github.com/meld-finance/meld/blob/main/docs/docker.md">Docker setup guide →</a></p>
+        <div class="shot plain"><img src="images/phone-settings.png" width="752" height="362" loading="lazy" alt="Meld Settings Phone access card showing a sample QR code and private Tailscale URL https://macbook.tail1234.ts.net"></div>
       </div>
-      <pre><code>git clone https://github.com/meld-finance/meld.git
-cd meld
-./scripts/setup.sh
-docker compose up -d --build
-# open http://localhost:8080</code></pre>
+      <div class="phone-col">
+        <div class="phone-frame">
+          <div class="phone-notch" aria-hidden="true"></div>
+          <img src="images/mobile-home.png" width="390" height="844" loading="lazy" alt="Meld running on a phone screen: net worth chart, cash and spending vitals, and bottom navigation tabs">
+        </div>
+      </div>
     </div>
   </section>
 
@@ -788,6 +902,8 @@ docker compose up -d --build
     <nav>
       <a href="https://github.com/meld-finance/meld">GitHub</a>
       <a href="https://github.com/meld-finance/meld/blob/main/docs/features.md">All features</a>
+      <a href="https://github.com/meld-finance/meld/blob/main/docs/phone-access.md">Phone access</a>
+      <a href="https://github.com/meld-finance/meld/blob/main/docs/docker.md">Docker</a>
       <a href="https://github.com/meld-finance/meld/blob/main/PRIVACY.md">Privacy</a>
       <a href="https://github.com/meld-finance/meld/blob/main/SECURITY.md">Security</a>
       <a href="https://github.com/meld-finance/meld/blob/main/CONTRIBUTING.md">Contributing</a>

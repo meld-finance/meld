@@ -1,4 +1,5 @@
 import {
+  accountDisplayName,
   AUTOPAY_AMOUNT_LABELS,
   CADENCE_LABELS,
   type Account,
@@ -20,6 +21,7 @@ import { Card } from '@/components/card';
 import { Chip } from '@/components/chip';
 import { Dropdown } from '@/components/dropdown';
 import { Icon } from '@/components/icon';
+import { type Tip } from '@/components/info-tip';
 import { StatTile, TabHeading, TileRow } from '@/components/investments/common';
 import { Field, Input, Row } from '@/components/plan/profile-tab';
 import { Screen } from '@/components/screen';
@@ -112,6 +114,16 @@ const SOURCE: Record<NonNullable<AutopayStatus['amountSource']>, string> = {
   estimate: 'estimated: next statement isn’t out yet',
 };
 
+const AUTOPAY_TIP: Tip = {
+  title: 'How autopay tracking works',
+  body: 'Meld is read-only: it never moves money or changes your bank’s autopay settings. You’re telling Meld which bank account pays each card or loan automatically.\n\nBefore each due date, Meld subtracts other autopays and recurring bills due from that bank account first (plus expected paychecks if enabled) and marks each payment Covered, Tight (below your cushion), or Short.\n\nIf an account looks tight or short, Meld alerts you in the bell menu, on Home, and on your phone if push notifications are set up under Alert settings. Alerts clear automatically once the balance covers it.',
+};
+
+const PAYS_TIP: Tip = {
+  title: 'What your autopay pays',
+  body: 'Statement balance uses your last issued statement minus payments since, or estimates from the current balance before the next statement is out.\n\nMinimum payment, Current balance, and Fixed amount match the same options on your bank or card issuer’s autopay page.',
+};
+
 type Draft = { id?: string; payeeAccountId: string; fundingAccountId: string; amountRule: AutopayAmount; fixedAmount: string };
 
 function AutopayCard({ data }: { data: RecurringSummary }) {
@@ -138,7 +150,8 @@ function AutopayCard({ data }: { data: RecurringSummary }) {
   return (
     <Card
       title="Autopay"
-      subtitle="Cards and loans paid automatically from a bank account. Meld checks each payment against what the bank account will hold on the due date, after other bills, and alerts you when it falls short."
+      tip={AUTOPAY_TIP}
+      subtitle="Tell Meld which bank account pays each card or loan automatically (Meld is read-only and never moves money). Before each due date, Meld checks your balance after other bills and alerts you in the app—or on your phone via Alert settings—if it’s short or tight."
       action={!draft && payees.length > 0 && banks.length > 0 && <Button label="Add autopay" size="small" onPress={() => setDraft(blank())} />}>
       {draft && <AutopayEditor draft={draft} payees={payees} banks={banks} onClose={() => setDraft(null)} />}
 
@@ -195,7 +208,7 @@ function AutopayRow({ status: a, onEdit }: { status: AutopayStatus; onEdit: () =
     <View style={[styles.autopay, { borderTopColor: theme.border }]}>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} style={styles.autopayHead}>
         <View style={styles.grow}>
-          <ThemedText numberOfLines={1}>
+          <ThemedText>
             {a.payeeName} <ThemedText themeColor="textSecondary">from {a.fundingName}</ThemedText>
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
@@ -268,7 +281,6 @@ function AutopayEditor({ draft: initial, payees, banks, onClose }: { draft: Draf
   const isCard = payee?.type === 'credit';
   const rules: AutopayAmount[] = isCard ? ['statement_balance', 'minimum', 'current_balance', 'fixed'] : ['statement_balance', 'fixed'];
   const fixedInvalid = d.amountRule === 'fixed' && !(fixed !== null && fixed > 0);
-  const label = (a: Account) => `${a.name}${a.mask ? ` ••${a.mask}` : ''}`;
 
   function submit() {
     if (fixedInvalid || !d.payeeAccountId || !d.fundingAccountId) return;
@@ -280,11 +292,19 @@ function AutopayEditor({ draft: initial, payees, banks, onClose }: { draft: Draf
 
   return (
     <View style={[styles.editor, { borderColor: theme.border, backgroundColor: theme.background }]}>
+      <ThemedText type="small" themeColor="textSecondary">
+        Match the autopay you already set up with your bank—Meld only watches balances and never initiates payments. Once saved,
+        Meld checks this account before each due date and notifies you in Alerts, on Home, or on your phone (
+        <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => router.push('/alerts')}>
+          Alert settings
+        </ThemedText>
+        ) if your balance looks short or tight.
+      </ThemedText>
       <Row>
         <Field label="Card or loan">
           <Dropdown
             accessibilityLabel="Card or loan paid by autopay"
-            options={payees.map((p) => ({ value: p.id, label: label(p) }))}
+            options={payees.map((p) => ({ value: p.id, label: accountDisplayName(p) }))}
             value={d.payeeAccountId}
             onChange={(v) => setD({ ...d, payeeAccountId: v, amountRule: payees.find((p) => p.id === v)?.type === 'credit' ? d.amountRule : 'statement_balance' })}
           />
@@ -292,13 +312,13 @@ function AutopayEditor({ draft: initial, payees, banks, onClose }: { draft: Draf
         <Field label="Paid from">
           <Dropdown
             accessibilityLabel="Bank account the autopay comes out of"
-            options={banks.map((b) => ({ value: b.id, label: label(b) }))}
+            options={banks.map((b) => ({ value: b.id, label: accountDisplayName(b) }))}
             value={d.fundingAccountId}
             onChange={(v) => setD({ ...d, fundingAccountId: v })}
           />
         </Field>
       </Row>
-      <Field label="Pays">
+      <Field label="Pays" tip={PAYS_TIP}>
         <View style={styles.chips}>
           {rules.map((r) => (
             <Chip

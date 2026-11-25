@@ -11,6 +11,7 @@ import { usePhoneAccess, useSetPhoneAccess, useSetupStatus } from '@/lib/setup';
 
 const INSTALL_URL = 'https://tailscale.com/download';
 const HTTPS_URL = 'https://tailscale.com/kb/1153/enabling-https';
+const PHONE_DOCS_URL = 'https://github.com/meld-finance/meld/blob/main/docs/phone-access.md';
 const QR_SIZE = 168;
 
 function Link({ url, children }: { url: string; children: string }) {
@@ -18,6 +19,24 @@ function Link({ url, children }: { url: string; children: string }) {
     <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => void Linking.openURL(url)}>
       {children}
     </ThemedText>
+  );
+}
+
+function TailscaleChecklist() {
+  return (
+    <View style={styles.steps}>
+      <ThemedText type="smallBold">How to set up Tailscale</ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        1. <Link url={INSTALL_URL}>Install Tailscale</Link> on <ThemedText type="smallBold">both this computer and your phone</ThemedText>, and sign in to both with the same account (free for personal use).
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        2. Turn on <Link url={HTTPS_URL}>HTTPS certificates</Link> for your tailnet (one switch in the Tailscale admin console under DNS).
+      </ThemedText>
+      <ThemedText type="small" themeColor="textSecondary">
+        3. Turn on phone access below, open Tailscale on your phone, scan the QR code, and use Add to Home Screen so Meld opens like an app.{' '}
+        <Link url={PHONE_DOCS_URL}>Step-by-step setup guide →</Link>
+      </ThemedText>
+    </View>
   );
 }
 
@@ -45,31 +64,34 @@ export function PhoneAccessCard() {
       ) : data?.state === 'not-installed' ? (
         <>
           <ThemedText type="small" themeColor="textSecondary">
-            <Link url={INSTALL_URL}>Install Tailscale</Link> on this Mac and on your phone, and sign in to both with the same
-            account. It’s free for personal use.
+            Tailscale isn’t installed on this computer yet. Set it up beforehand so your phone can reach Meld privately:
           </ThemedText>
+          <TailscaleChecklist />
           <View style={formStyles.buttons}>{recheck}</View>
         </>
       ) : data?.state === 'not-running' ? (
         <>
           <ThemedText type="small" themeColor="textSecondary">
-            Tailscale is installed but not connected. Open it and sign in, then check again.
+            Tailscale is installed on this computer, but not connected yet. Open it and sign in, then check again.
           </ThemedText>
+          <TailscaleChecklist />
           <View style={formStyles.buttons}>{recheck}</View>
         </>
       ) : data?.state === 'no-https' ? (
         <>
           <ThemedText type="small" themeColor="textSecondary">
-            Your tailnet needs HTTPS certificates turned on (one switch in the Tailscale admin console:{' '}
-            <Link url={HTTPS_URL}>how</Link>), so your phone gets a secure address.
+            Your tailnet needs HTTPS certificates turned on (one switch in the Tailscale admin console under DNS:{' '}
+            <Link url={HTTPS_URL}>how to turn it on</Link>), so your phone gets a secure address.
           </ThemedText>
+          <TailscaleChecklist />
           <View style={formStyles.buttons}>{recheck}</View>
         </>
       ) : data?.state === 'off' ? (
         <>
+          <TailscaleChecklist />
           <ThemedText type="small" themeColor="textSecondary">
-            Your devices on Tailscale will reach Meld at a private https address while this Mac is awake and Meld is open
-            (closing the window keeps it running in the menu bar).{' '}
+            Once turned on, your devices on Tailscale can reach Meld while this computer is awake and Meld is open
+            (closing the window keeps it running in the menu bar/tray).{' '}
             {passphrase ? 'You’ll still need your passphrase.' : 'With no passphrase, anyone on your tailnet can open it.'}
           </ThemedText>
           <View style={formStyles.buttons}>
@@ -84,7 +106,7 @@ export function PhoneAccessCard() {
             </View>
             <View style={styles.onText}>
               <ThemedText type="small" themeColor="textSecondary">
-                On your phone, open Tailscale, then scan this code with the camera or go to
+                Make sure Tailscale is installed and connected on your phone (signed in to the same account), then scan this code with your camera or go to
               </ThemedText>
               <ThemedText type="smallBold" selectable>
                 {data.url}
@@ -94,8 +116,9 @@ export function PhoneAccessCard() {
               </ThemedText>
             </View>
           </View>
-          <View style={formStyles.buttons}>
+          <View style={styles.onActions}>
             <Button label="Turn off" variant="secondary" size="small" loading={set.isPending} onPress={() => set.mutate(false)} />
+            <Link url={PHONE_DOCS_URL}>Setup & troubleshooting guide →</Link>
           </View>
         </>
       ) : null}
@@ -105,7 +128,9 @@ export function PhoneAccessCard() {
 }
 
 const styles = StyleSheet.create({
+  steps: { gap: Spacing.one },
   on: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.four, alignItems: 'center' },
   qr: { padding: Spacing.three, borderRadius: Spacing.three, borderWidth: 1 },
   onText: { flex: 1, minWidth: 200, gap: Spacing.two },
+  onActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three },
 });

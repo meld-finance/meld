@@ -1,7 +1,7 @@
 import { DEFAULT_ALERT_SETTINGS } from '@meld/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { accounts, alerts, liabilities, plaidItems, transactions } from '../db/schema';
+import { accounts, alerts, institutions, liabilities, plaidItems, transactions } from '../db/schema';
 import { addMonths } from '../lib/recurring';
 import { setupTestDb, testDatabaseUrl } from '../test/db';
 import { saveAlertSettings } from './alert-settings';
@@ -162,5 +162,63 @@ describe.skipIf(!testDatabaseUrl)('recurring, autopay and alerts (Postgres)', ()
     // Netflix's price went up last month, but it's ignored, so no price alert.
     expect(types).toEqual(['connection', 'large_transaction', 'low_balance']);
     expect((await ctx.db.select().from(alerts).where(eq(alerts.key, `connection:${item!.id}`)))[0]!.title).toBe('Reconnect A bank');
+  });
+
+  it('uses institution, official name and mask for autopay suggestions and statuses', async () => {
+    const [bofa] = await ctx.db.insert(institutions).values({ name: 'Bank of America' }).returning({ id: institutions.id });
+    const [advPlus, boaCard] = await ctx.db
+      .insert(accounts)
+      .values([
+        {
+          source: 'plaid',
+          institutionId: bofa!.id,
+          name: 'Adv Plus Banking',
+          officialName: 'Adv Plus Banking',
+          mask: '9012',
+          type: 'depository',
+          subtype: 'checking',
+          currentBalance: 4_000,
+          availableBalance: 4_000,
+        },
+        {
+          source: 'plaid',
+          institutionId: bofa!.id,
+          name: 'CREDIT CARD',
+          officialName: 'Customized Cash Rewards',
+          mask: '4686',
+          type: 'credit',
+          currentBalance: 600,
+        },
+      ])
+      .returning({ id: accounts.id });
+    await ctx.db.insert(liabilities).values({
+      accountId: boaCard!.id,
+      kind: 'credit',
+      minimumPayment: 35,
+      nextPaymentDueDate: '2026-11-20',
+      details: { last_statement_balance: 500, last_statement_issue_date: '2026-10-25' },
+    });
+    await ctx.db.insert(transactions).values([
+      { accountId: advPlus!.id, date: '2026-10-15', name: 'BANK OF AMERICA CREDIT CRD AUTOPAY', amount: 420, plaidCategoryDetailed: 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT' },
+      { accountId: boaCard!.id, date: '2026-10-16', name: 'PAYMENT - THANK YOU', amount: -420, plaidCategoryDetailed: 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT' },
+    ]);
+
+    const beforeLink = await getRecurringSummary(ctx.db, TODAY);
+    expect(beforeLink.suggestions.find((s) => s.payeeAccountId === boaCard!.id)).toMatchObject({
+      payeeName: 'Bank of America · Customized Cash Rewards ••4686',
+      fundingName: 'Bank of America · Adv Plus Banking ••9012',
+    });
+
+    await createAutopayLink(ctx.db, {
+      payeeAccountId: boaCard!.id,
+      fundingAccountId: advPlus!.id,
+      amountRule: 'statement_balance',
+      fixedAmount: null,
+    });
+    const afterLink = await getRecurringSummary(ctx.db, TODAY);
+    expect(afterLink.autopay.find((a) => a.payeeAccountId === boaCard!.id)).toMatchObject({
+      payeeName: 'Bank of America · Customized Cash Rewards ••4686',
+      fundingName: 'Bank of America · Adv Plus Banking ••9012',
+    });
   });
 });

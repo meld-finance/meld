@@ -1,3 +1,5 @@
+[Meld home page](https://meld-finance.github.io/meld/) · [README](../README.md) · [Plaid setup](plaid.md) · [Phone access](phone-access.md) · [Docker setup](docker.md)
+
 # Features
 
 What each part of Meld does and how it works. For installing, see the [README](../README.md).
@@ -12,6 +14,7 @@ What each part of Meld does and how it works. For installing, see the [README](.
 - [Plan: insurance](#plan-insurance)
 - [Plan: estate](#plan-estate)
 - [Ask Meld (AI chat)](#ask-meld-ai-chat)
+- [Phone access over Tailscale](phone-access.md) · [Docker self-hosting](docker.md)
 
 Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice.
 
@@ -20,7 +23,7 @@ Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for pla
 Use **Accounts → Link account** in the web app. Accounts and balances sync immediately; transaction history (up to 2 years) arrives over the next minute or so and is fetched automatically. Every linked connection also re-syncs every 6 hours while the API is running, or on demand with **Refresh**.
 
 - **Sandbox** (`PLAID_ENV=sandbox`): pick any institution and sign in with `user_good` / `pass_good`.
-- **Real accounts** (`PLAID_ENV=production`): needs Plaid production access; the free Trial plan covers up to 10 logins (see [Connecting your accounts with Plaid](plaid.md)). Set `PLAID_PRODUCTION_SECRET`. Each environment has its own secret and its own database (`SANDBOX_DATABASE_URL`, `PRODUCTION_DATABASE_URL`), so sandbox data never mixes with real data. Switching is just `PLAID_ENV` plus an API restart.
+- **Real accounts** (`PLAID_ENV=production`): needs Plaid production access (usually approved automatically); the free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank (see [Connecting your accounts with Plaid](plaid.md)). Set `PLAID_PRODUCTION_SECRET`. Each environment has its own secret and its own database (`SANDBOX_DATABASE_URL`, `PRODUCTION_DATABASE_URL`), so sandbox data never mixes with real data. Switching is just `PLAID_ENV` plus an API restart.
 - If a bank needs you to sign in again, the connection shows **Reconnect**, which reopens Plaid Link in update mode.
 - Linking on iOS/Android arrives with the mobile phase; use the web app until then.
 
@@ -152,5 +155,5 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts, 
 - Uses Claude through a provider interface in `apps/api/src/ai/provider.ts`, so other providers can be added. Chat defaults to `ANTHROPIC_CHAT_MODEL` (default `claude-sonnet-5-5`), property value lookups use `ANTHROPIC_LOOKUP_MODEL` (default `claude-haiku-5-5`), and policy PDF extraction `ANTHROPIC_MODEL` (default `claude-opus-5-5`).
 - **Pick the model** under the chat box: any of `ANTHROPIC_CHAT_MODELS` (Opus, Sonnet, Haiku by default; Haiku costs least), a ChatGPT model on your own plan, or a local model through [Ollama](https://ollama.com). The choice is remembered, and you can switch mid-conversation.
 - **Local models:** install Ollama and pull a model that supports tool calling (e.g. `ollama pull qwen3.5`), then use **Settings → AI → Find Ollama**, or set `OLLAMA_URL=http://127.0.0.1:11434` (`http://host.docker.internal:11434` when Meld runs in Docker) and restart the API. Every installed model with tool support is listed, or set `OLLAMA_CHAT_MODELS` to choose. Local models are free and keep your data on your machine, but answer less reliably than Claude. Chat works with only Ollama set up; the other AI features still need `ANTHROPIC_API_KEY`.
-- **ChatGPT plan:** with ChatGPT Go, Plus, Pro or Business, choose **Settings → ChatGPT plan → Continue with ChatGPT** and sign in. Ask Meld then lists the ChatGPT models your plan offers, billed to your plan's usage instead of an API key (set a limit or disconnect Meld at [chatgpt.com/settings/usage](https://chatgpt.com/settings/usage)). It takes effect without a restart. The browser returns to Meld at `http://127.0.0.1:1455`; if Meld runs in Docker or you sign in from another device, that page won't load, so copy its address into the box Settings shows. The sign-in is kept encrypted with `ENCRYPTION_KEY` in `chatgpt.json` next to Meld's settings file (`CHATGPT_AUTH_FILE` overrides). Free plans can't share usage; ChatGPT shows "A required permission is unavailable" and Meld explains it. On Business, an admin first sets **Use ChatGPT plan** to Allowed for Meld under **Tenant settings → External access** at admin.openai.com. It covers chat only; PDF reading and value lookups still need `ANTHROPIC_API_KEY`.
+- **ChatGPT plan:** with ChatGPT Go, Plus, Pro or Business, choose **Settings → AI → ChatGPT plan → Continue with ChatGPT** and sign in. Ask Meld then lists the ChatGPT models your plan offers, billed to your plan's usage instead of an API key (set a limit or disconnect Meld at [chatgpt.com/settings/usage](https://chatgpt.com/settings/usage)). It takes effect without a restart. The browser returns to Meld at `http://127.0.0.1:1455`; if Meld runs in Docker or you sign in from another device, that page won't load, so copy its address into the box Settings shows. The sign-in is kept encrypted with `ENCRYPTION_KEY` in `chatgpt.json` next to Meld's settings file (`CHATGPT_AUTH_FILE` overrides). Free plans can't share usage; ChatGPT shows "A required permission is unavailable" and Meld explains it. On Business, an admin first sets **Use ChatGPT plan** to Allowed for Meld under **Tenant settings → External access** at admin.openai.com. It covers chat only; PDF reading and value lookups still need `ANTHROPIC_API_KEY`.
 - Privacy: with a Claude model, your question and the data the AI looks up are sent to Anthropic, or to OpenAI with a ChatGPT model; with a local Ollama model they stay on your machine. Long digit runs (account, card and policy numbers) are masked first either way.
