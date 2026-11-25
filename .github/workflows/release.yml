@@ -37,7 +37,7 @@ jobs:
       # Don't go looking for a signing identity in the keychain when no certificate is given.
       CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -76,7 +76,7 @@ jobs:
     needs: [mac, windows]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: apps/desktop/scripts
       - uses: actions/download-artifact@v4
