@@ -31,7 +31,7 @@ function handlePostEdit(input) {
     JSON.stringify({
       hookSpecificOutput: {
         hookEventName: 'PostToolUse',
-        additionalContext: `Updated ${rel}: automatically rebuilt ${res.count} web docs pages in site/docs/ via scripts/build-docs.mjs.`,
+        additionalContext: `Updated ${rel}: automatically rebuilt ${res.count} web docs pages in site/docs/ and ${res.helpSections} Ask Meld guide sections in apps/api/src/ai/meld-docs.generated.ts via scripts/build-docs.mjs.`,
       },
     }),
   );
@@ -53,7 +53,7 @@ function handleStop(input) {
         JSON.stringify({
           decision: 'block',
           reason:
-            'Documentation source files were modified, so site/docs/ is out of sync. Run `npm run docs:build` and verify with `npm run docs:check`.',
+            'Documentation source files were modified, so site/docs/ or apps/api/src/ai/meld-docs.generated.ts is out of sync. Run `npm run docs:build` and verify with `npm run docs:check`.',
         }),
       );
       return;

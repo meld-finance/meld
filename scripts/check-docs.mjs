@@ -103,7 +103,8 @@ function isIgnoredForDocAudit(file) {
     file.endsWith('.test.tsx') ||
     file.endsWith('.db.test.ts') ||
     file.startsWith('apps/api/src/test/') ||
-    file.startsWith('site/docs/')
+    file.startsWith('site/docs/') ||
+    file === 'apps/api/src/ai/meld-docs.generated.ts'
   );
 }
 
@@ -208,7 +209,7 @@ function main() {
 
   if (docsSyncError) {
     console.error(docsSyncError);
-    console.error('\nRun `npm run docs:build` so site/docs/ matches the updated Markdown.');
+    console.error('\nRun `npm run docs:build` so site/docs/ and apps/api/src/ai/meld-docs.generated.ts match the updated Markdown.');
     process.exit(1);
   }
 

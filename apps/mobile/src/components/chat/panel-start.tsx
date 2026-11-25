@@ -20,7 +20,7 @@ export function PanelStart() {
   const accent = useAccents().blue;
   const chat = useStartChat();
   const { current } = useChatModel();
-  const { page, questions } = usePageQuestions();
+  const { page, questions, helpQuestion } = usePageQuestions();
   const [question, setQuestion] = useState('');
   const ask = (text: string) => chat.start(text, () => setQuestion(''));
 
@@ -47,9 +47,28 @@ export function PanelStart() {
         ))}
       </View>
 
+      <View style={styles.helpSection}>
+        <ThemedText type="small" themeColor="textSecondary">
+          How Meld works
+        </ThemedText>
+        <Pressable
+          onPress={() => ask(helpQuestion)}
+          disabled={chat.isPending}
+          style={({ hovered, pressed }) => [
+            styles.question,
+            { backgroundColor: theme.backgroundElement, borderColor: hovered ? accent.fg : theme.border },
+            pressed && styles.pressed,
+          ]}>
+          <Icon name="info" size={16} color={accent.fg} />
+          <ThemedText type="small" style={styles.shrink}>
+            {helpQuestion}
+          </ThemedText>
+        </Pressable>
+      </View>
+
       <TextInput
         style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement, borderColor: theme.border }]}
-        placeholder="Or ask your own question…"
+        placeholder="Ask about your money or Meld…"
         placeholderTextColor={theme.textSecondary}
         value={question}
         onChangeText={setQuestion}
@@ -85,6 +104,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: { ...chatColumn, padding: Spacing.four, gap: Spacing.three },
   questions: { gap: Spacing.two },
+  helpSection: { gap: Spacing.two, marginTop: Spacing.one },
   question: {
     flexDirection: 'row',
     alignItems: 'center',

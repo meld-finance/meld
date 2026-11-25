@@ -25,6 +25,14 @@ const SUGGESTIONS = [
   'How big should my emergency fund be, and do I have enough?',
 ];
 
+const HOW_TO_SUGGESTIONS = [
+  'What features does Meld have?',
+  'How do I set up autopay tracking and alerts?',
+  'How do category rules work?',
+  'How do I access Meld from my phone?',
+  'What data does Meld send to AI providers?',
+];
+
 /** Starting point for Ask Meld: a question box, suggestions and recent conversations. The Ask tab on phones, the chat panel's start view on web. */
 export function AskStart() {
   const theme = useTheme();
@@ -46,11 +54,11 @@ export function AskStart() {
       {/* Raised so the model list draws over the cards below. */}
       <Card
         style={styles.raised}
-        title="Ask about your finances"
-        subtitle="Answers use your accounts, transactions, investments, loans, insurance and budget.">
+        title="Ask about your finances or Meld"
+        subtitle="Answers use your accounts, transactions, investments, loans, insurance, budget, and Meld’s feature guides.">
         <TextInput
           style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
-          placeholder="e.g. Can I afford to max out my 401(k)?"
+          placeholder="Ask about your money or Meld…"
           placeholderTextColor={theme.textSecondary}
           value={question}
           onChangeText={setQuestion}
@@ -67,10 +75,25 @@ export function AskStart() {
             {chat.error.message}
           </ThemedText>
         )}
-        <View style={styles.chips}>
-          {SUGGESTIONS.map((s) => (
-            <Chip key={s} label={s} onPress={() => ask(s)} />
-          ))}
+        <View style={styles.chipGroup}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Your finances
+          </ThemedText>
+          <View style={styles.chips}>
+            {SUGGESTIONS.map((s) => (
+              <Chip key={s} label={s} onPress={() => ask(s)} />
+            ))}
+          </View>
+        </View>
+        <View style={styles.chipGroup}>
+          <ThemedText type="small" themeColor="textSecondary">
+            How to use Meld
+          </ThemedText>
+          <View style={styles.chips}>
+            {HOW_TO_SUGGESTIONS.map((s) => (
+              <Chip key={s} label={s} onPress={() => ask(s)} />
+            ))}
+          </View>
         </View>
       </Card>
 
@@ -116,6 +139,7 @@ const styles = StyleSheet.create({
   raised: { zIndex: 1 },
   input: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + Spacing.one },
   row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: Spacing.three },
+  chipGroup: { gap: Spacing.two },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   session: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },
   shrink: { flexShrink: 1 },

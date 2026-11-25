@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { Db } from '../db/client';
 import { createChatTools, maskNumbers, runTool, toToolJsonSchema, type ChatTool } from './chat-tools';
+import { MELD_DOC_SECTIONS } from './meld-docs.generated';
 
 describe('toToolJsonSchema', () => {
   it('strips $schema and verbose date/uuid regexes while keeping short patterns', () => {
@@ -33,6 +34,7 @@ describe('toToolJsonSchema', () => {
     expect(JSON.stringify(core).length).toBeLessThan(4500);
     expect(defs.some((d) => d.name === 'get_financial_overview' && !d.defer)).toBe(true);
     expect(defs.some((d) => d.name === 'get_retirement_plan' && d.defer)).toBe(true);
+    expect(defs.some((d) => d.name === 'get_meld_docs' && d.defer)).toBe(true);
   });
 });
 
@@ -86,5 +88,14 @@ describe('runTool', () => {
       date: '2026-11-25',
       text: 'ACCT ••••9012',
     });
+  });
+
+  it('runs get_meld_docs without corrupting doc content via digit masking', async () => {
+    const docsTool = createChatTools({} as Db).find((t) => t.name === 'get_meld_docs');
+    const res = await runTool(docsTool, { query: 'autopay' });
+    expect(res.isError).toBe(false);
+    const parsed = JSON.parse(res.content) as { sections: { id: string }[] };
+    expect(parsed.sections[0]!.id).toBe('features#recurring-payments-autopay--alerts');
+    expect(maskNumbers(MELD_DOC_SECTIONS)).toEqual(MELD_DOC_SECTIONS);
   });
 });

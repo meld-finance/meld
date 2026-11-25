@@ -10,8 +10,8 @@ import { useTheme } from '@/hooks/use-theme';
 
 const DEFAULT_SUGGESTIONS = [
   'Am I on track for retirement?',
-  'Should I pay extra on my mortgage?',
   'Any tax strategies I should consider?',
+  'How do I get the most out of Meld?',
 ];
 
 type Props = {
@@ -44,7 +44,7 @@ export function AskMeldBar({ suggestions = DEFAULT_SUGGESTIONS, compact = false,
         </View>
         <TextInput
           style={[styles.input, { color: theme.text }]}
-          placeholder="Ask Meld about your money…"
+          placeholder="Ask Meld about money or help…"
           placeholderTextColor={theme.textSecondary}
           value={question}
           onChangeText={setQuestion}

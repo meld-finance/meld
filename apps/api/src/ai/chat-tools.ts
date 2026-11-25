@@ -40,6 +40,7 @@ import { getRecurringSummary } from '../services/recurring';
 import { getRetirement } from '../services/retirement';
 import { getTaxPlan } from '../services/tax';
 import { escapeLike, listCategories, queryTransactions, totalsByMerchant } from '../services/transactions';
+import { formatDocsToolLabel, lookupMeldDocs } from './meld-docs';
 
 /**
  * A function the AI can call to look up the user's data. Provider-neutral:
@@ -652,6 +653,25 @@ export function createChatTools(db: Db): ChatTool[] {
           reviewIntervalYears: settings.reviewIntervalYears,
         };
       },
+    }),
+    tool({
+      name: 'get_meld_docs',
+      description:
+        'Look up Meld’s feature guides: how screens/calculations work, settings, Plaid, phone access (Tailscale), Docker, Ollama/ChatGPT/Claude, MCP, privacy, and security. Omit inputs for a guide index.',
+      deferLoading: true,
+      input: z.object({
+        query: z.string().trim().min(1).max(200).optional().describe('Keywords to search across Meld guides'),
+        topic: z
+          .string()
+          .trim()
+          .min(1)
+          .max(120)
+          .optional()
+          .describe('Section id (e.g. features#plan-estate) or guide slug (plaid, phone-access, docker, privacy, security)'),
+        limit: z.number().int().min(1).max(5).default(3).describe('Max sections to return'),
+      }),
+      label: (input) => formatDocsToolLabel(input),
+      run: async (input) => lookupMeldDocs(input),
     }),
   ];
 }
