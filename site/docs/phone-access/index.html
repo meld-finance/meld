@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en" data-docs-root="..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone Access (Tailscale) — Meld Docs</title>
+<meta name="description" content="Reach Meld securely from your phone over your own Tailscale tailnet without exposing it to the internet.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../favicon.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../"><img src="../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../features/">Features &amp; Guide</a></li>
+        <li><a class="nav-link" href="../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link active" href="../phone-access/" aria-current="page">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../development/">Development</a></li>
+        <li><a class="nav-link" href="../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Using Meld</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Phone Access (Tailscale)</span>
+        </nav>
+        <h1>Phone access over Tailscale</h1>
+        <p class="doc-summary">Reach Meld securely from your phone over your own Tailscale tailnet without exposing it to the internet.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">2 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/phone-access.md">View docs/phone-access.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#what-you-need-beforehand">What you need beforehand</a>
+          <a class="depth-2" href="#turn-on-phone-access-mac--windows-app">Turn on phone access (Mac &amp; Windows app)</a>
+          <a class="depth-2" href="#keeping-it-reachable">Keeping it reachable</a>
+          <a class="depth-2" href="#troubleshooting">Troubleshooting</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Meld never opens itself to the public internet. Instead, your phone reaches Meld over <a href="https://tailscale.com" target="_blank" rel="noopener">Tailscale</a>, a private encrypted network of only your own devices (free for personal use).</p>
+
+<h2 id="what-you-need-beforehand">What you need beforehand<a class="heading-anchor" href="#what-you-need-beforehand" aria-label="Link to What you need beforehand">#</a></h2>
+
+<ol>
+<li><strong>Tailscale installed on this computer</strong> (Mac or Windows) and signed in to your Tailscale account: <a href="https://tailscale.com/download" target="_blank" rel="noopener">download Tailscale</a>.</li>
+<li><strong>Tailscale installed on your phone</strong> (iOS App Store or Google Play) and signed in to <strong>the same</strong> Tailscale account.</li>
+<li><strong>HTTPS certificates enabled</strong> for your tailnet: in the <a href="https://login.tailscale.com/admin/dns" target="_blank" rel="noopener">Tailscale admin console</a> under <strong>DNS</strong>, click <strong>Enable HTTPS</strong> (see <a href="https://tailscale.com/kb/1153/enabling-https" target="_blank" rel="noopener">Tailscale's HTTPS guide</a>). This lets Tailscale give your computer a private <code>https://...ts.net</code> address with a valid certificate.</li>
+</ol>
+
+<h2 id="turn-on-phone-access-mac--windows-app">Turn on phone access (Mac &amp; Windows app)<a class="heading-anchor" href="#turn-on-phone-access-mac--windows-app" aria-label="Link to Turn on phone access (Mac &amp; Windows app)">#</a></h2>
+
+<ol>
+<li>Open Meld on your computer and go to <strong>Account menu → Settings → Phone access</strong> (or click <strong>Phone Access…</strong> in the macOS menu bar / Windows notification tray).</li>
+<li>If Tailscale isn't running or HTTPS isn't enabled yet, Meld tells you what's missing. Fix that step and click <strong>Check again</strong>.</li>
+<li><p>Click <strong>Turn on phone access</strong>.</p>
+<ul>
+<li>The first time you use <code>tailscale serve</code>, Tailscale may ask you to enable Serve on your tailnet with a one-click approval link. Follow that link if shown, then click <strong>Turn on phone access</strong> again.</li>
+</ul></li>
+<li>Meld shows a <strong>QR code</strong> and a private <code>https://...ts.net</code> address.</li>
+<li>Make sure Tailscale is connected on your phone, scan the QR code with your phone's camera (or type the address in Safari / Chrome), and unlock with your Meld passphrase.</li>
+<li><p><strong>Add to Home Screen</strong> on your phone so Meld opens full-screen like a native app:</p>
+<ul>
+<li><strong>iPhone (Safari):</strong> Tap the Share button → <strong>Add to Home Screen</strong>.</li>
+<li><strong>Android (Chrome):</strong> Tap the <code>⋮</code> menu → <strong>Add to home screen</strong> (or <strong>Install app</strong>).</li>
+</ul></li>
+</ol>
+
+<h2 id="keeping-it-reachable">Keeping it reachable<a class="heading-anchor" href="#keeping-it-reachable" aria-label="Link to Keeping it reachable">#</a></h2>
+
+<ul>
+<li>On Mac and Windows, closing Meld's window keeps it running in the menu bar / notification tray so your phone can still connect while your computer is awake. Turn on <strong>Open at Login</strong> from the menu bar / tray icon if you want Meld ready after a restart.</li>
+<li>If you want Meld reachable 24/7 even when your laptop is asleep, run Meld on a home server, NAS, or always-on computer with Docker instead — see the <a href="../docker/">Docker setup guide</a>.</li>
+</ul>
+
+<h2 id="troubleshooting">Troubleshooting<a class="heading-anchor" href="#troubleshooting" aria-label="Link to Troubleshooting">#</a></h2>
+
+<ul>
+<li><strong>Page won't load on your phone:</strong> Check that Tailscale is connected on both your phone and your computer, signed in to the same Tailscale account, and that your computer isn't asleep.</li>
+<li><strong>Certificate or HTTPS warning:</strong> Confirm <strong>Enable HTTPS</strong> is switched on in the <a href="https://login.tailscale.com/admin/dns" target="_blank" rel="noopener">Tailscale admin console → DNS</a>, then click <strong>Check again</strong> in Meld's Phone access card.</li>
+<li><strong>Docker server:</strong> On a Docker host, Meld runs <code>127.0.0.1:8080</code>, so use <code>tailscale serve --bg 8080</code> on the host machine (covered in <a href="../docker/">docs/docker.md</a>).</li>
+</ul>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../plaid/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Plaid Bank Setup</span>
+      </a>
+      <a class="pager-card next" href="../docker/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Self-Hosting with Docker</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#what-you-need-beforehand">What you need beforehand</a></li>
+          <li><a class="toc-link depth-2" href="#turn-on-phone-access-mac--windows-app">Turn on phone access (Mac &amp; Windows app)</a></li>
+          <li><a class="toc-link depth-2" href="#keeping-it-reachable">Keeping it reachable</a></li>
+          <li><a class="toc-link depth-2" href="#troubleshooting">Troubleshooting</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../">Home</a>
+      <a href="../">Docs</a>
+      <a href="../privacy/">Privacy</a>
+      <a href="../security/">Security</a>
+      <a href="../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../docs.js" defer></script>
+</body>
+</html>

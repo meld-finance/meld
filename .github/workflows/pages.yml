@@ -5,7 +5,14 @@ name: Pages
 on:
   push:
     branches: [main]
-    paths: ["site/**", ".github/workflows/pages.yml"]
+    paths:
+      - "site/**"
+      - "docs/**"
+      - "PRIVACY.md"
+      - "SECURITY.md"
+      - "CONTRIBUTING.md"
+      - "scripts/build-docs.mjs"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -25,6 +32,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/build-docs.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en" data-docs-root="..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Development — Meld Docs</title>
+<meta name="description" content="Monorepo layout, local setup, desktop Electron builds, common commands, and the release workflow.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../favicon.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../"><img src="../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../features/">Features &amp; Guide</a></li>
+        <li><a class="nav-link" href="../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link active" href="../development/" aria-current="page">Development</a></li>
+        <li><a class="nav-link" href="../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Developers</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Development</span>
+        </nav>
+        <h1>Development</h1>
+        <p class="doc-summary">Monorepo layout, local setup, desktop Electron builds, common commands, and the release workflow.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">7 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/development.md">View docs/development.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#desktop-app">Desktop app</a>
+          <a class="depth-2" href="#common-commands">Common commands</a>
+          <a class="depth-2" href="#releases">Releases</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <div class="code-block">
+  <div class="code-bar">
+    <span class="code-lang">Snippet</span>
+    <button type="button" class="code-copy" aria-label="Copy code"><span class="copy-text">Copy</span></button>
+  </div>
+  <pre><code>apps/api        Fastify + TypeScript API: Plaid, AI, data (Postgres via Drizzle); also serves the web app under /api
+apps/mobile     Expo (expo-router) app → web, iOS, Android
+apps/desktop    Electron app for macOS and Windows (Windows is a preview): bundled Postgres + the API + the web app, menu bar / tray, Tailscale
+packages/shared Zod schemas + types shared by app and API</code></pre>
+</div>
+
+<p>See <a href="../contributing/">CONTRIBUTING.md</a> before opening a pull request.</p>
+
+<p>You need Node 22+ and npm, plus Docker for Postgres.</p>
+
+<div class="code-block">
+  <div class="code-bar">
+    <span class="code-lang">sh</span>
+    <button type="button" class="code-copy" aria-label="Copy code"><span class="copy-text">Copy</span></button>
+  </div>
+  <pre><code>npm install
+./scripts/setup.sh            # or: cp .env.example .env and fill it in by hand
+npm run db:up                 # start only Postgres in Docker (localhost only)
+docker compose exec db createdb -U meld meld_test       # once: the test database
+npm run db:migrate            # apply migrations to both databases
+npm run dev                   # API on :4000, Expo web on :8081</code></pre>
+</div>
+
+<p>Open <a href="http://localhost:8081" target="_blank" rel="noopener">http://localhost:8081</a> and unlock with <code>APP_PASSPHRASE</code>.</p>
+
+<p>If your Postgres volume predates <code>docker/initdb</code>, create the sandbox database once with <code>docker compose exec db createdb -U meld meld_sandbox</code>.</p>
+
+<h2 id="desktop-app">Desktop app<a class="heading-anchor" href="#desktop-app" aria-label="Link to Desktop app">#</a></h2>
+
+<ul>
+<li><code>npm run desktop:dev</code> opens the Electron app against the API source and the Expo dev server (hot reload on both), with its own Postgres and data in <code>~/Library/Application Support/Meld Dev</code>. Stop <code>npm run dev</code> first: both use port 4000. Set <code>MELD_USER_DATA=&lt;folder&gt;</code> to try a fresh first run.</li>
+<li><code>npm run desktop:build</code> builds <code>apps/desktop/release/mac-&lt;arch&gt;/Meld.app</code> in a minute or two, for checking the real thing. <code>npm run desktop:dist</code> makes the <code>.dmg</code> for this Mac's architecture. For Intel Macs: <code>cd apps/desktop &amp;&amp; node scripts/build.mjs --arch x64 &amp;&amp; npx electron-builder --x64</code>.</li>
+<li>Packaged, the API is one esbuild bundle run in an Electron utility process, Postgres is the <a href="https://github.com/leinelissen/embedded-postgres" target="_blank" rel="noopener">embedded-postgres</a> build thinned to one architecture, and the web app is the same Expo export Docker serves. Logs: menu bar → <strong>Show Log</strong>.</li>
+<li><strong>Keys.</strong> Meld's encryption key, session secret and Postgres password are one item in the macOS Keychain (Windows: Credential Manager), service <code>Meld</code>, account <code>secrets</code> (<code>secrets:&lt;folder&gt;</code> for other data folders, e.g. <code>secrets:Meld Dev</code>). Losing it means re-linking every bank, and Meld refuses to start rather than make new keys over existing data. Builds before this kept them in <code>secrets.bin</code>, encrypted with Electron's safeStorage; the first start of a newer build copies them into the Keychain and renames the file <code>secrets.bin.migrated</code>.</li>
+<li><strong>Windows.</strong> The app has to be built on the OS it's for, so the Windows installer is built in CI: <code>.github/workflows/windows.yml</code> runs on every pull request that touches <code>apps/desktop/</code>, and on demand (<code>gh workflow run windows.yml --ref &lt;branch&gt;</code>, or Actions → <strong>Windows build</strong> → <strong>Run workflow</strong>). Download <code>Meld-x64-setup.exe</code> from the run's <strong>windows</strong> artifact (<code>gh run download &lt;run-id&gt; -n windows</code>). On a Windows machine, <code>npm run desktop:build</code> makes <code>apps/desktop/release/win-unpacked/Meld.exe</code> and <code>npm run desktop:dist</code> makes the installer, with Windows Postgres (<code>@embedded-postgres/windows-x64</code>). The installer is per-user (no admin prompt) and unsigned, so SmartScreen warns the first time (<strong>More info → Run anyway</strong>). Data lives in <code>%APPDATA%\Meld</code>, the keys in Credential Manager, and Meld keeps running in the notification area when its window closes. It builds cleanly but hasn't been tried end to end on Windows yet, so treat it as a preview.</li>
+<li><p><strong>Sharing real data with dev.</strong> Plaid bills per linked bank, so link each bank once (in the Mac app) and copy the data to <code>npm run dev</code> rather than linking it in both. Quit Meld first; both commands run its Postgres themselves, and macOS may ask once to let Electron use the &quot;Meld&quot; Keychain item.</p>
+<ul>
+<li><code>npm run desktop:seed-from-dev</code> (once): copies dev's production database and documents into the Mac app, which takes dev's <code>ENCRYPTION_KEY</code> so the Plaid tokens still work. It stops if the Mac app has banks dev doesn't.</li>
+<li><code>npm run dev:pull-desktop</code> (any time): replaces dev's production database and documents with the Mac app's, and sets dev's <code>ENCRYPTION_KEY</code> to match. It stops if dev has banks the Mac app doesn't. <code>MELD_TRANSFER_FORCE=1</code> overrides either check.</li>
+<li>Both set <code>PLAID_SHARED_ITEMS=true</code> in <code>.env</code>, so unlinking a bank in dev removes it there only and the Mac app keeps it. Restart <code>npm run dev</code> and the Docker container afterwards.</li>
+</ul></li>
+<li>Signing and notarization happen when <code>CSC_LINK</code>/<code>CSC_KEY_PASSWORD</code> and <code>APPLE_ID</code>/<code>APPLE_APP_SPECIFIC_PASSWORD</code>/<code>APPLE_TEAM_ID</code> are set (see electron-builder's docs); otherwise the build is unsigned.</li>
+</ul>
+
+<h2 id="common-commands">Common commands<a class="heading-anchor" href="#common-commands" aria-label="Link to Common commands">#</a></h2>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th scope="col">Command</th><th scope="col">What it does</th></tr></thead>
+<tbody>
+<tr><td><code>docker compose up -d --build</code></td><td>Run all of Meld in Docker at <a href="http://localhost:8080" target="_blank" rel="noopener">http://localhost:8080</a></td></tr>
+<tr><td><code>npm run desktop:dev</code></td><td>The desktop app against the API source and Expo dev server</td></tr>
+<tr><td><code>npm run desktop:build</code> / <code>npm run desktop:dist</code></td><td>Build <code>Meld.app</code> / the <code>.dmg</code> (<code>win-unpacked</code> / the setup <code>.exe</code> on Windows)</td></tr>
+<tr><td><code>gh workflow run windows.yml --ref &lt;branch&gt;</code></td><td>Build the Windows installer in CI from a Mac</td></tr>
+<tr><td><code>npm run dev:pull-desktop</code></td><td>Copy the Mac app's data into dev (<code>desktop:seed-from-dev</code> goes the other way, once)</td></tr>
+<tr><td><code>npm run dev</code></td><td>API + Expo web together</td></tr>
+<tr><td><code>npm run dev:api</code> / <code>npm run dev:web</code></td><td>Run one side only</td></tr>
+<tr><td><code>npm run db:up</code></td><td>Start only Postgres (for <code>npm run dev</code>)</td></tr>
+<tr><td><code>npm run db:generate</code></td><td>Create a migration after editing <code>apps/api/src/db/schema.ts</code></td></tr>
+<tr><td><code>npm run db:migrate</code></td><td>Apply migrations to the sandbox and production databases</td></tr>
+<tr><td><code>npm run typecheck</code></td><td>Typecheck all packages</td></tr>
+<tr><td><code>npm test</code></td><td>Run tests (DB tests use <code>TEST_DATABASE_URL</code>; create it once with <code>docker compose exec db createdb -U meld meld_test</code>)</td></tr>
+<tr><td><code>npm run site:screenshots</code></td><td>Re-capture 2× landing page PNGs from <code>meld_sandbox</code> and sync dimensions</td></tr>
+<tr><td><code>npm run site:check</code></td><td>Verify landing page screenshots are 2× PNGs matching <code>site/index.html</code></td></tr>
+<tr><td><code>npm run docs:build</code></td><td>Generate the web documentation portal (<code>site/docs/</code>) from Markdown</td></tr>
+<tr><td><code>npm run docs:check</code></td><td>Verify <code>site/docs/</code> is in sync and all doc links/anchors resolve</td></tr>
+<tr><td><code>npm run docs:audit</code></td><td>Check working-tree code changes against mapped documentation files</td></tr>
+<tr><td><code>npm run hooks:install</code></td><td>Enable <code>.githooks/</code> (<code>core.hooksPath</code>) for doc-sync pre-commit checks</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="releases">Releases<a class="heading-anchor" href="#releases" aria-label="Link to Releases">#</a></h2>
+
+<p>The app's version lives in <code>apps/desktop/package.json</code> (it's what About Meld shows). To release, bump it there (<code>npm version 0.2.0 -w apps/desktop --no-git-tag-version</code>), commit, and push the matching tag: <code>git tag v0.2.0 &amp;&amp; git push origin v0.2.0</code>. That runs <code>.github/workflows/release.yml</code>, which fails if the tag and <code>package.json</code> disagree, builds the Apple silicon and Intel <code>.dmg</code> files and the Windows installer, and attaches them to a draft GitHub Release with generated notes. The <code>.dmg</code> files and the setup <code>.exe</code> have no version in their names (<code>Meld-arm64.dmg</code>, <code>Meld-x64.dmg</code>, <code>Meld-x64-setup.exe</code>), so the README and website link to <code>releases/latest/download/&lt;name&gt;</code> and never need updating. Check the draft, then publish it. Add the signing secrets listed at the top of that workflow to sign and notarize the builds.</p>
+
+<p>Publishing the release is what ships it to people already running Meld. The workflow also attaches a <code>.zip</code> per architecture and a <code>latest-mac.yml</code>; the Mac app checks for that file on GitHub shortly after it opens and every 4 hours. Windows copies read <code>latest.yml</code> and download the new setup <code>.exe</code>, which installs when Meld restarts or quits. When it finds a newer version it shows <strong>Update available</strong> at the top of the window, a dot on What's new in the account menu, an item in the menu bar menu, and one macOS notification. One click downloads the update in the background; <strong>Restart to update</strong> installs it (it also installs the next time Meld quits). Updating the Mac app needs signed builds (the Windows installer updates unsigned). Drafts and pre-releases are never offered.</p>
+
+<p>The release notes are what Meld shows on its <strong>What's new</strong> page (account menu → What's new, Settings → About, or Help → What's New in Meld), so write them for users. An <code>## Install</code> section, <code>**Full Changelog**</code> lines and the generated &quot;by @someone in …&quot; credits are left out in the app. Markdown headings, lists, <code>**bold**</code>, links and <code>&gt;</code> quotes all render.</p>
+
+<p>To try the update UI without a release, run <code>npm run desktop:dev</code> with <code>MELD_FAKE_UPDATE=0.9.0</code>: Meld acts as if 0.9.0 were out, and its download and restart steps are simulated.</p>
+
+<p>The landing page lives in <code>site/</code> and the web documentation portal lives in <code>site/docs/</code> (generated from <code>docs/*.md</code>, <code>PRIVACY.md</code>, <code>SECURITY.md</code>, and <code>CONTRIBUTING.md</code>); both are published to GitHub Pages by <code>.github/workflows/pages.yml</code> whenever <code>site/</code>, docs, or <code>scripts/build-docs.mjs</code> change on <code>main</code>. Preview locally with <code>npm run site:dev</code> (<a href="http://127.0.0.1:8000" target="_blank" rel="noopener">http://127.0.0.1:8000</a>, docs at <a href="http://127.0.0.1:8000/docs/" target="_blank" rel="noopener">http://127.0.0.1:8000/docs/</a>), which automatically rebuilds <code>site/docs/</code> and reloads the page whenever Markdown or site files change. Run <code>npm run docs:build</code> after editing Markdown docs and <code>npm run docs:check</code> to verify everything stays in sync (enforced by CI, <code>.githooks/pre-commit</code>, <code>.claude/settings.json</code>, and <code>CLAUDE.md</code>/<code>AGENTS.md</code>). Enable the git pre-commit hook anytime with <code>npm run hooks:install</code>. When UI changes affect the landing page, run <code>npm run site:screenshots</code> (requires Chrome and <code>meld_sandbox</code>) to re-capture 2× Retina PNGs and sync <code>site/index.html</code> dimensions, check callout pin positions in <code>npm run site:dev</code>, and verify with <code>npm run site:check</code>.</p>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../security/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Security</span>
+      </a>
+      <a class="pager-card next" href="../contributing/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Contributing</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#desktop-app">Desktop app</a></li>
+          <li><a class="toc-link depth-2" href="#common-commands">Common commands</a></li>
+          <li><a class="toc-link depth-2" href="#releases">Releases</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../">Home</a>
+      <a href="../">Docs</a>
+      <a href="../privacy/">Privacy</a>
+      <a href="../security/">Security</a>
+      <a href="../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../docs.js" defer></script>
+</body>
+</html>

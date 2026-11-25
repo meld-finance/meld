@@ -48,3 +48,4 @@ jobs:
       - run: npm test
       - run: npm run lint -w @meld/mobile
       - run: npm run site:check
+      - run: npm run docs:check

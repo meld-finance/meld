@@ -1,4 +1,4 @@
-[Meld home page](https://meld-finance.github.io/meld/) · [README](../README.md) · [Features](features.md) · [Contributing](../CONTRIBUTING.md)
+[Meld home page](https://meld-finance.github.io/meld/) · [Docs](https://meld-finance.github.io/meld/docs/) · [README](../README.md) · [Features](features.md) · [Contributing](../CONTRIBUTING.md)
 
 # Development
 
@@ -57,6 +57,10 @@ If your Postgres volume predates `docker/initdb`, create the sandbox database on
 | `npm test` | Run tests (DB tests use `TEST_DATABASE_URL`; create it once with `docker compose exec db createdb -U meld meld_test`) |
 | `npm run site:screenshots` | Re-capture 2× landing page PNGs from `meld_sandbox` and sync dimensions |
 | `npm run site:check` | Verify landing page screenshots are 2× PNGs matching `site/index.html` |
+| `npm run docs:build` | Generate the web documentation portal (`site/docs/`) from Markdown |
+| `npm run docs:check` | Verify `site/docs/` is in sync and all doc links/anchors resolve |
+| `npm run docs:audit` | Check working-tree code changes against mapped documentation files |
+| `npm run hooks:install` | Enable `.githooks/` (`core.hooksPath`) for doc-sync pre-commit checks |
 
 ## Releases
 
@@ -68,4 +72,4 @@ The release notes are what Meld shows on its **What's new** page (account menu �
 
 To try the update UI without a release, run `npm run desktop:dev` with `MELD_FAKE_UPDATE=0.9.0`: Meld acts as if 0.9.0 were out, and its download and restart steps are simulated.
 
-The landing page lives in `site/` and is published to GitHub Pages by `.github/workflows/pages.yml` whenever `site/` changes on `main`. Preview it with `npm run site:dev` (http://127.0.0.1:8000), which reloads the page whenever a file in `site/` changes. When UI changes affect the landing page, run `npm run site:screenshots` (requires Chrome and `meld_sandbox`) to re-capture 2× Retina PNGs and sync `site/index.html` dimensions, check callout pin positions in `npm run site:dev`, and verify with `npm run site:check`.
+The landing page lives in `site/` and the web documentation portal lives in `site/docs/` (generated from `docs/*.md`, `PRIVACY.md`, `SECURITY.md`, and `CONTRIBUTING.md`); both are published to GitHub Pages by `.github/workflows/pages.yml` whenever `site/`, docs, or `scripts/build-docs.mjs` change on `main`. Preview locally with `npm run site:dev` (http://127.0.0.1:8000, docs at http://127.0.0.1:8000/docs/), which automatically rebuilds `site/docs/` and reloads the page whenever Markdown or site files change. Run `npm run docs:build` after editing Markdown docs and `npm run docs:check` to verify everything stays in sync (enforced by CI, `.githooks/pre-commit`, `.claude/settings.json`, and `CLAUDE.md`/`AGENTS.md`). Enable the git pre-commit hook anytime with `npm run hooks:install`. When UI changes affect the landing page, run `npm run site:screenshots` (requires Chrome and `meld_sandbox`) to re-capture 2× Retina PNGs and sync `site/index.html` dimensions, check callout pin positions in `npm run site:dev`, and verify with `npm run site:check`.

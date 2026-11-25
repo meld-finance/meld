@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/scripts/claude-docs-hook.mjs\" post-edit"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node \"${CLAUDE_PROJECT_DIR:-.}/scripts/claude-docs-hook.mjs\" stop"
+      }
+    ]
+  }
+}

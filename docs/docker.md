@@ -1,4 +1,4 @@
-[Meld home page](https://meld-finance.github.io/meld/) · [README](../README.md) · [Phone access](phone-access.md) · [Plaid setup](plaid.md) · [Features](features.md)
+[Meld home page](https://meld-finance.github.io/meld/) · [Docs](https://meld-finance.github.io/meld/docs/) · [README](../README.md) · [Phone access](phone-access.md) · [Plaid setup](plaid.md) · [Features](features.md)
 
 # Self-hosting Meld with Docker
 

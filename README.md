@@ -4,7 +4,7 @@
 
 Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer: there's no Meld server and no account to create, and your data stays in a database on your machine.
 
-Download for Mac: [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) · [Windows (preview)](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe) · [Website](https://meld-finance.github.io/meld/) · [Features](docs/features.md) · [Phone access](docs/phone-access.md) · [Docker](docs/docker.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
+Download for Mac: [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) · [Windows (preview)](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe) · [Website](https://meld-finance.github.io/meld/) · [Docs](https://meld-finance.github.io/meld/docs/) · [Features](docs/features.md) · [Phone access](docs/phone-access.md) · [Docker](docs/docker.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
 
 ![Meld's Home screen: Ask Meld bar, net worth chart, cash and spending vitals, prioritized to-dos and upcoming bills](site/images/home.png)
 

@@ -1,9 +1,10 @@
-[Meld home page](https://meld-finance.github.io/meld/) · [README](../README.md) · [Plaid setup](plaid.md) · [Phone access](phone-access.md) · [Docker setup](docker.md)
+[Meld home page](https://meld-finance.github.io/meld/) · [Docs](https://meld-finance.github.io/meld/docs/) · [README](../README.md) · [Plaid setup](plaid.md) · [Phone access](phone-access.md) · [Docker setup](docker.md)
 
 # Features
 
 What each part of Meld does and how it works. For installing, see the [README](../README.md).
 
+<!-- toc -->
 - [Linking accounts (Plaid)](#linking-accounts-plaid)
 - [Overview & budgets](#overview--budgets)
 - [Recurring payments, autopay & alerts](#recurring-payments-autopay--alerts)
@@ -15,8 +16,9 @@ What each part of Meld does and how it works. For installing, see the [README](.
 - [Plan: estate](#plan-estate)
 - [Ask Meld (AI chat)](#ask-meld-ai-chat)
 - [Phone access over Tailscale](phone-access.md) · [Docker self-hosting](docker.md)
+<!-- /toc -->
 
-Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice.
+> **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice.
 
 ## Linking accounts (Plaid)
 

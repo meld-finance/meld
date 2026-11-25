@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en" data-docs-root="..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Self-Hosting with Docker — Meld Docs</title>
+<meta name="description" content="Run Meld 24/7 on a home server, Mac mini, or NAS with Docker Compose, backups, and Ollama.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../favicon.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../"><img src="../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../features/">Features &amp; Guide</a></li>
+        <li><a class="nav-link" href="../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link active" href="../docker/" aria-current="page">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../development/">Development</a></li>
+        <li><a class="nav-link" href="../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Using Meld</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Self-Hosting with Docker</span>
+        </nav>
+        <h1>Self-hosting Meld with Docker</h1>
+        <p class="doc-summary">Run Meld 24/7 on a home server, Mac mini, or NAS with Docker Compose, backups, and Ollama.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">2 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/docker.md">View docs/docker.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#start-meld">Start Meld</a>
+          <a class="depth-2" href="#update">Update</a>
+          <a class="depth-2" href="#stop">Stop</a>
+          <a class="depth-2" href="#back-up">Back up</a>
+          <a class="depth-2" href="#change-settings">Change settings</a>
+          <a class="depth-2" href="#using-ollama-from-docker">Using Ollama from Docker</a>
+          <a class="depth-2" href="#phone-access-over-tailscale">Phone access over Tailscale</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Docker runs Meld on any machine that stays on—a home server, Mac mini, NAS, or Linux box. It starts two containers: Postgres (<code>db</code>) and Meld (<code>meld</code>), which serves both the web app and the API on <code>127.0.0.1:8080</code>.</p>
+
+<h2 id="start-meld">Start Meld<a class="heading-anchor" href="#start-meld" aria-label="Link to Start Meld">#</a></h2>
+
+<p>You need <a href="https://docs.docker.com/get-docker/" target="_blank" rel="noopener">Docker</a> (with Docker Compose) and Git.</p>
+
+<div class="code-block">
+  <div class="code-bar">
+    <span class="code-lang">sh</span>
+    <button type="button" class="code-copy" aria-label="Copy code"><span class="copy-text">Copy</span></button>
+  </div>
+  <pre><code>git clone https://github.com/meld-finance/meld.git &amp;&amp; cd meld
+./scripts/setup.sh            # creates .env with fresh encryption keys (and optionally your passphrase)
+docker compose up -d --build</code></pre>
+</div>
+
+<p>Open <code>http://localhost:8080</code> in your browser. Any settings not set in <code>.env</code> (passphrase, Plaid keys, AI options) are asked on first run and saved in the <code>meld-config</code> Docker volume; values in <code>.env</code> always take precedence over settings saved in the app.</p>
+
+<h2 id="update">Update<a class="heading-anchor" href="#update" aria-label="Link to Update">#</a></h2>
+
+<div class="code-block">
+  <div class="code-bar">
+    <span class="code-lang">sh</span>
+    <button type="button" class="code-copy" aria-label="Copy code"><span class="copy-text">Copy</span></button>
+  </div>
+  <pre><code>git pull &amp;&amp; docker compose up -d --build --remove-orphans</code></pre>
+</div>
+
+<p>Database migrations run automatically when the container starts.</p>
+
+<h2 id="stop">Stop<a class="heading-anchor" href="#stop" aria-label="Link to Stop">#</a></h2>
+
+<div class="code-block">
+  <div class="code-bar">
+    <span class="code-lang">sh</span>
+    <button type="button" class="code-copy" aria-label="Copy code"><span class="copy-text">Copy</span></button>
+  </div>
+  <pre><code>docker compose down</code></pre>
+</div>
+
+<p>Your database, uploaded documents, and app settings are preserved in Docker volumes (<code>meld-db</code>, <code>meld-documents</code>, <code>meld-config</code>). (<code>docker compose down -v</code> deletes those volumes—avoid <code>-v</code> unless you want to wipe everything.)</p>
+
+<h2 id="back-up">Back up<a class="heading-anchor" href="#back-up" aria-label="Link to Back up">#</a></h2>
+
+<div class="code-block">
+  <div class="code-bar">
+    <span class="code-lang">sh</span>
+    <button type="button" class="code-copy" aria-label="Copy code"><span class="copy-text">Copy</span></button>
+  </div>
+  <pre><code>docker compose exec db pg_dump -U meld meld &gt; meld-backup.sql</code></pre>
+</div>
+
+<p>Keep <code>.env</code> somewhere safe too: without its <code>ENCRYPTION_KEY</code>, encrypted Plaid tokens, documents, and saved settings cannot be decrypted, so you would need to re-link your accounts.</p>
+
+<h2 id="change-settings">Change settings<a class="heading-anchor" href="#change-settings" aria-label="Link to Change settings">#</a></h2>
+
+<ul>
+<li>For anything <strong>not</strong> set in <code>.env</code>, change it in <strong>Account menu → Settings</strong> inside the app.</li>
+<li>For anything set in <code>.env</code>, edit <code>.env</code> and restart the container:</li>
+</ul>
+
+<div class="code-block">
+  <div class="code-bar">
+    <span class="code-lang">sh</span>
+    <button type="button" class="code-copy" aria-label="Copy code"><span class="copy-text">Copy</span></button>
+  </div>
+  <pre><code>docker compose up -d</code></pre>
+</div>
+
+<h2 id="using-ollama-from-docker">Using Ollama from Docker<a class="heading-anchor" href="#using-ollama-from-docker" aria-label="Link to Using Ollama from Docker">#</a></h2>
+
+<p>If Ollama runs directly on the host machine (outside Docker), set the Ollama address to <code>http://host.docker.internal:11434</code> in <strong>Settings → AI</strong> (or <code>OLLAMA_URL=http://host.docker.internal:11434</code> in <code>.env</code>).</p>
+
+<h2 id="phone-access-over-tailscale">Phone access over Tailscale<a class="heading-anchor" href="#phone-access-over-tailscale" aria-label="Link to Phone access over Tailscale">#</a></h2>
+
+<p>Meld only binds to <code>127.0.0.1:8080</code>, and its login is a single passphrase, so don't expose it to the public internet. To reach it from your phone:</p>
+
+<ol>
+<li>Install <a href="https://tailscale.com/download" target="_blank" rel="noopener">Tailscale</a> on the Docker host and on your phone, signed in to the same Tailscale account, and enable HTTPS certificates in the Tailscale admin console (<strong>DNS → Enable HTTPS</strong>).</li>
+<li>On the Docker host, run:</li>
+</ol>
+
+<div class="code-block">
+  <div class="code-bar">
+    <span class="code-lang">sh</span>
+    <button type="button" class="code-copy" aria-label="Copy code"><span class="copy-text">Copy</span></button>
+  </div>
+  <pre><code>tailscale serve --bg 8080</code></pre>
+</div>
+
+<p>Tailscale will give you a private <code>https://...ts.net</code> URL that proxies securely over your tailnet to <code>127.0.0.1:8080</code> without exposing Meld to the public internet. See <a href="../phone-access/">docs/phone-access.md</a> for adding Meld to your phone's home screen.</p>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../phone-access/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Phone Access (Tailscale)</span>
+      </a>
+      <a class="pager-card next" href="../privacy/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Privacy</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#start-meld">Start Meld</a></li>
+          <li><a class="toc-link depth-2" href="#update">Update</a></li>
+          <li><a class="toc-link depth-2" href="#stop">Stop</a></li>
+          <li><a class="toc-link depth-2" href="#back-up">Back up</a></li>
+          <li><a class="toc-link depth-2" href="#change-settings">Change settings</a></li>
+          <li><a class="toc-link depth-2" href="#using-ollama-from-docker">Using Ollama from Docker</a></li>
+          <li><a class="toc-link depth-2" href="#phone-access-over-tailscale">Phone access over Tailscale</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../">Home</a>
+      <a href="../">Docs</a>
+      <a href="../privacy/">Privacy</a>
+      <a href="../security/">Security</a>
+      <a href="../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../docs.js" defer></script>
+</body>
+</html>

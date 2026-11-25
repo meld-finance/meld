@@ -23,7 +23,12 @@
     "test": "npm run test --workspaces --if-present",
     "site:dev": "node scripts/site-dev.mjs",
     "site:screenshots": "node scripts/make-screenshots.mjs",
-    "site:check": "node scripts/make-screenshots.mjs --check"
+    "site:check": "node scripts/make-screenshots.mjs --check",
+    "docs:build": "node scripts/build-docs.mjs",
+    "docs:check": "node scripts/build-docs.mjs --check",
+    "docs:audit": "node scripts/check-docs.mjs --working",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "prepare": "node -e \"const{execFileSync:e}=require('node:child_process');const{existsSync:x}=require('node:fs');if(x('.git')&&x('.githooks')){try{e('git',['config','--local','--get','core.hooksPath'])}catch{try{e('git',['config','--local','core.hooksPath','.githooks'])}catch{}}}\""
   },
   "devDependencies": {
     "concurrently": "^10.0.6",

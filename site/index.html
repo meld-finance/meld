@@ -11,6 +11,7 @@
 <meta name="theme-color" content="#1a7fe6">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
 <style>
   :root {
     --bg: #f7f9fc;
@@ -381,6 +382,7 @@
       <a class="hide-sm" href="#compare">Compare</a>
       <a class="hide-sm" href="#privacy">Privacy</a>
       <a href="#install">Install</a>
+      <a href="docs/">Docs</a>
       <a href="https://github.com/meld-finance/meld">GitHub</a>
     </nav>
   </div>
@@ -819,7 +821,7 @@
       <div>
         <h2>What it really costs</h2>
         <p>Meld itself is free. The only bills are for services you choose to use, paid directly to them, with no markup and no middleman.</p>
-        <p class="fineprint">Plaid's free Trial plan is for Plaid teams created after April 15, 2026; older teams can use Limited Production. Plaid sets its own prices; <a href="https://github.com/meld-finance/meld/blob/main/docs/plaid.md">docs/plaid.md</a> walks through it.</p>
+        <p class="fineprint">Plaid's free Trial plan is for Plaid teams created after April 15, 2026; older teams can use Limited Production. Plaid sets its own prices; our <a href="docs/plaid/">Plaid setup guide</a> walks through it.</p>
       </div>
       <div class="costs">
         <div class="cost"><strong>Meld</strong><span class="price">$0</span><span class="why">Free and open source, with no paid tier.</span></div>
@@ -840,7 +842,7 @@
         <div class="flow"><strong>Yahoo Finance</strong><span>Ticker symbols only, for daily prices.</span></div>
         <div class="flow"><strong>Your phone</strong><span>Over Tailscale, a private network of only your own devices. Meld never opens itself to the internet.</span></div>
       </div>
-      <p class="fineprint" style="margin-top:20px"><a href="https://github.com/meld-finance/meld/blob/main/PRIVACY.md">Exactly what goes where →</a> · <a href="https://github.com/meld-finance/meld/blob/main/SECURITY.md">Security model →</a></p>
+      <p class="fineprint" style="margin-top:20px"><a href="docs/privacy/">Exactly what goes where →</a> · <a href="docs/security/">Security model →</a></p>
     </div>
   </section>
 
@@ -859,7 +861,7 @@
         </div>
         <div class="step">
           <h3>Try Sandbox, then go live</h3>
-          <p>Look around with test data (<code>user_good</code> / <code>pass_good</code>), then <a href="https://github.com/meld-finance/meld/blob/main/docs/plaid.md">connect your real accounts</a>.</p>
+          <p>Look around with test data (<code>user_good</code> / <code>pass_good</code>), then <a href="docs/plaid/">connect your real accounts</a>.</p>
         </div>
       </div>
     </div>
@@ -877,7 +879,7 @@
           <li>Turn on HTTPS certificates in the Tailscale admin console, then click <strong>Turn on phone access</strong> in Meld's Settings.</li>
           <li>Scan the QR code with your phone and use <strong>Add to Home Screen</strong> so Meld opens like an app.</li>
         </ol>
-        <p class="fineprint" style="margin:0"><a href="https://github.com/meld-finance/meld/blob/main/docs/phone-access.md">Phone &amp; Tailscale setup guide →</a> · Running an always-on server instead? <a href="https://github.com/meld-finance/meld/blob/main/docs/docker.md">Docker setup guide →</a></p>
+        <p class="fineprint" style="margin:0"><a href="docs/phone-access/">Phone &amp; Tailscale setup guide →</a> · Running an always-on server instead? <a href="docs/docker/">Docker setup guide →</a></p>
         <div class="shot plain"><img src="images/phone-settings.png" width="752" height="362" loading="lazy" alt="Meld Settings Phone access card showing a sample QR code and private Tailscale URL https://macbook.tail1234.ts.net"></div>
       </div>
       <div class="phone-col">
@@ -901,12 +903,13 @@
     <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
     <nav>
       <a href="https://github.com/meld-finance/meld">GitHub</a>
-      <a href="https://github.com/meld-finance/meld/blob/main/docs/features.md">All features</a>
-      <a href="https://github.com/meld-finance/meld/blob/main/docs/phone-access.md">Phone access</a>
-      <a href="https://github.com/meld-finance/meld/blob/main/docs/docker.md">Docker</a>
-      <a href="https://github.com/meld-finance/meld/blob/main/PRIVACY.md">Privacy</a>
-      <a href="https://github.com/meld-finance/meld/blob/main/SECURITY.md">Security</a>
-      <a href="https://github.com/meld-finance/meld/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="docs/">Docs</a>
+      <a href="docs/features/">All features</a>
+      <a href="docs/phone-access/">Phone access</a>
+      <a href="docs/docker/">Docker</a>
+      <a href="docs/privacy/">Privacy</a>
+      <a href="docs/security/">Security</a>
+      <a href="docs/contributing/">Contributing</a>
     </nav>
   </div>
 </footer>

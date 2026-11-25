@@ -1,0 +1,32 @@
+#!/usr/bin/env sh
+set -eu
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$STAGED" ] && exit 0
+
+DOC_PATTERN='^(docs/.*\.md|PRIVACY\.md|SECURITY\.md|CONTRIBUTING\.md|scripts/build-docs\.mjs|site/docs/docs\.(css|js))$'
+
+if printf '%s\n' "$STAGED" | grep -Eq "$DOC_PATTERN"; then
+  if ! node scripts/build-docs.mjs --check; then
+    echo ""
+    echo "Pre-commit: site/docs/ is out of sync with documentation sources."
+    echo "Run 'npm run docs:build && git add site/docs' and re-commit."
+    exit 1
+  fi
+
+  UNSTAGED_DOCS=$(
+    {
+      git diff --name-only -- site/docs
+      git ls-files --others --exclude-standard -- site/docs
+    } | sort -u
+  )
+  if [ -n "$UNSTAGED_DOCS" ]; then
+    echo ""
+    echo "Pre-commit: generated files in site/docs/ have unstaged or untracked changes:"
+    printf '%s\n' "$UNSTAGED_DOCS" | sed 's/^/  - /'
+    echo "Run 'git add site/docs' and re-commit."
+    exit 1
+  fi
+fi
+
+node scripts/check-docs.mjs --staged
