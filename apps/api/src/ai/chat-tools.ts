@@ -1,3 +1,17 @@
+/**
+ * Provider-neutral AI chat tools and read-only financial data lookups.
+ *
+ * Exports: `ChatTool`, `toToolJsonSchema`, `maskNumbers`, `MAX_TOOL_ROUNDS`,
+ *          `runTool`, `toolLabel`, `buildOverview`, `createChatTools`.
+ *
+ * Tools in `createChatTools`:
+ *   get_financial_overview, get_accounts, get_net_worth, search_transactions,
+ *   spending_by_merchant, list_categories, get_spending_by_category, get_cashflow,
+ *   get_budgets, get_holdings, get_loans_and_cards, get_profile,
+ *   get_investment_performance, get_investment_transactions, get_cash_plan,
+ *   get_recurring, get_tax_plan, get_retirement_plan, get_insurance_policies,
+ *   get_estate_plan, get_meld_docs.
+ */
 import {
   currentValue,
   estimatePayoff,

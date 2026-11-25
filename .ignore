@@ -1,0 +1,4 @@
+# Generated snapshots & compiled web docs: tracked by git, excluded from ripgrep/agent code search to minimize context noise.
+apps/api/drizzle/meta/
+site/docs/
+package-lock.json

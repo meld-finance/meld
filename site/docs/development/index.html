@@ -160,6 +160,9 @@ npm run dev                   # API on :4000, Expo web on :8081</code></pre>
 <tr><td><code>npm run db:migrate</code></td><td>Apply migrations to the sandbox and production databases</td></tr>
 <tr><td><code>npm run typecheck</code></td><td>Typecheck all packages</td></tr>
 <tr><td><code>npm test</code></td><td>Run tests (DB tests use <code>TEST_DATABASE_URL</code>; create it once with <code>docker compose exec db createdb -U meld meld_test</code>)</td></tr>
+<tr><td><code>npm run test:unit</code> / <code>npm run test:db</code></td><td>Run parallel unit tests (no Postgres needed) / serial Postgres DB tests</td></tr>
+<tr><td><code>npm run check:changed</code></td><td>Run docs audit, typecheck, lint, and unit tests scoped to changed workspaces</td></tr>
+<tr><td><code>npm run ui:snap -- &lt;path&gt;</code></td><td>Capture 1440px desktop and 390px mobile PNGs of running web UI routes</td></tr>
 <tr><td><code>npm run site:screenshots</code></td><td>Re-capture 2× landing page PNGs from <code>meld_sandbox</code> and sync dimensions</td></tr>
 <tr><td><code>npm run site:check</code></td><td>Verify landing page screenshots are 2× PNGs matching <code>site/index.html</code></td></tr>
 <tr><td><code>npm run docs:build</code></td><td>Generate the web documentation portal (<code>site/docs/</code>) and Ask Meld's feature guide index (<code>apps/api/src/ai/meld-docs.generated.ts</code>) from Markdown</td></tr>
