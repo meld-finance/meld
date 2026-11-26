@@ -1,5 +1,6 @@
+import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
-import { BrowserWindow, Menu, app, dialog, shell, type MenuItemConstructorOptions } from 'electron';
+import { BrowserWindow, Menu, app, dialog, ipcMain, shell, type MenuItemConstructorOptions } from 'electron';
 import { ApiProcess } from './api';
 import { systemEnv } from './env';
 import { log, logFile } from './log';
@@ -33,6 +34,11 @@ let db: RunningPostgres | null = null;
 let appUrl = '';
 let quitting = false;
 let refreshTray = () => {};
+/**
+ * Signs Meld's own window in without a passphrase. New each launch and never stored: only this
+ * process and the API it starts know it, and only pages from Meld's own server are given it.
+ */
+const desktopToken = randomBytes(32).toString('base64url');
 
 /** Pages from Meld's own server; only they get answers from the desktop bridge. */
 function isTrustedUrl(url: string) {
@@ -134,6 +140,8 @@ async function start() {
     API_PORT: String(port),
     PRODUCTION_DATABASE_URL: db.url('meld'),
     SANDBOX_DATABASE_URL: db.url('meld_sandbox'),
+    DEMO_DATABASE_URL: db.url('meld_demo'),
+    DESKTOP_TOKEN: desktopToken,
     SESSION_SECRET: secrets.sessionSecret,
     ENCRYPTION_KEY: secrets.encryptionKey,
     MELD_CONFIG_FILE: paths.config(),
@@ -164,6 +172,9 @@ function runApp() {
     return;
   }
   app.on('second-instance', () => showWindow());
+  ipcMain.on('meld:session', (event) => {
+    event.returnValue = isTrustedUrl(event.senderFrame?.url ?? '') ? desktopToken : '';
+  });
 
   app.on('before-quit', (event) => {
     if (quitting) return;

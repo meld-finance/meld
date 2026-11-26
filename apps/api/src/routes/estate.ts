@@ -67,6 +67,7 @@ export async function registerEstateRoutes(app: FastifyInstance, { db, env, plai
     }
     const item = await db.query.plaidItems.findFirst({ where: eq(plaidItems.id, account.plaidItemId) });
     if (!item) throw new HttpError(404, 'Bank connection not found');
+    if (env.MELD_DEMO) return { status: 'unavailable', message: 'Demo accounts have no real account numbers. Connect your banks to look yours up.' };
     try {
       const { data } = await plaid.authGet({
         access_token: decrypt(item.accessTokenEnc, env.ENCRYPTION_KEY),

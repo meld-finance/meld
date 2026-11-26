@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { ChatPanel } from '@/components/chat/chat-panel';
+import { DemoPill } from '@/components/home/demo-banner';
 import { Icon, type IconName } from '@/components/icon';
 import { Logo } from '@/components/logo';
 import { ThemedText } from '@/components/themed-text';
@@ -258,6 +259,7 @@ function TopBar({ phone }: { phone: boolean }) {
           <Logo />
         </View>
       )}
+      <DemoPill compact={phone} />
       <UpdatePill compact={phone} />
       <Pressable
         accessibilityRole="button"

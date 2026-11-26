@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /** Before login: whether first-run setup is still needed and what this install can change. */
 export type SetupStatus = {
-  /** Passphrase and Plaid keys are set; false means the app shows the setup wizard. */
+  /** First-run setup is done (a way to sign in, and Plaid keys or demo data); false means the app shows the setup wizard. */
   configured: boolean;
   /** Settings can be changed from the app (they live in Meld's settings file, not only in .env). */
   editable: boolean;
@@ -10,6 +10,12 @@ export type SetupStatus = {
   phoneAccess: boolean;
   /** Unlocking takes a passphrase; false means it was turned off and the app opens straight in. */
   passphrase: boolean;
+  /** There's a passphrase to unlock with from a browser or phone. */
+  passphraseSet: boolean;
+  /** Meld is the desktop app, whose own window signs itself in without a passphrase. */
+  desktop: boolean;
+  /** Showing made-up demo data until banks are connected through Plaid. */
+  demo: boolean;
 };
 
 export const PlaidEnvironment = z.enum(['sandbox', 'production']);
@@ -56,10 +62,14 @@ export const Passphrase = z
   .max(200);
 
 export const SetupRequest = z.object({
-  /** Omitted: no passphrase, so anyone who can reach Meld can use it. */
+  /**
+   * Omitted on the desktop app: only its own window can open Meld until one is set. Elsewhere it
+   * means no passphrase, so anyone who can reach Meld can use it.
+   */
   passphrase: Passphrase.optional(),
-  plaid: PlaidKeys,
-  ai: AISettings,
+  /** Omitted: start with demo data and connect banks later. */
+  plaid: PlaidKeys.optional(),
+  ai: AISettings.optional(),
 });
 export type SetupRequest = z.input<typeof SetupRequest>;
 
@@ -68,10 +78,17 @@ export type SetupRequest = z.input<typeof SetupRequest>;
  * empty, since the app only ever sees secrets masked.
  */
 export const SettingsUpdate = z.object({
-  /** `next: null` turns the passphrase off. `current` is needed unless it's off already. */
+  /**
+   * `next: null` removes the passphrase (on the desktop app, only its own window can then open
+   * Meld; elsewhere anyone who can reach it can). `current` is needed unless it's off already or
+   * the change comes from the desktop app's own window.
+   */
   passphrase: z.object({ current: z.string().default(''), next: Passphrase.nullable() }).optional(),
+  /** Saving Plaid keys switches from demo data to your own accounts, unless `demo` says otherwise. */
   plaid: PlaidKeys.optional(),
   ai: AISettings.optional(),
+  /** Show demo data (true) or your own accounts (false). */
+  demo: z.boolean().optional(),
 });
 export type SettingsUpdate = z.input<typeof SettingsUpdate>;
 
@@ -80,6 +97,14 @@ export type SettingsView = {
   editable: boolean;
   /** Unlocking takes a passphrase. */
   passphrase: boolean;
+  /** There's a passphrase to unlock with from a browser or phone. */
+  passphraseSet: boolean;
+  /** The desktop app, whose own window signs itself in. */
+  desktop: boolean;
+  /** Showing demo data instead of linked banks. */
+  demo: boolean;
+  /** Plaid keys are saved, so demo data can be switched off. */
+  plaidReady: boolean;
   plaid: { clientId: string; sandboxSecret: string; productionSecret: string; env: PlaidEnvironment };
   ai: { anthropicApiKey: string; openrouterApiKey: string; openrouterModels: string[]; ollamaUrl: string; ollamaModels: string[] };
   /** Settings fixed by the environment (.env), which the app can't change. */

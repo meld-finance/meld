@@ -80,7 +80,7 @@
         <h1>Development</h1>
         <p class="doc-summary">Monorepo layout, local setup, desktop Electron builds, common commands, and the release workflow.</p>
         <div class="doc-meta">
-          <span class="doc-meta-pill">7 min read</span>
+          <span class="doc-meta-pill">8 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/development.md">View docs/development.md on GitHub ↗</a>
         </div>
       </div>
@@ -121,7 +121,7 @@ npm run db:migrate            # apply migrations to both databases
 npm run dev                   # API on :4000, Expo web on :8081</code></pre>
 </div>
 
-<p>Open <a href="http://localhost:8081" target="_blank" rel="noopener">http://localhost:8081</a> and unlock with <code>APP_PASSPHRASE</code>.</p>
+<p>Open <a href="http://localhost:8081" target="_blank" rel="noopener">http://localhost:8081</a> and unlock with <code>APP_PASSPHRASE</code>. To work on the demo household instead of Plaid data, set <code>MELD_DEMO=1</code> and restart the API: it creates <code>meld_demo</code> next to your other databases, fills it from <code>apps/api/src/demo/data.ts</code>, and rebuilds it once it's two days old so due dates and alerts stay current. <code>apps/api/src/demo/seed.db.test.ts</code> checks that every tour stop still has something to show.</p>
 
 <p>If your Postgres volume predates <code>docker/initdb</code>, create the sandbox database once with <code>docker compose exec db createdb -U meld meld_sandbox</code>.</p>
 
@@ -129,6 +129,7 @@ npm run dev                   # API on :4000, Expo web on :8081</code></pre>
 
 <ul>
 <li><code>npm run desktop:dev</code> opens the Electron app against the API source and the Expo dev server (hot reload on both), with its own Postgres and data in <code>~/Library/Application Support/Meld Dev</code>. Stop <code>npm run dev</code> first: both use port 4000. Set <code>MELD_USER_DATA=&lt;folder&gt;</code> to try a fresh first run.</li>
+<li><strong>Sign-in.</strong> The desktop app makes a random <code>DESKTOP_TOKEN</code> each time it starts and passes it to the API. Its window gets the token through the preload (<code>window.meldDesktop.sessionToken</code>, only on pages from Meld's own server) and sends it as its bearer token, so it never shows the lock screen and finishes first-run setup with no passphrase. Browsers and phones still log in with the passphrase; until one is set, only the window gets in. The window can also change or remove the passphrase without the old one.</li>
 <li><code>npm run desktop:build</code> builds <code>apps/desktop/release/mac-&lt;arch&gt;/Meld.app</code> in a minute or two, for checking the real thing. <code>npm run desktop:dist</code> makes the <code>.dmg</code> for this Mac's architecture. For Intel Macs: <code>cd apps/desktop &amp;&amp; node scripts/build.mjs --arch x64 &amp;&amp; npx electron-builder --x64</code>.</li>
 <li>Packaged, the API is one esbuild bundle run in an Electron utility process, Postgres is the <a href="https://github.com/leinelissen/embedded-postgres" target="_blank" rel="noopener">embedded-postgres</a> build thinned to one architecture, and the web app is the same Expo export Docker serves. Logs: menu bar → <strong>Show Log</strong>.</li>
 <li><strong>Keys.</strong> Meld's encryption key, session secret and Postgres password are one item in the macOS Keychain (Windows: Credential Manager), service <code>Meld</code>, account <code>secrets</code> (<code>secrets:&lt;folder&gt;</code> for other data folders, e.g. <code>secrets:Meld Dev</code>). Losing it means re-linking every bank, and Meld refuses to start rather than make new keys over existing data. Builds before this kept them in <code>secrets.bin</code>, encrypted with Electron's safeStorage; the first start of a newer build copies them into the Keychain and renames the file <code>secrets.bin.migrated</code>.</li>

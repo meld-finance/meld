@@ -1,4 +1,4 @@
-import { ExchangeRequest, LinkTokenRequest, type LinkTokenResponse, type PlaidItemSummary } from '@meld/shared';
+import { ExchangeRequest, LinkTokenRequest, type LinkTokenResponse, type PlaidItemSummary, type SyncResult } from '@meld/shared';
 import { count, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { CountryCode, Products, type LinkTokenCreateRequest } from 'plaid';
@@ -9,8 +9,14 @@ import { getPlaidError } from '../plaid/client';
 import { syncItem, syncUntilReady } from '../plaid/sync';
 import type { AppDeps } from '../server';
 
+/** Shown when something needs Plaid while Meld is showing demo data. */
+export const DEMO_PLAID_MESSAGE = 'This is demo data. Connect your banks to link your own accounts.';
+
 export async function registerPlaidRoutes(app: FastifyInstance, { db, plaid, env, sync }: AppDeps) {
   const countryCodes = env.PLAID_COUNTRY_CODES as CountryCode[];
+  const requireRealData = () => {
+    if (env.MELD_DEMO) throw new HttpError(409, DEMO_PLAID_MESSAGE);
+  };
 
   async function loadItem(id: string) {
     const item = await db.query.plaidItems.findFirst({ where: eq(plaidItems.id, id) });
@@ -19,6 +25,7 @@ export async function registerPlaidRoutes(app: FastifyInstance, { db, plaid, env
   }
 
   app.post('/plaid/link-token', async (req): Promise<LinkTokenResponse> => {
+    requireRealData();
     const { itemId, consentAuth } = parse(LinkTokenRequest, req.body ?? {});
     const request: LinkTokenCreateRequest = {
       user: { client_user_id: 'owner' },
@@ -43,6 +50,7 @@ export async function registerPlaidRoutes(app: FastifyInstance, { db, plaid, env
   });
 
   app.post('/plaid/exchange', async (req) => {
+    requireRealData();
     const { publicToken } = parse(ExchangeRequest, req.body);
     const { data: exchanged } = await plaid.itemPublicTokenExchange({ public_token: publicToken });
 
@@ -94,15 +102,20 @@ export async function registerPlaidRoutes(app: FastifyInstance, { db, plaid, env
     return rows.map((r) => ({ ...r, lastSyncedAt: r.lastSyncedAt?.toISOString() ?? null }));
   });
 
-  app.post('/items/:id/sync', async (req) => {
+  app.post('/items/:id/sync', async (req): Promise<SyncResult> => {
     const item = await loadItem(parse(IdParams, req.params).id);
+    // Demo connections have nothing to fetch; Refresh just says they're up to date.
+    if (env.MELD_DEMO) {
+      const [{ n }] = (await db.select({ n: count() }).from(accounts).where(eq(accounts.plaidItemId, item.id))) as [{ n: number }];
+      return { accounts: n, added: 0, modified: 0, removed: 0, transactionsReady: true, holdings: 0, liabilities: 0 };
+    }
     return syncItem(sync, item.id);
   });
 
   app.delete('/items/:id', async (req) => {
     const item = await loadItem(parse(IdParams, req.params).id);
-    // A shared item is still in use by the other copy, so it stays linked at Plaid.
-    if (!env.PLAID_SHARED_ITEMS) {
+    // A shared item is still in use by the other copy, so it stays linked at Plaid. Demo items never were.
+    if (!env.PLAID_SHARED_ITEMS && !env.MELD_DEMO) {
       try {
         await plaid.itemRemove({ access_token: decrypt(item.accessTokenEnc, env.ENCRYPTION_KEY) });
       } catch (err) {

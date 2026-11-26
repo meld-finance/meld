@@ -4,7 +4,9 @@ import { settingsFromEnv, withSettingsFile } from './config-file';
 import { createDb } from './db/client';
 import { migrateAll } from './db/migrations';
 import { documents } from './db/schema';
+import { ensureDatabase, ensureDemoData } from './demo/seed';
 import { configuredDatabaseUrls, loadEnv, setupComplete } from './env';
+import { fetchYahooCloses } from './lib/prices';
 import { createMcpConfig } from './mcp/config';
 import { createPlaidClient } from './plaid/client';
 import { syncAllItems } from './plaid/sync';
@@ -22,8 +24,13 @@ const RESTART_EXIT_CODE = 75;
 
 // Settings saved from the app fill in whatever the environment leaves unset.
 const env = loadEnv(withSettingsFile(process.env));
+// Demo data lives in its own database, which Meld creates and keeps up to date itself.
+const demo = env.MELD_DEMO && setupComplete(env);
+if (demo) await ensureDatabase(env.DATABASE_URL);
 if (env.MIGRATE_ON_START) {
   await migrateAll([...new Set([...configuredDatabaseUrls(), env.DATABASE_URL])], env.MIGRATIONS_DIR);
+} else if (demo) {
+  await migrateAll([env.DATABASE_URL], env.MIGRATIONS_DIR);
 }
 
 let app: Awaited<ReturnType<typeof buildSetupServer>>;
@@ -53,6 +60,10 @@ async function startMeld() {
   const mcp = createMcpConfig(env);
   const storage = createStorage(env);
   const phoneAccess = env.TAILSCALE_CONTROL ? new PhoneAccessService(`http://127.0.0.1:${env.API_PORT}`) : null;
+  // Before listening, so the first page already has the demo household. Only tickers go out, for today's prices.
+  const refreshDemo = () => ensureDemoData(db, { fetchCloses: fetchYahooCloses });
+  // A failed rebuild leaves the last demo data in place rather than stopping Meld from starting.
+  if (demo) await refreshDemo().catch((err) => console.error('Building demo data failed', err));
   app = await buildServer({ env, db, plaid, sync, ai, chatgpt, mcp, storage, settings, phoneAccess });
   if (!ai) app.log.warn('No AI provider configured (ANTHROPIC_API_KEY and OPENROUTER_API_KEY are empty); AI features are disabled.');
 
@@ -67,7 +78,9 @@ async function startMeld() {
   // Local stand-in for Plaid webhooks: refresh all items periodically. The snapshot
   // also runs on its own so net-worth history gets a point each day even with no items.
   async function scheduledRefresh() {
-    await syncAllItems(sync, (msg) => app.log.warn(msg));
+    // Demo data has nothing to sync; it's rebuilt once it's a couple of days old.
+    if (demo) await refreshDemo().catch((err) => app.log.error({ err }, 'Refreshing demo data failed'));
+    else await syncAllItems(sync, (msg) => app.log.warn(msg));
     await recordSnapshot(db).catch((err) => app.log.error({ err }, 'Net worth snapshot failed'));
     // Due dates come closer without any new data, so check even when nothing synced.
     await evaluateAlerts(db).catch((err) => app.log.error({ err }, 'Alert check failed'));

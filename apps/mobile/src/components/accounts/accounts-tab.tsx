@@ -32,6 +32,7 @@ import { useAccents } from '@/hooks/use-accents';
 import { useTheme } from '@/hooks/use-theme';
 import { useContentWidth } from '@/lib/chat-panel';
 import { confirm } from '@/lib/confirm';
+import { useSetupStatus } from '@/lib/setup';
 import { formatCurrency, formatDate, formatRelativeTime } from '@/lib/format';
 import { POLICY_TYPE_LABELS } from '@/lib/insurance';
 import {
@@ -87,6 +88,7 @@ export function AccountsTab({ header }: { header: (actions: ReactNode) => ReactN
   const [message, setMessage] = useState<Message | null>(null);
   const [filter, setFilter] = useState<AccountFilter>('all');
   const [editing, setEditing] = useState<ManualAsset | 'new' | null>(null);
+  const demo = useSetupStatus().data?.demo ?? false;
 
   const queries = [accounts, items, netWorth, comparison, policies, assets];
   const refreshing = queries.some((q) => q.isRefetching);
@@ -94,10 +96,15 @@ export function AccountsTab({ header }: { header: (actions: ReactNode) => ReactN
   const sidePanel = width >= SIDE_PANEL_MIN_WIDTH;
 
   const headerEl = header(
-    <PlaidLinkButton
-      onLinked={() => setMessage({ text: 'Account linked. Transaction history may take a minute to arrive.' })}
-      onError={(text) => setMessage({ text, error: true })}
-    />,
+    // Demo data has nothing to link to; the first step is a Plaid account of your own.
+    demo ? (
+      <Button label="Connect my banks" onPress={() => router.push('/connect')} />
+    ) : (
+      <PlaidLinkButton
+        onLinked={() => setMessage({ text: 'Account linked. Transaction history may take a minute to arrive.' })}
+        onError={(text) => setMessage({ text, error: true })}
+      />
+    ),
   );
   const messageEl = message && (
     <ThemedText type="small" themeColor={message.error ? 'negative' : 'textSecondary'}>

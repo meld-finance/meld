@@ -22,13 +22,14 @@ npm run db:migrate            # apply migrations to both databases
 npm run dev                   # API on :4000, Expo web on :8081
 ```
 
-Open http://localhost:8081 and unlock with `APP_PASSPHRASE`.
+Open http://localhost:8081 and unlock with `APP_PASSPHRASE`. To work on the demo household instead of Plaid data, set `MELD_DEMO=1` and restart the API: it creates `meld_demo` next to your other databases, fills it from `apps/api/src/demo/data.ts`, and rebuilds it once it's two days old so due dates and alerts stay current. `apps/api/src/demo/seed.db.test.ts` checks that every tour stop still has something to show.
 
 If your Postgres volume predates `docker/initdb`, create the sandbox database once with `docker compose exec db createdb -U meld meld_sandbox`.
 
 ## Desktop app
 
 - `npm run desktop:dev` opens the Electron app against the API source and the Expo dev server (hot reload on both), with its own Postgres and data in `~/Library/Application Support/Meld Dev`. Stop `npm run dev` first: both use port 4000. Set `MELD_USER_DATA=<folder>` to try a fresh first run.
+- **Sign-in.** The desktop app makes a random `DESKTOP_TOKEN` each time it starts and passes it to the API. Its window gets the token through the preload (`window.meldDesktop.sessionToken`, only on pages from Meld's own server) and sends it as its bearer token, so it never shows the lock screen and finishes first-run setup with no passphrase. Browsers and phones still log in with the passphrase; until one is set, only the window gets in. The window can also change or remove the passphrase without the old one.
 - `npm run desktop:build` builds `apps/desktop/release/mac-<arch>/Meld.app` in a minute or two, for checking the real thing. `npm run desktop:dist` makes the `.dmg` for this Mac's architecture. For Intel Macs: `cd apps/desktop && node scripts/build.mjs --arch x64 && npx electron-builder --x64`.
 - Packaged, the API is one esbuild bundle run in an Electron utility process, Postgres is the [embedded-postgres](https://github.com/leinelissen/embedded-postgres) build thinned to one architecture, and the web app is the same Expo export Docker serves. Logs: menu bar → **Show Log**.
 - **Keys.** Meld's encryption key, session secret and Postgres password are one item in the macOS Keychain (Windows: Credential Manager), service `Meld`, account `secrets` (`secrets:<folder>` for other data folders, e.g. `secrets:Meld Dev`). Losing it means re-linking every bank, and Meld refuses to start rather than make new keys over existing data. Builds before this kept them in `secrets.bin`, encrypted with Electron's safeStorage; the first start of a newer build copies them into the Keychain and renames the file `secrets.bin.migrated`.

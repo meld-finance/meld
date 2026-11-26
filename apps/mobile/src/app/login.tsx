@@ -8,10 +8,14 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
+import { useSetupStatus } from '@/lib/setup';
 
 export default function LoginScreen() {
   const theme = useTheme();
   const { login } = useAuth();
+  const status = useSetupStatus().data;
+  // The desktop app with no passphrase yet: only its own window can open Meld.
+  const noPassphrase = status?.passphraseSet === false;
   const [passphrase, setPassphrase] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -37,31 +41,38 @@ export default function LoginScreen() {
         </View>
         <ThemedText themeColor="textSecondary">Your whole financial picture.</ThemedText>
 
-        <TextInput
-          style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
-          placeholder="Passphrase"
-          placeholderTextColor={theme.textSecondary}
-          secureTextEntry
-          autoFocus
-          value={passphrase}
-          onChangeText={setPassphrase}
-          onSubmitEditing={submit}
-        />
-        {error && <ThemedText themeColor="negative">{error}</ThemedText>}
+        {noPassphrase ? (
+          <ThemedText>
+            To open Meld here, first choose a passphrase: open the Meld app on the computer it runs on, then go to{' '}
+            <ThemedText style={styles.strong}>Settings → Passphrase for browsers and phones</ThemedText>. Meld’s own window
+            never needs one.
+          </ThemedText>
+        ) : (
+          <>
+            <TextInput
+              style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
+              placeholder="Passphrase"
+              placeholderTextColor={theme.textSecondary}
+              secureTextEntry
+              autoFocus
+              value={passphrase}
+              onChangeText={setPassphrase}
+              onSubmitEditing={submit}
+            />
+            {error && <ThemedText themeColor="negative">{error}</ThemedText>}
 
-        <Pressable
-          onPress={submit}
-          disabled={!passphrase || submitting}
-          style={({ pressed }) => [
-            styles.button,
-            { backgroundColor: theme.text, opacity: !passphrase || pressed ? 0.6 : 1 },
-          ]}>
-          {submitting ? (
-            <ActivityIndicator color={theme.background} />
-          ) : (
-            <ThemedText style={{ color: theme.background }}>Unlock</ThemedText>
-          )}
-        </Pressable>
+            <Pressable
+              onPress={submit}
+              disabled={!passphrase || submitting}
+              style={({ pressed }) => [styles.button, { backgroundColor: theme.text, opacity: !passphrase || pressed ? 0.6 : 1 }]}>
+              {submitting ? (
+                <ActivityIndicator color={theme.background} />
+              ) : (
+                <ThemedText style={{ color: theme.background }}>Unlock</ThemedText>
+              )}
+            </Pressable>
+          </>
+        )}
       </SafeAreaView>
     </ThemedView>
   );
@@ -69,6 +80,7 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
+  strong: { fontWeight: 600 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   container: {
     flex: 1,

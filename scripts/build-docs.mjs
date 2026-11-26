@@ -5,7 +5,7 @@
 // Usage:
 //   node scripts/build-docs.mjs          # generate site/docs/
 //   node scripts/build-docs.mjs --check  # verify site/docs/ is up to date & links are valid
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -197,6 +197,17 @@ function rewriteHref(rawHref, sourcePath) {
   return { href: `${REPO_URL}/blob/main/${normalized}${hashPart}`, external: true };
 }
 
+/** Screenshots for the docs, copied as-is to site/docs/images/. */
+const IMAGES_SRC = 'docs/images';
+
+/** Every file under `dir`, as paths relative to it. */
+function listFiles(dir, prefix = '') {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? listFiles(join(dir, e.name), `${prefix}${e.name}/`) : [`${prefix}${e.name}`],
+  );
+}
+
 function renderInline(text, sourcePath) {
   const tokens = [];
   const hold = (html) => {
@@ -208,7 +219,17 @@ function renderInline(text, sourcePath) {
   // 1. Protect inline code spans first so _, *, and URLs inside backticks stay literal.
   let out = text.replace(/`([^`\n]+)`/g, (_m, code) => hold(`<code>${escapeHtml(code)}</code>`));
 
-  // 2. Protect Markdown links [label](href) while recursively formatting link labels.
+  // 2. Images ![alt](images/…) from docs/images/, copied to site/docs/images/ by the build.
+  out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt, src) => {
+    const normalized = posix.normalize(posix.join(posix.dirname(sourcePath), src));
+    if (!normalized.startsWith(`${IMAGES_SRC}/`)) throw new Error(`Image ${src} in ${sourcePath} must live in ${IMAGES_SRC}/`);
+    const url = `../images/${normalized.slice(IMAGES_SRC.length + 1)}`;
+    return hold(
+      `<a class="doc-figure" href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" loading="lazy"></a>`,
+    );
+  });
+
+  // 3. Protect Markdown links [label](href) while recursively formatting link labels.
   out = out.replace(/\[([^\]]+)\]\(([^)\s]+(?:\s+"[^"]*")?)\)/g, (_m, label, rawTarget) => {
     const rawHref = rawTarget.replace(/\s+"[^"]*"$/, '');
     const { href, external } = rewriteHref(rawHref, sourcePath);
@@ -217,7 +238,7 @@ function renderInline(text, sourcePath) {
     return hold(`<a href="${escapeHtml(href)}"${attrs}>${labelHtml}</a>`);
   });
 
-  // 3. Protect bare URLs while preserving trailing sentence punctuation outside </a>.
+  // 4. Protect bare URLs while preserving trailing sentence punctuation outside </a>.
   out = out.replace(/https?:\/\/[^\s<>()]+(?:\([^\s<>()]*\)[^\s<>()]*)*/g, (rawUrl) => {
     let url = rawUrl;
     let trail = '';
@@ -228,7 +249,7 @@ function renderInline(text, sourcePath) {
     return hold(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>`) + trail;
   });
 
-  // 4. Escape remaining text, apply emphasis, and restore protected tokens.
+  // 5. Escape remaining text, apply emphasis, and restore protected tokens.
   out = escapeHtml(out);
   out = renderInlineBasic(out, tokens);
   return out.replace(/\u0000T(\d+)\u0000/g, (_m, idx) => tokens[Number(idx)]);
@@ -665,6 +686,8 @@ function extractHelpSections(body, doc) {
       continue;
     }
 
+    // Screenshots mean nothing to Ask Meld; their text is already in the steps around them.
+    if (/^!\[[^\]]*\]\([^)]+\)\s*$/.test(line.trim())) continue;
     buffer.push(line);
   }
   flush();
@@ -1033,6 +1056,8 @@ function validateGeneratedLinks(generatedFiles) {
       }
       const targetHtml =
         resolved === '' || resolved === '.' ? 'index.html' : resolved.endsWith('/') ? `${resolved}index.html` : resolved;
+      // Images are copied from docs/images/ after the pages are checked.
+      if (targetHtml.startsWith('images/') && existsSync(join(root, IMAGES_SRC, targetHtml.slice('images/'.length)))) continue;
       if (!generatedFiles.has(targetHtml) && !existsSync(join(docsOutDir, targetHtml))) {
         errors.push(`Broken docs link "${href}" -> "${targetHtml}" in site/docs/${relPath}`);
         continue;
@@ -1172,6 +1197,18 @@ export function buildDocs({ check = false } = {}) {
       }
     }
 
+    const imagesOut = join(docsOutDir, 'images');
+    const sourceImages = listFiles(join(root, IMAGES_SRC));
+    for (const rel of sourceImages) {
+      const out = join(imagesOut, rel);
+      if (!existsSync(out) || !readFileSync(out).equals(readFileSync(join(root, IMAGES_SRC, rel)))) {
+        errors.push(`Stale or missing image: site/docs/images/${rel} (run npm run docs:build)`);
+      }
+    }
+    for (const rel of listFiles(imagesOut)) {
+      if (!sourceImages.includes(rel)) errors.push(`Unexpected image: site/docs/images/${rel} (run npm run docs:build)`);
+    }
+
     if (!existsSync(apiDocsOutFile)) {
       errors.push(`Missing generated file: ${API_DOCS_OUT_REL} (run npm run docs:build)`);
     } else if (readFileSync(apiDocsOutFile, 'utf8') !== expectedApiDocs) {
@@ -1180,7 +1217,7 @@ export function buildDocs({ check = false } = {}) {
 
     // Check for orphaned generated directories/files in site/docs/.
     if (existsSync(docsOutDir)) {
-      const allowedTop = new Set(['docs.css', 'docs.js', 'index.html', 'search-index.json', ...ALL_DOCS.map((d) => d.slug)]);
+      const allowedTop = new Set(['docs.css', 'docs.js', 'index.html', 'search-index.json', 'images', ...ALL_DOCS.map((d) => d.slug)]);
       for (const entry of readdirSync(docsOutDir)) {
         if (!allowedTop.has(entry)) {
           errors.push(`Unexpected file or directory in site/docs/: ${entry} (run npm run docs:build)`);
@@ -1200,7 +1237,7 @@ export function buildDocs({ check = false } = {}) {
 
   // Write generated outputs and prune stale directories.
   mkdirSync(docsOutDir, { recursive: true });
-  const allowedTop = new Set(['docs.css', 'docs.js', 'index.html', 'search-index.json', ...ALL_DOCS.map((d) => d.slug)]);
+  const allowedTop = new Set(['docs.css', 'docs.js', 'index.html', 'search-index.json', 'images', ...ALL_DOCS.map((d) => d.slug)]);
   for (const entry of readdirSync(docsOutDir)) {
     if (!allowedTop.has(entry)) {
       rmSync(join(docsOutDir, entry), { recursive: true, force: true });
@@ -1210,6 +1247,12 @@ export function buildDocs({ check = false } = {}) {
     const fullPath = join(docsOutDir, relPath);
     mkdirSync(dirname(fullPath), { recursive: true });
     writeFileSync(fullPath, content);
+  }
+  const imagesOut = join(docsOutDir, 'images');
+  rmSync(imagesOut, { recursive: true, force: true });
+  for (const rel of listFiles(join(root, IMAGES_SRC))) {
+    mkdirSync(dirname(join(imagesOut, rel)), { recursive: true });
+    copyFileSync(join(root, IMAGES_SRC, rel), join(imagesOut, rel));
   }
   mkdirSync(dirname(apiDocsOutFile), { recursive: true });
   writeFileSync(apiDocsOutFile, expectedApiDocs);

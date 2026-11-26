@@ -1,18 +1,20 @@
+import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
-import { formStyles } from '@/components/form-fields';
+import { Field, Input, formStyles } from '@/components/form-fields';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { usePhoneAccess, useSetPhoneAccess, useSetupStatus } from '@/lib/setup';
+import { usePhoneAccess, useSaveSettings, useSetPhoneAccess, useSetupStatus } from '@/lib/setup';
 
 const INSTALL_URL = 'https://tailscale.com/download';
 const HTTPS_URL = 'https://tailscale.com/kb/1153/enabling-https';
 const PHONE_DOCS_URL = 'https://meld-finance.github.io/meld/docs/phone-access/';
 const QR_SIZE = 168;
+const MIN_PASSPHRASE = 8;
 
 function Link({ url, children }: { url: string; children: string }) {
   return (
@@ -49,7 +51,20 @@ export function PhoneAccessCard() {
   const phone = usePhoneAccess(true);
   const set = useSetPhoneAccess();
   const data = phone.data;
-  const passphrase = useSetupStatus().data?.passphrase ?? true;
+  const status = useSetupStatus().data;
+  const passphrase = status?.passphrase ?? true;
+  // The desktop app with no passphrase yet: the phone would have nothing to unlock Meld with.
+  const needsPassphrase = passphrase && status?.passphraseSet === false;
+  const savePassphrase = useSaveSettings();
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const nextValid = next.length >= MIN_PASSPHRASE && next === confirm;
+
+  function turnOn() {
+    if (!needsPassphrase) return set.mutate(true);
+    // Saving restarts Meld; phone access goes on once it's back.
+    savePassphrase.mutate({ passphrase: { current: '', next } }, { onSuccess: () => set.mutate(true) });
+  }
 
   const recheck = <Button label="Check again" variant="secondary" size="small" loading={phone.isFetching} onPress={() => void phone.refetch()} />;
 
@@ -92,11 +107,34 @@ export function PhoneAccessCard() {
           <ThemedText type="small" themeColor="textSecondary">
             Once turned on, your devices on Tailscale can reach Meld while this computer is awake and Meld is open
             (closing the window keeps it running in the menu bar/tray).{' '}
-            {passphrase ? 'You’ll still need your passphrase.' : 'With no passphrase, anyone on your tailnet can open it.'}
+            {needsPassphrase
+              ? 'Your phone unlocks Meld with a passphrase, so choose one first.'
+              : passphrase
+                ? 'You’ll still need your passphrase.'
+                : 'With no passphrase, anyone on your tailnet can open it.'}
           </ThemedText>
+          {needsPassphrase && (
+            <View style={styles.passphrase}>
+              <Field label="Passphrase for your phone" invalid={!!next && next.length < MIN_PASSPHRASE}>
+                <Input value={next} onChangeText={setNext} secureTextEntry placeholder={`${MIN_PASSPHRASE}+ characters`} />
+              </Field>
+              <Field label="Type it again" invalid={!!confirm && confirm !== next}>
+                <Input value={confirm} onChangeText={setConfirm} secureTextEntry />
+              </Field>
+              <ThemedText type="small" themeColor="textSecondary">
+                Meld’s window on this computer still opens without it. Change or remove it under Passphrase below.
+              </ThemedText>
+            </View>
+          )}
           <View style={formStyles.buttons}>
-            <Button label="Turn on phone access" loading={set.isPending} onPress={() => set.mutate(true)} />
+            <Button
+              label="Turn on phone access"
+              loading={set.isPending || savePassphrase.isPending}
+              disabled={needsPassphrase && !nextValid}
+              onPress={turnOn}
+            />
           </View>
+          {savePassphrase.isError && <ThemedText themeColor="negative">{savePassphrase.error.message}</ThemedText>}
         </>
       ) : data?.state === 'on' ? (
         <>
@@ -129,6 +167,7 @@ export function PhoneAccessCard() {
 
 const styles = StyleSheet.create({
   steps: { gap: Spacing.one },
+  passphrase: { gap: Spacing.three },
   on: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.four, alignItems: 'center' },
   qr: { padding: Spacing.three, borderRadius: Spacing.three, borderWidth: 1 },
   onText: { flex: 1, minWidth: 200, gap: Spacing.two },

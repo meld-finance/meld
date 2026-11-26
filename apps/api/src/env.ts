@@ -20,12 +20,20 @@ const EnvSchema = z
     /** One database per Plaid environment, so sandbox and real data never mix. */
     SANDBOX_DATABASE_URL: z.url().optional(),
     PRODUCTION_DATABASE_URL: z.url().optional(),
+    /** Demo data, shown until Plaid is set up; defaults to `meld_demo` on the same server as the others. */
+    DEMO_DATABASE_URL: z.url().optional(),
     /** Overrides the per-environment URL (tests point this at the test DB). */
     DATABASE_URL: z.url().optional(),
     API_PORT: z.coerce.number().default(4000),
     /** Address to listen on. Localhost only by default; the Docker image sets 0.0.0.0 inside its private network. */
     API_HOST: z.string().default('127.0.0.1'),
     CORS_ORIGINS: csv,
+    /**
+     * Extra host names Meld answers to, for a reverse proxy with its own name. localhost, IP
+     * addresses, single-label names, *.local and *.ts.net always work; anything else is refused,
+     * so a web page can't reach Meld through DNS rebinding.
+     */
+    ALLOWED_HOSTS: csv,
 
     /** The login passphrase, or its hash (APP_PASSPHRASE_HASH) when set from the app. Unset means setup isn't done. */
     APP_PASSPHRASE: z.preprocess(
@@ -35,6 +43,13 @@ const EnvSchema = z
     APP_PASSPHRASE_HASH: z.string().default(''),
     /** No passphrase: anyone who can reach Meld can use it. Ignored when APP_PASSPHRASE is set. */
     APP_PASSPHRASE_OFF: flag,
+    /**
+     * Set by the desktop app, new each time it starts: its own window signs in with this, so it
+     * never asks for a passphrase. Browsers and phones still need one.
+     */
+    DESKTOP_TOKEN: z.string().default(''),
+    /** Show made-up demo data (in DEMO_DATABASE_URL) instead of banks linked through Plaid. */
+    MELD_DEMO: flag,
     SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
     ENCRYPTION_KEY: z
       .string()
@@ -118,22 +133,35 @@ const EnvSchema = z
     MELD_VERSION: z.string().default(''),
   })
   .transform((env, ctx) => {
-    const DATABASE_URL = env.DATABASE_URL ?? databaseUrlFor(env, env.PLAID_ENV);
+    const DATABASE_URL = env.DATABASE_URL ?? (env.MELD_DEMO ? demoDatabaseUrl(env) : databaseUrlFor(env, env.PLAID_ENV));
     if (!DATABASE_URL) {
-      ctx.addIssue({ code: 'custom', path: [databaseUrlKey(env.PLAID_ENV)], message: `required when PLAID_ENV=${env.PLAID_ENV}` });
+      const [path, when] = env.MELD_DEMO
+        ? ['DEMO_DATABASE_URL', 'MELD_DEMO=1']
+        : [databaseUrlKey(env.PLAID_ENV), `PLAID_ENV=${env.PLAID_ENV}`];
+      ctx.addIssue({ code: 'custom', path: [path], message: `required when ${when}` });
       return z.NEVER;
     }
     return { ...env, DATABASE_URL };
   });
 
 type PlaidEnv = z.infer<typeof PlaidEnv>;
-type DatabaseUrls = { SANDBOX_DATABASE_URL?: string; PRODUCTION_DATABASE_URL?: string };
+type DatabaseUrls = { SANDBOX_DATABASE_URL?: string; PRODUCTION_DATABASE_URL?: string; DEMO_DATABASE_URL?: string };
 
 const databaseUrlKey = (plaidEnv: PlaidEnv) =>
   plaidEnv === 'production' ? 'PRODUCTION_DATABASE_URL' : 'SANDBOX_DATABASE_URL';
 
 function databaseUrlFor(urls: DatabaseUrls, plaidEnv: PlaidEnv): string | undefined {
   return urls[databaseUrlKey(plaidEnv)];
+}
+
+/** DEMO_DATABASE_URL, else a `meld_demo` database next to the real one, so Docker and .env installs need nothing new. */
+export function demoDatabaseUrl(urls: DatabaseUrls): string | undefined {
+  if (urls.DEMO_DATABASE_URL) return urls.DEMO_DATABASE_URL;
+  const base = urls.PRODUCTION_DATABASE_URL || urls.SANDBOX_DATABASE_URL;
+  if (!base) return undefined;
+  const url = new URL(base);
+  url.pathname = '/meld_demo';
+  return url.toString();
 }
 
 /** Every per-environment database configured in `source`, for migrations and test guards. */
@@ -148,15 +176,32 @@ export function plaidSecret(env: Pick<Env, 'PLAID_ENV' | 'PLAID_SANDBOX_SECRET' 
   return env.PLAID_ENV === 'production' ? env.PLAID_PRODUCTION_SECRET : env.PLAID_SANDBOX_SECRET;
 }
 
-/** Whether logging in takes a passphrase; turned off from setup or Settings, unless .env sets one. */
+/**
+ * Whether the API needs a login; turned off from setup or Settings, unless .env sets a passphrase.
+ * On the desktop app with no passphrase, only its own window can sign in.
+ */
 export function passphraseRequired(env: Pick<Env, 'APP_PASSPHRASE' | 'APP_PASSPHRASE_OFF'>): boolean {
   return !!env.APP_PASSPHRASE || !env.APP_PASSPHRASE_OFF;
 }
 
-/** Enough is set to run Meld: a passphrase (or none, by choice) and Plaid keys. Until then the API serves only first-run setup. */
+/** There's a passphrase to log in with from a browser or phone. */
+export function passphraseSet(env: Pick<Env, 'APP_PASSPHRASE' | 'APP_PASSPHRASE_HASH'>): boolean {
+  return !!(env.APP_PASSPHRASE || env.APP_PASSPHRASE_HASH);
+}
+
+/** Plaid keys for the environment in use are set. */
+export function plaidConfigured(env: Env): boolean {
+  return !!env.PLAID_CLIENT_ID && !!plaidSecret(env);
+}
+
+/**
+ * Enough is set to run Meld: a way to sign in and something to show. The desktop app's window
+ * signs itself in, so it needs no passphrase; demo data needs no Plaid keys. Until then the API
+ * serves only first-run setup.
+ */
 export function setupComplete(env: Env): boolean {
-  const passphraseChosen = !!(env.APP_PASSPHRASE || env.APP_PASSPHRASE_HASH) || env.APP_PASSPHRASE_OFF;
-  return passphraseChosen && !!env.PLAID_CLIENT_ID && !!plaidSecret(env);
+  const canSignIn = passphraseSet(env) || env.APP_PASSPHRASE_OFF || !!env.DESKTOP_TOKEN;
+  return canSignIn && (env.MELD_DEMO || plaidConfigured(env));
 }
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {

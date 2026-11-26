@@ -17,7 +17,7 @@ import { OllamaProvider } from '../ai/ollama';
 import { testOpenRouterKey } from '../ai/openrouter';
 import { passphraseMatches } from '../auth';
 import { readSettings, writeSettings, type SettingKey, type Settings } from '../config-file';
-import { passphraseRequired, type Env } from '../env';
+import { passphraseRequired, passphraseSet, plaidConfigured, type Env } from '../env';
 import { HttpError, parse } from '../lib/http';
 import { hashPassphrase } from '../lib/passphrase';
 import { createPlaidClient, getPlaidError } from '../plaid/client';
@@ -31,7 +31,7 @@ export type SettingsDeps = {
 
 const SECTIONS = {
   passphrase: ['APP_PASSPHRASE', 'APP_PASSPHRASE_HASH', 'APP_PASSPHRASE_OFF'],
-  plaid: ['PLAID_CLIENT_ID', 'PLAID_SANDBOX_SECRET', 'PLAID_PRODUCTION_SECRET', 'PLAID_ENV'],
+  plaid: ['PLAID_CLIENT_ID', 'PLAID_SANDBOX_SECRET', 'PLAID_PRODUCTION_SECRET', 'PLAID_ENV', 'MELD_DEMO'],
   ai: ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'OPENROUTER_CHAT_MODELS', 'OLLAMA_URL', 'OLLAMA_CHAT_MODELS'],
 } as const;
 type Section = keyof typeof SECTIONS;
@@ -97,8 +97,8 @@ async function detectOllama(url: string, contextLength: number): Promise<OllamaD
  */
 export async function registerSetupRoutes(app: FastifyInstance, env: Env, settings: SettingsDeps, configured: boolean) {
   const editable = !!env.MELD_CONFIG_FILE;
-  // Before setup there is no passphrase to log in with.
-  const config = { public: !configured };
+  // Before setup there is no passphrase to log in with; the desktop app's window has its own token.
+  const config = { public: !configured && !env.DESKTOP_TOKEN };
 
   function requireEditable() {
     if (!editable) throw new HttpError(409, 'Settings come from .env here. Edit it and restart Meld.');
@@ -114,6 +114,9 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
     editable,
     phoneAccess: env.TAILSCALE_CONTROL,
     passphrase: !configured || passphraseRequired(env),
+    passphraseSet: passphraseSet(env),
+    desktop: !!env.DESKTOP_TOKEN,
+    demo: env.MELD_DEMO,
   }));
 
   app.post('/setup', { config }, async (req, reply) => {
@@ -121,19 +124,27 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
     requireEditable();
     const body = parse(SetupRequest, req.body);
     const hash = body.passphrase ? await hashPassphrase(body.passphrase) : undefined;
+    const { plaid, ai } = body;
     await save((current) => ({
       ...current,
       APP_PASSPHRASE_HASH: hash,
-      APP_PASSPHRASE_OFF: hash ? undefined : '1',
-      PLAID_CLIENT_ID: body.plaid.clientId,
-      PLAID_SANDBOX_SECRET: body.plaid.sandboxSecret,
-      PLAID_PRODUCTION_SECRET: body.plaid.productionSecret,
-      PLAID_ENV: body.plaid.env,
-      ANTHROPIC_API_KEY: body.ai.anthropicApiKey,
-      OPENROUTER_API_KEY: body.ai.openrouterApiKey,
-      OPENROUTER_CHAT_MODELS: openrouterModelsSetting(body.ai.openrouterModels),
-      OLLAMA_URL: body.ai.ollamaUrl,
-      OLLAMA_CHAT_MODELS: body.ai.ollamaModels.join(','),
+      // The desktop app's window signs itself in, so no passphrase there means no browser or phone access yet, not an open door.
+      APP_PASSPHRASE_OFF: hash || env.DESKTOP_TOKEN ? undefined : '1',
+      // No Plaid keys yet: show demo data until banks are connected.
+      MELD_DEMO: plaid ? undefined : '1',
+      ...(plaid && {
+        PLAID_CLIENT_ID: plaid.clientId,
+        PLAID_SANDBOX_SECRET: plaid.sandboxSecret,
+        PLAID_PRODUCTION_SECRET: plaid.productionSecret,
+        PLAID_ENV: plaid.env,
+      }),
+      ...(ai && {
+        ANTHROPIC_API_KEY: ai.anthropicApiKey,
+        OPENROUTER_API_KEY: ai.openrouterApiKey,
+        OPENROUTER_CHAT_MODELS: openrouterModelsSetting(ai.openrouterModels),
+        OLLAMA_URL: ai.ollamaUrl,
+        OLLAMA_CHAT_MODELS: ai.ollamaModels.join(','),
+      }),
     }));
     await reply.send({ ok: true });
     settings.restart();
@@ -166,6 +177,10 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
   app.get('/settings', async (): Promise<SettingsView> => ({
     editable,
     passphrase: passphraseRequired(env),
+    passphraseSet: passphraseSet(env),
+    desktop: !!env.DESKTOP_TOKEN,
+    demo: env.MELD_DEMO,
+    plaidReady: plaidConfigured(env),
     plaid: {
       clientId: env.PLAID_CLIENT_ID,
       sandboxSecret: mask(env.PLAID_SANDBOX_SECRET),
@@ -185,11 +200,21 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
   app.put('/settings', async (req, reply) => {
     requireEditable();
     const body = parse(SettingsUpdate, req.body);
-    const fixed = sectionsFromEnv(settings.fromEnv).filter((s) => body[s]);
+    const fixed = sectionsFromEnv(settings.fromEnv).filter((s) => (s === 'plaid' ? body.plaid || body.demo !== undefined : body[s]));
     if (fixed.length) throw new HttpError(409, `These settings come from .env, which wins: ${fixed.join(', ')}. Edit it instead.`);
-    // Turning the passphrase off or changing it takes the current one; turning it on doesn't.
-    if (body.passphrase && passphraseRequired(env) && !(await passphraseMatches(body.passphrase.current, env))) {
+    // Turning the passphrase off or changing it takes the current one; turning it on doesn't. The
+    // desktop app's own window is the computer's owner, so it can reset a forgotten one.
+    if (
+      body.passphrase &&
+      passphraseRequired(env) &&
+      passphraseSet(env) &&
+      !req.viaDesktop &&
+      !(await passphraseMatches(body.passphrase.current, env))
+    ) {
       throw new HttpError(400, 'Your current passphrase isn’t right.');
+    }
+    if (body.passphrase && !body.passphrase.next && env.DESKTOP_TOKEN && env.PHONE_ACCESS) {
+      throw new HttpError(409, 'Turn off phone access first: your phone unlocks Meld with this passphrase.');
     }
     const hash = body.passphrase?.next ? await hashPassphrase(body.passphrase.next) : null;
     await save((current) => {
@@ -199,7 +224,9 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
         delete next.APP_PASSPHRASE_OFF;
       } else if (body.passphrase) {
         delete next.APP_PASSPHRASE_HASH;
-        next.APP_PASSPHRASE_OFF = '1';
+        // On the desktop app, no passphrase leaves only its own window able to open Meld.
+        if (env.DESKTOP_TOKEN) delete next.APP_PASSPHRASE_OFF;
+        else next.APP_PASSPHRASE_OFF = '1';
       }
       if (body.plaid) {
         next.PLAID_CLIENT_ID = body.plaid.clientId;
@@ -209,6 +236,14 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
         if (body.plaid.productionSecret) next.PLAID_PRODUCTION_SECRET = body.plaid.productionSecret;
         const secret = next.PLAID_ENV === 'production' ? next.PLAID_PRODUCTION_SECRET : next.PLAID_SANDBOX_SECRET;
         if (!secret) throw new HttpError(400, `Add your Plaid ${next.PLAID_ENV} secret to use ${next.PLAID_ENV}.`);
+        // Keys just saved mean the user wants their own accounts.
+        if (body.demo === undefined) delete next.MELD_DEMO;
+      }
+      if (body.demo === true) next.MELD_DEMO = '1';
+      else if (body.demo === false) {
+        const secret = next.PLAID_ENV === 'production' ? next.PLAID_PRODUCTION_SECRET : next.PLAID_SANDBOX_SECRET;
+        if (!next.PLAID_CLIENT_ID || !secret) throw new HttpError(400, 'Add your Plaid keys first, so Meld can show your own accounts.');
+        delete next.MELD_DEMO;
       }
       if (body.ai) {
         if (body.ai.removeAnthropicKey) delete next.ANTHROPIC_API_KEY;

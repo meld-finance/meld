@@ -27,13 +27,14 @@ Your data lives in `%APPDATA%\Meld`. The keys that encrypt it are in Windows Cre
 
 ## First run
 
-Meld walks you through setup the first time it opens:
+Meld opens on a welcome screen with a picture of where your data goes: your banks connect through Plaid, everything is stored on this computer, and AI is off until you turn it on. Then pick one:
 
-1. **Passphrase** (optional). It locks Meld in the browser and on your phone. You can turn it on or off later.
-2. **Plaid keys:** your client ID and secrets, with a **Test keys** button. [Plaid setup](plaid.md) shows where to find them.
-3. **AI** (optional): [Ollama](https://ollama.com) for free local models (Meld finds it if it's running), a ChatGPT plan, an OpenRouter API key (Gemini, GPT, Claude and more), or an Anthropic API key.
+- **Start with demo data.** Meld fills in a made-up household (the Riveras) and starts a short tour of common money questions and where Meld answers them: net worth, an autopay that won't be covered, a subscription price rise, cash earning too little, retirement, tax moves and estate gaps. Nothing to set up and nothing sent anywhere, apart from the demo funds' ticker symbols, which Meld uses to get today's prices from Yahoo Finance. When you're ready, click **Connect my banks** on Home, in the top bar or under **Settings → Bank connections**.
+- **Connect my banks.** A guided Plaid sign-up, with a picture of each screen: about 10 minutes, ending with your client ID and production secret. [Plaid setup](plaid.md) has the same steps. Meld then opens on your own accounts; link your banks from **Accounts → Link account**.
 
-Start with Plaid's Sandbox to look around (pick any bank, sign in with `user_good` / `pass_good`), then follow [Plaid setup](plaid.md) to connect your real accounts and switch to production in **Settings**.
+There's no passphrase step. Meld's own window always opens straight in. To open Meld in a browser or on your phone, choose a passphrase under **Settings → Passphrase for browsers and phones**, or when you turn on [phone access](phone-access.md).
+
+AI is optional and isn't part of setup either. The first time you open **Ask Meld**, it explains the choice: a model on this computer through [Ollama](https://ollama.com) (free and private, but slower and less reliable), or a cloud model (Claude, ChatGPT through your plan, or Gemini and others through OpenRouter) that sees only what each question needs. Everything else in Meld works without AI.
 
 ## Keep it running
 

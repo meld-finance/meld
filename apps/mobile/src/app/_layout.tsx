@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
+import { TourPanel } from '@/components/tour/tour-panel';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { useSetupStatus } from '@/lib/setup';
@@ -25,28 +26,32 @@ function RootNavigator() {
   if (!ready) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={!configured}>
-        <Stack.Screen name="setup" />
-      </Stack.Protected>
-      <Stack.Protected guard={configured && isLoggedIn} redirectTo={configured ? '/login' : '/setup'}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="account/[id]" />
-        <Stack.Screen name="insurance/[id]" />
-        <Stack.Screen name="estate/account/[id]" />
-        <Stack.Screen name="estate/asset/[id]" />
-        <Stack.Screen name="estate/document/[id]" />
-        <Stack.Screen name="chat/[id]" />
-        <Stack.Screen name="category/[category]" />
-        <Stack.Screen name="rules" />
-        <Stack.Screen name="alerts" />
-        <Stack.Screen name="settings" />
-        <Stack.Screen name="releases" />
-      </Stack.Protected>
-      <Stack.Protected guard={configured && !isLoggedIn} redirectTo={configured ? '/' : '/setup'}>
-        <Stack.Screen name="login" />
-      </Stack.Protected>
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={!configured}>
+          <Stack.Screen name="setup" />
+        </Stack.Protected>
+        <Stack.Protected guard={configured && isLoggedIn} redirectTo={configured ? '/login' : '/setup'}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="account/[id]" />
+          <Stack.Screen name="insurance/[id]" />
+          <Stack.Screen name="estate/account/[id]" />
+          <Stack.Screen name="estate/asset/[id]" />
+          <Stack.Screen name="estate/document/[id]" />
+          <Stack.Screen name="chat/[id]" />
+          <Stack.Screen name="category/[category]" />
+          <Stack.Screen name="rules" />
+          <Stack.Screen name="alerts" />
+          <Stack.Screen name="settings" />
+          <Stack.Screen name="releases" />
+          <Stack.Screen name="connect" />
+        </Stack.Protected>
+        <Stack.Protected guard={configured && !isLoggedIn} redirectTo={configured ? '/' : '/setup'}>
+          <Stack.Screen name="login" />
+        </Stack.Protected>
+      </Stack>
+      {configured && isLoggedIn && <TourPanel />}
+    </>
   );
 }
 

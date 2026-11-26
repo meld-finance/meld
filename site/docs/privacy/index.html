@@ -94,7 +94,9 @@
       <div class="prose">
         <p>Meld runs on your own computer. There is no Meld server, no account with the author, no analytics and no telemetry. Your data lives in the Postgres database and the <code>documents</code> folder on your machine: with the Mac app, both are in <code>~/Library/Application Support/Meld</code> (<code>%APPDATA%\Meld</code> on Windows), and its Postgres only listens on <code>127.0.0.1</code>.</p>
 
-<p>Meld talks to these outside services only. Each one is optional except Plaid and GitHub's update check.</p>
+<p>Unlike hosted finance apps, Meld has no servers: your history and bank connections exist only on your computer, and AI sees only what a question needs.</p>
+
+<p>Meld talks to these outside services only. Each one is optional except Plaid (not used for demo data) and GitHub's update check.</p>
 
 <div class="table-wrap">
 <table>
@@ -102,7 +104,7 @@
 <tbody>
 <tr><td><strong>Plaid</strong> (with your own keys)</td><td>Linking accounts and every sync (every 6 hours, or on <strong>Refresh</strong>)</td><td>Your bank sign-in goes to Plaid and your bank through Plaid's own window, never through Meld. Meld receives balances, transactions, holdings, investment activity and loan details. Tapping <strong>Get from bank</strong> on an account's estate screen also fetches that checking or savings account's full number (Plaid Auth); it's kept, encrypted, only if you save it.</td></tr>
 <tr><td><strong>GitHub</strong></td><td>The Mac app checks for updates shortly after it opens and every 4 hours; the <strong>What's new</strong> page loads the release notes</td><td>Nothing about you or your finances: just requests for Meld's public release list, which GitHub sees coming from your IP address like any download. An update is downloaded from GitHub only when you click <strong>Update</strong>.</td></tr>
-<tr><td><strong>Yahoo Finance</strong></td><td>Accounts → Investments → Performance</td><td>Ticker symbols only, to fetch daily prices.</td></tr>
+<tr><td><strong>Yahoo Finance</strong></td><td>Accounts → Investments → Performance, and demo data</td><td>Ticker symbols only, to fetch daily prices.</td></tr>
 <tr><td><strong>Anthropic</strong> (if you add an API key)</td><td>Ask Meld with a Claude model</td><td>Your question, a compact overview snapshot (totals, counts, basic profile), and whatever the AI looks up to answer (for example matching transactions, holdings or budgets).</td></tr>
 <tr><td></td><td>Plan → Insurance → Upload PDF</td><td>The <strong>whole PDF</strong> you upload.</td></tr>
 <tr><td></td><td>Home or vehicle value lookup</td><td>The property address, or the vehicle's year, make, model, mileage and ZIP code.</td></tr>
