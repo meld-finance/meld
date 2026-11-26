@@ -17,27 +17,30 @@ import {
 /** Which scenario; the active one when left out. */
 const ScenarioQuery = z.object({ scenario: z.uuid().optional() });
 
-export async function registerRetirementRoutes(app: FastifyInstance, { db }: AppDeps) {
-  app.get('/retirement', (req) => getRetirement(db, undefined, parse(ScenarioQuery, req.query).scenario));
+export async function registerRetirementRoutes(app: FastifyInstance, { db: initialDb, runtime }: AppDeps) {
+  const getDb = () => runtime?.getDb() ?? initialDb;
+
+  app.get('/retirement', (req) => getRetirement(getDb(), undefined, parse(ScenarioQuery, req.query).scenario));
   app.put('/retirement', async (req) => {
+    const db = getDb();
     const { scenario } = parse(ScenarioQuery, req.query);
     await saveRetirementPlan(db, parse(RetirementPlan, req.body), scenario);
     return getRetirement(db, undefined, scenario);
   });
 
-  app.post('/retirement/scenarios', (req) => createScenario(db, parse(CreateScenario, req.body)));
-  app.patch('/retirement/scenarios/:id', (req) => updateScenario(db, parse(IdParams, req.params).id, parse(UpdateScenario, req.body)));
+  app.post('/retirement/scenarios', (req) => createScenario(getDb(), parse(CreateScenario, req.body)));
+  app.patch('/retirement/scenarios/:id', (req) => updateScenario(getDb(), parse(IdParams, req.params).id, parse(UpdateScenario, req.body)));
   app.delete('/retirement/scenarios/:id', async (req) => {
-    await deleteScenario(db, parse(IdParams, req.params).id);
+    await deleteScenario(getDb(), parse(IdParams, req.params).id);
     return { ok: true };
   });
 
-  app.get('/retirement/scenarios/:id/simulations', (req) => listSimulations(db, parse(IdParams, req.params).id));
+  app.get('/retirement/scenarios/:id/simulations', (req) => listSimulations(getDb(), parse(IdParams, req.params).id));
   app.post('/retirement/scenarios/:id/simulations', (req) =>
-    runSimulation(db, parse(IdParams, req.params).id, parse(SimulationSettings, req.body)),
+    runSimulation(getDb(), parse(IdParams, req.params).id, parse(SimulationSettings, req.body)),
   );
   app.delete('/retirement/simulations/:id', async (req) => {
-    await deleteSimulation(db, parse(IdParams, req.params).id);
+    await deleteSimulation(getDb(), parse(IdParams, req.params).id);
     return { ok: true };
   });
 }

@@ -21,9 +21,11 @@ const columns = {
   depreciationPercent: manualAssets.depreciationPercent,
 };
 
-export async function registerManualAssetRoutes(app: FastifyInstance, { db, ai }: AppDeps) {
+export async function registerManualAssetRoutes(app: FastifyInstance, { db: initialDb, ai, runtime }: AppDeps) {
+  const getDb = () => runtime?.getDb() ?? initialDb;
+
   app.get('/manual-assets', async () =>
-    (await db.select(columns).from(manualAssets).orderBy(asc(manualAssets.name))) as ManualAsset[],
+    (await getDb().select(columns).from(manualAssets).orderBy(asc(manualAssets.name))) as ManualAsset[],
   );
 
   /** Rough market value from real estate sites; the app fills the form with it and nothing is saved. */
@@ -39,6 +41,7 @@ export async function registerManualAssetRoutes(app: FastifyInstance, { db, ai }
   });
 
   app.post('/manual-assets', async (req) => {
+    const db = getDb();
     const input = parse(ManualAssetInput, req.body);
     const [row] = await db.insert(manualAssets).values(input).returning(columns);
     await recordSnapshot(db);
@@ -46,6 +49,7 @@ export async function registerManualAssetRoutes(app: FastifyInstance, { db, ai }
   });
 
   app.patch('/manual-assets/:id', async (req) => {
+    const db = getDb();
     const { id } = parse(IdParams, req.params);
     const input = parse(ManualAssetInput.partial(), req.body);
     const [row] = await db.update(manualAssets).set(input).where(eq(manualAssets.id, id)).returning(columns);
@@ -55,6 +59,7 @@ export async function registerManualAssetRoutes(app: FastifyInstance, { db, ai }
   });
 
   app.delete('/manual-assets/:id', async (req) => {
+    const db = getDb();
     const { id } = parse(IdParams, req.params);
     const [row] = await db.delete(manualAssets).where(eq(manualAssets.id, id)).returning({ id: manualAssets.id });
     if (!row) throw new HttpError(404, 'Asset not found');

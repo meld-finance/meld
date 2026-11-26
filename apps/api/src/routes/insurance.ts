@@ -69,16 +69,17 @@ export async function storeUploadedPdf(req: FastifyRequest, db: Db, storage: Doc
   return { documentId: doc!.id, filename, data };
 }
 
-export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, env, storage }: AppDeps) {
+export async function registerInsuranceRoutes(app: FastifyInstance, { db: initialDb, ai, env, storage, runtime }: AppDeps) {
+  const getDb = () => runtime?.getDb() ?? initialDb;
   await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
 
-  async function getPolicy(id: string) {
+  async function getPolicy(db: Db, id: string) {
     const [policy] = await listPolicies(db, eq(insurancePolicies.id, id));
     if (!policy) throw new HttpError(404, 'Policy not found');
     return policy;
   }
 
-  async function parsePolicyInput(body: unknown) {
+  async function parsePolicyInput(db: Db, body: unknown) {
     const input = parse(InsurancePolicyInput, body);
     if (input.documentId) {
       const doc = await db.query.documents.findFirst({ where: eq(documents.id, input.documentId) });
@@ -94,60 +95,64 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, en
     };
   }
 
-  const deleteIfUnused = (documentId: string | null) => deleteDocumentIfUnused(db, storage, documentId);
+  const deleteIfUnused = (db: Db, documentId: string | null) => deleteDocumentIfUnused(db, storage, documentId);
 
-  app.get('/insurance', () => listPolicies(db));
+  app.get('/insurance', () => listPolicies(getDb()));
 
-  app.get('/insurance/:id', async (req) => getPolicy(parse(IdParams, req.params).id));
+  app.get('/insurance/:id', async (req) => getPolicy(getDb(), parse(IdParams, req.params).id));
 
   app.post('/insurance', async (req) => {
-    const input = await parsePolicyInput(req.body);
+    const db = getDb();
+    const input = await parsePolicyInput(db, req.body);
     const [row] = await db.insert(insurancePolicies).values(input).returning({ id: insurancePolicies.id });
-    return getPolicy(row!.id);
+    return getPolicy(db, row!.id);
   });
 
   app.put('/insurance/:id', async (req) => {
+    const db = getDb();
     const { id } = parse(IdParams, req.params);
-    const input = await parsePolicyInput(req.body);
-    const before = await getPolicy(id);
+    const input = await parsePolicyInput(db, req.body);
+    const before = await getPolicy(db, id);
     await db.update(insurancePolicies).set(input).where(eq(insurancePolicies.id, id));
-    if (before.documentId !== input.documentId) await deleteIfUnused(before.documentId);
-    return getPolicy(id);
+    if (before.documentId !== input.documentId) await deleteIfUnused(db, before.documentId);
+    return getPolicy(db, id);
   });
 
   app.delete('/insurance/:id', async (req) => {
+    const db = getDb();
     const { id } = parse(IdParams, req.params);
     const [row] = await db
       .delete(insurancePolicies)
       .where(eq(insurancePolicies.id, id))
       .returning({ documentId: insurancePolicies.documentId });
     if (!row) throw new HttpError(404, 'Policy not found');
-    await deleteIfUnused(row.documentId);
+    await deleteIfUnused(db, row.documentId);
     return { ok: true };
   });
 
   /** Upload a PDF to keep with a policy, estate document, or RSU grant; no AI involved. Unsaved uploads are cleaned up after a day. */
   app.post('/documents', async (req): Promise<UploadedDocument> => {
-    const { documentId, filename } = await storeUploadedPdf(req, db, storage, 'insurance');
+    const { documentId, filename } = await storeUploadedPdf(req, getDb(), storage, 'insurance');
     return { documentId, filename };
   });
 
   /** Upload a policy PDF and get a draft back. Nothing is saved as a policy until the user confirms. */
   app.post('/insurance/extract', async (req): Promise<PolicyExtraction> => {
+    const db = getDb();
     const provider = requireAI(ai);
     const { documentId, filename, data } = await storeUploadedPdf(req, db, storage, 'insurance');
     try {
       const { draft, warnings } = await provider.extractInsurancePolicy(data);
       return { documentId, filename, draft: { ...draft, documentId }, warnings };
     } catch (err) {
-      await deleteIfUnused(documentId);
+      await deleteIfUnused(db, documentId);
       throw err;
     }
   });
 
   app.get('/documents/:id', async (req, reply) => {
     const { id } = parse(IdParams, req.params);
-    const doc = await db.query.documents.findFirst({ where: eq(documents.id, id) });
+    const doc = await getDb().query.documents.findFirst({ where: eq(documents.id, id) });
     if (!doc) throw new HttpError(404, 'Document not found');
     const data = await storage.get(doc.storageKey);
     return reply
@@ -160,7 +165,7 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, en
   /** Discards an upload whose draft was cancelled. Documents attached to a policy or estate document are kept. */
   app.delete('/documents/:id', async (req) => {
     const { id } = parse(IdParams, req.params);
-    await deleteIfUnused(id);
+    await deleteIfUnused(getDb(), id);
     return { ok: true };
   });
 }

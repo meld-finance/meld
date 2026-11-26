@@ -4,7 +4,8 @@ import { parse } from '../lib/http';
 import type { AppDeps } from '../server';
 import { getCashPlan, saveCashSettings } from '../services/cash';
 
-export async function registerCashRoutes(app: FastifyInstance, { db }: AppDeps) {
-  app.get('/cash', () => getCashPlan(db));
-  app.put('/cash/settings', (req) => saveCashSettings(db, parse(CashSettings, req.body)));
+export async function registerCashRoutes(app: FastifyInstance, { db: initialDb, runtime }: AppDeps) {
+  const getDb = () => runtime?.getDb() ?? initialDb;
+  app.get('/cash', () => getCashPlan(getDb()));
+  app.put('/cash/settings', (req) => saveCashSettings(getDb(), parse(CashSettings, req.body)));
 }

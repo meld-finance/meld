@@ -171,7 +171,7 @@
 
 <p><a class="doc-figure" href="../images/plaid/7-keys.jpg" target="_blank" rel="noopener"><img src="../images/plaid/7-keys.jpg" alt="Plaid's Keys page with the Client ID, Production secret and Sandbox secret" loading="lazy"></a></p>
 
-<p><strong>In the desktop app:</strong> on the welcome screen choose <strong>Connect my banks</strong>, or, if you're looking at demo data, click <strong>Connect my banks</strong> on Home or under <strong>Settings → Bank connections</strong>. The same six steps are there, with these pictures. Paste the two keys into the last step, click <strong>Test keys</strong> to check them, then <strong>Finish</strong> (or <strong>Save and link accounts</strong>). Meld restarts on your own, empty accounts, and the demo household goes away.</p>
+<p><strong>In the desktop app:</strong> on the welcome screen choose <strong>Connect my banks</strong>, or, if you're looking at demo data, click <strong>Connect my banks</strong> in the demo bar or under <strong>Settings → Bank connections</strong>. The same six steps are there, with these pictures. Paste the two keys into the last step, click <strong>Test keys</strong> to check them, then <strong>Finish</strong> (or <strong>Save and link accounts</strong>). Meld restarts on your own, empty accounts, and the demo household goes away.</p>
 
 <p><strong>With Docker:</strong> in <code>.env</code>, set <code>PLAID_CLIENT_ID</code>, <code>PLAID_PRODUCTION_SECRET</code> and <code>PLAID_ENV=production</code>, then restart Meld (<code>docker compose up -d</code>).</p>
 
@@ -190,7 +190,7 @@
 
 <p>If Plaid asks about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself.</p>
 
-<p>Real data goes into its own database (<code>meld</code>), separate from demo data (<code>meld_demo</code>) and Plaid's Sandbox (<code>meld_sandbox</code>), so switching back and forth never mixes them. <strong>Settings → Bank connections → Show demo data</strong> switches back to the demo household; <strong>Use my accounts</strong> returns.</p>
+<p>Real data goes into its own database (<code>meld</code>), separate from demo data (<code>meld_demo</code>) and Plaid's Sandbox (<code>meld_sandbox</code>), so switching back and forth never mixes them. Open <strong>Account menu → Demo mode…</strong> or <strong>Settings → Demo mode</strong> anytime to switch to the demo household (with the guided tour or as a sandbox) without restarting Meld; click <strong>Back to my accounts</strong> in the top demo bar to return.</p>
 
 <p><strong>Read Plaid's terms yourself.</strong> When you hold Plaid keys you're Plaid's customer, and their <a href="https://plaid.com/developer-policy/" target="_blank" rel="noopener">developer policy</a> and terms apply to you. Decide for yourself whether your use fits them.</p>
 

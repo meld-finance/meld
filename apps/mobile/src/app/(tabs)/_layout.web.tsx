@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { ChatPanel } from '@/components/chat/chat-panel';
-import { DemoPill } from '@/components/home/demo-banner';
+import { DemoModeModal } from '@/components/demo/demo-mode-modal';
 import { Icon, type IconName } from '@/components/icon';
 import { Logo } from '@/components/logo';
 import { ThemedText } from '@/components/themed-text';
@@ -17,7 +17,9 @@ import { useAuth } from '@/lib/auth';
 import { ChatPanelProvider, useChatPanel } from '@/lib/chat-panel';
 import { pendingVersion, useUpdateState } from '@/lib/desktop';
 import { useAlerts, useProfile } from '@/lib/queries';
+import { useSetupStatus, useSwitchDemoMode } from '@/lib/setup';
 import { useThemePref, type ThemePref } from '@/lib/theme-pref';
+import { useTour } from '@/lib/tour';
 
 /** Below this window width the sidebar collapses to an icon rail. */
 const COMPACT_BELOW = 1000;
@@ -243,7 +245,14 @@ function TopBar({ phone }: { phone: boolean }) {
   const profile = useProfile();
   const unread = useAlerts().data?.unread ?? 0;
   const updateVersion = pendingVersion(useUpdateState());
+  const status = useSetupStatus().data;
+  const demo = status?.demo ?? false;
+  const demoAvailable = status?.demoAvailable ?? false;
+  const plaidReady = status?.plaidReady ?? false;
+  const tour = useTour();
+  const switchDemo = useSwitchDemoMode();
   const [open, setOpen] = useState(false);
+  const [demoModalOpen, setDemoModalOpen] = useState(false);
   const name = profile.data?.displayName?.trim();
   const firstName = name?.split(/\s+/)[0];
   const initials = name
@@ -259,7 +268,6 @@ function TopBar({ phone }: { phone: boolean }) {
           <Logo />
         </View>
       )}
-      <DemoPill compact={phone} />
       <UpdatePill compact={phone} />
       <Pressable
         accessibilityRole="button"
@@ -326,6 +334,36 @@ function TopBar({ phone }: { phone: boolean }) {
               }}>
               Settings
             </MenuItem>
+            {!demo && demoAvailable && (
+              <MenuItem
+                icon="play"
+                onPress={() => {
+                  setOpen(false);
+                  setDemoModalOpen(true);
+                }}>
+                Demo mode…
+              </MenuItem>
+            )}
+            {demo && !tour.active && (
+              <MenuItem
+                icon="flag"
+                onPress={() => {
+                  setOpen(false);
+                  tour.start();
+                }}>
+                Start demo tour
+              </MenuItem>
+            )}
+            {demo && plaidReady && (
+              <MenuItem
+                icon="arrowRight"
+                onPress={() => {
+                  setOpen(false);
+                  switchDemo.mutate({ enabled: false });
+                }}>
+                Back to my accounts
+              </MenuItem>
+            )}
             <MenuItem
               icon="tag"
               dot={!!updateVersion}
@@ -357,6 +395,7 @@ function TopBar({ phone }: { phone: boolean }) {
           </ThemedView>
         </>
       )}
+      <DemoModeModal visible={demoModalOpen} onClose={() => setDemoModalOpen(false)} />
     </View>
   );
 }

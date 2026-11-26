@@ -29,7 +29,7 @@
     "group": "Using Meld",
     "heading": "First run",
     "url": "install/#first-run",
-    "text": "Meld opens on a welcome screen with a picture of where your data goes: your banks connect through Plaid, everything is stored on this computer, and AI is off until you turn it on. Then pick one: Start with demo data. Meld fills in a made-up household (the Riveras) and starts a short tour of common money questions and where Meld answers them: net worth, an autopay that won't be covered, a subscription price rise, cash earning too little, retirement, tax moves and estate gaps. Nothing to set up and nothing sent anywhere, apart from the demo funds' ticker symbols, which Meld uses to get today's prices from Yahoo Finance. When you're ready, click Connect my banks on Home, in the top bar or under Settings → Bank connections. Connect my banks. A guided Plaid sign-up, with a picture of each screen: about 10 minutes, ending with your client ID and production secret. Plaid setup has the same steps. Meld then opens on your own accounts; link your banks from Accounts → Link account. There's no passphrase step. Meld's own window always opens straight in. To open Meld in a browser or on your phone, choose a passphrase under Settings → Passphrase for browsers and phones, or when you turn on phone access. AI is optional and isn't part of setup either. The first time you open Ask Meld, it explains the choice: a model on this computer through Ollama (free and private, but slower and less reliable), or a cloud model (Claude, ChatGPT through your plan, or Gemini and others through OpenRouter) that sees only what each question needs. Everything else in Meld works without AI."
+    "text": "Meld opens on a welcome screen with a picture of where your data goes: your banks connect through Plaid, everything is stored on this computer, and AI is off until you turn it on. Then pick one: Look around first (demo data). Meld fills in a made-up household (the Riveras) and lets you choose Start with tour (a short walk through common money questions: net worth, an autopay that won't be covered, a subscription price rise, cash earning too little, retirement, tax moves and estate gaps) or Explore on my own. Nothing to set up and nothing sent anywhere, apart from the demo funds' ticker symbols, which Meld uses to get today's prices from Yahoo Finance. When you're ready, click Connect my banks in the top demo bar or under Settings → Bank connections. Connect my banks. A guided Plaid sign-up, with a picture of each screen: about 10 minutes, ending with your client ID and production secret. Plaid setup has the same steps. Meld then opens on your own accounts; link your banks from Accounts → Link account. There's no passphrase step. Meld's own window always opens straight in. To open Meld in a browser or on your phone, choose a passphrase under Settings → Passphrase for browsers and phones, or when you turn on phone access. AI is optional and isn't part of setup either. The first time you open Ask Meld, it explains the choice: a model on this computer through Ollama (free and private, but slower and less reliable), or a cloud model (Claude, ChatGPT through your plan, or Gemini and others through OpenRouter) that sees only what each question needs. Everything else in Meld works without AI."
   },
   {
     "isPage": false,
@@ -125,7 +125,7 @@
     "group": "Using Meld",
     "heading": "6. Copy your keys into Meld",
     "url": "plaid/#6-copy-your-keys-into-meld",
-    "text": "Open Developers → Keys (https://dashboard.plaid.com/developers/keys). You need two values: the Client ID and the Production secret. Ignore the Sandbox secret. !Plaid's Keys page with the Client ID, Production secret and Sandbox secret In the desktop app: on the welcome screen choose Connect my banks, or, if you're looking at demo data, click Connect my banks on Home or under Settings → Bank connections. The same six steps are there, with these pictures. Paste the two keys into the last step, click Test keys to check them, then Finish (or Save and link accounts). Meld restarts on your own, empty accounts, and the demo household goes away. With Docker: in .env, set PLAID_CLIENT_ID, PLAID_PRODUCTION_SECRET and PLAID_ENV=production, then restart Meld (docker compose up -d). Then go to Accounts → Link account, pick your bank and sign in to it in Plaid's window. Repeat for each bank."
+    "text": "Open Developers → Keys (https://dashboard.plaid.com/developers/keys). You need two values: the Client ID and the Production secret. Ignore the Sandbox secret. !Plaid's Keys page with the Client ID, Production secret and Sandbox secret In the desktop app: on the welcome screen choose Connect my banks, or, if you're looking at demo data, click Connect my banks in the demo bar or under Settings → Bank connections. The same six steps are there, with these pictures. Paste the two keys into the last step, click Test keys to check them, then Finish (or Save and link accounts). Meld restarts on your own, empty accounts, and the demo household goes away. With Docker: in .env, set PLAID_CLIENT_ID, PLAID_PRODUCTION_SECRET and PLAID_ENV=production, then restart Meld (docker compose up -d). Then go to Accounts → Link account, pick your bank and sign in to it in Plaid's window. Repeat for each bank."
   },
   {
     "isPage": false,
@@ -133,7 +133,7 @@
     "group": "Using Meld",
     "heading": "What the free plan covers",
     "url": "plaid/#what-the-free-plan-covers",
-    "text": "New Plaid teams in the US and Canada get the free Trial plan with real data: Up to 10 connections (Plaid calls them \"Items\"). One connection is one login at one institution, however many accounts sit behind it; a bank login with checking, savings and a card is one. Removing a connection doesn't give the slot back, so don't link and unlink to experiment. Look around with demo data instead. It includes the products Meld uses: Transactions, Investments and Liabilities. Banks that sign you in on their own site (OAuth), such as Chase, Bank of America and Wells Fargo, work on the Trial plan. Some brokerages, Schwab for example, can take a few business days to switch on after you get production access. If Plaid asks about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself. Real data goes into its own database (meld), separate from demo data (meld_demo) and Plaid's Sandbox (meld_sandbox), so switching back and forth never mixes them. Settings → Bank connections → Show demo data switches back to the demo household; Use my accounts returns. Read Plaid's terms yourself. When you hold Plaid keys you're Plaid's customer, and their developer policy and terms apply to you. Decide for yourself whether your use fits them."
+    "text": "New Plaid teams in the US and Canada get the free Trial plan with real data: Up to 10 connections (Plaid calls them \"Items\"). One connection is one login at one institution, however many accounts sit behind it; a bank login with checking, savings and a card is one. Removing a connection doesn't give the slot back, so don't link and unlink to experiment. Look around with demo data instead. It includes the products Meld uses: Transactions, Investments and Liabilities. Banks that sign you in on their own site (OAuth), such as Chase, Bank of America and Wells Fargo, work on the Trial plan. Some brokerages, Schwab for example, can take a few business days to switch on after you get production access. If Plaid asks about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself. Real data goes into its own database (meld), separate from demo data (meld_demo) and Plaid's Sandbox (meld_sandbox), so switching back and forth never mixes them. Open Account menu → Demo mode… or Settings → Demo mode anytime to switch to the demo household (with the guided tour or as a sandbox) without restarting Meld; click Back to my accounts in the top demo bar to return. Read Plaid's terms yourself. When you hold Plaid keys you're Plaid's customer, and their developer policy and terms apply to you. Decide for yourself whether your use fits them."
   },
   {
     "isPage": false,
@@ -309,7 +309,7 @@
     "group": "Features & Guide",
     "heading": "Where to find it",
     "url": "features/demo/#where-to-find-it",
-    "text": "Welcome screen → Look around with demo data (or set MELD_DEMO=1) While demo data is showing: Take the tour on Home Switch back later: Settings → Bank connections → Show demo data / Use my accounts"
+    "text": "Welcome screen → Look around first (Start with tour or Explore on my own), or set MELD_DEMO=1 Anytime after linking real accounts (including .env installs): Account menu → Demo mode… or Settings → Demo mode While demo data is showing: Start tour / Show tour, Reset data, and Back to my accounts (or Connect my banks) in the purple DEMO MODE bar pinned to the top of every screen"
   },
   {
     "isPage": false,
@@ -317,7 +317,15 @@
     "group": "Features & Guide",
     "heading": "The Rivera household",
     "url": "features/demo/#the-rivera-household",
-    "text": "Start with demo data shows a made-up household, the Riveras, in its own database (meld_demo, or DEMO_DATABASE_URL), with two years of history dated up to today. The household is built so every area has something to show: checking that won't cover the card's autopay after childcare and the phone bill (an urgent alert), a Netflix price rise and a new Headspace charge, Disney+ stopped, eating out pushing food over budget, savings earning 0.4%, 401(k), HSA and Roth IRA room, a fund to harvest for a tax loss, a rollover IRA with no beneficiary, and a will older than the younger child. It's rebuilt automatically once it's two days old, so due dates and alerts stay current; changes you make to it don't last. Demo connections never call Plaid: Refresh just says they're up to date, and Link account is replaced by Connect my banks."
+    "text": "Look around first (or switching into demo mode anytime) shows a made-up household, the Riveras, in its own database (meld_demo, or DEMO_DATABASE_URL), with two years of history dated up to today. Your real database stays untouched and hidden while demo data is active. The household is built so every area has something to show: checking that won't cover the card's autopay after childcare and the phone bill (an urgent alert), a Netflix price rise and a new Headspace charge, Disney+ stopped, eating out pushing food over budget, savings earning 0.4%, 401(k), HSA and Roth IRA room, a fund to harvest for a tax loss, a rollover IRA with no beneficiary, and a will older than the younger child. It's rebuilt automatically once it's two days old, so due dates and alerts stay current; changes you make to it don't last, and you can rebuild it anytime with Reset data in the demo bar (or Reset demo data in Settings → Demo mode). Demo connections never call Plaid: Refresh just says they're up to date, and Link account is replaced by Connect my banks (or Back to my accounts once Plaid keys are saved)."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Demo data & tour",
+    "group": "Features & Guide",
+    "heading": "Switching in and out",
+    "url": "features/demo/#switching-in-and-out",
+    "text": "Even after linking real accounts (or in .env-configured installs), opening Account menu → Demo mode… or Settings → Demo mode switches into the isolated meld_demo database at runtime without restarting Meld. When entering demo mode, choose between Start with guided tour or Explore sandbox on my own, with an optional Start with fresh sample data toggle to rebuild the Riveras before switching. While demo mode is active, a purple DEMO MODE bar remains pinned at the top of every screen so you always know you are looking at sample data. Click Back to my accounts in the bar (or Use my accounts in Settings) to return immediately to your own database without restarting."
   },
   {
     "isPage": false,
@@ -325,7 +333,7 @@
     "group": "Features & Guide",
     "heading": "The tour",
     "url": "features/demo/#the-tour",
-    "text": "The tour starts after you choose demo data, and from Take the tour on Home. It walks through ten questions people ask about their money: What am I worth? Will a payment bounce? Where does my money go? What am I subscribed to? Is my cash earning enough? Am I on track to retire? Am I missing tax savings? Would my family know what to do? Can I just ask? Ready for your own numbers? Each stop opens the page that answers that question. The tour floats over the page, can be minimized to a pill, and picks up where it left off after a reload."
+    "text": "The tour starts when you choose Start with tour from the welcome screen, Start with guided tour from the Demo mode modal, or Start tour in the demo bar. It walks through ten questions people ask about their money: What am I worth? Will a payment bounce? Where does my money go? What am I subscribed to? Is my cash earning enough? Am I on track to retire? Am I missing tax savings? Would my family know what to do? Can I just ask? Ready for your own numbers? Each stop opens the page that answers that question. The tour floats over the page, can be minimized to a pill, and picks up where it left off after a reload."
   },
   {
     "isPage": false,
@@ -333,7 +341,7 @@
     "group": "Features & Guide",
     "heading": "Connect your own banks",
     "url": "features/demo/#connect-your-own-banks",
-    "text": "Connect my banks (on Home, in the top bar while demo data is showing, and under Settings → Bank connections) opens the guided Plaid sign-up. Saving your keys switches Meld to your own, empty database. See Linking accounts and Connecting your accounts with Plaid."
+    "text": "Connect my banks (in the demo bar, Settings → Demo mode, and Settings → Bank connections) opens the guided Plaid sign-up. Saving your keys switches Meld to your own, empty database. See Linking accounts and Connecting your accounts with Plaid."
   },
   {
     "isPage": true,

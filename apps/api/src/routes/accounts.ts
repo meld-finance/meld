@@ -11,13 +11,16 @@ import { recordSnapshot } from '../services/overview';
 import { getInvestmentPerformance } from '../services/performance';
 import type { AppDeps } from '../server';
 
-export async function registerAccountRoutes(app: FastifyInstance, { db, ai }: AppDeps) {
+export async function registerAccountRoutes(app: FastifyInstance, { db: initialDb, ai, runtime }: AppDeps) {
+  const getDb = () => runtime?.getDb() ?? initialDb;
+
   app.get('/accounts', (req) => {
     const { includeHidden } = parse(z.object({ includeHidden: z.stringbool().default(false) }), req.query);
-    return listAccounts(db, includeHidden ? undefined : eq(accounts.hidden, false));
+    return listAccounts(getDb(), includeHidden ? undefined : eq(accounts.hidden, false));
   });
 
   app.get('/accounts/:id', async (req): Promise<AccountDetail> => {
+    const db = getDb();
     const { id } = parse(IdParams, req.params);
     const [account] = await listAccounts(db, eq(accounts.id, id));
     if (!account) throw new HttpError(404, 'Account not found');
@@ -28,6 +31,7 @@ export async function registerAccountRoutes(app: FastifyInstance, { db, ai }: Ap
     };
   });
   app.patch('/accounts/:id', async (req) => {
+    const db = getDb();
     const { id } = parse(IdParams, req.params);
     const update = parse(AccountUpdate, req.body);
     const [row] = await db.update(accounts).set(update).where(eq(accounts.id, id)).returning({ id: accounts.id });
@@ -37,10 +41,10 @@ export async function registerAccountRoutes(app: FastifyInstance, { db, ai }: Ap
     return { ok: true };
   });
 
-  app.get('/investments', () => getInvestmentsSummary(db, ai));
-  app.get('/investments/income', () => getInvestmentIncome(db));
-  app.get('/investments/performance', () => getInvestmentPerformance(db));
-  app.post('/investments/profile', () => profileSecurities(db, requireAI(ai)));
+  app.get('/investments', () => getInvestmentsSummary(getDb(), ai));
+  app.get('/investments/income', () => getInvestmentIncome(getDb()));
+  app.get('/investments/performance', () => getInvestmentPerformance(getDb()));
+  app.post('/investments/profile', () => profileSecurities(getDb(), requireAI(ai)));
 
-  app.get('/liabilities', () => listLiabilities(db));
+  app.get('/liabilities', () => listLiabilities(getDb()));
 }

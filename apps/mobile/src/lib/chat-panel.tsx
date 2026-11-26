@@ -1,8 +1,9 @@
 import { usePathname } from 'expo-router';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useWindowDimensions } from 'react-native';
 
 import { prefs } from './prefs';
+import { useSetupStatus } from './setup';
 
 /** Default width of the chat panel when docked beside the page; dragging its edge resizes it. */
 const DEFAULT_PANEL_WIDTH = 420;
@@ -56,6 +57,15 @@ export function ChatPanelProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   // The page the chat was expanded over; going to another page shows it, with the chat docked beside it.
   const [expandedOn, setExpandedOn] = useState<string | null>(null);
+  const demo = useSetupStatus().data?.demo ?? false;
+  const prevDemo = useRef(demo);
+  useEffect(() => {
+    if (prevDemo.current === demo) return;
+    prevDemo.current = demo;
+    setIsOpen(false);
+    setChat(null);
+    setExpandedOn(null);
+  }, [demo]);
   const expanded = expandedOn === pathname;
   const value = useMemo<ChatPanel>(
     () => ({

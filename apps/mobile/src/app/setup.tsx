@@ -14,7 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useCompleteSetup, useSetupStatus } from '@/lib/setup';
-import { startTourOnArrival } from '@/lib/tour';
+import { endTour, startTourOnArrival } from '@/lib/tour';
 
 const MIN_PASSPHRASE = 8;
 
@@ -57,6 +57,11 @@ export default function SetupScreen() {
 
   function startDemo() {
     startTourOnArrival();
+    complete.mutate({ passphrase: chosenPassphrase });
+  }
+
+  function startSandbox() {
+    endTour();
     complete.mutate({ passphrase: chosenPassphrase });
   }
 
@@ -170,8 +175,13 @@ export default function SetupScreen() {
       <View style={styles.choices}>
         <Choice
           title="Look around first"
-          body="Explore Meld with a made-up household and a short tour of what it can do. Nothing to set up."
-          action={<Button label="Start with demo data" onPress={startDemo} loading={complete.isPending} />}
+          body="Explore Meld with a made-up household, with a guided tour or on your own. Nothing to set up."
+          action={
+            <View style={styles.choiceButtons}>
+              <Button label="Start with tour" onPress={startDemo} loading={complete.isPending} />
+              <Button label="Explore on my own" variant="secondary" onPress={startSandbox} disabled={complete.isPending} />
+            </View>
+          }
         />
         <Choice
           title="Connect my banks"
@@ -221,4 +231,5 @@ const styles = StyleSheet.create({
   choice: { flexGrow: 1, flexBasis: 280, borderWidth: 1, borderRadius: Spacing.three + Spacing.one, padding: Spacing.four, gap: Spacing.two },
   choiceBody: { flexGrow: 1 },
   choiceAction: { alignSelf: 'flex-start', marginTop: Spacing.two },
+  choiceButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
 });

@@ -32,7 +32,7 @@ import { useAccents } from '@/hooks/use-accents';
 import { useTheme } from '@/hooks/use-theme';
 import { useContentWidth } from '@/lib/chat-panel';
 import { confirm } from '@/lib/confirm';
-import { useSetupStatus } from '@/lib/setup';
+import { useSetupStatus, useSwitchDemoMode } from '@/lib/setup';
 import { formatCurrency, formatDate, formatRelativeTime } from '@/lib/format';
 import { POLICY_TYPE_LABELS } from '@/lib/insurance';
 import {
@@ -88,7 +88,10 @@ export function AccountsTab({ header }: { header: (actions: ReactNode) => ReactN
   const [message, setMessage] = useState<Message | null>(null);
   const [filter, setFilter] = useState<AccountFilter>('all');
   const [editing, setEditing] = useState<ManualAsset | 'new' | null>(null);
-  const demo = useSetupStatus().data?.demo ?? false;
+  const status = useSetupStatus().data;
+  const demo = status?.demo ?? false;
+  const plaidReady = status?.plaidReady ?? false;
+  const switchDemo = useSwitchDemoMode();
 
   const queries = [accounts, items, netWorth, comparison, policies, assets];
   const refreshing = queries.some((q) => q.isRefetching);
@@ -96,9 +99,18 @@ export function AccountsTab({ header }: { header: (actions: ReactNode) => ReactN
   const sidePanel = width >= SIDE_PANEL_MIN_WIDTH;
 
   const headerEl = header(
-    // Demo data has nothing to link to; the first step is a Plaid account of your own.
+    // Demo data has nothing to link to; return to real accounts if Plaid is ready, else guide setup.
     demo ? (
-      <Button label="Connect my banks" onPress={() => router.push('/connect')} />
+      plaidReady ? (
+        <Button
+          label="Back to my accounts"
+          variant="secondary"
+          loading={switchDemo.isPending}
+          onPress={() => switchDemo.mutate({ enabled: false })}
+        />
+      ) : (
+        <Button label="Connect my banks" onPress={() => router.push('/connect')} />
+      )
     ) : (
       <PlaidLinkButton
         onLinked={() => setMessage({ text: 'Account linked. Transaction history may take a minute to arrive.' })}

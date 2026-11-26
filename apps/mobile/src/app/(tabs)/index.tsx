@@ -7,7 +7,6 @@ import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { AreaTiles } from '@/components/home/area-tiles';
 import { AskMeldBar } from '@/components/home/ask-meld-bar';
-import { DemoBanner } from '@/components/home/demo-banner';
 import { NET_WORTH_RANGE_DAYS, NetWorthHero, type NetWorthRange } from '@/components/home/net-worth-hero';
 import { SetupGuide } from '@/components/home/setup-guide';
 import { TaskList } from '@/components/home/task-list';
@@ -274,7 +273,6 @@ export default function HomeScreen() {
   return (
     <Screen wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       {header}
-      <DemoBanner />
       {dashboard}
     </Screen>
   );

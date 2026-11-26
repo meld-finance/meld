@@ -10,12 +10,13 @@ import { getTaxPlan, getTaxSettings, saveTaxSettings, setChecklistDone } from '.
 const YearQuery = z.object({ year: z.coerce.number().int().min(2000).max(2100).optional() });
 const yearOf = (query: unknown) => parse(YearQuery, query).year ?? Number(localDate().slice(0, 4));
 
-export async function registerTaxRoutes(app: FastifyInstance, { db }: AppDeps) {
-  app.get('/tax', (req) => getTaxPlan(db, yearOf(req.query)));
-  app.get('/tax/settings', (req) => getTaxSettings(db, yearOf(req.query)));
-  app.put('/tax/settings', (req) => saveTaxSettings(db, yearOf(req.query), parse(TaxSettings, req.body)));
+export async function registerTaxRoutes(app: FastifyInstance, { db: initialDb, runtime }: AppDeps) {
+  const getDb = () => runtime?.getDb() ?? initialDb;
+  app.get('/tax', (req) => getTaxPlan(getDb(), yearOf(req.query)));
+  app.get('/tax/settings', (req) => getTaxSettings(getDb(), yearOf(req.query)));
+  app.put('/tax/settings', (req) => saveTaxSettings(getDb(), yearOf(req.query), parse(TaxSettings, req.body)));
   app.put('/tax/checklist', async (req) => {
     const { id, done } = parse(ChecklistDone, req.body);
-    return { done: await setChecklistDone(db, yearOf(req.query), id, done) };
+    return { done: await setChecklistDone(getDb(), yearOf(req.query), id, done) };
   });
 }

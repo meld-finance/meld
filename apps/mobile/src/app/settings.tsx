@@ -16,9 +16,20 @@ import { PlaidFields } from '@/components/setup/plaid-fields';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
+import { confirm } from '@/lib/confirm';
 import { desktop } from '@/lib/desktop';
 import { useFeatures } from '@/lib/queries';
-import { aiSettings, modelsText, useSaveSettings, useSettings, useSetupStatus, type AIForm, type PlaidForm } from '@/lib/setup';
+import {
+  aiSettings,
+  modelsText,
+  useSaveSettings,
+  useSettings,
+  useSetupStatus,
+  useSwitchDemoMode,
+  type AIForm,
+  type PlaidForm,
+} from '@/lib/setup';
+import { useTour } from '@/lib/tour';
 
 export default function SettingsScreen() {
   const settings = useSettings();
@@ -47,17 +58,96 @@ export default function SettingsScreen() {
 
 function SettingsCards({ view }: { view: SettingsView }) {
   const fixed = (section: SettingsView['fromEnv'][number]) => !view.editable || view.fromEnv.includes(section);
+  const showDemo = view.demo || view.demoAvailable;
   return (
     <>
       <ThemedText themeColor="textSecondary">
-        Saving restarts Meld, which takes a few seconds. Keys are stored encrypted on this computer.
+        Saving keys restarts Meld, which takes a few seconds. Keys are stored encrypted on this computer.
       </ThemedText>
+      {view.demo && <DemoCard view={view} />}
       <PlaidCard view={view} fixed={fixed('plaid')} />
+      {!view.demo && showDemo && <DemoCard view={view} />}
       <AICard view={view} fixed={fixed('ai')} />
       <McpCard />
       <PassphraseCard view={view} fixed={fixed('passphrase')} />
       <AboutCard />
     </>
+  );
+}
+
+function DemoCard({ view }: { view: SettingsView }) {
+  const switchDemo = useSwitchDemoMode();
+  const tour = useTour();
+
+  async function handleReset() {
+    const ok = await confirm(
+      'Reset demo data?',
+      'This restores the Rivera sample household to its starting state.',
+      'Reset',
+    );
+    if (!ok) return;
+    switchDemo.mutate({ enabled: true, reset: true, redirect: null });
+  }
+
+  if (view.demo) {
+    return (
+      <Card title="Demo mode" subtitle="Showing the sample Rivera household">
+        <ThemedText type="small" themeColor="textSecondary">
+          {view.plaidReady
+            ? 'Your real accounts and settings stay untouched while you look around.'
+            : 'Meld is showing a made-up household. Connect your banks when you’re ready for your own numbers.'}
+        </ThemedText>
+        <View style={[formStyles.buttons, styles.wrap]}>
+          {view.plaidReady ? (
+            <Button
+              label="Back to my accounts"
+              loading={switchDemo.isPending}
+              onPress={() => switchDemo.mutate({ enabled: false })}
+            />
+          ) : (
+            <Button label="Connect my banks" onPress={() => router.push('/connect')} />
+          )}
+          {!tour.active && (
+            <Button
+              label="Start guided tour"
+              variant="secondary"
+              disabled={switchDemo.isPending}
+              onPress={tour.start}
+            />
+          )}
+          <Button
+            label="Reset demo data"
+            variant="secondary"
+            loading={switchDemo.isPending}
+            onPress={() => void handleReset()}
+          />
+        </View>
+        {switchDemo.isError && <ThemedText themeColor="negative">{switchDemo.error.message}</ThemedText>}
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="Demo mode" subtitle="Sample household for demos and exploring">
+      <ThemedText type="small" themeColor="textSecondary">
+        Switch to a made-up household (the Rivera family) in an isolated demo database. Your real accounts stay untouched
+        and hidden until you switch back.
+      </ThemedText>
+      <View style={[formStyles.buttons, styles.wrap]}>
+        <Button
+          label="Start with guided tour"
+          loading={switchDemo.isPending}
+          onPress={() => switchDemo.mutate({ enabled: true, tour: true })}
+        />
+        <Button
+          label="Explore sandbox"
+          variant="secondary"
+          loading={switchDemo.isPending}
+          onPress={() => switchDemo.mutate({ enabled: true, tour: false })}
+        />
+      </View>
+      {switchDemo.isError && <ThemedText themeColor="negative">{switchDemo.error.message}</ThemedText>}
+    </Card>
   );
 }
 
@@ -133,7 +223,7 @@ function PlaidCard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
   const [saved, setSaved] = useState(initial);
   // Sandbox and test banks are for developers; most people only ever need production keys.
   const [advanced, setAdvanced] = useState(view.plaid.env === 'sandbox');
-  const switchData = useSaveSettings();
+  const switchDemo = useSwitchDemoMode();
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
 
   if (view.demo) {
@@ -144,15 +234,22 @@ function PlaidCard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
         ) : (
           <>
             <ThemedText type="small" themeColor="textSecondary">
-              Meld is showing a made-up household. Connect your banks to see your own accounts instead.
+              {view.plaidReady
+                ? 'Your Plaid keys are saved. Exit demo mode to return to your accounts, or update your keys.'
+                : 'Meld is showing a made-up household. Connect your banks to see your own accounts instead.'}
             </ThemedText>
-            <View style={formStyles.buttons}>
-              <Button label="Connect my banks" onPress={() => router.push('/connect')} />
+            <View style={[formStyles.buttons, styles.wrap]}>
+              <Button label={view.plaidReady ? 'Update Plaid keys' : 'Connect my banks'} onPress={() => router.push('/connect')} />
               {view.plaidReady && (
-                <Button label="Use my accounts" variant="secondary" loading={switchData.isPending} onPress={() => switchData.mutate({ demo: false })} />
+                <Button
+                  label="Back to my accounts"
+                  variant="secondary"
+                  loading={switchDemo.isPending}
+                  onPress={() => switchDemo.mutate({ enabled: false })}
+                />
               )}
             </View>
-            {switchData.isError && <ThemedText themeColor="negative">{switchData.error.message}</ThemedText>}
+            {switchDemo.isError && <ThemedText themeColor="negative">{switchDemo.error.message}</ThemedText>}
           </>
         )}
       </Card>
@@ -172,18 +269,14 @@ function PlaidCard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
               save.mutate({ plaid: form }, { onSuccess: () => setSaved((s) => ({ ...form, sandboxSecret: s.sandboxSecret, productionSecret: s.productionSecret })) })
             }
             left={
-              <>
-                <Button
-                  label={advanced ? 'Hide developer options' : 'Developer options'}
-                  variant="secondary"
-                  size="small"
-                  onPress={() => setAdvanced(!advanced)}
-                />
-                <Button label="Show demo data" variant="secondary" size="small" loading={switchData.isPending} onPress={() => switchData.mutate({ demo: true })} />
-              </>
+              <Button
+                label={advanced ? 'Hide developer options' : 'Developer options'}
+                variant="secondary"
+                size="small"
+                onPress={() => setAdvanced(!advanced)}
+              />
             }
           />
-          {switchData.isError && <ThemedText themeColor="negative">{switchData.error.message}</ThemedText>}
         </>
       )}
     </Card>

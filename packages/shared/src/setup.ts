@@ -16,6 +16,24 @@ export type SetupStatus = {
   desktop: boolean;
   /** Showing made-up demo data until banks are connected through Plaid. */
   demo: boolean;
+  /** Plaid keys are saved, so demo data can be switched off to view real accounts. */
+  plaidReady: boolean;
+  /** A separate demo database is configured, so runtime switching to demo mode is available. */
+  demoAvailable: boolean;
+};
+
+export const DemoModeRequest = z.object({
+  /** Show demo data (true) or return to your own accounts (false). */
+  enabled: z.boolean(),
+  /** Rebuild the sample household from scratch when entering or staying in demo mode. */
+  reset: z.boolean().default(false),
+});
+export type DemoModeRequest = z.input<typeof DemoModeRequest>;
+
+export type DemoModeResponse = {
+  demo: boolean;
+  plaidReady: boolean;
+  demoAvailable: boolean;
 };
 
 export const PlaidEnvironment = z.enum(['sandbox', 'production']);
@@ -105,6 +123,8 @@ export type SettingsView = {
   demo: boolean;
   /** Plaid keys are saved, so demo data can be switched off. */
   plaidReady: boolean;
+  /** A separate demo database is configured, so demo mode can be switched on at runtime. */
+  demoAvailable: boolean;
   plaid: { clientId: string; sandboxSecret: string; productionSecret: string; env: PlaidEnvironment };
   ai: { anthropicApiKey: string; openrouterApiKey: string; openrouterModels: string[]; ollamaUrl: string; ollamaModels: string[] };
   /** Settings fixed by the environment (.env), which the app can't change. */

@@ -54,7 +54,7 @@ Open **Developers → Keys** (https://dashboard.plaid.com/developers/keys). You 
 
 ![Plaid's Keys page with the Client ID, Production secret and Sandbox secret](images/plaid/7-keys.jpg)
 
-**In the desktop app:** on the welcome screen choose **Connect my banks**, or, if you're looking at demo data, click **Connect my banks** on Home or under **Settings → Bank connections**. The same six steps are there, with these pictures. Paste the two keys into the last step, click **Test keys** to check them, then **Finish** (or **Save and link accounts**). Meld restarts on your own, empty accounts, and the demo household goes away.
+**In the desktop app:** on the welcome screen choose **Connect my banks**, or, if you're looking at demo data, click **Connect my banks** in the demo bar or under **Settings → Bank connections**. The same six steps are there, with these pictures. Paste the two keys into the last step, click **Test keys** to check them, then **Finish** (or **Save and link accounts**). Meld restarts on your own, empty accounts, and the demo household goes away.
 
 **With Docker:** in `.env`, set `PLAID_CLIENT_ID`, `PLAID_PRODUCTION_SECRET` and `PLAID_ENV=production`, then restart Meld (`docker compose up -d`).
 
@@ -71,7 +71,7 @@ New Plaid teams in the US and Canada get the free **Trial** plan with real data:
 
 If Plaid asks about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself.
 
-Real data goes into its own database (`meld`), separate from demo data (`meld_demo`) and Plaid's Sandbox (`meld_sandbox`), so switching back and forth never mixes them. **Settings → Bank connections → Show demo data** switches back to the demo household; **Use my accounts** returns.
+Real data goes into its own database (`meld`), separate from demo data (`meld_demo`) and Plaid's Sandbox (`meld_sandbox`), so switching back and forth never mixes them. Open **Account menu → Demo mode…** or **Settings → Demo mode** anytime to switch to the demo household (with the guided tour or as a sandbox) without restarting Meld; click **Back to my accounts** in the top demo bar to return.
 
 **Read Plaid's terms yourself.** When you hold Plaid keys you're Plaid's customer, and their [developer policy](https://plaid.com/developer-policy/) and terms apply to you. Decide for yourself whether your use fits them.
 

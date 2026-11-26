@@ -1,10 +1,11 @@
 import { createChatGPTAuth } from './ai/chatgpt-auth';
 import { createAIProvider } from './ai/provider';
-import { settingsFromEnv, withSettingsFile } from './config-file';
+import { readSettings, settingsFromEnv, withSettingsFile, writeSettings } from './config-file';
 import { createDb } from './db/client';
 import { migrateAll } from './db/migrations';
 import { documents } from './db/schema';
-import { ensureDatabase, ensureDemoData } from './demo/seed';
+import { createDemoModeController } from './demo/mode';
+import { ensureDatabase, ensureDemoData, seedDemo } from './demo/seed';
 import { configuredDatabaseUrls, loadEnv, setupComplete } from './env';
 import { fetchYahooCloses } from './lib/prices';
 import { createMcpConfig } from './mcp/config';
@@ -52,19 +53,39 @@ if (!setupComplete(env)) {
 }
 
 async function startMeld() {
-  const { db } = createDb(env.DATABASE_URL);
+  const { db: initialDb, sql: initialSql } = createDb(env.DATABASE_URL);
   const plaid = createPlaidClient(env);
-  const sync = { db, plaid, encryptionKey: env.ENCRYPTION_KEY };
+  const sync = { db: initialDb, plaid, encryptionKey: env.ENCRYPTION_KEY };
   const ai = createAIProvider(env);
   const chatgpt = createChatGPTAuth(env);
   const mcp = createMcpConfig(env);
   const storage = createStorage(env);
   const phoneAccess = env.TAILSCALE_CONTROL ? new PhoneAccessService(`http://127.0.0.1:${env.API_PORT}`) : null;
+  const runtime = createDemoModeController({
+    env,
+    initialDb,
+    initialSql,
+    persistDemo: async (enabled) => {
+      if (!env.MELD_CONFIG_FILE || settings.fromEnv.has('MELD_DEMO')) return;
+      const current = readSettings(env.MELD_CONFIG_FILE, env.ENCRYPTION_KEY);
+      const next = { ...current };
+      if (enabled) next.MELD_DEMO = '1';
+      else delete next.MELD_DEMO;
+      await writeSettings(env.MELD_CONFIG_FILE, env.ENCRYPTION_KEY, next);
+    },
+    migrate: (url) => migrateAll([url], env.MIGRATIONS_DIR),
+    ensureDemoData: (db) => ensureDemoData(db, { fetchCloses: fetchYahooCloses }),
+    seedDemo: (db) => seedDemo(db, { fetchCloses: fetchYahooCloses }),
+    onRealDbReady: (db) => {
+      void recordSnapshot(db).catch((err) => app.log.error({ err }, 'Net worth snapshot failed'));
+    },
+  });
   // Before listening, so the first page already has the demo household. Only tickers go out, for today's prices.
-  const refreshDemo = () => ensureDemoData(db, { fetchCloses: fetchYahooCloses });
+  const refreshDemo = (db = runtime.getDb()) => ensureDemoData(db, { fetchCloses: fetchYahooCloses });
   // A failed rebuild leaves the last demo data in place rather than stopping Meld from starting.
   if (demo) await refreshDemo().catch((err) => console.error('Building demo data failed', err));
-  app = await buildServer({ env, db, plaid, sync, ai, chatgpt, mcp, storage, settings, phoneAccess });
+  app = await buildServer({ env, db: initialDb, plaid, sync, ai, chatgpt, mcp, storage, settings, phoneAccess, runtime });
+  app.addHook('onClose', async () => runtime.close?.());
   if (!ai) app.log.warn('No AI provider configured (ANTHROPIC_API_KEY and OPENROUTER_API_KEY are empty); AI features are disabled.');
 
   // Localhost only unless API_HOST says otherwise (the Docker setup listens inside its private network).
@@ -78,16 +99,19 @@ async function startMeld() {
   // Local stand-in for Plaid webhooks: refresh all items periodically. The snapshot
   // also runs on its own so net-worth history gets a point each day even with no items.
   async function scheduledRefresh() {
+    const isDemo = runtime.isDemo();
+    const db = runtime.getDb();
     // Demo data has nothing to sync; it's rebuilt once it's a couple of days old.
-    if (demo) await refreshDemo().catch((err) => app.log.error({ err }, 'Refreshing demo data failed'));
-    else await syncAllItems(sync, (msg) => app.log.warn(msg));
+    if (isDemo) await refreshDemo(db).catch((err) => app.log.error({ err }, 'Refreshing demo data failed'));
+    else await syncAllItems({ ...sync, db }, (msg) => app.log.warn(msg));
     await recordSnapshot(db).catch((err) => app.log.error({ err }, 'Net worth snapshot failed'));
     // Due dates come closer without any new data, so check even when nothing synced.
-    await evaluateAlerts(db).catch((err) => app.log.error({ err }, 'Alert check failed'));
+    await evaluateAlerts(db, isDemo ? async () => {} : undefined).catch((err) => app.log.error({ err }, 'Alert check failed'));
     await pruneOrphanDocuments(db, storage).catch((err) => app.log.error({ err }, 'Document cleanup failed'));
   }
-  void recordSnapshot(db).catch((err) => app.log.error({ err }, 'Net worth snapshot failed'));
+  void recordSnapshot(runtime.getDb()).catch((err) => app.log.error({ err }, 'Net worth snapshot failed'));
   void (async () => {
+    const db = runtime.getDb();
     // Documents uploaded before encryption was added are encrypted once, on the next start.
     // Done before the orphan cleanup so the two never touch the same file at once.
     try {
