@@ -126,4 +126,17 @@ describe.skipIf(!testDatabaseUrl)('tax plan (Postgres)', () => {
     ]);
     expect((await getTaxPlan(ctx.db, 2026, '2027-01-02')).checklist).toEqual([]);
   });
+
+  it('adds partner income when filing jointly and keeps your own when filing separately', async () => {
+    await saveTaxSettings(ctx.db, 2026, { ...EMPTY_TAX_SETTINGS, pretax401k: 0 });
+    await ctx.db
+      .update(userProfile)
+      .set({ filingStatus: 'married_joint', annualGrossIncome: 200_000, partner: { name: 'Jordan', birthYear: 1989, annualGrossIncome: 100_000 } });
+    const joint = await getTaxPlan(ctx.db, 2026, TODAY);
+    expect(joint.income?.wages).toBe(300_000);
+
+    await ctx.db.update(userProfile).set({ filingStatus: 'married_separate' });
+    const separate = await getTaxPlan(ctx.db, 2026, TODAY);
+    expect(separate.income?.wages).toBe(200_000);
+  });
 });

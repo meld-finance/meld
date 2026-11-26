@@ -1,6 +1,7 @@
 import {
   EMPTY_TAX_SETTINGS,
   federalTables,
+  householdGrossIncome,
   taxTreatment,
   TaxSettings,
   type HarvestCandidate,
@@ -355,9 +356,10 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     rsuZeroBasisTickers,
   };
 
+  const profileIncome = profile.filingStatus === 'married_separate' ? profile.annualGrossIncome : householdGrossIncome(profile);
   const missing: TaxPlan['missing'] = [];
   if (!profile.filingStatus) missing.push('filingStatus');
-  if (profile.annualGrossIncome === null) missing.push('income');
+  if (profileIncome === null) missing.push('income');
   const fed = federalTables(year);
   const plan: TaxPlan = {
     year,
@@ -381,7 +383,7 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     notes: [],
   };
   const ageAtYearEnd = profile.birthYear ? year - profile.birthYear : null;
-  if (!profile.filingStatus || profile.annualGrossIncome === null) {
+  if (!profile.filingStatus || profileIncome === null) {
     return {
       ...plan,
       checklist: checklistWithoutEstimate(year, today, ageAtYearEnd, detected.traditionalIraBalance, profile.employerBenefits, new Set(checklistDone)),
@@ -399,7 +401,7 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     state: profile.state,
     childrenUnder17: profile.children.filter((c) => year - c.birthYear < 17).length,
     dependents: profile.dependents ?? profile.children.length,
-    grossIncome: profile.annualGrossIncome,
+    grossIncome: profileIncome,
     rsuVesting: rsuTotal,
     profileIncludesRsus: settings.profileIncludesRsus,
     selfEmployment: settings.selfEmploymentIncome ?? 0,

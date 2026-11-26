@@ -1,4 +1,4 @@
-import type { LifeEventKind, RetirementInputs } from '@meld/shared';
+import { firstRetireAge, fullRetireAge, type LifeEventKind, type RetirementInputs } from '@meld/shared';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -38,8 +38,8 @@ type TimelineRow = {
 
 function isInactiveEvent(e: ProjectionEventMarker, inputs: RetirementInputs): boolean {
   const end = e.kind === 'once' ? e.startAge : (e.endAge ?? Infinity);
-  if (e.kind === 'spending' && end <= inputs.retirementAge) return true;
-  if (e.kind === 'saving' && e.startAge >= inputs.retirementAge) return true;
+  if (e.kind === 'spending' && end <= firstRetireAge(inputs)) return true;
+  if (e.kind === 'saving' && e.startAge >= fullRetireAge(inputs)) return true;
   if (end <= inputs.currentAge || e.startAge > inputs.lifeExpectancy) return true;
   return false;
 }
@@ -84,6 +84,16 @@ export function RetirementTimeline({
   const [width, setWidth] = useState(0);
   const [expanded, setExpanded] = useState(false);
 
+  const p = inputs.partner ?? null;
+  const firstRetire = firstRetireAge(inputs);
+  const fullRetire = fullRetireAge(inputs);
+  const staggered = !!p && p.retirementAgeInYours !== inputs.retirementAge;
+  const workingInBridge = staggered
+    ? inputs.retirementAge < p!.retirementAgeInYours
+      ? { name: p!.name, net: p!.bridgeIncomeAnnual }
+      : { name: 'You', net: inputs.bridgeIncomeAnnual ?? 0 }
+    : null;
+
   const items: TimelineRow[] = [
     ...events.map((e): TimelineRow => {
       const pointOnly = e.kind === 'once';
@@ -100,32 +110,65 @@ export function RetirementTimeline({
         onPress: () => onSelectEvent(e.key),
       };
     }),
-    ...properties.map((p): TimelineRow => {
-      const hasRent = p.netRentAnnual !== 0;
-      const rentSign = p.netRentAnnual > 0 ? '+' : '−';
+    ...properties.map((prop): TimelineRow => {
+      const hasRent = prop.netRentAnnual !== 0;
+      const rentSign = prop.netRentAnnual > 0 ? '+' : '−';
       const impact = hasRent
-        ? `${rentSign}${formatCompactCurrency(Math.abs(p.netRentAnnual))}/yr, sell +${formatCompactCurrency(p.proceeds)}`
-        : `Sell +${formatCompactCurrency(p.proceeds)}`;
+        ? `${rentSign}${formatCompactCurrency(Math.abs(prop.netRentAnnual))}/yr, sell +${formatCompactCurrency(prop.proceeds)}`
+        : `Sell +${formatCompactCurrency(prop.proceeds)}`;
       return {
-        id: `prop-${p.assetId}`,
-        label: p.name,
+        id: `prop-${prop.assetId}`,
+        label: prop.name,
         impact,
-        ageBadge: hasRent ? `${inputs.currentAge}–${p.sellAge}` : String(p.sellAge),
-        startAge: hasRent ? inputs.currentAge : p.sellAge,
-        endAge: hasRent ? p.sellAge : null,
+        ageBadge: hasRent ? `${inputs.currentAge}–${prop.sellAge}` : String(prop.sellAge),
+        startAge: hasRent ? inputs.currentAge : prop.sellAge,
+        endAge: hasRent ? prop.sellAge : null,
         pointOnly: !hasRent,
         accent: 'teal',
-        onPress: () => onSelectProperty(p.assetId),
+        onPress: () => onSelectProperty(prop.assetId),
       };
     }),
+    ...(workingInBridge
+      ? [
+          {
+            id: 'bridge-years',
+            label: 'Bridge years',
+            impact:
+              workingInBridge.net > 0
+                ? `${workingInBridge.name} working · ${formatCompactCurrency(workingInBridge.net)}/yr net`
+                : `${workingInBridge.name} still working`,
+            ageBadge: `${firstRetire}–${fullRetire}`,
+            startAge: firstRetire,
+            endAge: fullRetire,
+            pointOnly: false,
+            accent: 'teal' as Accent,
+            onPress: onSelectAssumptions,
+          },
+        ]
+      : []),
     ...(inputs.socialSecurityAnnual > 0
       ? [
           {
             id: 'ss-start',
-            label: 'Social Security',
+            label: p ? 'Your Social Security' : 'Social Security',
             impact: `${formatWholeCurrency(Math.round(inputs.socialSecurityAnnual / 12))}/mo`,
             ageBadge: `${inputs.socialSecurityAge}+`,
             startAge: inputs.socialSecurityAge,
+            endAge: null,
+            pointOnly: false,
+            accent: 'green' as Accent,
+            onPress: onSelectAssumptions,
+          },
+        ]
+      : []),
+    ...(p && p.socialSecurityAnnual > 0
+      ? [
+          {
+            id: 'ss-partner-start',
+            label: `${p.name}’s Social Security`,
+            impact: `${formatWholeCurrency(Math.round(p.socialSecurityAnnual / 12))}/mo`,
+            ageBadge: `${p.socialSecurityAgeInYours}+`,
+            startAge: p.socialSecurityAgeInYours,
             endAge: null,
             pointOnly: false,
             accent: 'green' as Accent,
@@ -145,6 +188,10 @@ export function RetirementTimeline({
   const x = (age: number) => END_PAD_X + ((age - minAge) / ageSpan) * plotW;
 
   const retireLeft = inputs.retirementAge >= minAge && inputs.retirementAge <= maxAge ? x(inputs.retirementAge) : null;
+  const partnerRetireLeft =
+    staggered && p!.retirementAgeInYours >= minAge && p!.retirementAgeInYours <= maxAge
+      ? x(p!.retirementAgeInYours)
+      : null;
   const activeLeft = activeAge !== null && activeAge >= minAge && activeAge <= maxAge ? x(activeAge) : null;
 
   return (
@@ -209,6 +256,12 @@ export function RetirementTimeline({
                   onLayout={idx === 0 ? (e) => setWidth(e.nativeEvent.layout.width) : undefined}>
                   {width > 0 && retireLeft !== null && (
                     <View style={[styles.retireGuide, { left: retireLeft, borderColor: viz.muted }]} pointerEvents="none" />
+                  )}
+                  {width > 0 && partnerRetireLeft !== null && (
+                    <View
+                      style={[styles.retireGuide, { left: partnerRetireLeft, borderColor: accents.teal.fg }]}
+                      pointerEvents="none"
+                    />
                   )}
                   {width > 0 && activeLeft !== null && (
                     <View style={[styles.activeGuide, { left: activeLeft, backgroundColor: viz.axis }]} pointerEvents="none" />

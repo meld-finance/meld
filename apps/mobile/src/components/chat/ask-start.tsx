@@ -1,3 +1,4 @@
+import { householdGrossIncome } from '@meld/shared';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
@@ -48,7 +49,7 @@ export function AskStart() {
   const ask = (text: string) => chat.start(text, () => setQuestion(''));
 
   const p = profile.data;
-  const profileEmpty = p && !p.annualGrossIncome && !p.filingStatus && !p.state && !p.birthYear;
+  const profileEmpty = p && !householdGrossIncome(p) && !p.filingStatus && !p.state && !p.birthYear;
   const noModels = useNoChatModels();
 
   return (

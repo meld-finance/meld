@@ -24,6 +24,19 @@ export function childName(children: Child[], id: string): string {
   return children[i]?.name || `Child ${i + 1}`;
 }
 
+/** A spouse or partner, optional, for staggered retirement and separate Social Security. */
+export const Partner = z.object({
+  name: z.string().trim().max(60).nullable(),
+  birthYear: z.number().int().min(1900).max(2100).nullable(),
+  annualGrossIncome: z.number().nonnegative().nullable(),
+});
+export type Partner = z.infer<typeof Partner>;
+
+/** A partner's display name, falling back to "Partner". */
+export function partnerName(partner: Pick<Partner, 'name'> | null | undefined): string {
+  return partner?.name?.trim() || 'Partner';
+}
+
 /** Inputs the AI needs for tax and insurance reasoning. Every field is optional. */
 export const UserProfile = z.object({
   displayName: z.string().trim().max(100).nullable(),
@@ -39,9 +52,17 @@ export const UserProfile = z.object({
   dependents: z.number().int().min(0).max(20).nullable(),
   children: z.array(Child).max(20),
   annualGrossIncome: z.number().nonnegative().nullable(),
+  partner: Partner.nullable().default(null),
   occupation: z.string().trim().max(200).nullable(),
   /** Free-form: 401k match, HSA eligibility, ESPP, etc. */
   employerBenefits: z.string().trim().max(4000).nullable(),
   goals: z.string().trim().max(4000).nullable(),
 });
 export type UserProfile = z.infer<typeof UserProfile>;
+
+/** Combined household gross income across you and your partner, or null if neither is entered. */
+export function householdGrossIncome(profile: Pick<UserProfile, 'annualGrossIncome' | 'partner'>): number | null {
+  const partnerIncome = profile.partner?.annualGrossIncome ?? null;
+  if (profile.annualGrossIncome === null && partnerIncome === null) return null;
+  return (profile.annualGrossIncome ?? 0) + (partnerIncome ?? 0);
+}

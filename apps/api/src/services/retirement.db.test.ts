@@ -68,15 +68,27 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
   });
 
   it('defaults age from the profile and spending from the last 12 full months', async () => {
-    expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({ currentAge: null, birthYear: null, married: false, annualSpending: 3000, annualIncome: null, children: [] });
+    expect((await getRetirement(ctx.db, TODAY)).defaults).toEqual({
+      currentAge: null,
+      birthYear: null,
+      married: false,
+      annualSpending: 3000,
+      annualIncome: null,
+      yourIncome: null,
+      filingStatus: null,
+      state: null,
+      partner: null,
+      children: [],
+    });
     await saveProfile(ctx.db, {
       displayName: null,
       birthYear: 1986,
       filingStatus: 'married_joint',
-      state: null,
+      state: 'CA',
       dependents: 2,
       children: [{ id: 'k1', name: 'Mia', birthYear: 2016 }],
       annualGrossIncome: 180000,
+      partner: { name: 'Jordan', birthYear: 1989, annualGrossIncome: 120000 },
       occupation: null,
       employerBenefits: null,
       goals: null,
@@ -86,7 +98,11 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
       birthYear: 1986,
       married: true,
       annualSpending: 3000,
-      annualIncome: 180000,
+      annualIncome: 300000,
+      yourIncome: 180000,
+      filingStatus: 'married_joint',
+      state: 'CA',
+      partner: { name: 'Jordan', currentAge: 37, birthYear: 1989, annualIncome: 120000 },
       children: [{ id: 'k1', name: 'Mia', birthYear: 2016 }],
     });
   });
@@ -121,6 +137,12 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
     await saveRetirementPlan(ctx.db, {
       ...EMPTY_RETIREMENT_PLAN,
       retirementAge: 60,
+      partnerRetirementAge: 63,
+      partnerLifeExpectancy: 96,
+      partnerAnnualContribution: 15000,
+      partnerSocialSecurityAnnual: 24000,
+      partnerSocialSecurityAge: 68,
+      partnerPensionAnnual: 5000,
       expectedReturn: 4.5,
       sellingCostPercent: 7,
       excludedAccountIds: [ids.house],
@@ -129,7 +151,21 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
       spendingChanges,
     });
     const r = await getRetirement(ctx.db, TODAY);
-    expect(r.plan).toMatchObject({ retirementAge: 60, expectedReturn: 4.5, sellingCostPercent: 7, excludedAccountIds: [ids.house], properties, spendingDeclinePercent: 1.5, spendingChanges });
+    expect(r.plan).toMatchObject({
+      retirementAge: 60,
+      partnerRetirementAge: 63,
+      partnerLifeExpectancy: 96,
+      partnerAnnualContribution: 15000,
+      partnerSocialSecurityAnnual: 24000,
+      partnerSocialSecurityAge: 68,
+      partnerPensionAnnual: 5000,
+      expectedReturn: 4.5,
+      sellingCostPercent: 7,
+      excludedAccountIds: [ids.house],
+      properties,
+      spendingDeclinePercent: 1.5,
+      spendingChanges,
+    });
     expect(r.accounts.find((a) => a.id === ids.house)).toMatchObject({ included: false, excludedReason: 'user' });
     // Saving again replaces the row.
     await saveRetirementPlan(ctx.db, EMPTY_RETIREMENT_PLAN);
@@ -195,6 +231,7 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
       dependents: null,
       children: [],
       annualGrossIncome: null,
+      partner: null,
       occupation: null,
       employerBenefits: null,
       goals: null,

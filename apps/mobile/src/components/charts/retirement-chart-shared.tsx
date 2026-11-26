@@ -158,9 +158,9 @@ export function ChartTooltipBox({
   );
 }
 
-/** Total guaranteed/event income in a cash flow row (matches RetirementCashFlow & tooltip math). */
+/** Total guaranteed/working/event income in a cash flow row (matches RetirementCashFlow & tooltip math). */
 export function cashFlowIncomeTotal(row: RetirementCashFlowYear): number {
-  return row.socialSecurity + row.pension + Math.max(0, row.rent) + Math.max(0, row.eventIncome);
+  return row.workingIncome + row.socialSecurity + row.pension + Math.max(0, row.rent) + Math.max(0, row.eventIncome);
 }
 
 const styles = StyleSheet.create({

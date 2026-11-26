@@ -1,4 +1,4 @@
-import { insuranceTotals, netCashValue } from '@meld/shared';
+import { householdGrossIncome, insuranceTotals, netCashValue } from '@meld/shared';
 import { and, count, eq, isNull } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, alerts, equityGrants, insurancePolicies, manualAssets } from '../db/schema';
@@ -84,6 +84,15 @@ export async function buildSnapshot(db: Db, today = localDate(), page?: string):
   if (profile.dependents !== null) compactProfile.dependents = profile.dependents;
   if (profile.children.length) compactProfile.childrenCount = profile.children.length;
   if (profile.annualGrossIncome !== null) compactProfile.annualGrossIncome = profile.annualGrossIncome;
+  if (profile.partner) {
+    const p: Record<string, unknown> = {};
+    if (profile.partner.name !== null) p.name = profile.partner.name;
+    if (profile.partner.birthYear !== null) p.birthYear = profile.partner.birthYear;
+    if (profile.partner.annualGrossIncome !== null) p.annualGrossIncome = profile.partner.annualGrossIncome;
+    compactProfile.partner = p;
+    const total = householdGrossIncome(profile);
+    if (total !== null && total !== profile.annualGrossIncome) compactProfile.householdGrossIncome = total;
+  }
 
   const snapshot = {
     asOf: today,

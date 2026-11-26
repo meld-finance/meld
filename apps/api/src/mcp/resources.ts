@@ -67,17 +67,19 @@ const STATIC_RESOURCES: Record<string, { mimeType: string; text: string }> = {
     mimeType: 'text/markdown',
     text: `# Retirement Plan Guide (\`get_retirement_plan\`)
 
-- **Today's dollars**: Expected returns are real (after inflation). Spending, contributions, Social Security, and pension are today's dollars.
+- **Today's dollars**: Expected returns are real (after inflation). Spending, contributions, Social Security, and pensions are today's dollars.
+- **Partners & staggered retirement**: When a partner (with birth year) is on the profile, Meld tracks separate retirement ages, plan-to ages (projecting to whichever horizon reaches further out), contributions, Social Security, and pensions. If one partner retires earlier, **bridge years** occur between \`firstRetireAge\` and \`fullRetireAge\`: the still-working partner's estimated after-tax income (plus any active Social Security, pension, or net rent) covers household spending first, shortfalls draw from savings, and surpluses save up to the working partner's planned contribution.
+- **Social Security & spousal top-up**: With a partner, each person's benefit is estimated from their own income and stop-work age (or overridden individually) and claimed at their own \`socialSecurityAge\` / \`partnerSocialSecurityAge\`. When married and no statement figure is entered for the lower earner, Meld adds a spousal top-up up to 50% of the higher earner's FRA benefit (with no delayed credits past FRA on the spousal top-up).
 - **Accounts**: Includes visible investment accounts except education/custodial accounts (529, Coverdell, UTMA/UGMA) and user-excluded accounts.
 - **Property sales (\`assumptions.sales\`)**: Each home opted in from Accounts shows \`sellAge\`, net proceeds after appreciation, selling costs, and remaining mortgage, plus \`netRentAnnual\` until sale.
 - **Life events (\`spendingChanges\`)**:
-  - \`kind: 'spending'\`: adjusts yearly spending in retirement (does not affect pre-retirement years).
-  - \`kind: 'income'\`: extra income (e.g. part-time work); covers retirement spending and adds to savings before retirement.
-  - \`kind: 'saving'\`: changes yearly contribution before retirement.
+  - \`kind: 'spending'\`: adjusts yearly spending in retirement (does not affect working years before \`firstRetireAge\`).
+  - \`kind: 'income'\`: extra income (e.g. part-time work); covers retirement/bridge spending and adds to savings when working.
+  - \`kind: 'saving'\`: changes yearly contribution before \`fullRetireAge\` (ignored in shortfall bridge years).
   - \`kind: 'once'\`: one-time inflow (+) or outflow (-) at \`startAge\` (\`endAge\` ignored).
-  - Yearly events run for \`startAge <= age < endAge\` (\`endAge: null\` means ongoing). When \`childId\` is set, ages are that child's age. \`annualChange\` is always yearly even when \`monthly: true\`.
+  - Yearly events run for \`startAge <= age < endAge\` (\`endAge: null\` means ongoing). When \`childId\` is set to a child's id or \`'partner'\`, ages are that child's or partner's age. \`annualChange\` is always yearly even when \`monthly: true\`.
   - Passing \`spendingChanges\` in a what-if replaces the saved list.
-- **Gap & Monte Carlo**: \`needed\` is target balance at retirement age; \`gap = needed - projected\` (<= 0 means on track). Pass \`includeMonteCarlo: true\` to run randomized lognormal return trials (\`successRate\`, \`p10\`/\`p50\`/\`p90\`).`,
+- **Gap & Monte Carlo**: \`needed\` is target balance at \`firstRetireAge\`; \`gap = needed - projected\` (<= 0 means on track). Pass \`includeMonteCarlo: true\` to run randomized lognormal return trials (\`successRate\`, \`p10\`/\`p50\`/\`p90\`).`,
   },
   'meld://docs/tax': {
     mimeType: 'text/markdown',

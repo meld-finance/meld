@@ -1,20 +1,21 @@
-import type {
-  Alert,
-  AlertSettings,
-  AlertType,
-  AutopayHealth,
-  AutopayStatus,
-  BudgetStatus,
-  CashPlan,
-  EstateSummary,
-  InsurancePolicy,
-  LiabilitySummary,
-  ManualAsset,
-  RecurringSummary,
-  RetirementProjection,
-  TaxPlan,
-  UpcomingItem,
-  UserProfile,
+import {
+  householdGrossIncome,
+  type Alert,
+  type AlertSettings,
+  type AlertType,
+  type AutopayHealth,
+  type AutopayStatus,
+  type BudgetStatus,
+  type CashPlan,
+  type EstateSummary,
+  type InsurancePolicy,
+  type LiabilitySummary,
+  type ManualAsset,
+  type RecurringSummary,
+  type RetirementProjection,
+  type TaxPlan,
+  type UpcomingItem,
+  type UserProfile,
 } from '@meld/shared';
 
 import type { IconName } from '@/components/icon';
@@ -379,7 +380,7 @@ export function buildSetupSteps(s: SetupSources): SetupProgress {
   if (s.profile) {
     const p = s.profile;
     const missingFields: string[] = [];
-    if (!p.annualGrossIncome) missingFields.push('income');
+    if (!householdGrossIncome(p)) missingFields.push('income');
     if (!p.filingStatus) missingFields.push('filing status');
     if (!p.state) missingFields.push('state');
     if (!p.birthYear) missingFields.push('birth year');

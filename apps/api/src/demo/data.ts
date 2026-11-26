@@ -606,6 +606,7 @@ export function buildDemoData(today: string, prices: Record<string, number> = DE
       dependents: 2,
       children,
       annualGrossIncome: 185000,
+      partner: { name: 'Jordan', birthYear: year - 39, annualGrossIncome: 95000 },
       occupation: 'Product manager',
       employerBenefits: '401(k) with a 4% match, group term life at 1× salary, short-term disability at 60%. No long-term disability.',
       goals: 'Retire around 60, help pay for the kids’ college, and keep the family covered.',

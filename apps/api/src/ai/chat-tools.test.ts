@@ -30,7 +30,7 @@ describe('toToolJsonSchema', () => {
       defer: Boolean(t.deferLoading),
     }));
     const core = defs.filter((d) => !d.defer);
-    expect(JSON.stringify(defs).length).toBeLessThan(9000);
+    expect(JSON.stringify(defs).length).toBeLessThan(9500);
     expect(JSON.stringify(core).length).toBeLessThan(4500);
     expect(defs.some((d) => d.name === 'get_financial_overview' && !d.defer)).toBe(true);
     expect(defs.some((d) => d.name === 'get_retirement_plan' && d.defer)).toBe(true);

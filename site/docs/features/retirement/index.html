@@ -99,7 +99,7 @@
         <h1>Retirement</h1>
         <p class="doc-summary">Today’s-dollar projections, Social Security, property sales, and the savings gap.</p>
         <div class="doc-meta">
-          <span class="doc-meta-pill">2 min read</span>
+          <span class="doc-meta-pill">3 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/retirement.md">View docs/features/retirement.md on GitHub ↗</a>
         </div>
       </div>
@@ -108,6 +108,7 @@
         <nav aria-label="On this page">
           <a class="depth-2" href="#where-to-find-it">Where to find it</a>
           <a class="depth-2" href="#the-projection">The projection</a>
+          <a class="depth-2" href="#partners-and-staggered-retirement">Partners and staggered retirement</a>
           <a class="depth-2" href="#social-security">Social Security</a>
           <a class="depth-2" href="#which-accounts-count">Which accounts count</a>
           <a class="depth-2" href="#properties">Properties</a>
@@ -122,7 +123,7 @@
 
 <ul>
 <li><strong>Plan → Retirement</strong></li>
-<li>Profile birth year and income under <strong>Plan → Profile</strong> feed age and Social Security estimates</li>
+<li>Profile birth year, optional partner (name, birth year, income), and income under <strong>Plan → Profile</strong> feed age, bridge-year pay, and Social Security estimates</li>
 <li>Opt a home into the plan from the Accounts tab</li>
 </ul>
 
@@ -130,11 +131,28 @@
 
 <p><strong>Plan → Retirement</strong> projects your savings to retirement age, compares that with what you'll need for your money to last to the age you plan for, and shows the gap and the extra monthly saving that closes it. The chart shows your balance by age, growing until you retire and drawn down after.</p>
 
-<p>Everything is in <strong>today's dollars</strong>: the return is after inflation (5% by default), and spending, contributions, Social Security and pension are today's amounts.</p>
+<p>Everything is in <strong>today's dollars</strong>: the return is after inflation (5% by default), and spending, contributions, Social Security and pensions are today's amounts.</p>
+
+<h2 id="partners-and-staggered-retirement">Partners and staggered retirement<a class="heading-anchor" href="#partners-and-staggered-retirement" aria-label="Link to Partners and staggered retirement">#</a></h2>
+
+<p>Add an optional <strong>Partner</strong> (name, birth year and annual gross income) under <strong>Plan → Profile</strong> to give them their own retirement age, plan-to age, yearly savings, Social Security and pension:</p>
+
+<ul>
+<li><strong>Joint planning horizon:</strong> Meld projects until whichever partner's plan-to age reaches furthest into the future.</li>
+<li><strong>Bridge years:</strong> When you and your partner retire at different ages, the years in between are <strong>bridge years</strong>. Meld estimates the still-working partner's after-tax pay (with any active Social Security, pension or net rent) to cover household spending first, draws only any shortfall from savings, and caps bridge saving at the working partner's planned contribution when income covers spending.</li>
+<li><strong>Life events:</strong> Time spending, saving, income or one-time life events by your age, your partner's age, or a child's age from your profile.</li>
+</ul>
 
 <h2 id="social-security">Social Security<a class="heading-anchor" href="#social-security" aria-label="Link to Social Security">#</a></h2>
 
-<p><strong>Social Security</strong> is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assumes you earn your current pay from 22 until you retire (up to 35 years), and for a married couple takes the lower of one earner plus a spousal benefit and two equal earners. Meld adjusts the benefit for the age you claim (67 by default): less before full retirement age, 8% a year more after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age.</p>
+<p><strong>Social Security</strong> is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assuming you earn your current pay from 22 until you retire (up to 35 years).</p>
+
+<ul>
+<li><strong>With a partner on your profile:</strong> Each person's benefit is estimated from their own income and stop-work age (or overridden individually) and claimed at their own claiming age (67 by default). When married and no statement figure is entered for the lower earner, Meld adds a spousal top-up up to half of the higher earner's full benefit (capped at full retirement age, with no delayed credits past FRA on the spousal top-up).</li>
+<li><strong>Without a partner on your profile:</strong> A married estimate takes the lower of one earner plus a spousal benefit and two equal earners.</li>
+</ul>
+
+<p>Meld adjusts the benefit for the age you claim: less before full retirement age, 8% a year more on your own benefit after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age.</p>
 
 <h2 id="which-accounts-count">Which accounts count<a class="heading-anchor" href="#which-accounts-count" aria-label="Link to Which accounts count">#</a></h2>
 
@@ -165,6 +183,7 @@
     <ul class="toc-list">
       <li><a class="toc-link depth-2" href="#where-to-find-it">Where to find it</a></li>
           <li><a class="toc-link depth-2" href="#the-projection">The projection</a></li>
+          <li><a class="toc-link depth-2" href="#partners-and-staggered-retirement">Partners and staggered retirement</a></li>
           <li><a class="toc-link depth-2" href="#social-security">Social Security</a></li>
           <li><a class="toc-link depth-2" href="#which-accounts-count">Which accounts count</a></li>
           <li><a class="toc-link depth-2" href="#properties">Properties</a></li>

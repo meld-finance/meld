@@ -181,9 +181,25 @@ describe.skipIf(!testDatabaseUrl)('chat routes (Postgres)', () => {
       goals: null,
     };
     const saved = await app.inject({ method: 'PUT', url: '/profile', headers, payload: profile });
-    expect(saved.json()).toEqual({ ...profile, state: 'CA' });
+    expect(saved.json()).toEqual({ ...profile, state: 'CA', partner: null });
     expect((await app.inject({ method: 'GET', url: '/profile', headers })).json().state).toBe('CA');
+
+    const withPartner = {
+      ...profile,
+      partner: { name: 'Jordan', birthYear: 1990, annualGrossIncome: 120000 },
+    };
+    const savedPartner = await app.inject({ method: 'PUT', url: '/profile', headers, payload: withPartner });
+    expect(savedPartner.statusCode).toBe(200);
+    expect(savedPartner.json()).toEqual({ ...withPartner, state: 'CA' });
+
     const bad = await app.inject({ method: 'PUT', url: '/profile', headers, payload: { ...profile, state: 'California' } });
     expect(bad.statusCode).toBe(400);
+    const badPartner = await app.inject({
+      method: 'PUT',
+      url: '/profile',
+      headers,
+      payload: { ...profile, partner: { name: 'Jordan', birthYear: 1800, annualGrossIncome: 120000 } },
+    });
+    expect(badPartner.statusCode).toBe(400);
   });
 });

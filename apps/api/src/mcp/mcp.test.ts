@@ -43,6 +43,7 @@ function fakeDb(): Db {
           dependents: 0,
           children: [],
           annualGrossIncome: 150000,
+          partner: null,
           occupation: 'Engineer',
           employerBenefits: '401k plan 123456789012',
           goals: null,
