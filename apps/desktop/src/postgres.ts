@@ -10,7 +10,7 @@ import { freePort } from './ports';
 
 const USER = 'meld';
 /** Real data and Plaid sandbox data, kept apart as in the Docker setup. */
-const DATABASES = ['meld', 'meld_sandbox'];
+const DATABASES = ['meld', 'meld_sandbox', 'meld_demo'];
 const READY_TIMEOUT_MS = 30_000;
 const isWindows = process.platform === 'win32';
 /** en_US sorting everywhere; Windows takes BCP 47 names, and UTF8 works with any locale there. */

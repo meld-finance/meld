@@ -6,9 +6,10 @@ import type { AppFeatures } from '@meld/shared';
 import type { PlaidApi } from 'plaid';
 import type { ChatGPTAuth } from './ai/chatgpt-auth';
 import type { AIProvider } from './ai/provider';
-import { registerAuth } from './auth';
+import { isDesktopToken, registerAuth } from './auth';
 import type { Db } from './db/client';
 import type { Env } from './env';
+import { isAllowedHost } from './lib/hosts';
 import { HttpError } from './lib/http';
 import type { McpConfig } from './mcp/config';
 import { getPlaidError } from './plaid/client';
@@ -69,12 +70,21 @@ export async function buildServer(deps: AppDeps) {
   return app;
 }
 
-/** Before first-run setup: only the setup routes (no login yet) and the web app that shows the wizard. */
+/**
+ * Before first-run setup: only the setup routes and the web app that shows the wizard. There's
+ * no login yet, except on the desktop app, where only its own window may finish setup.
+ */
 export async function buildSetupServer(env: Env, settings: SettingsDeps) {
   const app = await createApp(env);
   await app.register(
     async (api) => {
-      api.get('/health', async () => ({ ok: true }));
+      if (env.DESKTOP_TOKEN) {
+        api.addHook('onRequest', async (req, reply) => {
+          if (req.routeOptions.config?.public || isDesktopToken(req.headers.authorization, env)) return;
+          return reply.code(401).send({ error: 'Unauthorized' });
+        });
+      }
+      api.get('/health', { config: { public: true } }, async () => ({ ok: true }));
       await registerSetupRoutes(api, env, settings, false);
     },
     { prefix: env.WEB_DIR ? API_PREFIX : '' },
@@ -111,6 +121,14 @@ async function createApp(env: Env) {
     if (status && status < 500) return reply.code(status).send({ error: err instanceof Error ? err.message : 'Bad request' });
     req.log.error({ err }, 'Unhandled error');
     return reply.code(500).send({ error: 'Internal server error' });
+  });
+
+  // Before anything else, so no route (setup included) answers a page that rebound its own name to Meld.
+  app.addHook('onRequest', async (req, reply) => {
+    if (isAllowedHost(req.headers.host, env.ALLOWED_HOSTS)) return;
+    return reply
+      .code(403)
+      .send({ error: `Meld doesn’t answer to ${req.headers.host}. If you reach it through that name, add it to ALLOWED_HOSTS.` });
   });
 
   app.addHook('onSend', async (_req, reply) => {

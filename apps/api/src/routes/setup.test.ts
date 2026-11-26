@@ -8,6 +8,7 @@ import { readSettings, withSettingsFile } from '../config-file';
 import type { Db } from '../db/client';
 import { loadEnv, setupComplete } from '../env';
 import { buildServer, buildSetupServer } from '../server';
+import type { PhoneAccessService } from '../services/tailscale';
 import type { DocumentStorage } from '../storage';
 import type { SettingsDeps } from './setup';
 
@@ -47,7 +48,15 @@ describe('first-run setup', () => {
     const env = loadEnv(source());
     expect(setupComplete(env)).toBe(false);
     const app = await buildSetupServer(env, { fromEnv: new Set(), restart });
-    expect((await app.inject({ method: 'GET', url: '/setup/status' })).json()).toEqual({ configured: false, editable: true, phoneAccess: false, passphrase: true });
+    expect((await app.inject({ method: 'GET', url: '/setup/status' })).json()).toEqual({
+      configured: false,
+      editable: true,
+      phoneAccess: false,
+      passphrase: true,
+      passphraseSet: false,
+      desktop: false,
+      demo: false,
+    });
 
     const res = await app.inject({ method: 'POST', url: '/setup', payload: setup });
     expect(res.statusCode).toBe(200);
@@ -198,5 +207,138 @@ describe('settings once set up', () => {
     const res = await app.inject({ method: 'PUT', url: '/settings', headers: auth(), payload: { plaid: setup.plaid } });
     expect(res.statusCode).toBe(409);
     expect(restart).not.toHaveBeenCalled();
+  });
+});
+
+describe('the desktop app', () => {
+  const DESKTOP_TOKEN = 'desktop-window-token-0123456789';
+  const desktop = () => ({ authorization: `Bearer ${DESKTOP_TOKEN}` });
+  beforeEach(() => void n++);
+
+  it('finishes setup from its own window only, with demo data and no passphrase', async () => {
+    const restart = vi.fn();
+    const env = loadEnv(source({ DESKTOP_TOKEN }));
+    const first = await buildSetupServer(env, { fromEnv: new Set(), restart });
+    expect((await first.inject({ method: 'GET', url: '/setup/status' })).json()).toMatchObject({ desktop: true, passphraseSet: false });
+    // A browser on the same computer can't finish setup for the window.
+    expect((await first.inject({ method: 'POST', url: '/setup', payload: {} })).statusCode).toBe(401);
+    expect((await first.inject({ method: 'POST', url: '/setup', payload: {}, headers: desktop() })).statusCode).toBe(200);
+    await first.close();
+
+    const saved = readSettings(env.MELD_CONFIG_FILE, key);
+    expect(saved).toMatchObject({ MELD_DEMO: '1' });
+    // No passphrase on the desktop app means only its window gets in, not an open door.
+    expect(saved.APP_PASSPHRASE_OFF).toBeUndefined();
+    expect(saved.APP_PASSPHRASE_HASH).toBeUndefined();
+    expect(setupComplete(loadEnv(withSettingsFile(source({ DESKTOP_TOKEN }))))).toBe(true);
+    // The same settings without the desktop app's token aren't enough: there'd be no way in.
+    expect(setupComplete(loadEnv(withSettingsFile(source())))).toBe(false);
+  });
+
+  it('lets only its own window in until a passphrase is set', async () => {
+    const first = await buildSetupServer(loadEnv(source({ DESKTOP_TOKEN })), { fromEnv: new Set(), restart: () => {} });
+    await first.inject({ method: 'POST', url: '/setup', payload: {}, headers: desktop() });
+    await first.close();
+
+    const app = await fullServer(source({ DESKTOP_TOKEN }), { fromEnv: new Set(), restart: () => {} });
+    expect((await app.inject({ method: 'GET', url: '/settings' })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'GET', url: '/settings', headers: { authorization: 'Bearer wrong' } })).statusCode).toBe(401);
+    const view = (await app.inject({ method: 'GET', url: '/settings', headers: desktop() })).json();
+    expect(view).toMatchObject({ desktop: true, demo: true, passphraseSet: false, plaidReady: false });
+    const login = await app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase: 'anything at all' } });
+    expect(login.statusCode).toBe(401);
+    expect(login.json().error).toMatch(/No passphrase is set/);
+    await app.close();
+  });
+
+  it('sets and removes the passphrase from its window without the old one', async () => {
+    const env = loadEnv(source({ DESKTOP_TOKEN }));
+    const first = await buildSetupServer(env, { fromEnv: new Set(), restart: () => {} });
+    await first.inject({ method: 'POST', url: '/setup', payload: { passphrase: 'correct horse battery' }, headers: desktop() });
+    await first.close();
+
+    let app = await fullServer(source({ DESKTOP_TOKEN }), { fromEnv: new Set(), restart: () => {} });
+    // A browser still needs it, and logs in with it.
+    expect((await app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase: 'correct horse battery' } })).statusCode).toBe(200);
+    const change = await app.inject({ method: 'PUT', url: '/settings', headers: desktop(), payload: { passphrase: { next: 'forgot the old one' } } });
+    expect(change.statusCode).toBe(200);
+    await app.close();
+
+    app = await fullServer(source({ DESKTOP_TOKEN }), { fromEnv: new Set(), restart: () => {} });
+    const remove = await app.inject({ method: 'PUT', url: '/settings', headers: desktop(), payload: { passphrase: { next: null } } });
+    expect(remove.statusCode).toBe(200);
+    const saved = readSettings(env.MELD_CONFIG_FILE, key);
+    expect(saved.APP_PASSPHRASE_HASH).toBeUndefined();
+    expect(saved.APP_PASSPHRASE_OFF).toBeUndefined();
+    await app.close();
+  });
+
+  it('switches from demo data to real accounts when Plaid keys are saved', async () => {
+    const env = loadEnv(source({ DESKTOP_TOKEN }));
+    const first = await buildSetupServer(env, { fromEnv: new Set(), restart: () => {} });
+    await first.inject({ method: 'POST', url: '/setup', payload: {}, headers: desktop() });
+    await first.close();
+
+    const app = await fullServer(source({ DESKTOP_TOKEN }), { fromEnv: new Set(), restart: () => {} });
+    const put = (payload: object) => app.inject({ method: 'PUT', url: '/settings', headers: desktop(), payload });
+    expect((await put({ demo: false })).statusCode).toBe(400);
+    const plaid = { clientId: 'client-id', sandboxSecret: '', productionSecret: 'prod-secret', env: 'production' };
+    expect((await put({ plaid })).statusCode).toBe(200);
+    expect(readSettings(env.MELD_CONFIG_FILE, key).MELD_DEMO).toBeUndefined();
+    expect((await put({ demo: true })).statusCode).toBe(200);
+    expect(readSettings(env.MELD_CONFIG_FILE, key).MELD_DEMO).toBe('1');
+    await app.close();
+  });
+});
+
+describe('demo data and phone access', () => {
+  const DESKTOP_TOKEN = 'desktop-window-token-0123456789';
+  const headers = { authorization: `Bearer ${DESKTOP_TOKEN}` };
+  beforeEach(() => void n++);
+
+  it('won’t start Plaid Link on demo data', async () => {
+    const app = await fullServer(source({ DESKTOP_TOKEN, MELD_DEMO: '1' }), { fromEnv: new Set(), restart: () => {} });
+    const res = await app.inject({ method: 'POST', url: '/plaid/link-token', headers, payload: {} });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toMatch(/demo data/);
+    await app.close();
+  });
+
+  it('won’t turn on phone access until there’s a passphrase to unlock with', async () => {
+    const enable = vi.fn(async () => ({ state: 'on' as const, machine: 'mac', url: 'https://mac.ts.net' }));
+    const phoneAccess = { enable, disable: vi.fn(), get: vi.fn() } as unknown as PhoneAccessService;
+    const build = (extra: NodeJS.ProcessEnv) => {
+      const env = loadEnv(withSettingsFile(source({ DESKTOP_TOKEN, MELD_DEMO: '1', TAILSCALE_CONTROL: '1', ...extra })));
+      const db = {} as Db;
+      const plaid = {} as PlaidApi;
+      return buildServer({ env, db, plaid, sync: { db, plaid, encryptionKey: key }, ai: null, storage: {} as DocumentStorage, phoneAccess });
+    };
+    let app = await build({});
+    const turnOn = () => app.inject({ method: 'PUT', url: '/phone-access', headers, payload: { enabled: true } });
+    expect((await turnOn()).statusCode).toBe(409);
+    expect(enable).not.toHaveBeenCalled();
+    await app.close();
+
+    app = await build({ APP_PASSPHRASE: 'correct horse battery' });
+    expect((await turnOn()).statusCode).toBe(200);
+    expect(enable).toHaveBeenCalledOnce();
+    await app.close();
+  });
+});
+
+describe('host names', () => {
+  beforeEach(() => void n++);
+
+  it('refuses requests addressed to a name a web page could point at Meld', async () => {
+    const app = await buildSetupServer(loadEnv(source()), { fromEnv: new Set(), restart: () => {} });
+    const status = (host: string) => app.inject({ method: 'GET', url: '/setup/status', headers: { host } });
+    expect((await status('localhost:47800')).statusCode).toBe(200);
+    expect((await status('my-mac.tail1234.ts.net')).statusCode).toBe(200);
+    expect((await status('attacker.example.com')).statusCode).toBe(403);
+    await app.close();
+
+    const allowed = await buildSetupServer(loadEnv(source({ ALLOWED_HOSTS: 'meld.example.com' })), { fromEnv: new Set(), restart: () => {} });
+    expect((await allowed.inject({ method: 'GET', url: '/setup/status', headers: { host: 'meld.example.com' } })).statusCode).toBe(200);
+    await allowed.close();
   });
 });

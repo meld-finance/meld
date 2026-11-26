@@ -80,7 +80,7 @@
         <h1>Self-hosting Meld with Docker</h1>
         <p class="doc-summary">Run Meld on Linux, a NAS, or a headless server that starts without anyone logging in.</p>
         <div class="doc-meta">
-          <span class="doc-meta-pill">2 min read</span>
+          <span class="doc-meta-pill">3 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/docker.md">View docs/docker.md on GitHub ↗</a>
         </div>
       </div>
@@ -123,7 +123,9 @@
 docker compose up -d --build</code></pre>
 </div>
 
-<p>Open <code>http://localhost:8080</code> in your browser. Any settings not set in <code>.env</code> (passphrase, Plaid keys, AI options) are asked on first run and saved in the <code>meld-config</code> Docker volume; values in <code>.env</code> always take precedence over settings saved in the app.</p>
+<p>Open <code>http://localhost:8080</code> in your browser. Any settings not set in <code>.env</code> are asked on first run and saved in the <code>meld-config</code> Docker volume: a passphrase (a browser is the only way into Docker, so it comes first), then demo data or your Plaid keys (<a href="../plaid/">Plaid setup</a> has every step with pictures). AI is set up later from Ask Meld or <strong>Settings → AI</strong>. Values in <code>.env</code> always take precedence over settings saved in the app.</p>
+
+<p>Demo data lives in its own <code>meld_demo</code> database, which Meld creates on the same Postgres server the first time you choose it, so existing installs need nothing new. Set <code>MELD_DEMO=1</code> in <code>.env</code> to start with it, or <code>DEMO_DATABASE_URL</code> to put it elsewhere.</p>
 
 <h2 id="update">Update<a class="heading-anchor" href="#update" aria-label="Link to Update">#</a></h2>
 
@@ -186,7 +188,7 @@ docker compose up -d --build</code></pre>
 
 <h2 id="phone-access-over-tailscale">Phone access over Tailscale<a class="heading-anchor" href="#phone-access-over-tailscale" aria-label="Link to Phone access over Tailscale">#</a></h2>
 
-<p>Meld only binds to <code>127.0.0.1:8080</code>, and its login is a single passphrase, so don't expose it to the public internet. To reach it from your phone:</p>
+<p>Meld only binds to <code>127.0.0.1:8080</code>, and its login is a single passphrase, so don't expose it to the public internet. Meld answers only to <code>localhost</code>, IP addresses, <code>*.local</code> and <code>*.ts.net</code> names; if you put it behind a reverse proxy with its own host name, add that name to <code>ALLOWED_HOSTS</code> in <code>.env</code>. To reach it from your phone:</p>
 
 <ol>
 <li>Install <a href="https://tailscale.com/download" target="_blank" rel="noopener">Tailscale</a> on the Docker host and on your phone, signed in to the same Tailscale account, and enable HTTPS certificates in the Tailscale admin console (<strong>DNS → Enable HTTPS</strong>).</li>

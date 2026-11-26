@@ -80,7 +80,7 @@
         <h1>Phone access over Tailscale</h1>
         <p class="doc-summary">Reach Meld securely from your phone over your own Tailscale tailnet without exposing it to the internet.</p>
         <div class="doc-meta">
-          <span class="doc-meta-pill">2 min read</span>
+          <span class="doc-meta-pill">3 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/phone-access.md">View docs/phone-access.md on GitHub ↗</a>
         </div>
       </div>
@@ -109,12 +109,12 @@
 <ol>
 <li>Open Meld on your computer and go to <strong>Account menu → Settings → Phone access</strong> (or click <strong>Phone Access…</strong> in the macOS menu bar / Windows notification tray).</li>
 <li>If Tailscale isn't running or HTTPS isn't enabled yet, Meld tells you what's missing. Fix that step and click <strong>Check again</strong>.</li>
-<li><p>Click <strong>Turn on phone access</strong>.</p>
+<li><p>If you haven't chosen a passphrase yet, Meld asks for one here: your phone unlocks Meld with it (Meld's window on the computer never needs it). Type it twice and click <strong>Turn on phone access</strong>. Meld restarts to save it, then turns phone access on. You can change or remove the passphrase later under <strong>Settings → Passphrase for browsers and phones</strong>; removing it means turning phone access off first.</p>
 <ul>
 <li>The first time you use <code>tailscale serve</code>, Tailscale may ask you to enable Serve on your tailnet with a one-click approval link. Follow that link if shown, then click <strong>Turn on phone access</strong> again.</li>
 </ul></li>
 <li>Meld shows a <strong>QR code</strong> and a private <code>https://...ts.net</code> address.</li>
-<li>Make sure Tailscale is connected on your phone, scan the QR code with your phone's camera (or type the address in Safari / Chrome), and unlock with your Meld passphrase.</li>
+<li>Make sure Tailscale is connected on your phone, scan the QR code with your phone's camera (or type the address in Safari / Chrome), and unlock with your passphrase.</li>
 <li><p><strong>Add to Home Screen</strong> on your phone so Meld opens full-screen like a native app:</p>
 <ul>
 <li><strong>iPhone (Safari):</strong> Tap the Share button → <strong>Add to Home Screen</strong>.</li>
@@ -135,6 +135,7 @@
 <ul>
 <li><strong>Page won't load on your phone:</strong> Check that Tailscale is connected on both your phone and your computer, signed in to the same Tailscale account, and that your computer isn't asleep.</li>
 <li><strong>Certificate or HTTPS warning:</strong> Confirm <strong>Enable HTTPS</strong> is switched on in the <a href="https://login.tailscale.com/admin/dns" target="_blank" rel="noopener">Tailscale admin console → DNS</a>, then click <strong>Check again</strong> in Meld's Phone access card.</li>
+<li><strong>&quot;No passphrase is set yet&quot; on your phone:</strong> choose one on the computer under <strong>Settings → Passphrase for browsers and phones</strong>, then reload the page on your phone.</li>
 <li><strong>Docker server:</strong> On a Docker host, Meld runs <code>127.0.0.1:8080</code>, so use <code>tailscale serve --bg 8080</code> on the host machine (covered in <a href="../docker/">docs/docker.md</a>).</li>
 </ul>
       </div>

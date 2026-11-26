@@ -3,20 +3,27 @@ import { router } from 'expo-router';
 import { useChatModel } from '@/lib/chat-model';
 import { useChatPanel } from '@/lib/chat-panel';
 import { usePageQuestions } from '@/lib/page-questions';
-import { useCreateChatSession } from '@/lib/queries';
+import { useChatModels, useCreateChatSession } from '@/lib/queries';
 
 /**
  * Opens a new chat session and sends `question` as its first message: in the chat panel beside the
- * current page where there is one (web), otherwise on the chat screen.
+ * current page where there is one (web), otherwise on the chat screen. With no AI model set up
+ * yet, it opens Ask Meld instead, which explains the choice.
  */
 export function useStartChat() {
   const create = useCreateChatSession();
   const panel = useChatPanel();
   const { current } = useChatModel();
   const { page } = usePageQuestions();
+  const models = useChatModels();
   function start(question: string, onStarted?: () => void) {
     const q = question.trim();
     if (!q || create.isPending) return;
+    if (models.data && models.data.models.length === 0) {
+      if (panel) panel.openHome();
+      else router.push('/ask');
+      return;
+    }
     create.mutate(
       { page, ...(current?.id ? { model: current.id } : {}) },
       {

@@ -70,25 +70,25 @@ More in [docs/features.md](docs/features.md).
 
 <sub>US list prices for annual plans as of November 2026 (Monarch Plus is $199.99/yr). ChatGPT and Claude are monthly: ChatGPT Finances works on every US plan, including Free; Claude Personal Finance needs Pro ($17/mo billed yearly), Max ($100/mo) or Ultra ($200/mo). Meld isn't affiliated with these companies or projects.</sub>
 
-The trade-off is setup: you create your own free Plaid developer account (Plaid should approve production access automatically for personal use). That's also why it's worth it: your data sits in a database on your own computer with no central service storing it, and you use your own Plaid keys to connect directly to your banks.
+The trade-off is setup: you create your own free Plaid account, about 10 minutes with [step-by-step pictures](docs/plaid.md) (Plaid should approve it automatically for personal use). You can look around with demo data first. That's also why it's worth it: your data sits in a database on your own computer with no central service storing it, and you use your own Plaid keys to connect directly to your banks.
 
 > **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice. Check anything important with a professional.
 
 ## What you need
 
-- **Your own [Plaid](https://dashboard.plaid.com/signup) developer account.** Meld has no server of its own, so it connects directly to your banks with your Plaid keys. Sandbox (fake data) is free and instant. Real accounts need Plaid production access (usually approved automatically); the free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank. [docs/plaid.md](docs/plaid.md) walks through it.
+- **Your own free [Plaid](https://dashboard.plaid.com/signup) account, when you're ready for real data.** Meld has no server of its own, so it connects directly to your banks with your Plaid keys. Sign-up takes about 10 minutes and Plaid usually approves it automatically; the free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank. [docs/plaid.md](docs/plaid.md) shows every screen. Until then, Meld's demo data needs nothing.
 - **Optional AI:** [Ollama](https://ollama.com) for completely free local chat models, a ChatGPT Go, Plus, Pro or Business plan (sign in under **Settings → AI → ChatGPT plan**), an [OpenRouter API key](https://openrouter.ai/settings/keys) for Gemini, GPT, Claude and more (Ask Meld, PDF extraction and value lookups), or an [Anthropic API key](https://console.anthropic.com/) for Ask Meld with Claude, PDF extraction and value lookups.
 
 ## Install on a Mac
 
 1. Download Meld for [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) (not sure? Apple menu → **About This Mac**: "Apple M…" is Apple silicon), open it and drag Meld to Applications.
 2. Open Meld. The first time, macOS asks whether you're sure you want to open an app downloaded from the Internet: click **Open**. Every app downloaded outside the App Store gets this once. Meld is signed and notarized by Apple, so you won't see the "cannot be opened" warning unsigned apps get.
-3. Meld walks you through setup the first time it opens: a passphrase (optional), your Plaid client ID and secrets (with a **Test keys** button), and optionally an Anthropic or OpenRouter key or Ollama, which it finds by itself if it's running.
-4. Start with Plaid's Sandbox to look around (any bank, `user_good` / `pass_good`), then follow [docs/plaid.md](docs/plaid.md) to connect your real accounts and switch to production in **Settings**.
+3. Meld opens on a welcome screen that shows where your data goes. Choose **Start with demo data** to look around a made-up household with a short tour, or **Connect my banks** for the guided Plaid sign-up ([docs/plaid.md](docs/plaid.md) has the same steps with pictures).
+4. That's all the setup. Meld's own window never asks for a passphrase; you choose one only to open Meld in a browser or on your phone. AI is optional and set up from Ask Meld when you want it.
 
 Everything stays on your Mac in `~/Library/Application Support/Meld`: a Postgres database that only listens on `127.0.0.1`, uploaded documents, settings, and logs. The keys that encrypt Plaid tokens, documents and saved settings are made on first run and kept encrypted with your macOS Keychain. Closing the window leaves Meld running in the menu bar, where you can also turn on **Open at Login**, show the data folder or quit.
 
-- **Change settings:** account menu → **Settings** (Plaid keys and environment, AI, passphrase on or off, phone access). Saving restarts Meld in a few seconds.
+- **Change settings:** account menu → **Settings** (bank connections, AI, a passphrase for browsers and phones, phone access). Saving restarts Meld in a few seconds.
 - **Back up:** quit Meld, then copy `~/Library/Application Support/Meld`. The copy is only readable with this Mac's Keychain, so also keep a Time Machine backup (which includes the Keychain), or you'd have to re-link accounts after restoring elsewhere.
 
 ## Install on Windows (preview)
@@ -97,7 +97,7 @@ Windows 10 and 11, 64-bit Intel/AMD. The Windows app is new and hasn't had much 
 
 1. [Download the installer](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe) and run it. It installs for your user only, with no admin prompt.
 2. The installer isn't code-signed yet, so Windows SmartScreen says it "protected your PC" the first time. Click **More info**, then **Run anyway**.
-3. Setup is the same as on a Mac (passphrase, Plaid keys, optional AI).
+3. Setup is the same as on a Mac: demo data or your Plaid keys.
 
 Everything stays in `%APPDATA%\Meld`, and the encryption keys are kept in Windows Credential Manager (item `Meld`). Closing the window leaves Meld running in the notification area by the clock: click its icon to open Meld, or right-click for **Open at Login**, the data folder, the log and **Quit**. Updates work as on the Mac. To back up, quit Meld and copy `%APPDATA%\Meld`; restoring it on another PC means re-linking your banks, since the keys stay in this PC's Credential Manager.
 
@@ -107,7 +107,7 @@ Meld never opens itself to the internet. Your phone reaches it over [Tailscale](
 
 1. Install Tailscale on **both your computer and your phone** and sign in to both with the same account.
 2. Turn on HTTPS certificates for your tailnet (one switch in the Tailscale admin console, under **DNS**).
-3. In Meld, open **Settings → Phone access** (or **Phone Access…** in the menu bar) and click **Turn on phone access**. Scan the QR code with your phone, unlock with your passphrase, and use **Add to Home Screen** so it opens like an app.
+3. In Meld, open **Settings → Phone access** (or **Phone Access…** in the menu bar), choose a passphrase for your phone if you haven't yet, and click **Turn on phone access**. Scan the QR code with your phone, unlock with the passphrase, and use **Add to Home Screen** so it opens like an app.
 
 Full instructions and troubleshooting live in [docs/phone-access.md](docs/phone-access.md).
 

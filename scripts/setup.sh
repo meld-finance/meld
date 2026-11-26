@@ -96,6 +96,7 @@ EOF
 echo "  1. Start Meld:  docker compose up -d --build"
 echo "     then open http://localhost:8080"
 if [ -n "$missing" ] || [ -z "$(current APP_PASSPHRASE)" ]; then
-  echo "  2. Meld walks you through the rest the first time it opens: your passphrase, Plaid"
-  echo "     keys (free; see docs/plaid.md) and, optionally, AI. Anything set in $ENV_FILE wins."
+  echo "  2. Meld walks you through the rest the first time it opens: your passphrase, then"
+  echo "     demo data or your Plaid keys (free; docs/plaid.md shows each step). Anything set"
+  echo "     in $ENV_FILE wins."
 fi

@@ -2,6 +2,7 @@ import type { LoginResponse } from '@meld/shared';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { api, setAuthToken, setUnauthorizedHandler } from './api';
+import { desktop } from './desktop';
 import { useSetupStatus } from './setup';
 import { tokenStore } from './token-store';
 
@@ -12,17 +13,25 @@ type AuthState = {
   isLoggedIn: boolean;
   /** Unlocking takes a passphrase, so there's something to lock. */
   canLock: boolean;
+  /** This is the desktop app's own window, which signs itself in. */
+  isDesktopWindow: boolean;
   login: (passphrase: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
 
+/** The desktop app's window token, read once: it doesn't change while the app runs. */
+const desktopToken = desktop()?.sessionToken || null;
+// Set before the first request, so even first-run setup goes out signed in.
+if (desktopToken) setAuthToken(desktopToken);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
-  // An older API doesn't say, and always asks for one.
-  const canLock = useSetupStatus().data?.passphrase ?? true;
+  const [ready, setReady] = useState(!!desktopToken);
+  const [token, setToken] = useState<string | null>(desktopToken);
+  // An older API doesn't say, and always asks for one. The desktop window never locks.
+  const status = useSetupStatus();
+  const canLock = !desktopToken && (status.data?.passphrase ?? true);
 
   const apply = useCallback((next: string | null) => {
     setAuthToken(next);
@@ -30,11 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    if (desktopToken) return;
     apply(null);
     await tokenStore.clear();
   }, [apply]);
 
   useEffect(() => {
+    if (desktopToken) return;
     tokenStore.get().then((stored) => {
       apply(stored);
       setReady(true);
@@ -45,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (passphrase: string) => {
+      // The desktop window stays signed in with its own token.
+      if (desktopToken) return;
       const res = await api<LoginResponse>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ passphrase }),
@@ -56,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ ready, isLoggedIn: !canLock || token !== null, canLock, login, logout }),
+    () => ({ ready, isLoggedIn: !canLock || token !== null, canLock, isDesktopWindow: !!desktopToken, login, logout }),
     [ready, token, canLock, login, logout],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

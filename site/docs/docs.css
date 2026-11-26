@@ -1179,3 +1179,14 @@ footer.docs-footer .foot-inner {
 footer.docs-footer nav { display: flex; flex-wrap: wrap; gap: 16px; }
 footer.docs-footer a { color: var(--muted); text-decoration: none; }
 footer.docs-footer a:hover { color: var(--text); }
+
+/* Screenshots: click for full size. */
+.prose .doc-figure { display: block; margin: 12px 0 20px; }
+.prose .doc-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}

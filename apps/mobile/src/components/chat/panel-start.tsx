@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { AIChoice, useNoChatModels } from '@/components/chat/ai-choice';
 import { chatColumn } from '@/components/chat/conversation';
 import { ModelPicker, privacyNote } from '@/components/chat/model-picker';
 import { Icon } from '@/components/icon';
@@ -23,6 +24,15 @@ export function PanelStart() {
   const { page, questions, helpQuestion } = usePageQuestions();
   const [question, setQuestion] = useState('');
   const ask = (text: string) => chat.start(text, () => setQuestion(''));
+  const noModels = useNoChatModels();
+
+  if (noModels) {
+    return (
+      <ScrollView style={styles.fill} contentContainerStyle={styles.content}>
+        <AIChoice compact />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.fill} contentContainerStyle={styles.content}>

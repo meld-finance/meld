@@ -1,10 +1,11 @@
-// The bridge between Meld's page and the app, as window.meldDesktop: the version, and updates.
+// The bridge between Meld's page and the app, as window.meldDesktop: the version, updates, and the token that signs the window in.
 // Bundled to dist/preload.cjs (a sandboxed preload can't be an ES module).
 import { contextBridge, ipcRenderer } from 'electron';
 import type { DesktopBridge, UpdateState } from '@meld/shared';
 
 const bridge: DesktopBridge = {
   version: ipcRenderer.sendSync('meld:version') as string,
+  sessionToken: ipcRenderer.sendSync('meld:session') as string,
   getUpdateState: () => ipcRenderer.invoke('meld:update-state') as Promise<UpdateState>,
   onUpdateState: (listener) => {
     const handler = (_event: unknown, state: UpdateState) => listener(state);

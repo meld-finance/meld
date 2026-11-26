@@ -5,6 +5,7 @@
 What each part of Meld does and how it works. For installing, see the [README](../README.md).
 
 <!-- toc -->
+- [Demo data & tour](#demo-data--tour)
 - [Linking accounts (Plaid)](#linking-accounts-plaid)
 - [Overview & budgets](#overview--budgets)
 - [Recurring payments, autopay & alerts](#recurring-payments-autopay--alerts)
@@ -21,12 +22,20 @@ What each part of Meld does and how it works. For installing, see the [README](.
 
 > **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice.
 
+## Demo data & tour
+
+- **Start with demo data** on the welcome screen (or `MELD_DEMO=1`) shows a made-up household, the Riveras, in its own database (`meld_demo`, or `DEMO_DATABASE_URL`), with two years of history dated up to today. Nothing needs Plaid keys or a passphrase.
+- The household is built so every area has something to show: checking that won't cover the card's autopay after childcare and the phone bill (an urgent alert), a Netflix price rise and a new Headspace charge, Disney+ stopped, eating out pushing food over budget, savings earning 0.4%, 401(k), HSA and Roth IRA room, a fund to harvest for a tax loss, a rollover IRA with no beneficiary, and a will older than the younger child.
+- It's rebuilt automatically once it's two days old, so due dates and alerts stay current; changes you make to it don't last. Demo connections never call Plaid: **Refresh** just says they're up to date, and **Link account** is replaced by **Connect my banks**.
+- **The tour** starts after you choose demo data, and from **Take the tour** on Home. It walks through ten questions people ask about their money (what am I worth, will a payment bounce, where does my money go, what am I subscribed to, is my cash earning enough, am I on track to retire, am I missing tax savings, would my family know what to do, can I just ask, and ready for your own numbers?), opening the page that answers each one. It floats over the page, can be minimized to a pill, and picks up where it left off after a reload.
+- **Connect my banks** (on Home, in the top bar while demo data is showing, and under **Settings → Bank connections**) opens the guided Plaid sign-up. Saving your keys switches Meld to your own, empty database. **Settings → Bank connections → Show demo data** switches back, and **Use my accounts** returns.
+
 ## Linking accounts (Plaid)
 
 Use **Accounts → Link account** in the web app. Accounts and balances sync immediately; transaction history (up to 2 years) arrives over the next minute or so and is fetched automatically. Every linked connection also re-syncs every 6 hours while the API is running, or on demand with **Refresh**.
 
-- **Sandbox** (`PLAID_ENV=sandbox`): pick any institution and sign in with `user_good` / `pass_good`.
-- **Real accounts** (`PLAID_ENV=production`): needs Plaid production access (usually approved automatically); the free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank (see [Connecting your accounts with Plaid](plaid.md)). Set `PLAID_PRODUCTION_SECRET`. Each environment has its own secret and its own database (`SANDBOX_DATABASE_URL`, `PRODUCTION_DATABASE_URL`), so sandbox data never mixes with real data. Switching is just `PLAID_ENV` plus an API restart.
+- **Keys:** your own Plaid client ID and production secret, entered in first-run setup, on the **Connect your banks** page, or under **Settings → Bank connections** (`PLAID_CLIENT_ID`, `PLAID_PRODUCTION_SECRET`, `PLAID_ENV=production` in `.env`). The guided sign-up shows each Plaid screen; [Connecting your accounts with Plaid](plaid.md) has the same steps. The free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank.
+- **Sandbox** (for developers): **Settings → Bank connections → Developer options** takes the Sandbox secret and switches environments (`PLAID_SANDBOX_SECRET`, `PLAID_ENV=sandbox`). Pick any institution and sign in with `user_good` / `pass_good`. Each environment, and demo data, has its own database (`SANDBOX_DATABASE_URL`, `PRODUCTION_DATABASE_URL`, `DEMO_DATABASE_URL`), so they never mix. Switching restarts the API.
 - If a bank needs you to sign in again, the connection shows **Reconnect**, which reopens Plaid Link in update mode.
 - Linking on iOS/Android arrives with the mobile phase; use the web app until then.
 
@@ -152,6 +161,7 @@ The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts, 
 
 ## Ask Meld (AI chat)
 
+- **Choosing a model.** AI isn't part of first-run setup. Until a model is set up, Ask Meld (the page and the side panel) explains the choice instead of the question box: a model on this computer through Ollama (free, nothing leaves the computer, but a few gigabytes to download and less reliable answers) or a cloud model (Claude, ChatGPT or Gemini: better answers, sending only what each question needs, with account numbers masked). Both buttons open **Settings → AI**. Asking from Home's question box with no model opens the same choice. Everything else in Meld works without AI.
 - **Ask Meld** answers questions about both your money (spending, debt payoff, investments, tax moves, insurance gaps) and how to use Meld itself (features, screens, calculations, settings, Plaid, phone access, Docker, privacy and security). Answers stream in and conversations are saved. The Ask Meld page lists past conversations with clickable examples for both your finances and how to use Meld. On web, the sparkle button next to your name opens a chat panel beside the page you're on, with financial and "How Meld works" questions about that page.
 - **Progressive context & tools:** Each new conversation starts with a tiny orientation summary (net worth totals, account/policy/alert counts, basic profile, and the page you asked from) rather than dumping every account and policy upfront. The AI then fetches only what your question needs through read-only, summary-first tools (`get_financial_overview`, `get_accounts`, filtered `get_holdings`, `get_net_worth` with 30d/90d/YTD/1y deltas and optional sampled history, transactions, spending/budgets, loans, specialist planning tools like `get_tax_plan`, `get_retirement_plan`, `get_estate_plan`, `get_recurring`, `get_cash_plan`, and `get_insurance_policies`, plus `get_meld_docs`). `get_meld_docs` is deferred and searches Meld's own docs section-by-section on demand (generated from the repository's canonical Markdown docs by `npm run docs:build`, keeping it in sync with the documentation while keeping context minimal). Ask Meld is read-only and can't change anything.
 - **Fast responses by default:** Claude uses `low` effort on Sonnet/Haiku and `medium` on Opus (override with `ANTHROPIC_CHAT_EFFORT`), caches the static prompt prefix across sessions, and defers specialist planning tool schemas via Anthropic tool search when supported. ChatGPT and OpenRouter set low reasoning effort, Ollama disables hidden thinking tokens by default (`OLLAMA_THINK=1` re-enables them), and `get_investment_performance` / `get_cash_plan` use cached market data instead of blocking chat on slow external price lookups.

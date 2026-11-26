@@ -80,55 +80,105 @@
         <h1>Connecting your accounts with Plaid</h1>
         <p class="doc-summary">Set up your own free Plaid developer keys, try Sandbox test data, and switch to live bank connections.</p>
         <div class="doc-meta">
-          <span class="doc-meta-pill">2 min read</span>
+          <span class="doc-meta-pill">4 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/plaid.md">View docs/plaid.md on GitHub ↗</a>
         </div>
       </div>
       <details class="mobile-toc">
         <summary>On this page</summary>
         <nav aria-label="On this page">
-          <a class="depth-2" href="#1-sandbox-fake-data-to-try-meld">1. Sandbox (fake data, to try Meld)</a>
-          <a class="depth-2" href="#2-your-real-accounts-trial-plan">2. Your real accounts (Trial plan)</a>
+          <a class="depth-2" href="#get-your-plaid-keys">Get your Plaid keys</a>
+          <a class="depth-3" href="#1-sign-up-and-choose-personal-use">1. Sign up and choose Personal use</a>
+          <a class="depth-3" href="#2-create-your-account">2. Create your account</a>
+          <a class="depth-3" href="#3-click-try-for-free">3. Click &quot;Try for free&quot;</a>
+          <a class="depth-3" href="#4-fill-in-your-info-and-submit">4. Fill in your info and submit</a>
+          <a class="depth-3" href="#5-turn-on-two-step-sign-in">5. Turn on two-step sign-in</a>
+          <a class="depth-3" href="#6-copy-your-keys-into-meld">6. Copy your keys into Meld</a>
+          <a class="depth-2" href="#what-the-free-plan-covers">What the free plan covers</a>
+          <a class="depth-2" href="#plaids-sandbox-for-developers">Plaid's Sandbox (for developers)</a>
           <a class="depth-2" href="#when-a-bank-needs-you-to-sign-in-again">When a bank needs you to sign in again</a>
           <a class="depth-2" href="#more-than-10-connections">More than 10 connections?</a>
         </nav>
       </details>
       <div class="prose">
-        <p>Meld pulls balances, transactions, investments and loans from your banks and brokerages through <a href="https://plaid.com" target="_blank" rel="noopener">Plaid</a>. You use <strong>your own</strong> Plaid account, so the connection is between you, Plaid and your bank. Meld's author never sees your keys or your data.</p>
+        <p>Meld pulls balances, transactions, investments and loans from your banks and brokerages through <a href="https://plaid.com" target="_blank" rel="noopener">Plaid</a>, the service apps like Venmo use to connect to banks. You use <strong>your own</strong> free Plaid account, so the connection is between you, Plaid and your bank. Meld's author never sees your keys or your data.</p>
 
-<p>Plaid accounts are free to create. Below is how to get one, as of November 2026. Plaid changes its plans from time to time, so check their <a href="https://plaid.com/docs/" target="_blank" rel="noopener">docs</a> if something here doesn't match what you see.</p>
+<p>Plaid's sign-up is built for companies writing apps, so it asks a few questions that don't obviously apply to you. This page shows exactly what to click, as of November 2026. Plaid changes its site from time to time, so if something here doesn't match, look for the closest option and check <a href="https://plaid.com/docs/" target="_blank" rel="noopener">Plaid's docs</a>.</p>
 
-<h2 id="1-sandbox-fake-data-to-try-meld">1. Sandbox (fake data, to try Meld)<a class="heading-anchor" href="#1-sandbox-fake-data-to-try-meld" aria-label="Link to 1. Sandbox (fake data, to try Meld)">#</a></h2>
+<p><strong>Before you start.</strong> It takes about 10 minutes. You'll need an email address, a phone that gets text messages, and your home address and date of birth (Plaid asks for them). It's free for up to 10 bank logins.</p>
 
-<ol>
-<li>Sign up at <a href="https://dashboard.plaid.com/signup" target="_blank" rel="noopener">https://dashboard.plaid.com/signup</a>.</li>
-<li>Open <strong>Developers → Keys</strong> and copy your <strong>client_id</strong> and <strong>Sandbox secret</strong>.</li>
-<li>In <code>.env</code>, set <code>PLAID_CLIENT_ID</code>, <code>PLAID_SANDBOX_SECRET</code> and <code>PLAID_ENV=sandbox</code>.</li>
-<li>Start Meld, go to <strong>Accounts → Link account</strong>, pick any bank and sign in with <code>user_good</code> / <code>pass_good</code>.</li>
-</ol>
+<p>Not ready yet? Choose <strong>Look around with demo data</strong> on Meld's welcome screen. Meld shows a made-up household and a short tour, and you can connect your banks whenever you like from the <strong>Connect my banks</strong> button.</p>
 
-<h2 id="2-your-real-accounts-trial-plan">2. Your real accounts (Trial plan)<a class="heading-anchor" href="#2-your-real-accounts-trial-plan" aria-label="Link to 2. Your real accounts (Trial plan)">#</a></h2>
+<h2 id="get-your-plaid-keys">Get your Plaid keys<a class="heading-anchor" href="#get-your-plaid-keys" aria-label="Link to Get your Plaid keys">#</a></h2>
 
-<p>New Plaid teams in the US and Canada get a free <strong>Trial</strong> plan with real data:</p>
+<h3 id="1-sign-up-and-choose-personal-use">1. Sign up and choose Personal use<a class="heading-anchor" href="#1-sign-up-and-choose-personal-use" aria-label="Link to 1. Sign up and choose Personal use">#</a></h3>
+
+<p>Go to <a href="https://dashboard.plaid.com/signup" target="_blank" rel="noopener">https://dashboard.plaid.com/signup</a>. When Plaid asks how you'll use it, choose <strong>Personal use</strong> (&quot;I want to use Plaid's APIs to build something for fun&quot;) and click <strong>Next</strong>.</p>
+
+<p><a class="doc-figure" href="../images/plaid/1-personal-use.jpg" target="_blank" rel="noopener"><img src="../images/plaid/1-personal-use.jpg" alt="Plaid's &quot;How will you use Plaid?&quot; page, with Business, Personal use and App user options" loading="lazy"></a></p>
+
+<h3 id="2-create-your-account">2. Create your account<a class="heading-anchor" href="#2-create-your-account" aria-label="Link to 2. Create your account">#</a></h3>
+
+<p>Sign up with Google, or with your email and a password.</p>
+
+<p><a class="doc-figure" href="../images/plaid/2-create-account.jpg" target="_blank" rel="noopener"><img src="../images/plaid/2-create-account.jpg" alt="Plaid's Create your account page" loading="lazy"></a></p>
+
+<h3 id="3-click-try-for-free">3. Click &quot;Try for free&quot;<a class="heading-anchor" href="#3-click-try-for-free" aria-label="Link to 3. Click &quot;Try for free&quot;">#</a></h3>
+
+<p>On Plaid's home page, click <strong>Try for free</strong>. It's either in the <strong>Free trial</strong> banner at the top or under the Sandbox client ID on the right.</p>
+
+<p>Don't choose <strong>Get full access</strong>. That's Plaid's business verification, which asks about your company and isn't needed for your own accounts.</p>
+
+<p><a class="doc-figure" href="../images/plaid/3-try-for-free.jpg" target="_blank" rel="noopener"><img src="../images/plaid/3-try-for-free.jpg" alt="Plaid's home page with the Free trial banner and its Try for free button" loading="lazy"></a></p>
+
+<h3 id="4-fill-in-your-info-and-submit">4. Fill in your info and submit<a class="heading-anchor" href="#4-fill-in-your-info-and-submit" aria-label="Link to 4. Fill in your info and submit">#</a></h3>
+
+<p>Under <strong>Your info</strong>, enter your name, address, phone number and date of birth. Under <strong>Agreements</strong>, accept Plaid's terms. Then click <strong>Submit</strong>.</p>
+
+<p><a class="doc-figure" href="../images/plaid/4-your-info.jpg" target="_blank" rel="noopener"><img src="../images/plaid/4-your-info.jpg" alt="Try for free: the Your info and Agreements sections, both done" loading="lazy"></a></p>
+
+<p>Plaid reviews it. Most accounts are approved within a minute.</p>
+
+<p><a class="doc-figure" href="../images/plaid/5-reviewing.jpg" target="_blank" rel="noopener"><img src="../images/plaid/5-reviewing.jpg" alt="Plaid reviewing the request" loading="lazy"></a></p>
+
+<h3 id="5-turn-on-two-step-sign-in">5. Turn on two-step sign-in<a class="heading-anchor" href="#5-turn-on-two-step-sign-in" aria-label="Link to 5. Turn on two-step sign-in">#</a></h3>
+
+<p>Plaid only shows your production secret once two-step sign-in is on. Open <strong>Settings</strong> at the bottom left, add <strong>Text message (SMS)</strong> under <strong>Two-factor methods</strong>, and save the recovery code Plaid shows you somewhere safe.</p>
+
+<p><a class="doc-figure" href="../images/plaid/6-two-factor.jpg" target="_blank" rel="noopener"><img src="../images/plaid/6-two-factor.jpg" alt="Plaid's security settings with two-factor sign-in by text message turned on" loading="lazy"></a></p>
+
+<h3 id="6-copy-your-keys-into-meld">6. Copy your keys into Meld<a class="heading-anchor" href="#6-copy-your-keys-into-meld" aria-label="Link to 6. Copy your keys into Meld">#</a></h3>
+
+<p>Open <strong>Developers → Keys</strong> (<a href="https://dashboard.plaid.com/developers/keys" target="_blank" rel="noopener">https://dashboard.plaid.com/developers/keys</a>). You need two values: the <strong>Client ID</strong> and the <strong>Production secret</strong>. Ignore the Sandbox secret.</p>
+
+<p><a class="doc-figure" href="../images/plaid/7-keys.jpg" target="_blank" rel="noopener"><img src="../images/plaid/7-keys.jpg" alt="Plaid's Keys page with the Client ID, Production secret and Sandbox secret" loading="lazy"></a></p>
+
+<p><strong>In the desktop app:</strong> on the welcome screen choose <strong>Connect my banks</strong>, or, if you're looking at demo data, click <strong>Connect my banks</strong> on Home or under <strong>Settings → Bank connections</strong>. The same six steps are there, with these pictures. Paste the two keys into the last step, click <strong>Test keys</strong> to check them, then <strong>Finish</strong> (or <strong>Save and link accounts</strong>). Meld restarts on your own, empty accounts, and the demo household goes away.</p>
+
+<p><strong>With Docker:</strong> in <code>.env</code>, set <code>PLAID_CLIENT_ID</code>, <code>PLAID_PRODUCTION_SECRET</code> and <code>PLAID_ENV=production</code>, then restart Meld (<code>docker compose up -d</code>).</p>
+
+<p>Then go to <strong>Accounts → Link account</strong>, pick your bank and sign in to it in Plaid's window. Repeat for each bank.</p>
+
+<h2 id="what-the-free-plan-covers">What the free plan covers<a class="heading-anchor" href="#what-the-free-plan-covers" aria-label="Link to What the free plan covers">#</a></h2>
+
+<p>New Plaid teams in the US and Canada get the free <strong>Trial</strong> plan with real data:</p>
 
 <ul>
 <li>Up to <strong>10 connections</strong> (Plaid calls them &quot;Items&quot;). One connection is one login at one institution, however many accounts sit behind it; a bank login with checking, savings and a card is one.</li>
-<li><strong>Removing a connection doesn't give the slot back</strong>, so don't link and unlink to experiment. Use Sandbox for that.</li>
+<li><strong>Removing a connection doesn't give the slot back</strong>, so don't link and unlink to experiment. Look around with demo data instead.</li>
 <li>It includes the products Meld uses: Transactions, Investments and Liabilities.</li>
 <li>Banks that sign you in on their own site (OAuth), such as Chase, Bank of America and Wells Fargo, work on the Trial plan. Some brokerages, Schwab for example, can take a few business days to switch on after you get production access.</li>
 </ul>
 
-<p>To get it:</p>
+<p>If Plaid asks about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself.</p>
 
-<ol>
-<li>In the Plaid Dashboard, request production access. For personal use, Plaid usually approves it automatically. If asked about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself.</li>
-<li>Once approved, copy your <strong>Production secret</strong> from <strong>Developers → Keys</strong>.</li>
-<li>In <code>.env</code>, set <code>PLAID_PRODUCTION_SECRET</code> and <code>PLAID_ENV=production</code>, then restart Meld (<code>docker compose up -d</code>).</li>
-</ol>
-
-<p>Real data goes into its own database (<code>meld</code>), separate from sandbox data (<code>meld_sandbox</code>), so switching back and forth never mixes them.</p>
+<p>Real data goes into its own database (<code>meld</code>), separate from demo data (<code>meld_demo</code>) and Plaid's Sandbox (<code>meld_sandbox</code>), so switching back and forth never mixes them. <strong>Settings → Bank connections → Show demo data</strong> switches back to the demo household; <strong>Use my accounts</strong> returns.</p>
 
 <p><strong>Read Plaid's terms yourself.</strong> When you hold Plaid keys you're Plaid's customer, and their <a href="https://plaid.com/developer-policy/" target="_blank" rel="noopener">developer policy</a> and terms apply to you. Decide for yourself whether your use fits them.</p>
+
+<h2 id="plaids-sandbox-for-developers">Plaid's Sandbox (for developers)<a class="heading-anchor" href="#plaids-sandbox-for-developers" aria-label="Link to Plaid's Sandbox (for developers)">#</a></h2>
+
+<p>Sandbox is Plaid's test environment, with made-up banks. It's for working on Meld itself; demo data is the easier way to look around. To use it, open <strong>Settings → Bank connections → Developer options</strong>, paste the <strong>Sandbox secret</strong>, choose <strong>Sandbox (test banks)</strong> and save. With Docker, set <code>PLAID_SANDBOX_SECRET</code> and <code>PLAID_ENV=sandbox</code> in <code>.env</code>. Then link any bank and sign in with <code>user_good</code> / <code>pass_good</code>.</p>
 
 <h2 id="when-a-bank-needs-you-to-sign-in-again">When a bank needs you to sign in again<a class="heading-anchor" href="#when-a-bank-needs-you-to-sign-in-again" aria-label="Link to When a bank needs you to sign in again">#</a></h2>
 
@@ -153,8 +203,15 @@
   <aside class="toc" aria-label="On this page">
     <div class="toc-title">On this page</div>
     <ul class="toc-list">
-      <li><a class="toc-link depth-2" href="#1-sandbox-fake-data-to-try-meld">1. Sandbox (fake data, to try Meld)</a></li>
-          <li><a class="toc-link depth-2" href="#2-your-real-accounts-trial-plan">2. Your real accounts (Trial plan)</a></li>
+      <li><a class="toc-link depth-2" href="#get-your-plaid-keys">Get your Plaid keys</a></li>
+          <li><a class="toc-link depth-3" href="#1-sign-up-and-choose-personal-use">1. Sign up and choose Personal use</a></li>
+          <li><a class="toc-link depth-3" href="#2-create-your-account">2. Create your account</a></li>
+          <li><a class="toc-link depth-3" href="#3-click-try-for-free">3. Click &quot;Try for free&quot;</a></li>
+          <li><a class="toc-link depth-3" href="#4-fill-in-your-info-and-submit">4. Fill in your info and submit</a></li>
+          <li><a class="toc-link depth-3" href="#5-turn-on-two-step-sign-in">5. Turn on two-step sign-in</a></li>
+          <li><a class="toc-link depth-3" href="#6-copy-your-keys-into-meld">6. Copy your keys into Meld</a></li>
+          <li><a class="toc-link depth-2" href="#what-the-free-plan-covers">What the free plan covers</a></li>
+          <li><a class="toc-link depth-2" href="#plaids-sandbox-for-developers">Plaid's Sandbox (for developers)</a></li>
           <li><a class="toc-link depth-2" href="#when-a-bank-needs-you-to-sign-in-again">When a bank needs you to sign in again</a></li>
           <li><a class="toc-link depth-2" href="#more-than-10-connections">More than 10 connections?</a></li>
     </ul>

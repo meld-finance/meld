@@ -33,6 +33,8 @@ export type UpdateState =
 /** What the Mac app's window exposes to the page as `window.meldDesktop`. Absent in a browser. */
 export type DesktopBridge = {
   version: string;
+  /** Signs this window in without a passphrase; empty on a page that isn't Meld's own. Older apps don't have it. */
+  sessionToken?: string;
   getUpdateState: () => Promise<UpdateState>;
   /** Calls back with every change; returns the unsubscribe. */
   onUpdateState: (listener: (state: UpdateState) => void) => () => void;

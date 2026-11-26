@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { AIChoice, useNoChatModels } from '@/components/chat/ai-choice';
 import { ModelPicker, privacyNote } from '@/components/chat/model-picker';
 import { Chip } from '@/components/chip';
 import { ThemedText } from '@/components/themed-text';
@@ -48,56 +49,61 @@ export function AskStart() {
 
   const p = profile.data;
   const profileEmpty = p && !p.annualGrossIncome && !p.filingStatus && !p.state && !p.birthYear;
+  const noModels = useNoChatModels();
 
   return (
     <>
-      {/* Raised so the model list draws over the cards below. */}
-      <Card
-        style={styles.raised}
-        title="Ask about your finances or Meld"
-        subtitle="Answers use your accounts, transactions, investments, loans, insurance, budget, and Meld’s feature guides.">
-        <TextInput
-          style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
-          placeholder="Ask about your money or Meld…"
-          placeholderTextColor={theme.textSecondary}
-          value={question}
-          onChangeText={setQuestion}
-          onSubmitEditing={() => ask(question)}
-          returnKeyType="send"
-          multiline={false}
-        />
-        <View style={[styles.row, styles.raised]}>
-          <Button label="Ask" disabled={!question.trim()} loading={chat.isPending} onPress={() => ask(question)} />
-          <ModelPicker />
-        </View>
-        {chat.error && (
-          <ThemedText type="small" themeColor="negative">
-            {chat.error.message}
-          </ThemedText>
-        )}
-        <View style={styles.chipGroup}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Your finances
-          </ThemedText>
-          <View style={styles.chips}>
-            {SUGGESTIONS.map((s) => (
-              <Chip key={s} label={s} onPress={() => ask(s)} />
-            ))}
+      {noModels ? (
+        <AIChoice />
+      ) : (
+        // Raised so the model list draws over the cards below.
+        <Card
+          style={styles.raised}
+          title="Ask about your finances or Meld"
+          subtitle="Answers use your accounts, transactions, investments, loans, insurance, budget, and Meld’s feature guides.">
+          <TextInput
+            style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
+            placeholder="Ask about your money or Meld…"
+            placeholderTextColor={theme.textSecondary}
+            value={question}
+            onChangeText={setQuestion}
+            onSubmitEditing={() => ask(question)}
+            returnKeyType="send"
+            multiline={false}
+          />
+          <View style={[styles.row, styles.raised]}>
+            <Button label="Ask" disabled={!question.trim()} loading={chat.isPending} onPress={() => ask(question)} />
+            <ModelPicker />
           </View>
-        </View>
-        <View style={styles.chipGroup}>
-          <ThemedText type="small" themeColor="textSecondary">
-            How to use Meld
-          </ThemedText>
-          <View style={styles.chips}>
-            {HOW_TO_SUGGESTIONS.map((s) => (
-              <Chip key={s} label={s} onPress={() => ask(s)} />
-            ))}
+          {chat.error && (
+            <ThemedText type="small" themeColor="negative">
+              {chat.error.message}
+            </ThemedText>
+          )}
+          <View style={styles.chipGroup}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Your finances
+            </ThemedText>
+            <View style={styles.chips}>
+              {SUGGESTIONS.map((s) => (
+                <Chip key={s} label={s} onPress={() => ask(s)} />
+              ))}
+            </View>
           </View>
-        </View>
-      </Card>
+          <View style={styles.chipGroup}>
+            <ThemedText type="small" themeColor="textSecondary">
+              How to use Meld
+            </ThemedText>
+            <View style={styles.chips}>
+              {HOW_TO_SUGGESTIONS.map((s) => (
+                <Chip key={s} label={s} onPress={() => ask(s)} />
+              ))}
+            </View>
+          </View>
+        </Card>
+      )}
 
-      {profileEmpty && (
+      {profileEmpty && !noModels && (
         <Card>
           <ThemedText type="small">
             For tax and insurance questions, add your income, filing status, state and age to your{' '}
@@ -127,10 +133,12 @@ export function AskStart() {
         </Card>
       )}
 
-      <ThemedText type="small" themeColor="textSecondary">
-        {privacyNote(current)} Account and policy numbers are masked. Answers are educational, not professional
-        financial, tax or legal advice.
-      </ThemedText>
+      {!noModels && (
+        <ThemedText type="small" themeColor="textSecondary">
+          {privacyNote(current)} Account and policy numbers are masked. Answers are educational, not professional
+          financial, tax or legal advice.
+        </ThemedText>
+      )}
     </>
   );
 }

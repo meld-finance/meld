@@ -21,7 +21,9 @@ git clone https://github.com/meld-finance/meld.git && cd meld
 docker compose up -d --build
 ```
 
-Open `http://localhost:8080` in your browser. Any settings not set in `.env` (passphrase, Plaid keys, AI options) are asked on first run and saved in the `meld-config` Docker volume; values in `.env` always take precedence over settings saved in the app.
+Open `http://localhost:8080` in your browser. Any settings not set in `.env` are asked on first run and saved in the `meld-config` Docker volume: a passphrase (a browser is the only way into Docker, so it comes first), then demo data or your Plaid keys ([Plaid setup](plaid.md) has every step with pictures). AI is set up later from Ask Meld or **Settings → AI**. Values in `.env` always take precedence over settings saved in the app.
+
+Demo data lives in its own `meld_demo` database, which Meld creates on the same Postgres server the first time you choose it, so existing installs need nothing new. Set `MELD_DEMO=1` in `.env` to start with it, or `DEMO_DATABASE_URL` to put it elsewhere.
 
 ## Update
 
@@ -66,7 +68,7 @@ Turn on **Settings → External agents (MCP)** (persisted encrypted in `/data/co
 
 ## Phone access over Tailscale
 
-Meld only binds to `127.0.0.1:8080`, and its login is a single passphrase, so don't expose it to the public internet. To reach it from your phone:
+Meld only binds to `127.0.0.1:8080`, and its login is a single passphrase, so don't expose it to the public internet. Meld answers only to `localhost`, IP addresses, `*.local` and `*.ts.net` names; if you put it behind a reverse proxy with its own host name, add that name to `ALLOWED_HOSTS` in `.env`. To reach it from your phone:
 
 1. Install [Tailscale](https://tailscale.com/download) on the Docker host and on your phone, signed in to the same Tailscale account, and enable HTTPS certificates in the Tailscale admin console (**DNS → Enable HTTPS**).
 2. On the Docker host, run:

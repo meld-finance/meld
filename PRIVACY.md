@@ -4,13 +4,15 @@
 
 Meld runs on your own computer. There is no Meld server, no account with the author, no analytics and no telemetry. Your data lives in the Postgres database and the `documents` folder on your machine: with the Mac app, both are in `~/Library/Application Support/Meld` (`%APPDATA%\Meld` on Windows), and its Postgres only listens on `127.0.0.1`.
 
-Meld talks to these outside services only. Each one is optional except Plaid and GitHub's update check.
+Unlike hosted finance apps, Meld has no servers: your history and bank connections exist only on your computer, and AI sees only what a question needs.
+
+Meld talks to these outside services only. Each one is optional except Plaid (not used for demo data) and GitHub's update check.
 
 | Service | When | What's sent |
 | --- | --- | --- |
 | **Plaid** (with your own keys) | Linking accounts and every sync (every 6 hours, or on **Refresh**) | Your bank sign-in goes to Plaid and your bank through Plaid's own window, never through Meld. Meld receives balances, transactions, holdings, investment activity and loan details. Tapping **Get from bank** on an account's estate screen also fetches that checking or savings account's full number (Plaid Auth); it's kept, encrypted, only if you save it. |
 | **GitHub** | The Mac app checks for updates shortly after it opens and every 4 hours; the **What's new** page loads the release notes | Nothing about you or your finances: just requests for Meld's public release list, which GitHub sees coming from your IP address like any download. An update is downloaded from GitHub only when you click **Update**. |
-| **Yahoo Finance** | Accounts → Investments → Performance | Ticker symbols only, to fetch daily prices. |
+| **Yahoo Finance** | Accounts → Investments → Performance, and demo data | Ticker symbols only, to fetch daily prices. |
 | **Anthropic** (if you add an API key) | Ask Meld with a Claude model | Your question, a compact overview snapshot (totals, counts, basic profile), and whatever the AI looks up to answer (for example matching transactions, holdings or budgets). |
 | | Plan → Insurance → Upload PDF | The **whole PDF** you upload. |
 | | Home or vehicle value lookup | The property address, or the vehicle's year, make, model, mileage and ZIP code. |

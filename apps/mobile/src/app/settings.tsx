@@ -1,6 +1,6 @@
 import type { SettingsUpdate, SettingsView } from '@meld/shared';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -55,7 +55,7 @@ function SettingsCards({ view }: { view: SettingsView }) {
       <PlaidCard view={view} fixed={fixed('plaid')} />
       <AICard view={view} fixed={fixed('ai')} />
       <McpCard />
-      <PassphraseCard on={view.passphrase} fixed={fixed('passphrase')} />
+      <PassphraseCard view={view} fixed={fixed('passphrase')} />
       <AboutCard />
     </>
   );
@@ -106,15 +106,19 @@ function SaveRow({
   onSave,
   dirty,
   afterRestart,
+  left,
 }: {
   onSave: (save: ReturnType<typeof useSaveSettings>) => void;
   dirty: boolean;
   afterRestart?: (body: SettingsUpdate) => Promise<void>;
+  /** Other actions, to the left of Save. */
+  left?: ReactNode;
 }) {
   const save = useSaveSettings(afterRestart);
   return (
     <View style={styles.save}>
-      <View style={formStyles.buttons}>
+      <View style={[formStyles.buttons, styles.wrap]}>
+        {left}
         <View style={formStyles.spacer} />
         <Button label={save.isSuccess && !dirty ? 'Saved' : 'Save'} onPress={() => onSave(save)} disabled={!dirty} loading={save.isPending} />
       </View>
@@ -127,20 +131,59 @@ function PlaidCard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
   const initial: PlaidForm = { clientId: view.plaid.clientId, sandboxSecret: '', productionSecret: '', env: view.plaid.env };
   const [form, setForm] = useState(initial);
   const [saved, setSaved] = useState(initial);
+  // Sandbox and test banks are for developers; most people only ever need production keys.
+  const [advanced, setAdvanced] = useState(view.plaid.env === 'sandbox');
+  const switchData = useSaveSettings();
   const dirty = JSON.stringify(form) !== JSON.stringify(saved);
+
+  if (view.demo) {
+    return (
+      <Card title="Bank connections" subtitle="Showing demo data">
+        {fixed ? (
+          <FromEnvNote />
+        ) : (
+          <>
+            <ThemedText type="small" themeColor="textSecondary">
+              Meld is showing a made-up household. Connect your banks to see your own accounts instead.
+            </ThemedText>
+            <View style={formStyles.buttons}>
+              <Button label="Connect my banks" onPress={() => router.push('/connect')} />
+              {view.plaidReady && (
+                <Button label="Use my accounts" variant="secondary" loading={switchData.isPending} onPress={() => switchData.mutate({ demo: false })} />
+              )}
+            </View>
+            {switchData.isError && <ThemedText themeColor="negative">{switchData.error.message}</ThemedText>}
+          </>
+        )}
+      </Card>
+    );
+  }
+
   return (
-    <Card title="Plaid" subtitle={`Using ${view.plaid.env}`}>
+    <Card title="Bank connections" subtitle={view.plaid.env === 'production' ? 'Through Plaid' : `Through Plaid (${view.plaid.env})`}>
       {fixed ? (
         <FromEnvNote />
       ) : (
         <>
-          <PlaidFields value={form} onChange={setForm} saved={view.plaid} />
+          <PlaidFields value={form} onChange={setForm} saved={view.plaid} advanced={advanced} />
           <SaveRow
             dirty={dirty}
             onSave={(save) =>
               save.mutate({ plaid: form }, { onSuccess: () => setSaved((s) => ({ ...form, sandboxSecret: s.sandboxSecret, productionSecret: s.productionSecret })) })
             }
+            left={
+              <>
+                <Button
+                  label={advanced ? 'Hide developer options' : 'Developer options'}
+                  variant="secondary"
+                  size="small"
+                  onPress={() => setAdvanced(!advanced)}
+                />
+                <Button label="Show demo data" variant="secondary" size="small" loading={switchData.isPending} onPress={() => switchData.mutate({ demo: true })} />
+              </>
+            }
           />
+          {switchData.isError && <ThemedText themeColor="negative">{switchData.error.message}</ThemedText>}
         </>
       )}
     </Card>
@@ -207,36 +250,51 @@ function AICard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
   );
 }
 
-function PassphraseCard({ on, fixed }: { on: boolean; fixed: boolean }) {
-  const { login } = useAuth();
+function PassphraseCard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
+  const { login, isDesktopWindow } = useAuth();
+  // On the desktop app the switch is "a passphrase for browsers and phones"; its own window never needs one.
+  const on = view.desktop ? view.passphraseSet : view.passphrase;
   const [want, setWant] = useState(on);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const turningOff = on && !want;
+  // The desktop window can change or remove it without the old one (e.g. when it's forgotten).
+  const needsCurrent = on && view.passphraseSet && !isDesktopWindow;
   const nextValid = next.length >= 8 && next === confirm;
   // Changing or turning it off takes the current one; turning it on only a new one.
-  const dirty = turningOff ? !!current : want && nextValid && (!on || !!current);
+  const dirty = turningOff ? !needsCurrent || !!current : want && nextValid && (!needsCurrent || !!current);
+  const subtitle = fixed
+    ? undefined
+    : view.desktop
+      ? turningOff
+        ? needsCurrent
+          ? 'Enter your current passphrase to remove it.'
+          : 'Removing it leaves only Meld’s own window able to open Meld.'
+        : on
+          ? 'Browsers and your phone ask for it. Meld’s own window never does.'
+          : want
+            ? 'Choose one to open Meld in a browser or on your phone.'
+            : view.passphrase
+              ? 'Not set: only Meld’s own window can open Meld. Set one to use it in a browser or on your phone.'
+              : 'Off: anyone who can reach Meld can open it.'
+      : turningOff
+        ? 'Enter your current passphrase to turn it off.'
+        : on
+          ? 'Meld asks for it to unlock.'
+          : want
+            ? 'Choose one to turn it on.'
+            : 'Off: Meld opens without one.';
   return (
     <Card
-      title="Passphrase"
-      subtitle={
-        fixed
-          ? undefined
-          : turningOff
-            ? 'Enter your current passphrase to turn it off.'
-            : on
-              ? 'Meld asks for it to unlock.'
-              : want
-                ? 'Choose one to turn it on.'
-                : 'Off: Meld opens without one.'
-      }
+      title={view.desktop ? 'Passphrase for browsers and phones' : 'Passphrase'}
+      subtitle={subtitle}
       action={fixed ? undefined : <Switch value={want} onValueChange={setWant} accessibilityLabel="Require a passphrase" />}>
       {fixed ? (
         <FromEnvNote />
       ) : (
         <>
-          {on && (
+          {needsCurrent && (
             <Field label="Current passphrase">
               <Input value={current} onChangeText={setCurrent} secureTextEntry />
             </Field>
@@ -251,7 +309,7 @@ function PassphraseCard({ on, fixed }: { on: boolean; fixed: boolean }) {
               </Field>
             </>
           )}
-          {!want && on && <NoPassphraseNote />}
+          {turningOff && !view.desktop && <NoPassphraseNote />}
           {(on || want) && (
             <SaveRow
               dirty={dirty}
@@ -279,5 +337,6 @@ function PassphraseCard({ on, fixed }: { on: boolean; fixed: boolean }) {
 
 const styles = StyleSheet.create({
   save: { gap: Spacing.two },
+  wrap: { flexWrap: 'wrap' },
   version: { opacity: 0.75 },
 });
