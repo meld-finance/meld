@@ -8,30 +8,38 @@ import { Field, Input, formStyles } from '@/components/form-fields';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { detectOllama, testAnthropicKey, type AIForm } from '@/lib/setup';
+import { detectOllama, testAnthropicKey, testOpenRouterKey, type AIForm } from '@/lib/setup';
 
 import { KeyTest } from './key-test';
 
 const ANTHROPIC_KEYS_URL = 'https://console.anthropic.com/settings/keys';
+const OPENROUTER_KEYS_URL = 'https://openrouter.ai/settings/keys';
+const OPENROUTER_MODELS_URL = 'https://openrouter.ai/models?supported_parameters=tools';
 const OLLAMA_URL = 'https://ollama.com/download';
 /** A model that handles Meld's tools well and fits on most Macs. */
 const SUGGESTED_MODEL = 'qwen3.5';
+const MODEL_LINE_HEIGHT = 20;
 
 /**
- * Optional AI: an Anthropic API key (all AI features) and/or Ollama (local models,
- * for Ask Meld only). `savedKey` is the masked saved key from Settings.
+ * Optional AI: an Anthropic API key (all AI features), an OpenRouter key (Gemini, GPT,
+ * Claude and more, for Ask Meld) and/or Ollama (local models, for Ask Meld). `savedKey`
+ * and `savedOpenRouterKey` are the masked saved keys from Settings.
  */
 export function AIFields({
   value,
   onChange,
   savedKey,
+  savedOpenRouterKey,
   afterAnthropic,
+  afterOpenRouter,
   inSetup,
 }: {
   value: AIForm;
   onChange: (next: AIForm) => void;
   savedKey?: string;
+  savedOpenRouterKey?: string;
   afterAnthropic?: ReactNode;
+  afterOpenRouter?: ReactNode;
   inSetup?: boolean;
 }) {
   const theme = useTheme();
@@ -58,9 +66,11 @@ export function AIFields({
   return (
     <View style={styles.fields}>
       <ThemedText type="small" themeColor="textSecondary">
-        {inSetup
-          ? 'All AI options are optional—Meld works without them. An Anthropic key turns on every AI feature (Ask Meld, reading insurance PDFs, and home/car value lookups). Ollama runs completely free local models on this computer for Ask Meld so nothing leaves your machine. You can also connect a ChatGPT plan in Settings after setup.'
-          : 'All AI options are optional—Meld works without them. An Anthropic key turns on every AI feature (Ask Meld, reading insurance PDFs, and home/car value lookups). Ollama runs completely free local models on this computer for Ask Meld so nothing leaves your machine, or sign in with your ChatGPT plan below.'}
+        All AI options are optional—Meld works without them. An Anthropic key turns on every AI feature (Ask Meld, reading
+        insurance PDFs, and home/car value lookups). So does an OpenRouter key, with Gemini, GPT, Claude and other models
+        on one account. Ollama runs completely free local models on this computer for Ask Meld so nothing leaves
+        your machine.
+        {inSetup ? ' You can also connect a ChatGPT plan in Settings after setup.' : ' Or sign in with your ChatGPT plan below.'}
       </ThemedText>
 
       <ThemedText type="cardTitle">Anthropic (Claude)</ThemedText>
@@ -82,6 +92,50 @@ export function AIFields({
       </ThemedText>
       <KeyTest disabled={!value.anthropicApiKey && !savedKey} run={() => testAnthropicKey(value.anthropicApiKey)} />
       {afterAnthropic}
+
+      <View style={[styles.subsection, { borderTopColor: theme.border }]}>
+        <ThemedText type="cardTitle">OpenRouter (Gemini, GPT, Claude and more)</ThemedText>
+      </View>
+      <Field label="API key">
+        <Input
+          value={value.openrouterApiKey}
+          onChangeText={(openrouterApiKey) => set({ openrouterApiKey })}
+          placeholder={savedOpenRouterKey ? `Saved (${savedOpenRouterKey})` : 'sk-or-…'}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+      </Field>
+      <ThemedText type="small" themeColor="textSecondary">
+        Turns on every AI feature, using Gemini for PDF reading and value lookups (with both keys, Anthropic does those).
+        Create a key in{' '}
+        <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => void Linking.openURL(OPENROUTER_KEYS_URL)}>
+          OpenRouter’s settings
+        </ThemedText>{' '}
+        and add credits; you pay OpenRouter for what you use. Questions with the account data they need, PDFs you upload and
+        lookup details go to OpenRouter and the model’s maker (like Google for Gemini), using only providers that don’t
+        store or train on them.
+      </ThemedText>
+      <KeyTest disabled={!value.openrouterApiKey && !savedOpenRouterKey} run={() => testOpenRouterKey(value.openrouterApiKey)} />
+      {afterOpenRouter}
+      <Field label="Models to offer in Ask Meld (one per line)">
+        <Input
+          value={value.openrouterModels}
+          onChangeText={(openrouterModels) => set({ openrouterModels })}
+          placeholder="Leave empty for the suggested models"
+          multiline
+          // Grows with the list, so every model shows without scrolling.
+          style={{ minHeight: Math.max(4, value.openrouterModels.split('\n').length + 1) * MODEL_LINE_HEIGHT }}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </Field>
+      <ThemedText type="small" themeColor="textSecondary">
+        Use IDs from{' '}
+        <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => void Linking.openURL(OPENROUTER_MODELS_URL)}>
+          OpenRouter’s model list
+        </ThemedText>
+        , like <ThemedText type="code">google/gemini-4-carbon</ThemedText>. Only models that can use tools appear in Ask Meld.
+      </ThemedText>
 
       <View style={[styles.subsection, { borderTopColor: theme.border }]}>
         <ThemedText type="cardTitle">Ollama (local models)</ThemedText>

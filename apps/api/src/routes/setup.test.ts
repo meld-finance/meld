@@ -1,6 +1,7 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { DEFAULT_OPENROUTER_MODELS } from '@meld/shared';
 import type { PlaidApi } from 'plaid';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readSettings, withSettingsFile } from '../config-file';
@@ -162,6 +163,31 @@ describe('settings once set up', () => {
     app = await fullServer(source(), { fromEnv: new Set(), restart });
     expect((await app.inject({ method: 'GET', url: '/settings' })).statusCode).toBe(401);
     expect((await app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase: 'a new passphrase' } })).statusCode).toBe(200);
+  });
+
+  it('saves an OpenRouter key encrypted, keeps only non-default models, and removes the key', async () => {
+    const file = loadEnv(source()).MELD_CONFIG_FILE;
+    const ai = { ...setup.ai, openrouterApiKey: 'sk-or-secret-1234', openrouterModels: ['google/gemini-4-carbon'] };
+    expect((await app.inject({ method: 'PUT', url: '/settings', headers: auth(), payload: { ai } })).statusCode).toBe(200);
+    expect(readSettings(file, key)).toMatchObject({ OPENROUTER_API_KEY: 'sk-or-secret-1234', OPENROUTER_CHAT_MODELS: 'google/gemini-4-carbon' });
+    expect(readFileSync(file, 'utf8')).not.toContain('sk-or-secret');
+
+    await app.close();
+    app = await fullServer(source(), { fromEnv: new Set(), restart });
+    token = (await app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase: setup.passphrase } })).json().token;
+    const view = (await app.inject({ method: 'GET', url: '/settings', headers: auth() })).json();
+    expect(view.ai).toMatchObject({ openrouterApiKey: '••••1234', openrouterModels: ['google/gemini-4-carbon'] });
+
+    // The defaults aren't written down, and an empty key field keeps the saved key.
+    const defaults = { ...setup.ai, openrouterModels: [...DEFAULT_OPENROUTER_MODELS] };
+    expect((await app.inject({ method: 'PUT', url: '/settings', headers: auth(), payload: { ai: defaults } })).statusCode).toBe(200);
+    expect(readSettings(file, key).OPENROUTER_CHAT_MODELS).toBeUndefined();
+    expect(readSettings(file, key).OPENROUTER_API_KEY).toBe('sk-or-secret-1234');
+
+    const remove = { ...setup.ai, removeOpenRouterKey: true };
+    expect((await app.inject({ method: 'PUT', url: '/settings', headers: auth(), payload: { ai: remove } })).statusCode).toBe(200);
+    expect(readSettings(file, key).OPENROUTER_API_KEY).toBeUndefined();
+    expect(readSettings(file, key).ANTHROPIC_API_KEY).toBe('sk-ant-secret-wxyz');
   });
 
   it('won’t change settings that come from .env', async () => {

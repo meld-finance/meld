@@ -2,6 +2,7 @@ import { HttpError } from '../lib/http';
 import { RESOURCE, type ChatGPTAuth } from './chatgpt-auth';
 import { MAX_TOOL_ROUNDS, runTool, toolLabel, toToolJsonSchema, type ChatTool } from './chat-tools';
 import type { ChatModelInfo, ChatProvider, ChatTurnInput, ChatTurnResult, StoredChatMessage } from './provider';
+import { readEvents } from './sse';
 
 const PROVIDER = 'chatgpt';
 const MODEL_LIST_TTL_MS = 5 * 60_000;
@@ -61,28 +62,6 @@ function parseArguments(args: string): unknown {
   } catch {
     return args;
   }
-}
-
-/** Reads a server-sent event stream's `data:` payloads. */
-async function* readEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<StreamEvent> {
-  const decoder = new TextDecoder();
-  let buffer = '';
-  const parse = function* (block: string) {
-    const data = block
-      .split('\n')
-      .filter((l) => l.startsWith('data:'))
-      .map((l) => l.slice(5).trimStart())
-      .join('\n');
-    if (data && data !== '[DONE]') yield JSON.parse(data) as StreamEvent;
-  };
-  for await (const bytes of body) {
-    buffer += decoder.decode(bytes, { stream: true }).replace(/\r\n/g, '\n');
-    const blocks = buffer.split('\n\n');
-    buffer = blocks.pop() ?? '';
-    for (const block of blocks) yield* parse(block);
-  }
-  buffer += decoder.decode();
-  if (buffer.trim()) yield* parse(buffer);
 }
 
 /** Ask Meld on the user's ChatGPT plan, through Sign in with ChatGPT. */
@@ -186,7 +165,7 @@ export class ChatGPTProvider implements ChatProvider {
       let text = '';
       const output: Item[] = [];
       let outcome: ChatTurnResult['outcome'] | null = null;
-      for await (const event of readEvents(res.body!)) {
+      for await (const event of readEvents<StreamEvent>(res.body!)) {
         if (event.type === 'response.output_text.delta' && event.delta) {
           // Separate answer text that resumes after a tool call.
           if (streamedText && !text) onEvent({ type: 'text', text: '\n\n' });

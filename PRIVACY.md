@@ -16,6 +16,7 @@ Meld talks to these outside services only. Each one is optional except Plaid and
 | | Home or vehicle value lookup | The property address, or the vehicle's year, make, model, mileage and ZIP code. |
 | | Accounts → Investments → Exposure | Fund tickers and names. |
 | **OpenAI** (if you sign in with ChatGPT) | Ask Meld with a ChatGPT model, on your ChatGPT plan | The same as Ask Meld above. Requests are sent with `store: false`. |
+| **OpenRouter** (if you add an API key) | Ask Meld with an OpenRouter model (Gemini, GPT, Claude and others); without an Anthropic key, also Upload PDF, value lookups and Exposure | The same as for Anthropic above, to OpenRouter and the model's provider (e.g. Google). Requests set `data_collection: "deny"`, so only providers that don't store or train on prompts get them. PDFs go to the model itself, not an OCR service; lookups use the provider's own web search, no third-party engine. See OpenRouter's [privacy policy](https://openrouter.ai/privacy). |
 | **Ollama** (if you set it up) | Ask Meld with a local model | The same as Ask Meld above, but to Ollama on your own machine or network, so it never leaves your control. |
 | **External agents via MCP** (off by default; turn on in Settings) | When an external agent you configure calls Meld's local MCP endpoint | Read-only tool and resource responses (with the same digit masking, hidden-account exclusion, and estate contact-detail omission as Ask Meld). Meld sends nothing out itself; whichever AI provider your external agent uses receives what that agent fetches. |
 | **Tailscale** (if you turn on phone access) | While it's on | Your phone reaches Meld over your own tailnet, encrypted end to end between your devices. Tailscale's servers coordinate the connection but can't see Meld's traffic. Off by default. |
@@ -25,11 +26,11 @@ Meld talks to these outside services only. Each one is optional except Plaid and
 
 Before anything goes to an AI model, runs of 9 or more digits (account, card and policy numbers) are replaced with `••••` and the last 4 digits. Full loan account numbers from Plaid are dropped before storage. PDF extraction only reads the last 4 characters of a policy number; the full one is kept only if you type it in.
 
-Anthropic's API doesn't train on your data by default and keeps it for a limited time for safety reviews; see [Anthropic's privacy center](https://privacy.claude.com) for the current policy. If you'd rather nothing goes to a cloud AI, add no Anthropic key and use Ollama for chat. PDF upload, value lookups and look-through exposure are then turned off.
+Anthropic's API doesn't train on your data by default and keeps it for a limited time for safety reviews; see [Anthropic's privacy center](https://privacy.claude.com) for the current policy. If you'd rather nothing goes to a cloud AI, add no Anthropic or OpenRouter key and use Ollama for chat. PDF upload, value lookups and look-through exposure are then turned off.
 
 ## What's protected on disk
 
-- Plaid access tokens, full account and policy numbers kept for the family packet, uploaded insurance and estate PDFs, Plaid and Anthropic keys saved from the app, and your ChatGPT sign-in are encrypted (AES-256-GCM) with `ENCRYPTION_KEY`. The Mac app makes that key on first run and keeps it in your macOS Keychain (Windows: Credential Manager); Docker reads it from `.env`. A copy of the data or documents folder can't be opened without it.
+- Plaid access tokens, full account and policy numbers kept for the family packet, uploaded insurance and estate PDFs, Plaid, Anthropic and OpenRouter keys saved from the app, and your ChatGPT sign-in are encrypted (AES-256-GCM) with `ENCRYPTION_KEY`. The Mac app makes that key on first run and keeps it in your macOS Keychain (Windows: Credential Manager); Docker reads it from `.env`. A copy of the data or documents folder can't be opened without it.
 - The passphrase you choose in the app is stored only as a salted scrypt hash.
 - Everything else (transactions, balances, holdings) is stored unencrypted in the database, protected by your computer's own security. Turn on full-disk encryption (FileVault on macOS, BitLocker on Windows) if you haven't already.
 - With Docker, `.env` holds your secrets. `scripts/setup.sh` creates it readable only by you; don't commit or share it.

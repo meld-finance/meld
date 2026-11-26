@@ -17,6 +17,8 @@ export const SETTING_KEYS = [
   'PLAID_PRODUCTION_SECRET',
   'PLAID_ENV',
   'ANTHROPIC_API_KEY',
+  'OPENROUTER_API_KEY',
+  'OPENROUTER_CHAT_MODELS',
   'OLLAMA_URL',
   'OLLAMA_CHAT_MODELS',
   'PHONE_ACCESS',
@@ -25,7 +27,12 @@ export type SettingKey = (typeof SETTING_KEYS)[number];
 export type Settings = Partial<Record<SettingKey, string>>;
 
 /** Encrypted with ENCRYPTION_KEY in the file. */
-const SECRET_KEYS: ReadonlySet<SettingKey> = new Set(['PLAID_SANDBOX_SECRET', 'PLAID_PRODUCTION_SECRET', 'ANTHROPIC_API_KEY']);
+const SECRET_KEYS: ReadonlySet<SettingKey> = new Set([
+  'PLAID_SANDBOX_SECRET',
+  'PLAID_PRODUCTION_SECRET',
+  'ANTHROPIC_API_KEY',
+  'OPENROUTER_API_KEY',
+]);
 
 type ConfigFile = { version: 1; settings: Settings };
 

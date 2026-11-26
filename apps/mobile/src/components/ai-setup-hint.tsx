@@ -25,7 +25,7 @@ export function AISetupHint({ manual, links = [], aiDoes }: { manual: string; li
         ))}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        ✨ To have AI {aiDoes}, add an Anthropic API key in{' '}
+        ✨ To have AI {aiDoes}, add an Anthropic or OpenRouter API key in{' '}
         <ThemedText type="small" themeColor="tint" accessibilityRole="link" onPress={() => router.push('/settings')}>
           Settings
         </ThemedText>

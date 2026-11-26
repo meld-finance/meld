@@ -141,7 +141,14 @@ async function registerApi(app: FastifyInstance, deps: AppDeps) {
   if (deps.phoneAccess) await registerPhoneAccessRoutes(app, env, deps.phoneAccess);
   if (deps.chatgpt) await registerChatGPTRoutes(app, deps.chatgpt);
   const version = appVersion(env);
-  app.get('/features', async (): Promise<AppFeatures> => ({ cloudAI: deps.ai !== null, version }));
+  app.get(
+    '/features',
+    async (): Promise<AppFeatures> => ({
+      cloudAI: deps.ai !== null,
+      cloudAIProvider: deps.ai?.name === 'anthropic' || deps.ai?.name === 'openrouter' ? deps.ai.name : null,
+      version,
+    }),
+  );
   await registerReleaseRoutes(app, deps.releases ?? new ReleaseNotes());
 
   await registerPlaidRoutes(app, deps);

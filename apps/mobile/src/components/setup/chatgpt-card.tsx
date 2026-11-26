@@ -119,7 +119,7 @@ export function ChatGPTSection() {
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             Questions, with the account data they need, are sent to OpenAI. Reading policy PDFs and home and car value lookups
-            still need an Anthropic key.
+            still need an Anthropic or OpenRouter key.
           </ThemedText>
           {!!s.error && (
             <ThemedText type="small" themeColor="negative">

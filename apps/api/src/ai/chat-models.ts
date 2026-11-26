@@ -4,9 +4,9 @@ import { HttpError } from '../lib/http';
 import { ChatGPTProvider } from './chatgpt';
 import type { ChatGPTAuth } from './chatgpt-auth';
 import { OllamaProvider } from './ollama';
-import type { AIProvider, ChatProvider } from './provider';
+import { createAnthropicProvider, createOpenRouterProvider, type AIProvider, type ChatProvider } from './provider';
 
-const NO_AI_ERROR = 'AI isn’t set up. Sign in with ChatGPT, or add an Anthropic API key or Ollama, in Settings → AI.';
+const NO_AI_ERROR = 'AI isn’t set up. Sign in with ChatGPT, or add an Anthropic or OpenRouter API key or Ollama, in Settings → AI.';
 
 /** Every model the Ask chat can use, across providers. The first one listed is the default. */
 export class ChatModels {
@@ -56,7 +56,12 @@ export function createChatModels(env: Env, ai: AIProvider | null, chatgpt?: Chat
   const ollama = env.OLLAMA_URL
     ? new OllamaProvider(env.OLLAMA_URL, env.OLLAMA_CHAT_MODELS, env.OLLAMA_CONTEXT_LENGTH, env.OLLAMA_THINK)
     : null;
+  // `ai` runs the other AI features; chat also offers the cloud provider it didn't pick.
+  const anthropic = ai?.name === 'anthropic' ? ai : createAnthropicProvider(env);
+  const openrouter = ai?.name === 'openrouter' ? ai : createOpenRouterProvider(env);
+  // Any other provider (e.g. one passed in by tests) comes first, as `ai` always did.
+  const other = ai && ai !== anthropic && ai !== openrouter ? ai : null;
   // ChatGPT offers models only while signed in, so it's always listed and signing in needs no restart.
-  const providers: (ChatProvider | null)[] = [ai, chatgpt ? new ChatGPTProvider(chatgpt) : null, ollama];
+  const providers: (ChatProvider | null)[] = [other, anthropic, chatgpt ? new ChatGPTProvider(chatgpt) : null, openrouter, ollama];
   return new ChatModels(providers.filter((p): p is ChatProvider => p !== null));
 }
