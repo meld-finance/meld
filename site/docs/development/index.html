@@ -46,10 +46,27 @@
       <div class="nav-group-title">Using Meld</div>
       <ul class="nav-list">
         <li><a class="nav-link" href="../install/">Install</a></li>
-        <li><a class="nav-link" href="../features/">Features &amp; Guide</a></li>
         <li><a class="nav-link" href="../plaid/">Plaid Bank Setup</a></li>
         <li><a class="nav-link" href="../phone-access/">Phone Access (Tailscale)</a></li>
         <li><a class="nav-link" href="../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Features &amp; Guide</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../features/">Overview</a></li>
+        <li><a class="nav-link nested" href="../features/demo/">Demo data &amp; tour</a></li>
+        <li><a class="nav-link nested" href="../features/accounts/">Linking accounts</a></li>
+        <li><a class="nav-link nested" href="../features/home-and-spending/">Home, spending &amp; budgets</a></li>
+        <li><a class="nav-link nested" href="../features/recurring-and-alerts/">Recurring, autopay &amp; alerts</a></li>
+        <li><a class="nav-link nested" href="../features/cash/">Cash &amp; emergency fund</a></li>
+        <li><a class="nav-link nested" href="../features/investments/">Investments &amp; loans</a></li>
+        <li><a class="nav-link nested" href="../features/retirement/">Retirement</a></li>
+        <li><a class="nav-link nested" href="../features/tax/">Tax</a></li>
+        <li><a class="nav-link nested" href="../features/insurance/">Insurance</a></li>
+        <li><a class="nav-link nested" href="../features/estate/">Estate</a></li>
+        <li><a class="nav-link nested" href="../features/ask-meld/">Ask Meld</a></li>
+        <li><a class="nav-link nested" href="../features/mcp/">External agents (MCP)</a></li>
       </ul>
     </div>
     <div class="nav-group">
@@ -75,6 +92,7 @@
           <span class="sep" aria-hidden="true">/</span>
           <span>Developers</span>
           <span class="sep" aria-hidden="true">/</span>
+          
           <span aria-current="page">Development</span>
         </nav>
         <h1>Development</h1>
@@ -185,7 +203,7 @@ npm run dev                   # API on :4000, Expo web on :8081</code></pre>
 
 <p>To try the update UI without a release, run <code>npm run desktop:dev</code> with <code>MELD_FAKE_UPDATE=0.9.0</code>: Meld acts as if 0.9.0 were out, and its download and restart steps are simulated.</p>
 
-<p>The landing page lives in <code>site/</code> and the web documentation portal lives in <code>site/docs/</code> (generated from <code>docs/*.md</code>, <code>PRIVACY.md</code>, <code>SECURITY.md</code>, and <code>CONTRIBUTING.md</code>, along with Ask Meld's on-demand feature guide index in <code>apps/api/src/ai/meld-docs.generated.ts</code>); both <code>site/</code> and generated docs are published to GitHub Pages by <code>.github/workflows/pages.yml</code> whenever <code>site/</code>, docs, or <code>scripts/build-docs.mjs</code> change on <code>main</code>. Preview locally with <code>npm run site:dev</code> (<a href="http://127.0.0.1:8000" target="_blank" rel="noopener">http://127.0.0.1:8000</a>, docs at <a href="http://127.0.0.1:8000/docs/" target="_blank" rel="noopener">http://127.0.0.1:8000/docs/</a>), which automatically rebuilds <code>site/docs/</code> and reloads the page whenever Markdown or site files change. Run <code>npm run docs:build</code> after editing Markdown docs and <code>npm run docs:check</code> to verify everything stays in sync (enforced by CI, <code>.githooks/pre-commit</code>, <code>.claude/settings.json</code>, and <code>CLAUDE.md</code>/<code>AGENTS.md</code>). Enable the git pre-commit hook anytime with <code>npm run hooks:install</code>. When UI changes affect the landing page, run <code>npm run site:screenshots</code> (requires Chrome and <code>meld_sandbox</code>) to re-capture 2× Retina PNGs and sync <code>site/index.html</code> dimensions, check callout pin positions in <code>npm run site:dev</code>, and verify with <code>npm run site:check</code>.</p>
+<p>The landing page lives in <code>site/</code> and the web documentation portal lives in <code>site/docs/</code> (generated from <code>docs/**/*.md</code>, <code>PRIVACY.md</code>, <code>SECURITY.md</code>, and <code>CONTRIBUTING.md</code>, along with Ask Meld's on-demand feature guide index in <code>apps/api/src/ai/meld-docs.generated.ts</code>). Features &amp; Guide is a hub at <code>docs/features.md</code> plus per-area pages under <code>docs/features/</code> with screenshots in <code>docs/images/features/</code>. Both <code>site/</code> and generated docs are published to GitHub Pages by <code>.github/workflows/pages.yml</code> whenever <code>site/</code>, docs, or <code>scripts/build-docs.mjs</code> change on <code>main</code>. Preview locally with <code>npm run site:dev</code> (<a href="http://127.0.0.1:8000" target="_blank" rel="noopener">http://127.0.0.1:8000</a>, docs at <a href="http://127.0.0.1:8000/docs/" target="_blank" rel="noopener">http://127.0.0.1:8000/docs/</a>), which automatically rebuilds <code>site/docs/</code> and reloads the page whenever Markdown or site files change. Run <code>npm run docs:build</code> after editing Markdown docs and <code>npm run docs:check</code> to verify everything stays in sync (enforced by CI, <code>.githooks/pre-commit</code>, <code>.claude/settings.json</code>, and <code>CLAUDE.md</code>/<code>AGENTS.md</code>). Enable the git pre-commit hook anytime with <code>npm run hooks:install</code>. When UI changes affect the landing page, run <code>npm run site:screenshots</code> (requires Chrome and <code>meld_sandbox</code>) to re-capture 2× Retina PNGs and sync <code>site/index.html</code> dimensions, check callout pin positions in <code>npm run site:dev</code>, and verify with <code>npm run site:check</code>.</p>
       </div>
       <nav class="pager" aria-label="Page navigation">
       <a class="pager-card prev" href="../security/">

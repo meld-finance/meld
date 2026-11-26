@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en" data-docs-root="../..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recurring, autopay &amp; alerts — Meld Docs</title>
+<meta name="description" content="Subscriptions and bills, autopay coverage checks, Coming up, and phone push via ntfy.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="apple-touch-icon" href="../../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../../"><img src="../../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../install/">Install</a></li>
+        <li><a class="nav-link" href="../../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Features &amp; Guide</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../features/">Overview</a></li>
+        <li><a class="nav-link nested" href="../../features/demo/">Demo data &amp; tour</a></li>
+        <li><a class="nav-link nested" href="../../features/accounts/">Linking accounts</a></li>
+        <li><a class="nav-link nested" href="../../features/home-and-spending/">Home, spending &amp; budgets</a></li>
+        <li><a class="nav-link nested active" href="../../features/recurring-and-alerts/" aria-current="page">Recurring, autopay &amp; alerts</a></li>
+        <li><a class="nav-link nested" href="../../features/cash/">Cash &amp; emergency fund</a></li>
+        <li><a class="nav-link nested" href="../../features/investments/">Investments &amp; loans</a></li>
+        <li><a class="nav-link nested" href="../../features/retirement/">Retirement</a></li>
+        <li><a class="nav-link nested" href="../../features/tax/">Tax</a></li>
+        <li><a class="nav-link nested" href="../../features/insurance/">Insurance</a></li>
+        <li><a class="nav-link nested" href="../../features/estate/">Estate</a></li>
+        <li><a class="nav-link nested" href="../../features/ask-meld/">Ask Meld</a></li>
+        <li><a class="nav-link nested" href="../../features/mcp/">External agents (MCP)</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../development/">Development</a></li>
+        <li><a class="nav-link" href="../../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Features &amp; Guide</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <a href="../../features/">Overview</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Recurring, autopay &amp; alerts</span>
+        </nav>
+        <h1>Recurring, autopay &amp; alerts</h1>
+        <p class="doc-summary">Subscriptions and bills, autopay coverage checks, Coming up, and phone push via ntfy.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">3 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/recurring-and-alerts.md">View docs/features/recurring-and-alerts.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#where-to-find-it">Where to find it</a>
+          <a class="depth-2" href="#recurring-series">Recurring series</a>
+          <a class="depth-2" href="#autopay">Autopay</a>
+          <a class="depth-2" href="#coming-up">Coming up</a>
+          <a class="depth-2" href="#alerts">Alerts</a>
+          <a class="depth-2" href="#push-to-your-phone">Push to your phone</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Subscriptions and bills detected from your history, autopay coverage against the paying account, and alerts you can push to your phone.</p>
+
+<p><a class="doc-figure" href="../../images/features/recurring.png" target="_blank" rel="noopener"><img src="../../images/features/recurring.png" alt="Recurring page with Coming up and subscriptions" loading="lazy"></a></p>
+
+<h2 id="where-to-find-it">Where to find it<a class="heading-anchor" href="#where-to-find-it" aria-label="Link to Where to find it">#</a></h2>
+
+<ul>
+<li><strong>Spending → Recurring</strong> — series, Coming up, autopay links</li>
+<li>Bell icon (web) or the Alerts card on Home</li>
+<li>Alert settings and ntfy URL on the Alerts page</li>
+</ul>
+
+<h2 id="recurring-series">Recurring series<a class="heading-anchor" href="#recurring-series" aria-label="Link to Recurring series">#</a></h2>
+
+<p><strong>Spending → Recurring</strong> finds charges and deposits that repeat on a schedule (weekly to yearly) in up to two years of card and bank transactions: subscriptions, bills (utilities, insurance, loans, and anything whose amount varies) and income. A merchant with more than one subscription (an app store) or a membership among other purchases is split by amount. Each series shows its cadence, expected amount, monthly cost, next date, and a badge when a steady price changes. Series that stopped charging are listed separately, since they may have been canceled. Tap one to change its kind, rename it, see its charges, or mark it <strong>Not recurring</strong>. Corrections are kept in <code>recurring_overrides</code>; the series are worked out from transactions each time. Transfers and card payments aren't counted, as in cash flow.</p>
+
+<h2 id="autopay">Autopay<a class="heading-anchor" href="#autopay" aria-label="Link to Autopay">#</a></h2>
+
+<p><strong>Autopay</strong> links a card or loan to the bank account that pays it, paying the statement balance, minimum, current balance or a fixed amount (a loan pays its scheduled payment). For a card on the statement balance, Meld takes Plaid's last statement less payments since, due on the statement's due date. Once that's paid, or before the next statement is out, it estimates from the current balance. It then checks the bank account's available balance against everything else due from it first: other autopays, recurring bills charged to it, and (optionally) paychecks expected into it at least a day before. Each autopay shows <strong>Covered</strong>, <strong>Tight</strong> (less than your cushion left), <strong>Short</strong>, <strong>Paid</strong> or <strong>Unknown</strong>, with the breakdown. Meld also suggests links when a bank payment and a card payment of the same amount line up a few days apart.</p>
+
+<h2 id="coming-up">Coming up<a class="heading-anchor" href="#coming-up" aria-label="Link to Coming up">#</a></h2>
+
+<p><strong>Coming up</strong> lists the next 30 days of recurring charges, paychecks and autopay payments.</p>
+
+<h2 id="alerts">Alerts<a class="heading-anchor" href="#alerts" aria-label="Link to Alerts">#</a></h2>
+
+<p><strong>Alerts</strong> (the bell on web, and a card on Home) are checked after every sync, every 6 hours, and when you change autopay or alert settings:</p>
+
+<ul>
+<li>an autopay its bank account won't cover (urgent), or that leaves less than your cushion. Estimated amounts only alert within a week of the due date.</li>
+<li>a bank account below a minimum you set</li>
+<li>any charge at or above an amount you set</li>
+<li>a subscription or bill whose steady price went up</li>
+<li>a new recurring charge (shown in the app only, by default)</li>
+<li>a bank connection that needs you to sign in again</li>
+</ul>
+
+<p>Alerts about a state clear themselves once it's fixed; a dismissed one comes back only if it gets worse. Settings are on the Alerts page (<code>alert_settings</code>).</p>
+
+<h2 id="push-to-your-phone">Push to your phone<a class="heading-anchor" href="#push-to-your-phone" aria-label="Link to Push to your phone">#</a></h2>
+
+<p><strong>Push to your phone</strong> with <a href="https://ntfy.sh" target="_blank" rel="noopener">ntfy</a>: install the app, subscribe to a long random topic, and paste its URL under Alerts. Pick whether to push urgent alerts only, warnings and urgent (the default), or everything. Alert text includes account names and amounts, so use your own ntfy server to keep it off the public one (see <a href="../../privacy/">PRIVACY.md</a>).</p>
+
+<p>Ask Meld reads all of this through <code>get_recurring</code>.</p>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../../features/home-and-spending/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Home, spending &amp; budgets</span>
+      </a>
+      <a class="pager-card next" href="../../features/cash/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Cash &amp; emergency fund</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#where-to-find-it">Where to find it</a></li>
+          <li><a class="toc-link depth-2" href="#recurring-series">Recurring series</a></li>
+          <li><a class="toc-link depth-2" href="#autopay">Autopay</a></li>
+          <li><a class="toc-link depth-2" href="#coming-up">Coming up</a></li>
+          <li><a class="toc-link depth-2" href="#alerts">Alerts</a></li>
+          <li><a class="toc-link depth-2" href="#push-to-your-phone">Push to your phone</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../../">Home</a>
+      <a href="../../">Docs</a>
+      <a href="../../privacy/">Privacy</a>
+      <a href="../../security/">Security</a>
+      <a href="../../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../../docs.js" defer></script>
+</body>
+</html>

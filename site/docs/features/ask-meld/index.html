@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en" data-docs-root="../..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask Meld — Meld Docs</title>
+<meta name="description" content="AI chat with Claude, ChatGPT, Gemini, OpenRouter, or local Ollama models.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="apple-touch-icon" href="../../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../../"><img src="../../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../install/">Install</a></li>
+        <li><a class="nav-link" href="../../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Features &amp; Guide</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../features/">Overview</a></li>
+        <li><a class="nav-link nested" href="../../features/demo/">Demo data &amp; tour</a></li>
+        <li><a class="nav-link nested" href="../../features/accounts/">Linking accounts</a></li>
+        <li><a class="nav-link nested" href="../../features/home-and-spending/">Home, spending &amp; budgets</a></li>
+        <li><a class="nav-link nested" href="../../features/recurring-and-alerts/">Recurring, autopay &amp; alerts</a></li>
+        <li><a class="nav-link nested" href="../../features/cash/">Cash &amp; emergency fund</a></li>
+        <li><a class="nav-link nested" href="../../features/investments/">Investments &amp; loans</a></li>
+        <li><a class="nav-link nested" href="../../features/retirement/">Retirement</a></li>
+        <li><a class="nav-link nested" href="../../features/tax/">Tax</a></li>
+        <li><a class="nav-link nested" href="../../features/insurance/">Insurance</a></li>
+        <li><a class="nav-link nested" href="../../features/estate/">Estate</a></li>
+        <li><a class="nav-link nested active" href="../../features/ask-meld/" aria-current="page">Ask Meld</a></li>
+        <li><a class="nav-link nested" href="../../features/mcp/">External agents (MCP)</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../development/">Development</a></li>
+        <li><a class="nav-link" href="../../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Features &amp; Guide</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <a href="../../features/">Overview</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Ask Meld</span>
+        </nav>
+        <h1>Ask Meld</h1>
+        <p class="doc-summary">AI chat with Claude, ChatGPT, Gemini, OpenRouter, or local Ollama models.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">5 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/ask-meld.md">View docs/features/ask-meld.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#where-to-find-it">Where to find it</a>
+          <a class="depth-2" href="#choosing-a-model">Choosing a model</a>
+          <a class="depth-2" href="#what-it-answers">What it answers</a>
+          <a class="depth-2" href="#progressive-context--tools">Progressive context &amp; tools</a>
+          <a class="depth-2" href="#fast-responses-by-default">Fast responses by default</a>
+          <a class="depth-2" href="#pick-the-model">Pick the model</a>
+          <a class="depth-2" href="#local-models-ollama">Local models (Ollama)</a>
+          <a class="depth-2" href="#chatgpt-plan">ChatGPT plan</a>
+          <a class="depth-2" href="#openrouter">OpenRouter</a>
+          <a class="depth-2" href="#privacy">Privacy</a>
+          <a class="depth-2" href="#related">Related</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>AI chat about your money and how Meld itself works. Optional: everything else in Meld runs without a model.</p>
+
+<p><a class="doc-figure" href="../../images/features/ask.png" target="_blank" rel="noopener"><img src="../../images/features/ask.png" alt="Ask Meld conversation" loading="lazy"></a></p>
+
+<h2 id="where-to-find-it">Where to find it<a class="heading-anchor" href="#where-to-find-it" aria-label="Link to Where to find it">#</a></h2>
+
+<ul>
+<li><strong>Ask Meld</strong> tab — past conversations and example questions</li>
+<li>Sparkle button next to your name (web) — side panel for the page you're on</li>
+<li>Home's question box</li>
+<li><strong>Settings → AI</strong> — Claude, ChatGPT plan, OpenRouter, Ollama</li>
+</ul>
+
+<h2 id="choosing-a-model">Choosing a model<a class="heading-anchor" href="#choosing-a-model" aria-label="Link to Choosing a model">#</a></h2>
+
+<p>AI isn't part of first-run setup. Until a model is set up, Ask Meld (the page and the side panel) explains the choice instead of the question box: a model on this computer through Ollama (free, nothing leaves the computer, but a few gigabytes to download and less reliable answers) or a cloud model (Claude, ChatGPT or Gemini: better answers, sending only what each question needs, with account numbers masked). Both buttons open <strong>Settings → AI</strong>. Asking from Home's question box with no model opens the same choice.</p>
+
+<h2 id="what-it-answers">What it answers<a class="heading-anchor" href="#what-it-answers" aria-label="Link to What it answers">#</a></h2>
+
+<p><strong>Ask Meld</strong> answers questions about both your money (spending, debt payoff, investments, tax moves, insurance gaps) and how to use Meld itself (features, screens, calculations, settings, Plaid, phone access, Docker, privacy and security). Answers stream in and conversations are saved. The Ask Meld page lists past conversations with clickable examples for both your finances and how to use Meld. On web, the sparkle button next to your name opens a chat panel beside the page you're on, with financial and &quot;How Meld works&quot; questions about that page.</p>
+
+<h2 id="progressive-context--tools">Progressive context &amp; tools<a class="heading-anchor" href="#progressive-context--tools" aria-label="Link to Progressive context &amp; tools">#</a></h2>
+
+<p>Each new conversation starts with a tiny orientation summary (net worth totals, account/policy/alert counts, basic profile, and the page you asked from) rather than dumping every account and policy upfront. The AI then fetches only what your question needs through read-only, summary-first tools (<code>get_financial_overview</code>, <code>get_accounts</code>, filtered <code>get_holdings</code>, <code>get_net_worth</code> with 30d/90d/YTD/1y deltas and optional sampled history, transactions, spending/budgets, loans, specialist planning tools like <code>get_tax_plan</code>, <code>get_retirement_plan</code>, <code>get_estate_plan</code>, <code>get_recurring</code>, <code>get_cash_plan</code>, <code>get_insurance_policies</code>, and <code>get_equity_grants</code>, plus <code>get_meld_docs</code>). <code>get_meld_docs</code> is deferred and searches Meld's own docs section-by-section on demand (generated from the repository's canonical Markdown docs by <code>npm run docs:build</code>, keeping it in sync with the documentation while keeping context minimal). Ask Meld is read-only and can't change anything.</p>
+
+<h2 id="fast-responses-by-default">Fast responses by default<a class="heading-anchor" href="#fast-responses-by-default" aria-label="Link to Fast responses by default">#</a></h2>
+
+<p>Claude uses <code>low</code> effort on Sonnet/Haiku and <code>medium</code> on Opus (override with <code>ANTHROPIC_CHAT_EFFORT</code>), caches the static prompt prefix across sessions, and defers specialist planning tool schemas via Anthropic tool search when supported. ChatGPT and OpenRouter set low reasoning effort, Ollama disables hidden thinking tokens by default (<code>OLLAMA_THINK=1</code> re-enables them), and <code>get_investment_performance</code> / <code>get_cash_plan</code> use cached market data instead of blocking chat on slow external price lookups.</p>
+
+<p>Add your income, filing status, state, age and employer benefits under <strong>Plan → Profile</strong> (also in the account menu on web) for better tax and insurance answers.</p>
+
+<p>PDF reading, value lookups and fund make-up go through a provider interface in <code>apps/api/src/ai/provider.ts</code>, run by Anthropic or OpenRouter (see below). With Anthropic, chat defaults to <code>ANTHROPIC_CHAT_MODEL</code> (default <code>claude-sonnet-5-5</code>), property value lookups use <code>ANTHROPIC_LOOKUP_MODEL</code> (default <code>claude-haiku-5-5</code>), and policy PDF extraction <code>ANTHROPIC_MODEL</code> (default <code>claude-opus-5-5</code>).</p>
+
+<h2 id="pick-the-model">Pick the model<a class="heading-anchor" href="#pick-the-model" aria-label="Link to Pick the model">#</a></h2>
+
+<p>Under the chat box: any of <code>ANTHROPIC_CHAT_MODELS</code> (Opus, Sonnet, Haiku by default; Haiku costs least), a ChatGPT model on your own plan, Gemini, GPT, Claude and other models through <a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a>, or a local model through <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a>. The choice is remembered, and you can switch mid-conversation.</p>
+
+<h2 id="local-models-ollama">Local models (Ollama)<a class="heading-anchor" href="#local-models-ollama" aria-label="Link to Local models (Ollama)">#</a></h2>
+
+<p>Install Ollama and pull a model that supports tool calling (e.g. <code>ollama pull qwen3.5</code>), then use <strong>Settings → AI → Find Ollama</strong>, or set <code>OLLAMA_URL=http://127.0.0.1:11434</code> (<code>http://host.docker.internal:11434</code> when Meld runs in Docker) and restart the API. Every installed model with tool support is listed, or set <code>OLLAMA_CHAT_MODELS</code> to choose. Local models are free and keep your data on your machine, but answer less reliably than Claude. Chat works with only Ollama set up; the other AI features still need an Anthropic or OpenRouter key.</p>
+
+<h2 id="chatgpt-plan">ChatGPT plan<a class="heading-anchor" href="#chatgpt-plan" aria-label="Link to ChatGPT plan">#</a></h2>
+
+<p>With ChatGPT Go, Plus, Pro or Business, choose <strong>Settings → AI → ChatGPT plan → Continue with ChatGPT</strong> and sign in. Ask Meld then lists the ChatGPT models your plan offers, billed to your plan's usage instead of an API key (set a limit or disconnect Meld at <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener">chatgpt.com/settings/usage</a>). It takes effect without a restart. The browser returns to Meld at <code>http://127.0.0.1:1455</code>; if Meld runs in Docker or you sign in from another device, that page won't load, so copy its address into the box Settings shows. The sign-in is kept encrypted with <code>ENCRYPTION_KEY</code> in <code>chatgpt.json</code> next to Meld's settings file (<code>CHATGPT_AUTH_FILE</code> overrides). Free plans can't share usage; ChatGPT shows &quot;A required permission is unavailable&quot; and Meld explains it. On Business, an admin first sets <strong>Use ChatGPT plan</strong> to Allowed for Meld under <strong>Tenant settings → External access</strong> at admin.openai.com. It covers chat only; PDF reading and value lookups still need an Anthropic or OpenRouter key.</p>
+
+<h2 id="openrouter">OpenRouter<a class="heading-anchor" href="#openrouter" aria-label="Link to OpenRouter">#</a></h2>
+
+<p>One API key for many vendors' models, including Gemini. Create a key at <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">openrouter.ai/settings/keys</a>, add credits, and paste it under <strong>Settings → AI → OpenRouter</strong> (or set <code>OPENROUTER_API_KEY</code>). Ask Meld then offers a few suggested Gemini, Claude and GPT models; list your own under <strong>Models to offer in Ask Meld</strong>, one <a href="https://openrouter.ai/models?supported_parameters=tools" target="_blank" rel="noopener">model ID</a> per line (or <code>OPENROUTER_CHAT_MODELS</code>, comma-separated). Only models that support tool calling appear. You pay OpenRouter per use. Google AI Pro and Ultra plans can't be used by other apps, so a Gemini subscription doesn't cover this. Without an Anthropic key (or with <code>AI_PROVIDER=openrouter</code>), OpenRouter also runs the other AI features: policy PDFs are read by <code>OPENROUTER_MODEL</code> (default <code>google/gemini-4-carbon</code>), which must read PDFs itself (Meld asks for OpenRouter's <code>native</code> PDF engine, so no OCR service sees the file); home and car value lookups and fund make-up use <code>OPENROUTER_LOOKUP_MODEL</code> (default <code>google/gemini-4-hydrogen</code>). Value lookups use the model provider's own web search (Google Search for Gemini), never a third-party search engine, and a lookup that comes back without cited pages is rejected rather than trusted.</p>
+
+<h2 id="privacy">Privacy<a class="heading-anchor" href="#privacy" aria-label="Link to Privacy">#</a></h2>
+
+<p>With a Claude model, your question and the data the AI looks up are sent to Anthropic, or to OpenAI with a ChatGPT model, or to OpenRouter and the model's provider with an OpenRouter model (only providers that don't store or train on prompts); with a local Ollama model they stay on your machine. Long digit runs (account, card and policy numbers) are masked first either way. See <a href="../../privacy/">PRIVACY.md</a>.</p>
+
+<h2 id="related">Related<a class="heading-anchor" href="#related" aria-label="Link to Related">#</a></h2>
+
+<ul>
+<li><a href="../../features/mcp/">External agents (MCP)</a> — same read-only tools for outside agents</li>
+</ul>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../../features/estate/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Estate</span>
+      </a>
+      <a class="pager-card next" href="../../features/mcp/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">External agents (MCP)</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#where-to-find-it">Where to find it</a></li>
+          <li><a class="toc-link depth-2" href="#choosing-a-model">Choosing a model</a></li>
+          <li><a class="toc-link depth-2" href="#what-it-answers">What it answers</a></li>
+          <li><a class="toc-link depth-2" href="#progressive-context--tools">Progressive context &amp; tools</a></li>
+          <li><a class="toc-link depth-2" href="#fast-responses-by-default">Fast responses by default</a></li>
+          <li><a class="toc-link depth-2" href="#pick-the-model">Pick the model</a></li>
+          <li><a class="toc-link depth-2" href="#local-models-ollama">Local models (Ollama)</a></li>
+          <li><a class="toc-link depth-2" href="#chatgpt-plan">ChatGPT plan</a></li>
+          <li><a class="toc-link depth-2" href="#openrouter">OpenRouter</a></li>
+          <li><a class="toc-link depth-2" href="#privacy">Privacy</a></li>
+          <li><a class="toc-link depth-2" href="#related">Related</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../../">Home</a>
+      <a href="../../">Docs</a>
+      <a href="../../privacy/">Privacy</a>
+      <a href="../../security/">Security</a>
+      <a href="../../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../../docs.js" defer></script>
+</body>
+</html>

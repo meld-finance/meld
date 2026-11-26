@@ -121,7 +121,12 @@ export function analyzeChangedFiles(files) {
   for (const rule of DOC_RULES) {
     const matchedCode = codeFiles.filter(rule.match);
     if (matchedCode.length === 0) continue;
-    const hasDocUpdate = rule.docs.some((doc) => changedDocs.has(doc));
+    const hasDocUpdate = rule.docs.some((doc) => {
+      if (changedDocs.has(doc)) return true;
+      // Nested feature pages under docs/features/*.md satisfy a docs/features.md rule.
+      const nestedPrefix = doc.replace(/\.md$/, '/');
+      return nestedPrefix !== doc && [...changedDocs].some((d) => d.startsWith(nestedPrefix));
+    });
     if (!hasDocUpdate) {
       missing.push({
         area: rule.area,

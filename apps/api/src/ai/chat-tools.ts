@@ -717,7 +717,7 @@ export function createChatTools(db: Db): ChatTool[] {
           .min(1)
           .max(120)
           .optional()
-          .describe('Section id (e.g. features#plan-estate) or guide slug (plaid, phone-access, docker, privacy, security)'),
+          .describe('Section id (e.g. features/estate#family-packet) or guide slug (features/estate, plaid, phone-access, docker, privacy, security)'),
         limit: z.number().int().min(1).max(5).default(3).describe('Max sections to return'),
       }),
       label: (input) => formatDocsToolLabel(input),

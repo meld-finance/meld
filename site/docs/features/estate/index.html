@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en" data-docs-root="../..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estate — Meld Docs</title>
+<meta name="description" content="Beneficiaries, documents, readiness checks, and the family packet PDF.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="apple-touch-icon" href="../../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../../"><img src="../../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../install/">Install</a></li>
+        <li><a class="nav-link" href="../../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Features &amp; Guide</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../features/">Overview</a></li>
+        <li><a class="nav-link nested" href="../../features/demo/">Demo data &amp; tour</a></li>
+        <li><a class="nav-link nested" href="../../features/accounts/">Linking accounts</a></li>
+        <li><a class="nav-link nested" href="../../features/home-and-spending/">Home, spending &amp; budgets</a></li>
+        <li><a class="nav-link nested" href="../../features/recurring-and-alerts/">Recurring, autopay &amp; alerts</a></li>
+        <li><a class="nav-link nested" href="../../features/cash/">Cash &amp; emergency fund</a></li>
+        <li><a class="nav-link nested" href="../../features/investments/">Investments &amp; loans</a></li>
+        <li><a class="nav-link nested" href="../../features/retirement/">Retirement</a></li>
+        <li><a class="nav-link nested" href="../../features/tax/">Tax</a></li>
+        <li><a class="nav-link nested" href="../../features/insurance/">Insurance</a></li>
+        <li><a class="nav-link nested active" href="../../features/estate/" aria-current="page">Estate</a></li>
+        <li><a class="nav-link nested" href="../../features/ask-meld/">Ask Meld</a></li>
+        <li><a class="nav-link nested" href="../../features/mcp/">External agents (MCP)</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../development/">Development</a></li>
+        <li><a class="nav-link" href="../../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Features &amp; Guide</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <a href="../../features/">Overview</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Estate</span>
+        </nav>
+        <h1>Estate</h1>
+        <p class="doc-summary">Beneficiaries, documents, readiness checks, and the family packet PDF.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">3 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/estate.md">View docs/features/estate.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#where-to-find-it">Where to find it</a>
+          <a class="depth-2" href="#checklist">Checklist</a>
+          <a class="depth-2" href="#accounts-and-policies">Accounts and policies</a>
+          <a class="depth-2" href="#full-account-numbers">Full account numbers</a>
+          <a class="depth-2" href="#readiness-checks">Readiness checks</a>
+          <a class="depth-2" href="#documents-and-trusts">Documents and trusts</a>
+          <a class="depth-2" href="#contacts-and-instructions">Contacts and instructions</a>
+          <a class="depth-2" href="#family-packet">Family packet</a>
+          <a class="depth-2" href="#alerts">Alerts</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Check that everything you own passes the way you intend, keep estate documents in one place, and build a packet your family can use. It helps you organize; it isn't legal advice.</p>
+
+<p><a class="doc-figure" href="../../images/features/estate.png" target="_blank" rel="noopener"><img src="../../images/features/estate.png" alt="Estate checklist and accounts" loading="lazy"></a></p>
+
+<h2 id="where-to-find-it">Where to find it<a class="heading-anchor" href="#where-to-find-it" aria-label="Link to Where to find it">#</a></h2>
+
+<ul>
+<li><strong>Plan → Estate</strong> — checklist, accounts, documents, contacts, family packet</li>
+<li><strong>On death</strong> on an account's page (or tap a row on Estate)</li>
+<li>Estate planning alerts under Alerts</li>
+</ul>
+
+<h2 id="checklist">Checklist<a class="heading-anchor" href="#checklist" aria-label="Link to Checklist">#</a></h2>
+
+<p>Four steps that check themselves off: every account and policy set up, the core documents on file, someone to call, and a current family packet.</p>
+
+<h2 id="accounts-and-policies">Accounts and policies<a class="heading-anchor" href="#accounts-and-policies" aria-label="Link to Accounts and policies">#</a></h2>
+
+<p>A <strong>To do</strong> list first, each row saying what's missing in a sentence. Rows that are already set up fold away under <strong>Set up</strong>. When several accounts would go through probate with nothing set up, <strong>Leave them to my will</strong> marks them all &quot;By will&quot; in one go. Each account, home or other asset (tap it, or <strong>On death</strong> on an account's page) records how it passes:</p>
+
+<ul>
+<li>a beneficiary designation</li>
+<li>transfer or payable on death (or a TOD deed for property)</li>
+<li>joint with survivorship</li>
+<li>one of your trusts</li>
+<li>by will</li>
+</ul>
+
+<p>Beneficiaries are primary or contingent, with shares, as the institution has them on file. Life policies use the beneficiaries on the policy. Kept in <code>estate_designations</code>, apart from synced data.</p>
+
+<h2 id="full-account-numbers">Full account numbers<a class="heading-anchor" href="#full-account-numbers" aria-label="Link to Full account numbers">#</a></h2>
+
+<p><strong>Full account numbers</strong> for the packet are optional, typed in on the account's estate screen and stored encrypted with <code>ENCRYPTION_KEY</code>. The app only ever shows the last 4. For a linked checking or savings account, <strong>Get from bank</strong> fetches the number through Plaid Auth. Auth must be enabled for your Plaid account, and Plaid bills it once per connection. The first time, Meld asks you to reconnect the bank and allow account numbers. Set <code>PLAID_ADDITIONAL_CONSENTED_PRODUCTS=auth</code> to ask for that when you link new banks.</p>
+
+<h2 id="readiness-checks">Readiness checks<a class="heading-anchor" href="#readiness-checks" aria-label="Link to Readiness checks">#</a></h2>
+
+<p>Pure rules in <code>apps/api/src/lib/estate.ts</code>, shown on the row they're about:</p>
+
+<ul>
+<li>a retirement account, HSA or life policy with no beneficiary (a new account is called out)</li>
+<li>accounts and property that would go through probate, or sit outside your revocable trust once you have one</li>
+<li>shares that don't add to 100%, your estate named as beneficiary, or a minor child from your profile named directly</li>
+<li>no contingent beneficiary</li>
+<li>designations and documents not reviewed in the interval you pick (3 years by default)</li>
+<li>a missing will, financial power of attorney or healthcare directive, and no guardian named when you have minor children</li>
+<li>a child born after a will or trust was signed</li>
+<li>a document drafted in another state than your profile's</li>
+</ul>
+
+<h2 id="documents-and-trusts">Documents and trusts<a class="heading-anchor" href="#documents-and-trusts" aria-label="Link to Documents and trusts">#</a></h2>
+
+<p><code>estate_documents</code>: missing core documents are listed as rows to add. Each document records its type, date signed, state, when you last reviewed it, where the signed original is kept, the people it names (trustees, successor trustees, executor, agents, guardians) with contact details, the attorney, and an optional scanned PDF, encrypted like policy PDFs.</p>
+
+<h2 id="contacts-and-instructions">Contacts and instructions<a class="heading-anchor" href="#contacts-and-instructions" aria-label="Link to Contacts and instructions">#</a></h2>
+
+<p><code>estate_settings</code>: executor, attorney, CPA, advisor, employer HR and others; a note on where to find logins (Meld never stores passwords); and a letter to your family.</p>
+
+<h2 id="family-packet">Family packet<a class="heading-anchor" href="#family-packet" aria-label="Link to Family packet">#</a></h2>
+
+<p><strong>Export PDF</strong> builds a PDF from today's data on your machine, optionally encrypted (AES-256) with a password. It holds instructions, who to call, first steps, every document and who it names, each account and policy with how it passes and its beneficiaries, property, debts, and bills on autopay or to cancel. Print it or keep it with your will. Meld remembers what it contained (a hash, not a copy) and flags it as out of date when beneficiaries, documents, contacts or accounts change, or after a year. Balance changes alone don't count. Export works in the web app for now.</p>
+
+<h2 id="alerts">Alerts<a class="heading-anchor" href="#alerts" aria-label="Link to Alerts">#</a></h2>
+
+<p>An account or policy with no beneficiary, and an out-of-date packet, show under Alerts (informational, so not pushed by default). Turn them off with <strong>Estate planning</strong> on the Alerts page.</p>
+
+<p>Ask Meld reads all of this through <code>get_estate_plan</code>, with names and roles but no contact details.</p>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../../features/insurance/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Insurance</span>
+      </a>
+      <a class="pager-card next" href="../../features/ask-meld/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Ask Meld</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#where-to-find-it">Where to find it</a></li>
+          <li><a class="toc-link depth-2" href="#checklist">Checklist</a></li>
+          <li><a class="toc-link depth-2" href="#accounts-and-policies">Accounts and policies</a></li>
+          <li><a class="toc-link depth-2" href="#full-account-numbers">Full account numbers</a></li>
+          <li><a class="toc-link depth-2" href="#readiness-checks">Readiness checks</a></li>
+          <li><a class="toc-link depth-2" href="#documents-and-trusts">Documents and trusts</a></li>
+          <li><a class="toc-link depth-2" href="#contacts-and-instructions">Contacts and instructions</a></li>
+          <li><a class="toc-link depth-2" href="#family-packet">Family packet</a></li>
+          <li><a class="toc-link depth-2" href="#alerts">Alerts</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../../">Home</a>
+      <a href="../../">Docs</a>
+      <a href="../../privacy/">Privacy</a>
+      <a href="../../security/">Security</a>
+      <a href="../../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../../docs.js" defer></script>
+</body>
+</html>

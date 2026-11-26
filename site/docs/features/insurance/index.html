@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en" data-docs-root="../..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insurance — Meld Docs</title>
+<meta name="description" content="Life and disability policies, PDF upload extraction, and cash surrender value.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="apple-touch-icon" href="../../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../../"><img src="../../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../install/">Install</a></li>
+        <li><a class="nav-link" href="../../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Features &amp; Guide</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../features/">Overview</a></li>
+        <li><a class="nav-link nested" href="../../features/demo/">Demo data &amp; tour</a></li>
+        <li><a class="nav-link nested" href="../../features/accounts/">Linking accounts</a></li>
+        <li><a class="nav-link nested" href="../../features/home-and-spending/">Home, spending &amp; budgets</a></li>
+        <li><a class="nav-link nested" href="../../features/recurring-and-alerts/">Recurring, autopay &amp; alerts</a></li>
+        <li><a class="nav-link nested" href="../../features/cash/">Cash &amp; emergency fund</a></li>
+        <li><a class="nav-link nested" href="../../features/investments/">Investments &amp; loans</a></li>
+        <li><a class="nav-link nested" href="../../features/retirement/">Retirement</a></li>
+        <li><a class="nav-link nested" href="../../features/tax/">Tax</a></li>
+        <li><a class="nav-link nested active" href="../../features/insurance/" aria-current="page">Insurance</a></li>
+        <li><a class="nav-link nested" href="../../features/estate/">Estate</a></li>
+        <li><a class="nav-link nested" href="../../features/ask-meld/">Ask Meld</a></li>
+        <li><a class="nav-link nested" href="../../features/mcp/">External agents (MCP)</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../development/">Development</a></li>
+        <li><a class="nav-link" href="../../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Features &amp; Guide</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <a href="../../features/">Overview</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Insurance</span>
+        </nav>
+        <h1>Insurance</h1>
+        <p class="doc-summary">Life and disability policies, PDF upload extraction, and cash surrender value.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">1 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/insurance.md">View docs/features/insurance.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#where-to-find-it">Where to find it</a>
+          <a class="depth-2" href="#policies">Policies</a>
+          <a class="depth-2" href="#upload-pdf-ai-fill-in">Upload PDF (AI fill-in)</a>
+          <a class="depth-2" href="#attach-pdf-local-only">Attach PDF (local only)</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Track life and disability coverage (including through work), upload policy PDFs for AI fill-in, and count permanent-life cash value toward net worth.</p>
+
+<h2 id="where-to-find-it">Where to find it<a class="heading-anchor" href="#where-to-find-it" aria-label="Link to Where to find it">#</a></h2>
+
+<ul>
+<li><strong>Plan → Insurance</strong> — add policies, totals, PDF upload</li>
+<li>Permanent-life cash value also appears under <strong>Insurance cash value</strong> on the Accounts tab</li>
+</ul>
+
+<h2 id="policies">Policies<a class="heading-anchor" href="#policies" aria-label="Link to Policies">#</a></h2>
+
+<p>Add life and disability policies under <strong>Plan → Insurance</strong>, including coverage through work. It totals your life coverage, monthly disability benefit and yearly premiums. Term policies past their end date aren't counted.</p>
+
+<p>Whole and universal life policies count toward net worth at their surrender value, and are listed under <strong>Insurance cash value</strong> on the Accounts tab, which links back to each policy.</p>
+
+<h2 id="upload-pdf-ai-fill-in">Upload PDF (AI fill-in)<a class="heading-anchor" href="#upload-pdf-ai-fill-in" aria-label="Link to Upload PDF (AI fill-in)">#</a></h2>
+
+<p><strong>Upload PDF</strong> on the Add policy page sends a policy, certificate or benefits summary to the AI provider (Claude, or Gemini through OpenRouter), which fills in the form and flags anything it inferred or couldn't find. Nothing is saved until you check the fields and press <strong>Save</strong>. Needs an Anthropic or OpenRouter key; without it the page explains how to turn it on and you fill in the form by hand.</p>
+
+<h2 id="attach-pdf-local-only">Attach PDF (local only)<a class="heading-anchor" href="#attach-pdf-local-only" aria-label="Link to Attach PDF (local only)">#</a></h2>
+
+<p><strong>Attach PDF</strong> keeps a copy of the policy document with any policy, new or existing, with no AI involved: nothing is sent anywhere. <strong>Replace PDF</strong> and <strong>Remove</strong> take effect when you save, and the old file is deleted.</p>
+
+<p>Uploaded PDFs are encrypted with <code>ENCRYPTION_KEY</code> and stored in <code>data/documents/</code> (gitignored; change with <code>DOCUMENTS_DIR</code>). PDFs saved before encryption was added are encrypted the next time the API starts. A PDF is deleted with its policy, when you cancel the draft, or after a day if it was never saved.</p>
+
+<p>A policy's full number is optional and stored encrypted with <code>ENCRYPTION_KEY</code>. It's printed in the family packet, and everywhere else the app only shows the last 4. PDF extraction only ever reads the last 4.</p>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../../features/tax/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Tax</span>
+      </a>
+      <a class="pager-card next" href="../../features/estate/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Estate</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#where-to-find-it">Where to find it</a></li>
+          <li><a class="toc-link depth-2" href="#policies">Policies</a></li>
+          <li><a class="toc-link depth-2" href="#upload-pdf-ai-fill-in">Upload PDF (AI fill-in)</a></li>
+          <li><a class="toc-link depth-2" href="#attach-pdf-local-only">Attach PDF (local only)</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../../">Home</a>
+      <a href="../../">Docs</a>
+      <a href="../../privacy/">Privacy</a>
+      <a href="../../security/">Security</a>
+      <a href="../../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../../docs.js" defer></script>
+</body>
+</html>

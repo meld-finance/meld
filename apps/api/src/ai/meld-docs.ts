@@ -222,7 +222,7 @@ function searchSections(query: string, limit: number) {
   if (originalTerms.length === 0) {
     return {
       guides: compactGuideIndex(),
-      tip: 'Pass `query` to search across all guides or `topic` with a section id (e.g. "features#plan-estate") or guide slug (e.g. "plaid", "privacy").',
+      tip: 'Pass `query` to search across all guides or `topic` with a section id (e.g. "features/estate#family-packet") or guide slug (e.g. "features/estate", "plaid", "privacy").',
     };
   }
   if (originalTerms.every((t) => BROAD_OVERVIEW_TERMS.has(t))) {
@@ -231,7 +231,7 @@ function searchSections(query: string, limit: number) {
       query,
       guides: compactGuideIndex(),
       sections: overview ? [compactSection(overview)] : ([] as CompactSection[]),
-      note: 'Call get_meld_docs again with a specific `topic` section id or feature keyword for full details.',
+      note: 'Call get_meld_docs again with a specific `topic` section id (e.g. "features/estate#family-packet") or feature keyword for full details.',
     };
   }
 
@@ -367,7 +367,7 @@ export function lookupMeldDocs(input: MeldDocsInput = {}) {
           description: guide.description,
           sections: guide.sections,
         },
-        note: 'This guide is large; call get_meld_docs again with a specific section id in `topic` (e.g. "features#plan-estate") or keywords in `query`.',
+        note: 'This guide is large; call get_meld_docs again with a specific section id in `topic` (e.g. "features/estate#family-packet") or keywords in `query`.',
       };
     }
 
@@ -382,6 +382,6 @@ export function lookupMeldDocs(input: MeldDocsInput = {}) {
 
   return {
     guides: compactGuideIndex(),
-    tip: 'Pass `query` to search across all guides or `topic` with a section id (e.g. "features#plan-estate") or guide slug (e.g. "plaid", "privacy").',
+    tip: 'Pass `query` to search across all guides or `topic` with a section id (e.g. "features/estate#family-packet") or guide slug (e.g. "features/estate", "plaid", "privacy").',
   };
 }

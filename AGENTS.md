@@ -32,11 +32,11 @@ Meld's Markdown files (`docs/*.md`, `PRIVACY.md`, `SECURITY.md`, `CONTRIBUTING.m
 Before finishing any change that affects user-facing behavior, setup, environment variables, commands, privacy, security, or developer tooling:
 
 1. Check `git diff --name-only` (or run `npm run docs:audit`) to see which documentation areas are affected:
-   - **Features, UI, calculations, alerts, AI tools**: `docs/features.md`
-   - **Plaid integration & keys**: `docs/plaid.md`, `docs/features.md`
+   - **Features, UI, calculations, alerts, AI tools**: `docs/features.md` and `docs/features/*.md`
+   - **Plaid integration & keys**: `docs/plaid.md`, `docs/features/accounts.md`
    - **Tailscale & phone access**: `docs/phone-access.md`
    - **Docker, `.env.example`, `scripts/setup.sh`, `apps/api/src/env.ts`**: `docs/docker.md`, `docs/development.md`
-   - **External requests, AI providers, masking, storage**: `PRIVACY.md`, `docs/features.md`
+   - **External requests, AI providers, masking, storage**: `PRIVACY.md`, `docs/features/ask-meld.md`
    - **Auth, passphrase, encryption, security model**: `SECURITY.md`, `PRIVACY.md`
    - **Desktop builds, monorepo commands, schema migrations, release workflows**: `docs/development.md`, `CONTRIBUTING.md`
    - **Landing page copy or screenshots**: `site/index.html`, `README.md`

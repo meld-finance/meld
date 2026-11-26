@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en" data-docs-root="../..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home, spending &amp; budgets — Meld Docs</title>
+<meta name="description" content="Net worth, cash flow, category drill-downs, recategorize rules, and monthly budgets.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="apple-touch-icon" href="../../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../../"><img src="../../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../install/">Install</a></li>
+        <li><a class="nav-link" href="../../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Features &amp; Guide</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../features/">Overview</a></li>
+        <li><a class="nav-link nested" href="../../features/demo/">Demo data &amp; tour</a></li>
+        <li><a class="nav-link nested" href="../../features/accounts/">Linking accounts</a></li>
+        <li><a class="nav-link nested active" href="../../features/home-and-spending/" aria-current="page">Home, spending &amp; budgets</a></li>
+        <li><a class="nav-link nested" href="../../features/recurring-and-alerts/">Recurring, autopay &amp; alerts</a></li>
+        <li><a class="nav-link nested" href="../../features/cash/">Cash &amp; emergency fund</a></li>
+        <li><a class="nav-link nested" href="../../features/investments/">Investments &amp; loans</a></li>
+        <li><a class="nav-link nested" href="../../features/retirement/">Retirement</a></li>
+        <li><a class="nav-link nested" href="../../features/tax/">Tax</a></li>
+        <li><a class="nav-link nested" href="../../features/insurance/">Insurance</a></li>
+        <li><a class="nav-link nested" href="../../features/estate/">Estate</a></li>
+        <li><a class="nav-link nested" href="../../features/ask-meld/">Ask Meld</a></li>
+        <li><a class="nav-link nested" href="../../features/mcp/">External agents (MCP)</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../development/">Development</a></li>
+        <li><a class="nav-link" href="../../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Features &amp; Guide</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <a href="../../features/">Overview</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Home, spending &amp; budgets</span>
+        </nav>
+        <h1>Home, spending &amp; budgets</h1>
+        <p class="doc-summary">Net worth, cash flow, category drill-downs, recategorize rules, and monthly budgets.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">2 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/home-and-spending.md">View docs/features/home-and-spending.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#where-to-find-it">Where to find it</a>
+          <a class="depth-2" href="#net-worth">Net worth</a>
+          <a class="depth-2" href="#cash-flow">Cash flow</a>
+          <a class="depth-2" href="#category-drill-down">Category drill-down</a>
+          <a class="depth-2" href="#recategorize-and-rules">Recategorize and rules</a>
+          <a class="depth-2" href="#budgets">Budgets</a>
+          <a class="depth-2" href="#related">Related</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Net worth on Home, cash flow and category breakdowns on Spending, and monthly budget targets.</p>
+
+<p><a class="doc-figure" href="../../images/features/home.png" target="_blank" rel="noopener"><img src="../../images/features/home.png" alt="Home with net worth and tasks" loading="lazy"></a></p>
+
+<p><a class="doc-figure" href="../../images/features/spending.png" target="_blank" rel="noopener"><img src="../../images/features/spending.png" alt="Spending overview with category breakdown" loading="lazy"></a></p>
+
+<h2 id="where-to-find-it">Where to find it<a class="heading-anchor" href="#where-to-find-it" aria-label="Link to Where to find it">#</a></h2>
+
+<ul>
+<li><strong>Home</strong> — net worth trend, Worth your attention, Coming up</li>
+<li><strong>Spending → Overview</strong> — cash flow and category charts</li>
+<li><strong>Spending → Transactions</strong> — list, recategorize, rules</li>
+<li><strong>Spending → Budgets</strong> — monthly targets per category</li>
+</ul>
+
+<h2 id="net-worth">Net worth<a class="heading-anchor" href="#net-worth" aria-label="Link to Net worth">#</a></h2>
+
+<p><strong>Net worth</strong> = linked balances + manual assets (home, vehicles; add them on the Accounts tab) + life insurance cash surrender value − credit, loan and mortgage balances. Meld records one snapshot per day (after each sync and every 6 hours), so the trend line starts after the second day.</p>
+
+<h2 id="cash-flow">Cash flow<a class="heading-anchor" href="#cash-flow" aria-label="Link to Cash flow">#</a></h2>
+
+<p><strong>Cash flow</strong> counts cash and credit card accounts only. Transfers between your accounts and credit card payments are excluded, so card purchases aren't double counted. Income is anything categorized <code>INCOME</code>; spending is everything else, net of refunds. Recategorize a transaction to change where it counts.</p>
+
+<h2 id="category-drill-down">Category drill-down<a class="heading-anchor" href="#category-drill-down" aria-label="Link to Category drill-down">#</a></h2>
+
+<p><strong>Drill into a category</strong> by tapping it on <strong>Spending → Overview</strong> (Spending Breakdown, Top Movers, Where You Spend the Most): spending by subcategory and merchant against a year earlier, and the transactions behind it. Subcategories are Plaid's detailed categories (e.g. Groceries vs. Restaurants under Food and drink) unless you set your own.</p>
+
+<h2 id="recategorize-and-rules">Recategorize and rules<a class="heading-anchor" href="#recategorize-and-rules" aria-label="Link to Recategorize and rules">#</a></h2>
+
+<p><strong>Recategorize</strong> by tapping any transaction: pick a category and subcategory, or type new ones. Turn on <strong>Always categorize matching transactions this way</strong> to create a rule: new transactions whose merchant or description contains the text you give are categorized as they sync, and optionally past matches you haven't changed by hand are updated too. The longest matching pattern wins, and a hand edit always overrides a rule. Manage rules from <strong>Spending → Transactions → Rules</strong>; deleting one puts its transactions back to their original category.</p>
+
+<h2 id="budgets">Budgets<a class="heading-anchor" href="#budgets" aria-label="Link to Budgets">#</a></h2>
+
+<p><strong>Budgets</strong> are monthly targets per category, set under <strong>Spending → Budgets</strong>.</p>
+
+<h2 id="related">Related<a class="heading-anchor" href="#related" aria-label="Link to Related">#</a></h2>
+
+<ul>
+<li><a href="../../features/recurring-and-alerts/">Recurring, autopay &amp; alerts</a></li>
+<li><a href="../../features/cash/">Cash &amp; emergency fund</a> — spending feeds the emergency-fund target</li>
+</ul>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../../features/accounts/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Linking accounts</span>
+      </a>
+      <a class="pager-card next" href="../../features/recurring-and-alerts/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Recurring, autopay &amp; alerts</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#where-to-find-it">Where to find it</a></li>
+          <li><a class="toc-link depth-2" href="#net-worth">Net worth</a></li>
+          <li><a class="toc-link depth-2" href="#cash-flow">Cash flow</a></li>
+          <li><a class="toc-link depth-2" href="#category-drill-down">Category drill-down</a></li>
+          <li><a class="toc-link depth-2" href="#recategorize-and-rules">Recategorize and rules</a></li>
+          <li><a class="toc-link depth-2" href="#budgets">Budgets</a></li>
+          <li><a class="toc-link depth-2" href="#related">Related</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../../">Home</a>
+      <a href="../../">Docs</a>
+      <a href="../../privacy/">Privacy</a>
+      <a href="../../security/">Security</a>
+      <a href="../../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../../docs.js" defer></script>
+</body>
+</html>

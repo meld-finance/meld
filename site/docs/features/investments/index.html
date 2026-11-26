@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en" data-docs-root="../..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Investments &amp; loans — Meld Docs</title>
+<meta name="description" content="Holdings, performance, exposure, income, loan payoff estimates, and hidden accounts.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="apple-touch-icon" href="../../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../../"><img src="../../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../install/">Install</a></li>
+        <li><a class="nav-link" href="../../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Features &amp; Guide</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../features/">Overview</a></li>
+        <li><a class="nav-link nested" href="../../features/demo/">Demo data &amp; tour</a></li>
+        <li><a class="nav-link nested" href="../../features/accounts/">Linking accounts</a></li>
+        <li><a class="nav-link nested" href="../../features/home-and-spending/">Home, spending &amp; budgets</a></li>
+        <li><a class="nav-link nested" href="../../features/recurring-and-alerts/">Recurring, autopay &amp; alerts</a></li>
+        <li><a class="nav-link nested" href="../../features/cash/">Cash &amp; emergency fund</a></li>
+        <li><a class="nav-link nested active" href="../../features/investments/" aria-current="page">Investments &amp; loans</a></li>
+        <li><a class="nav-link nested" href="../../features/retirement/">Retirement</a></li>
+        <li><a class="nav-link nested" href="../../features/tax/">Tax</a></li>
+        <li><a class="nav-link nested" href="../../features/insurance/">Insurance</a></li>
+        <li><a class="nav-link nested" href="../../features/estate/">Estate</a></li>
+        <li><a class="nav-link nested" href="../../features/ask-meld/">Ask Meld</a></li>
+        <li><a class="nav-link nested" href="../../features/mcp/">External agents (MCP)</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../development/">Development</a></li>
+        <li><a class="nav-link" href="../../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Features &amp; Guide</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <a href="../../features/">Overview</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Investments &amp; loans</span>
+        </nav>
+        <h1>Investments &amp; loans</h1>
+        <p class="doc-summary">Holdings, performance, exposure, income, loan payoff estimates, and hidden accounts.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">2 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/investments.md">View docs/features/investments.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#where-to-find-it">Where to find it</a>
+          <a class="depth-2" href="#what-syncs">What syncs</a>
+          <a class="depth-2" href="#investment-views">Investment views</a>
+          <a class="depth-2" href="#look-through-exposure">Look-through exposure</a>
+          <a class="depth-2" href="#loans-cards-and-hiding-accounts">Loans, cards, and hiding accounts</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Holdings with cost basis, performance and exposure views, investment income, and loan/card payoff estimates.</p>
+
+<p><a class="doc-figure" href="../../images/features/investments.png" target="_blank" rel="noopener"><img src="../../images/features/investments.png" alt="Investments overview with allocation" loading="lazy"></a></p>
+
+<h2 id="where-to-find-it">Where to find it<a class="heading-anchor" href="#where-to-find-it" aria-label="Link to Where to find it">#</a></h2>
+
+<ul>
+<li><strong>Accounts → Investments</strong> — Overview, Performance, Exposure, Income, Holdings</li>
+<li>Tap any account for details; loans and cards show payoff estimates</li>
+<li><strong>Hide from totals</strong> on an account's page</li>
+</ul>
+
+<h2 id="what-syncs">What syncs<a class="heading-anchor" href="#what-syncs" aria-label="Link to What syncs">#</a></h2>
+
+<p>Holdings (with cost basis and gain/loss), investment transactions (2 years), and loan/card details (rate, payment, due date, escrow) sync with every refresh when the institution supports Plaid's Investments and Liabilities products.</p>
+
+<h2 id="investment-views">Investment views<a class="heading-anchor" href="#investment-views" aria-label="Link to Investment views">#</a></h2>
+
+<p><strong>Accounts → Investments</strong> has six views:</p>
+
+<ul>
+<li><strong>Overview</strong>: totals, asset allocation and accounts.</li>
+<li><strong>Performance</strong>: gains over 1M/3M/YTD/1Y/all and each calendar year, kept separate from deposits and withdrawals, with time-weighted growth rates (annualized past a year), in total and by account. History before Meld's first daily snapshot is estimated by replaying investment transactions backward from today's holdings against daily closes from Yahoo Finance (only tickers are sent; cached in <code>price_history</code>). Holdings without a public ticker (e.g. 401(k) pooled funds) are priced from their own transactions instead, and accounts with little transaction history are flagged.</li>
+<li><strong>Exposure</strong>: sector, region and bond-type breakdowns plus your largest positions, with an <strong>Include unvested RSUs</strong> toggle on Concentration to see combined single-stock risk.</li>
+<li><strong>Income</strong>: dividends, interest and reinvestment from investment transactions, with yield.</li>
+<li><strong>Holdings</strong>: every position, filterable by account or search.</li>
+<li><strong>Equity</strong>: track RSU grants and vesting schedules (with standard schedule presets, AI PDF/table extraction, and historical vest-date pricing from Yahoo Finance or manual prices for private companies). Unvested RSUs are excluded from net worth and portfolio totals until vested (including Plaid stock-plan holdings reporting unvested shares).</li>
+</ul>
+
+<p>All count only your ownership share of joint accounts.</p>
+
+<h2 id="look-through-exposure">Look-through exposure<a class="heading-anchor" href="#look-through-exposure" aria-label="Link to Look-through exposure">#</a></h2>
+
+<p><strong>Look-through exposure</strong> (what's inside your funds) is an AI estimate from each fund's published allocation, looked up once per security when you open Investments and refreshed every 90 days. It needs an Anthropic or OpenRouter key; only tickers and fund names are sent.</p>
+
+<h2 id="loans-cards-and-hiding-accounts">Loans, cards, and hiding accounts<a class="heading-anchor" href="#loans-cards-and-hiding-accounts" aria-label="Link to Loans, cards, and hiding accounts">#</a></h2>
+
+<p>Tap any account for details. Loans and cards show a payoff estimate at the current payment.</p>
+
+<p><strong>Hide from totals</strong> on an account's page excludes it from net worth, cash flow, budgets and lists (e.g. a closed or duplicate account). Hidden accounts are listed at the bottom of the Accounts tab.</p>
+
+<p>Full account numbers that Plaid returns for loans are dropped before storage.</p>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../../features/cash/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Cash &amp; emergency fund</span>
+      </a>
+      <a class="pager-card next" href="../../features/retirement/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Retirement</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#where-to-find-it">Where to find it</a></li>
+          <li><a class="toc-link depth-2" href="#what-syncs">What syncs</a></li>
+          <li><a class="toc-link depth-2" href="#investment-views">Investment views</a></li>
+          <li><a class="toc-link depth-2" href="#look-through-exposure">Look-through exposure</a></li>
+          <li><a class="toc-link depth-2" href="#loans-cards-and-hiding-accounts">Loans, cards, and hiding accounts</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../../">Home</a>
+      <a href="../../">Docs</a>
+      <a href="../../privacy/">Privacy</a>
+      <a href="../../security/">Security</a>
+      <a href="../../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../../docs.js" defer></script>
+</body>
+</html>
