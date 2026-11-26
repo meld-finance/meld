@@ -1,7 +1,7 @@
 import { insuranceTotals, netCashValue } from '@meld/shared';
 import { and, count, eq, isNull } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { accounts, alerts, insurancePolicies, manualAssets } from '../db/schema';
+import { accounts, alerts, equityGrants, insurancePolicies, manualAssets } from '../db/schema';
 import { computeNetWorth, localDate } from '../lib/networth';
 import { getProfile } from '../services/profile';
 import { maskNumbers } from './chat-tools';
@@ -23,6 +23,7 @@ Data conventions:
 - Balances on credit, loan and mortgage accounts are amounts owed.
 - Disability insurance coverage amounts are monthly benefits; life insurance amounts are death benefits.
 - Net worth includes whole/universal life insurance at its cash surrender value (byType 'insurance'), not the death benefit. Policy loans are already netted out of it.
+- Unvested RSUs are NOT included in net worth; call get_equity_grants for vesting schedules and estimated gross/net values.
 - Cash flow and spending exclude transfers between the person's own accounts and credit card payments.
 - Retirement projections are in today's dollars: returns are after inflation, and spending, contributions and Social Security are today's amounts.
 - Account and policy numbers are masked; never ask for full numbers.
@@ -36,7 +37,7 @@ const round = (n: number) => Math.round(n);
  * Kept compact and fixed for the session so prompts stay fast and cacheable; tools supply detail.
  */
 export async function buildSnapshot(db: Db, today = localDate(), page?: string): Promise<string> {
-  const [profile, accountRows, manualRows, policyRows, [openAlertsRow]] = await Promise.all([
+  const [profile, accountRows, manualRows, policyRows, [openAlertsRow], [equityGrantsRow]] = await Promise.all([
     getProfile(db),
     db
       .select({
@@ -67,6 +68,7 @@ export async function buildSnapshot(db: Db, today = localDate(), page?: string):
       })
       .from(insurancePolicies),
     db.select({ n: count() }).from(alerts).where(and(isNull(alerts.dismissedAt), isNull(alerts.resolvedAt))),
+    db.select({ n: count() }).from(equityGrants),
   ]);
 
   const cashValues = policyRows.flatMap((p) => {
@@ -97,6 +99,7 @@ export async function buildSnapshot(db: Db, today = localDate(), page?: string):
       accounts: accountRows.length,
       manualAssets: manualRows.length,
       insurancePolicies: policyRows.length,
+      equityGrants: equityGrantsRow?.n ?? 0,
       openAlerts: openAlertsRow?.n ?? 0,
     },
     insuranceTotals: insuranceTotals(policyRows, today),

@@ -56,6 +56,8 @@ const fakeAI: AIProvider = {
       warnings: ['Term end date computed from a 20-year term.'],
     };
   },
+  extractEquityGrantFromPdf: () => Promise.reject(new Error('not used')),
+  extractEquityGrantFromText: () => Promise.reject(new Error('not used')),
   estimatePropertyValue: () => Promise.reject(new Error('not used')),
   estimateVehicleValue: () => Promise.reject(new Error('not used')),
   profileSecurities: () => Promise.reject(new Error('not used')),

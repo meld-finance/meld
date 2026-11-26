@@ -10,7 +10,7 @@ import { and, eq, lt, notExists } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { requireAI } from '../ai/provider';
 import type { Db } from '../db/client';
-import { documents, estateDocuments, insurancePolicies } from '../db/schema';
+import { documents, equityGrants, estateDocuments, insurancePolicies } from '../db/schema';
 import { encrypt } from '../lib/crypto';
 import { HttpError, IdParams, parse } from '../lib/http';
 import type { AppDeps } from '../server';
@@ -19,11 +19,12 @@ import type { DocumentStorage } from '../storage';
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
-/** A document no policy or estate document references. */
+/** A document no policy, estate document, or equity grant references. */
 const unreferenced = (db: Db) =>
   and(
     notExists(db.select().from(insurancePolicies).where(eq(insurancePolicies.documentId, documents.id))),
     notExists(db.select().from(estateDocuments).where(eq(estateDocuments.documentId, documents.id))),
+    notExists(db.select().from(equityGrants).where(eq(equityGrants.documentId, documents.id))),
   );
 
 /** Removes a document once nothing references it. */
@@ -45,6 +46,27 @@ export async function pruneOrphanDocuments(db: Db, storage: DocumentStorage, old
     .returning({ storageKey: documents.storageKey });
   await Promise.all(removed.map((d) => storage.delete(d.storageKey)));
   return removed.length;
+}
+
+/** Checks and stores the request's PDF (encrypted by the storage layer). Unattached until saved on a record. */
+export async function storeUploadedPdf(req: FastifyRequest, db: Db, storage: DocumentStorage, prefix = 'insurance') {
+  const file = await req.file();
+  if (!file) throw new HttpError(400, 'Attach a PDF file');
+  const data = await file.toBuffer().catch((err: { code?: string }) => {
+    if (err.code === 'FST_REQ_FILE_TOO_LARGE') throw new HttpError(413, 'PDFs must be 20 MB or smaller');
+    throw err;
+  });
+  // Check the bytes, not just the client-supplied type.
+  if (data.subarray(0, 5).toString('latin1') !== '%PDF-') throw new HttpError(400, 'Only PDF files are supported');
+
+  const filename = file.filename || (prefix === 'insurance' ? 'policy.pdf' : 'document.pdf');
+  const storageKey = `${prefix}/${randomUUID()}.pdf`;
+  await storage.put(storageKey, data);
+  const [doc] = await db
+    .insert(documents)
+    .values({ filename, mimeType: 'application/pdf', sizeBytes: data.length, storageKey })
+    .returning({ id: documents.id });
+  return { documentId: doc!.id, filename, data };
 }
 
 export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, env, storage }: AppDeps) {
@@ -104,37 +126,16 @@ export async function registerInsuranceRoutes(app: FastifyInstance, { db, ai, en
     return { ok: true };
   });
 
-  /** Checks and stores the request's PDF (encrypted by the storage layer). Unattached until a policy is saved with it. */
-  async function storeUploadedPdf(req: FastifyRequest) {
-    const file = await req.file();
-    if (!file) throw new HttpError(400, 'Attach a PDF file');
-    const data = await file.toBuffer().catch((err: { code?: string }) => {
-      if (err.code === 'FST_REQ_FILE_TOO_LARGE') throw new HttpError(413, 'PDFs must be 20 MB or smaller');
-      throw err;
-    });
-    // Check the bytes, not just the client-supplied type.
-    if (data.subarray(0, 5).toString('latin1') !== '%PDF-') throw new HttpError(400, 'Only PDF files are supported');
-
-    const filename = file.filename || 'policy.pdf';
-    const storageKey = `insurance/${randomUUID()}.pdf`;
-    await storage.put(storageKey, data);
-    const [doc] = await db
-      .insert(documents)
-      .values({ filename, mimeType: 'application/pdf', sizeBytes: data.length, storageKey })
-      .returning({ id: documents.id });
-    return { documentId: doc!.id, filename, data };
-  }
-
-  /** Upload a PDF to keep with a policy or estate document; no AI involved. Unsaved uploads are cleaned up after a day. */
+  /** Upload a PDF to keep with a policy, estate document, or RSU grant; no AI involved. Unsaved uploads are cleaned up after a day. */
   app.post('/documents', async (req): Promise<UploadedDocument> => {
-    const { documentId, filename } = await storeUploadedPdf(req);
+    const { documentId, filename } = await storeUploadedPdf(req, db, storage, 'insurance');
     return { documentId, filename };
   });
 
   /** Upload a policy PDF and get a draft back. Nothing is saved as a policy until the user confirms. */
   app.post('/insurance/extract', async (req): Promise<PolicyExtraction> => {
     const provider = requireAI(ai);
-    const { documentId, filename, data } = await storeUploadedPdf(req);
+    const { documentId, filename, data } = await storeUploadedPdf(req, db, storage, 'insurance');
     try {
       const { draft, warnings } = await provider.extractInsurancePolicy(data);
       return { documentId, filename, draft: { ...draft, documentId }, warnings };

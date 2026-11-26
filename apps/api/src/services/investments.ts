@@ -15,7 +15,7 @@ import type { AIProvider } from '../ai/provider';
 import type { Db } from '../db/client';
 import { accounts, balanceSnapshots, holdings, investmentTransactions, securities } from '../db/schema';
 import { localDate } from '../lib/networth';
-import { listAccounts, listHoldings } from './accounts';
+import { listAccounts, listHoldings, unvestedAmountsByAccount, unvestedHoldingAmount } from './accounts';
 import { recentMonths, shiftYears } from './overview';
 
 /** Fund make-up drifts slowly; look again after this long. */
@@ -102,17 +102,31 @@ async function investmentChange(db: Db, current: number, today: string): Promise
 function ownedHolding(h: Holding, share: number): Holding {
   if (share === 1) return h;
   const scale = (n: number | null) => (n === null ? null : round2(n * share));
-  return { ...h, quantity: h.quantity * share, value: scale(h.value), costBasis: scale(h.costBasis) };
+  return {
+    ...h,
+    quantity: h.quantity * share,
+    value: scale(h.value),
+    costBasis: scale(h.costBasis),
+    vestedQuantity: h.vestedQuantity === null ? null : h.vestedQuantity * share,
+    vestedValue: scale(h.vestedValue),
+  };
 }
 
 export async function getInvestmentsSummary(db: Db, ai: AIProvider | null, today = localDate()): Promise<InvestmentsSummary> {
-  const [accountList, holdingList, unprofiled] = await Promise.all([
+  const [accountList, holdingList, unprofiled, unvestedByAccount] = await Promise.all([
     listAccounts(db, and(eq(accounts.hidden, false), eq(accounts.type, 'investment'))),
     listHoldings(db, eq(accounts.hidden, false)),
     unprofiledSecurities(db),
+    unvestedAmountsByAccount(db),
   ]);
   const accountById = new Map(accountList.map((a) => [a.id, a]));
-  const owned = holdingList.map((h) => ownedHolding(h, (accountById.get(h.accountId)?.ownershipPercent ?? 100) / 100));
+  const owned = holdingList.map((h) => {
+    const scaled = ownedHolding(h, (accountById.get(h.accountId)?.ownershipPercent ?? 100) / 100);
+    if (unvestedHoldingAmount(scaled) > 0) {
+      return { ...scaled, quantity: scaled.vestedQuantity!, value: scaled.vestedValue! };
+    }
+    return scaled;
+  });
 
   const valueByAccount = new Map<string, number>();
   for (const h of owned) valueByAccount.set(h.accountId, (valueByAccount.get(h.accountId) ?? 0) + (h.value ?? 0));
@@ -132,7 +146,11 @@ export async function getInvestmentsSummary(db: Db, ai: AIProvider | null, today
     })
     .sort((a, b) => b.value - a.value);
 
-  const currentBalance = accountList.reduce((sum, a) => sum + ownedBalance(a), 0);
+  const currentBalance = accountList.reduce((sum, a) => {
+    const excess = unvestedByAccount.get(a.id) ?? 0;
+    const adjusted = a.currentBalance === null ? null : Math.max(0, a.currentBalance - excess);
+    return sum + ownedBalance({ ...a, currentBalance: adjusted });
+  }, 0);
   return {
     totalValue: round2(owned.reduce((sum, h) => sum + (h.value ?? 0), 0)),
     holdings: owned,

@@ -1,4 +1,4 @@
-import type { InsurancePolicyInput, PropertyEstimate, SecurityProfile, VehicleDetails, VehicleEstimate } from '@meld/shared';
+import type { EquityGrantInput, InsurancePolicyInput, PropertyEstimate, SecurityProfile, VehicleDetails, VehicleEstimate } from '@meld/shared';
 import type { Env } from '../env';
 import { HttpError } from '../lib/http';
 import { AnthropicProvider } from './anthropic';
@@ -8,6 +8,11 @@ import type { SecurityDescription } from './security-profiles';
 
 export type ExtractedPolicy = {
   draft: Omit<InsurancePolicyInput, 'documentId'>;
+  warnings: string[];
+};
+
+export type ExtractedEquityGrant = {
+  draft: Omit<EquityGrantInput, 'documentId'>;
   warnings: string[];
 };
 
@@ -65,6 +70,10 @@ export interface ChatProvider {
 export interface AIProvider extends ChatProvider {
   /** Reads an insurance policy PDF into a draft for the user to review. */
   extractInsurancePolicy(pdf: Buffer): Promise<ExtractedPolicy>;
+  /** Reads an RSU grant PDF into a draft for the user to review. */
+  extractEquityGrantFromPdf(pdf: Buffer): Promise<ExtractedEquityGrant>;
+  /** Parses a pasted RSU grant / vesting table into a draft for the user to review. */
+  extractEquityGrantFromText(text: string): Promise<ExtractedEquityGrant>;
   /** Looks up a property's market value on real estate sites. */
   estimatePropertyValue(address: string): Promise<PropertyEstimate>;
   /** Looks up a used vehicle's private-party value on car pricing sites. */

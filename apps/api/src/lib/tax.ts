@@ -46,6 +46,10 @@ export type TaxInputs = {
   dependents: number;
   /** Household gross income, self-employment included. */
   grossIncome: number;
+  /** Ordinary W-2 income from RSU vests (vested YTD + remaining scheduled). */
+  rsuVesting?: number;
+  /** True when `grossIncome` already includes `rsuVesting`. */
+  profileIncludesRsus?: boolean;
   selfEmployment: number;
   otherIncome: number;
   pretax401k: number;
@@ -128,7 +132,11 @@ function stateTax(inputs: TaxInputs, federalAgi: number): StateTax | null {
 export function estimateTax(inputs: TaxInputs): TaxEstimate {
   const t = federalTables(inputs.year);
   const status = tableStatus(inputs.filingStatus);
-  const wages = Math.max(0, inputs.grossIncome - inputs.selfEmployment - inputs.pretax401k);
+  const rsuVesting = inputs.rsuVesting ?? 0;
+  const profileIncludesRsus = inputs.profileIncludesRsus ?? false;
+  const totalGross = profileIncludesRsus ? inputs.grossIncome : inputs.grossIncome + rsuVesting;
+  const cashGross = profileIncludesRsus ? Math.max(0, inputs.grossIncome - rsuVesting) : inputs.grossIncome;
+  const wages = Math.max(0, cashGross - inputs.selfEmployment - inputs.pretax401k);
 
   // Self-employment tax on 92.35% of profit; half of it comes off income.
   const seEarnings = inputs.selfEmployment * 0.9235;
@@ -137,6 +145,7 @@ export function estimateTax(inputs: TaxInputs): TaxEstimate {
   const capital = netCapital(inputs.shortTermGains, inputs.longTermGains, status === 'married_separate' ? 1_500 : 3_000);
   const agi =
     wages +
+    rsuVesting +
     inputs.selfEmployment -
     selfEmploymentTax / 2 -
     inputs.selfEmployedRetirement +
@@ -169,7 +178,7 @@ export function estimateTax(inputs: TaxInputs): TaxEstimate {
   const investmentIncome =
     inputs.interest + inputs.ordinaryDividends + inputs.qualifiedDividends + Math.max(0, capital.st + capital.lt);
   const netInvestmentIncomeTax = 0.038 * Math.min(investmentIncome, Math.max(0, agi - t.niitThreshold[status]));
-  const medicareWages = Math.max(0, inputs.grossIncome - inputs.selfEmployment);
+  const medicareWages = Math.max(0, totalGross - inputs.selfEmployment);
   const additionalMedicareTax = 0.009 * Math.max(0, medicareWages + seEarnings - t.additionalMedicareThreshold[status]);
 
   const ctc = t.childTaxCredit;
@@ -205,6 +214,7 @@ export function estimateTax(inputs: TaxInputs): TaxEstimate {
   };
   const income: TaxIncome = {
     wages: round2(wages),
+    rsuVesting: round2(rsuVesting),
     selfEmployment: round2(inputs.selfEmployment),
     interest: round2(inputs.interest),
     ordinaryDividends: round2(inputs.ordinaryDividends),
@@ -217,7 +227,7 @@ export function estimateTax(inputs: TaxInputs): TaxEstimate {
   };
   const grandTotal = total + (state?.total ?? 0);
   const gross =
-    inputs.grossIncome +
+    totalGross +
     inputs.interest +
     inputs.ordinaryDividends +
     inputs.qualifiedDividends +
@@ -447,9 +457,35 @@ export function buildSuggestions(ctx: SuggestionContext): TaxSuggestion[] {
     });
   }
 
+  if (detected.rsuWithholdingGap > 500) {
+    const rsuIncome = detected.rsuVestedYtd + detected.rsuScheduledRemaining;
+    const rsuWithheld = detected.rsuWithheldYtd + detected.rsuProjectedWithholdingRemaining;
+    out.push({
+      id: 'rsu-withholding-gap',
+      kind: 'warning',
+      title: `RSU withholding gap: about ${money(detected.rsuWithholdingGap)}`,
+      detail: `Your ${inputs.year} RSU vests add about ${money(rsuIncome)} of W-2 income, while supplemental withholding covers only about ${money(rsuWithheld)} of the ${money(rsuWithheld + detected.rsuWithholdingGap)} tax they add at your marginal rate. Raise your RSU withholding election if your plan allows it, add extra W-4 paycheck withholding, or plan an estimated payment.`,
+      impact: null,
+      question: `My ${inputs.year} RSU vests leave an estimated ${money(detected.rsuWithholdingGap)} tax withholding gap. How should I cover it?`,
+    });
+  }
+
+  if (detected.rsuZeroBasisTickers.length > 0) {
+    const tickers = detected.rsuZeroBasisTickers.join(', ');
+    out.push({
+      id: 'rsu-cost-basis',
+      kind: 'info',
+      title: `Check RSU cost basis on ${tickers}`,
+      detail: `Your taxable ${tickers} holding shows $0 or missing cost basis. Brokers often report $0 basis on RSU shares until adjusted from vest-date fair market value on Form 8949 — selling without checking can tax your vest income twice.`,
+      impact: null,
+      question: `My taxable ${tickers} holding shows $0 or missing cost basis. How do I avoid double-taxation on RSU sales?`,
+    });
+  }
+
   const losses = ctx.harvest.filter((h) => h.gain < 0);
   if (losses.length) {
-    const clean = losses.filter((h) => !h.recentPurchase);
+    const isWashed = (h: HarvestCandidate) => Boolean(h.recentPurchase || h.recentVest || h.upcomingVest);
+    const clean = losses.filter((h) => !isWashed(h));
     const pool = clean.length ? clean : losses;
     const shortLoss = pool.reduce((s, h) => s + h.gain * h.shortTermShare, 0);
     const longLoss = pool.reduce((s, h) => s + h.gain * (1 - h.shortTermShare), 0);
@@ -460,12 +496,15 @@ export function buildSuggestions(ctx: SuggestionContext): TaxSuggestion[] {
       .map((h) => `${h.ticker ?? h.name ?? 'a holding'} (${money(-h.gain)})`)
       .join(', ');
     const washed = losses.length - clean.length;
+    const rsuWashed = losses.filter((h) => !h.recentPurchase && (h.recentVest || h.upcomingVest)).length;
     out.push({
       id: 'harvest-losses',
       kind: 'save',
       title: `Harvest ${money(-total)} of losses`,
       detail: `${pool.length} taxable holding${pool.length === 1 ? ' is' : 's are'} worth less than you paid, led by ${top}. Selling locks in the loss to offset this year's gains and up to $3,000 of other income, with the rest carried forward. Buy something similar but not substantially identical to stay invested, and don't rebuy the same fund within 30 days in any account, IRAs included.${
-        washed ? ` ${washed} more ${washed === 1 ? 'was' : 'were'} bought in the last 30 days, so selling now would be a wash sale.` : ''
+        washed
+          ? ` ${washed} more ${washed === 1 ? 'was' : 'were'} bought or vested within 30 days${rsuWashed ? ' (including an RSU vest)' : ''}, so selling now would be a wash sale.`
+          : ''
       }`,
       impact,
       question: `Which of my taxable holdings with losses should I sell to harvest losses this year, and what could I replace them with?`,

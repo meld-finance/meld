@@ -262,26 +262,37 @@ export function computePerformance(input: PerformanceInput): InvestmentPerforman
         const security = t.securityId ? input.securities.get(t.securityId) : undefined;
         const shares = !!t.securityId && !isCash(security) && t.quantity !== 0;
         let flow = 0;
+        const isZeroCashShareArrival =
+          shares &&
+          t.quantity > 0 &&
+          Math.abs(t.amount) < 0.01 &&
+          !EARNINGS.test(t.name) &&
+          !(t.subtype && (EARNINGS.test(t.subtype) || /split/i.test(t.subtype)));
+
         if (t.type === 'transfer') {
           const dir = transferDirection(t);
           flow = dir * (Math.abs(t.amount) || (shares ? Math.abs(t.quantity) * priceOf(t.securityId!)[i]! : 0));
           if (shares) move(t.securityId!, -dir * Math.abs(t.quantity));
           else move(CASH, -flow);
         } else if (t.type === 'buy' || t.type === 'sell') {
-          // Buying into a money market fund is cash moving to cash.
-          if (shares) {
+          if (isZeroCashShareArrival) {
+            move(t.securityId!, -t.quantity);
+            flow = t.quantity * priceOf(t.securityId!)[i]!;
+          } else if (shares) {
+            // Buying into a money market fund is cash moving to cash.
             move(t.securityId!, -t.quantity);
             move(CASH, t.amount);
           }
         } else {
           // Contributions and dividends that arrive as shares (common in 401(k)s) never touch cash.
-          if (shares && t.type === 'cash') move(t.securityId!, -t.quantity);
+          if ((shares && t.type === 'cash') || isZeroCashShareArrival) move(t.securityId!, -t.quantity);
           else move(CASH, t.amount);
           const external =
             t.type === 'cash' &&
             (t.subtype === 'contribution' ||
               ((t.subtype === 'deposit' || t.subtype === 'withdrawal' || t.subtype === 'tax withheld') && !EARNINGS.test(t.name)));
           if (external) flow = -t.amount;
+          else if (isZeroCashShareArrival) flow = t.quantity * priceOf(t.securityId!)[i]!;
         }
         if (flow > 0) series.inflow[i]! += flow * account.share;
         else series.outflow[i]! -= flow * account.share;

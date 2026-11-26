@@ -271,6 +271,34 @@ describe('OpenRouterProvider tasks', () => {
     await expect(provider.extractInsurancePolicy(Buffer.from('%PDF'))).rejects.toThrow('Enter them by hand');
   });
 
+  it('extracts RSU grant PDFs and pasted vesting tables with structured output', async () => {
+    const rawGrant = {
+      employer: 'Acme Corp',
+      name: '2026 New Hire',
+      ticker: 'ACME',
+      grantDate: '2026-01-15',
+      grantNumberLast4: '4321',
+      totalShares: 400,
+      manualPrice: null,
+      withholdingMethod: 'sell_to_cover',
+      vests: [{ vestDate: '2027-01-15', shares: 400, status: 'scheduled', vestPrice: null }],
+      notes: '',
+      warnings: [],
+    };
+    const bodies = stubTasks([completion(JSON.stringify(rawGrant)), completion(JSON.stringify(rawGrant))]);
+    const provider = new OpenRouterProvider('k', [], tasks);
+
+    const pdfRes = await provider.extractEquityGrantFromPdf(Buffer.from('%PDF-1.7'));
+    expect(pdfRes.draft).toMatchObject({ employer: 'Acme Corp', ticker: 'ACME', totalShares: 400 });
+    expect(bodies[0]!.plugins).toEqual([{ id: 'file-parser', pdf: { engine: 'native' } }]);
+    expect(bodies[0]!.response_format).toMatchObject({ json_schema: { name: 'equity_grant', strict: true } });
+
+    const textRes = await provider.extractEquityGrantFromText('2027-01-15 400 shares');
+    expect(textRes.draft).toMatchObject({ employer: 'Acme Corp', totalShares: 400 });
+    expect(bodies[1]!).not.toHaveProperty('plugins');
+    expect(bodies[1]!.model).toBe('google/gemini-4-hydrogen');
+  });
+
   const valuation = {
     matchedAddress: '9 Elm St, Springfield, IL',
     squareFeet: 1500,

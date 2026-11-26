@@ -124,4 +124,26 @@ describe('computePerformance', () => {
     expect(p.limitedHistory).toEqual([{ accountName: 'Joint', since: null }]);
     expect(p.periods.map((x) => x.key)).toEqual(['1m', '3m', 'ytd', 'all', '2025']);
   });
+
+  it('treats $0-cash share arrivals (RSU vests) as inflows rather than market gains, without affecting splits or dividends', () => {
+    const p = computePerformance(
+      input({
+        accounts: [{ id: A, name: 'Stock Plan', share: 1, balance: 2100 }],
+        holdings: [{ accountId: A, securityId: 'fund', quantity: 21, price: 100, value: 2100 }],
+        transactions: [
+          txn({ date: '2026-01-05', type: 'cash', subtype: 'deposit', amount: -900 }),
+          txn({ date: '2026-01-06', type: 'buy', securityId: 'fund', quantity: 10, price: 90, amount: 900 }),
+          // $0-cash RSU vest arriving on Feb 2 at $90/share = $900 inflow, 0% fake return on vest day.
+          txn({ date: '2026-02-02', type: 'buy', subtype: 'buy', securityId: 'fund', quantity: 10, price: 90, amount: 0, name: 'RSU VEST' }),
+          // Split of 1 share should not be treated as an inflow.
+          txn({ date: '2026-02-10', type: 'buy', subtype: 'stock split', securityId: 'fund', quantity: 1, price: 0, amount: 0, name: 'SPLIT' }),
+        ],
+      }),
+    );
+    const all = p.periods.find((x) => x.key === 'all')!;
+    expect(all.contributions).toBe(1800);
+    // $900 initial + $900 RSU vest; shares went from 10->20->21 and price 90->100.
+    expect(p.points.find((x) => x.date === '2026-02-02')!.flow).toBe(900);
+    expect(p.points.find((x) => x.date === '2026-02-10')!.flow).toBe(0);
+  });
 });

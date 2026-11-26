@@ -9,7 +9,7 @@ import { WithTip, type Tip } from '@/components/info-tip';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useProfile, useSaveProfile } from '@/lib/queries';
+import { useEquity, useProfile, useSaveProfile } from '@/lib/queries';
 
 const FILING_LABELS: Record<FilingStatus, string> = {
   single: 'Single',
@@ -51,6 +51,8 @@ const thisYear = new Date().getFullYear();
 
 function ProfileForm({ initial }: { initial: UserProfile }) {
   const save = useSaveProfile();
+  const equity = useEquity();
+  const hasActiveGrants = equity.data?.grants.some((g) => g.status === 'active') ?? false;
   const [displayName, setDisplayName] = useState(str(initial.displayName));
   const [birthYear, setBirthYear] = useState(str(initial.birthYear));
   const [filingStatus, setFilingStatus] = useState(initial.filingStatus);
@@ -166,6 +168,11 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
           </Field>
           <Field label="Household gross income / yr" invalid={invalid.annualGrossIncome}>
             <Input value={income} onChangeText={setIncome} placeholder="$" keyboardType="decimal-pad" inputMode="decimal" />
+            {hasActiveGrants && (
+              <ThemedText type="small" themeColor="textSecondary">
+                Enter cash pay (salary & bonus); Meld adds tracked RSU vests in Tax.
+              </ThemedText>
+            )}
           </Field>
         </Row>
       </Card>

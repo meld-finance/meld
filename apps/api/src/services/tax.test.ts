@@ -126,6 +126,19 @@ describe('estimateTax', () => {
     const i = inputs({ filingStatus: 'married_joint', grossIncome: 200_000, state: 'NY', stateFlatRate: 5 });
     expect(marginalRate(i)).toBeCloseTo(0.27, 3);
   });
+
+  it('adds RSU vesting on top of cash pay, or carves it out when profileIncludesRsus is true', () => {
+    const added = estimateTax(inputs({ grossIncome: 150_000, rsuVesting: 50_000, profileIncludesRsus: false }));
+    expect(added.income.wages).toBe(150_000);
+    expect(added.income.rsuVesting).toBe(50_000);
+    expect(added.federal.agi).toBe(200_000);
+
+    const included = estimateTax(inputs({ grossIncome: 200_000, rsuVesting: 50_000, profileIncludesRsus: true }));
+    expect(included.income.wages).toBe(150_000);
+    expect(included.income.rsuVesting).toBe(50_000);
+    expect(included.federal.agi).toBe(200_000);
+    expect(included.total).toBe(added.total);
+  });
 });
 
 const A = 'acct';
@@ -230,6 +243,12 @@ const DETECTED: TaxPlan['detected'] = {
   rothContributions: 0,
   traditionalIraBalance: 0,
   has529: false,
+  rsuVestedYtd: 0,
+  rsuScheduledRemaining: 0,
+  rsuWithheldYtd: 0,
+  rsuProjectedWithholdingRemaining: 0,
+  rsuWithholdingGap: 0,
+  rsuZeroBasisTickers: [],
 };
 
 function suggest(i: TaxInputs, over: Partial<SuggestionContext> = {}) {
@@ -256,6 +275,8 @@ const candidate = (over: Partial<HarvestCandidate>): HarvestCandidate => ({
   gain: -5_000,
   shortTermShare: 0,
   recentPurchase: null,
+  recentVest: null,
+  upcomingVest: null,
   ...over,
 });
 
@@ -302,6 +323,24 @@ describe('buildSuggestions', () => {
   it('offers a SEP IRA or solo 401(k) for self-employment income', () => {
     const s = suggest(inputs({ grossIncome: 200_000, selfEmployment: 100_000 }));
     expect(s.find((x) => x.id === 'self-employed-retirement')?.impact).toBeGreaterThan(0);
+  });
+
+  it('warns on RSU withholding shortfall, zero cost basis, and ±30d RSU wash sales', () => {
+    const s = suggest(inputs({ grossIncome: 200_000, rsuVesting: 100_000 }), {
+      detected: {
+        ...DETECTED,
+        rsuVestedYtd: 50_000,
+        rsuScheduledRemaining: 50_000,
+        rsuWithheldYtd: 11_000,
+        rsuProjectedWithholdingRemaining: 11_000,
+        rsuWithholdingGap: 12_000,
+        rsuZeroBasisTickers: ['ACME'],
+      },
+      harvest: [candidate({ ticker: 'ACME', recentVest: '2026-10-15' }), candidate({ ticker: 'MSFT', upcomingVest: '2026-11-20' })],
+    });
+    expect(s.find((x) => x.id === 'rsu-withholding-gap')?.kind).toBe('warning');
+    expect(s.find((x) => x.id === 'rsu-cost-basis')?.detail).toContain('ACME');
+    expect(s.find((x) => x.id === 'harvest-losses')?.detail).toContain('including an RSU vest');
   });
 });
 

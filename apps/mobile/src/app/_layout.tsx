@@ -34,6 +34,7 @@ function RootNavigator() {
         <Stack.Protected guard={configured && isLoggedIn} redirectTo={configured ? '/login' : '/setup'}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="account/[id]" />
+          <Stack.Screen name="equity/[id]" />
           <Stack.Screen name="insurance/[id]" />
           <Stack.Screen name="estate/account/[id]" />
           <Stack.Screen name="estate/asset/[id]" />

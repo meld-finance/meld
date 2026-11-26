@@ -32,6 +32,8 @@ export const TaxSettings = z.object({
   stateFlatRate: z.number().min(0).max(20).nullable(),
   /** Realized gains from your broker's statements, in place of Meld's estimate. */
   realizedGainsOverride: z.object({ shortTerm: z.number(), longTerm: z.number() }).nullable(),
+  /** True when the user's Profile gross income already includes RSU vests for the year. */
+  profileIncludesRsus: z.boolean().default(false),
 });
 export type TaxSettings = z.infer<typeof TaxSettings>;
 
@@ -50,11 +52,14 @@ export const EMPTY_TAX_SETTINGS: TaxSettings = {
   otherItemized: null,
   stateFlatRate: null,
   realizedGainsOverride: null,
+  profileIncludesRsus: false,
 };
 
 /** Income for the full year, as projected. */
 export const TaxIncome = z.object({
   wages: z.number(),
+  /** W-2 ordinary income from RSU vests (vested YTD + remaining scheduled this year). */
+  rsuVesting: z.number(),
   selfEmployment: z.number(),
   interest: z.number(),
   ordinaryDividends: z.number(),
@@ -120,6 +125,10 @@ export const HarvestCandidate = z.object({
   shortTermShare: z.number(),
   /** The latest purchase in any account within 30 days, which would make selling at a loss a wash sale. */
   recentPurchase: z.iso.date().nullable(),
+  /** An RSU vest in the last 30 days for the same ticker (acquisition for wash-sale rules). */
+  recentVest: z.iso.date().nullable().default(null),
+  /** A scheduled RSU vest in the next 30 days for the same ticker (acquisition for wash-sale rules). */
+  upcomingVest: z.iso.date().nullable().default(null),
 });
 export type HarvestCandidate = z.infer<typeof HarvestCandidate>;
 
@@ -192,6 +201,12 @@ export const TaxPlan = z.object({
     /** Pre-tax IRA balances, which make a backdoor Roth partly taxable. */
     traditionalIraBalance: z.number(),
     has529: z.boolean(),
+    rsuVestedYtd: z.number(),
+    rsuScheduledRemaining: z.number(),
+    rsuWithheldYtd: z.number(),
+    rsuProjectedWithholdingRemaining: z.number(),
+    rsuWithholdingGap: z.number(),
+    rsuZeroBasisTickers: z.array(z.string()),
   }),
   income: TaxIncome.nullable(),
   federal: FederalTax.nullable(),

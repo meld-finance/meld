@@ -56,6 +56,16 @@ const BY_PAGE: Record<string, PageQuestions> = {
     ],
     helpQuestion: 'How does Meld calculate returns and look-through exposure?',
   },
+  '/accounts?investments&view=equity': {
+    page: 'your equity & RSUs',
+    questions: [
+      'How much extra tax will my RSU vests add this year?',
+      'Am I too concentrated in my employer stock?',
+      'Should I sell RSUs when they vest or hold them?',
+      'When is my vesting cliff, and how does my income change after it?',
+    ],
+    helpQuestion: 'How does Meld track unvested RSUs without counting them in net worth?',
+  },
   '/spending': {
     page: 'your spending',
     questions: [
@@ -170,6 +180,7 @@ const BY_PAGE: Record<string, PageQuestions> = {
 
 /** Detail pages outside the tabs, keyed by their first path segment, and the tab they belong to. */
 const SECTION_PAGES: Record<string, string> = {
+  '/equity': '/accounts?investments&view=equity',
   '/estate': '/plan?estate',
   '/insurance': '/plan?insurance',
 };
@@ -177,7 +188,13 @@ const SECTION_PAGES: Record<string, string> = {
 /** What the page being looked at is about, and questions to start a chat about it. */
 export function usePageQuestions(): PageQuestions {
   const pathname = usePathname();
-  const { tab } = useGlobalSearchParams<{ tab?: string }>();
+  const { tab, view } = useGlobalSearchParams<{ tab?: string; view?: string }>();
   const section = SECTION_PAGES[`/${pathname.split('/')[1]}`];
-  return (tab && BY_PAGE[`${pathname}?${tab}`]) || BY_PAGE[pathname] || (section && BY_PAGE[section]) || GENERAL;
+  return (
+    (tab && view && BY_PAGE[`${pathname}?${tab}&view=${view}`]) ||
+    (tab && BY_PAGE[`${pathname}?${tab}`]) ||
+    BY_PAGE[pathname] ||
+    (section && BY_PAGE[section]) ||
+    GENERAL
+  );
 }

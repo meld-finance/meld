@@ -5,6 +5,7 @@
  *   - Institutions & Plaid (institutions, plaidItems)
  *   - Accounts & transactions (accounts, transactions, categoryRules)
  *   - Investments (securities, priceHistory, holdings, investmentTransactions)
+ *   - Equity grants & vesting (equityGrants, equityVests)
  *   - Liabilities (liabilities)
  *   - Insurance & documents (documents, insurancePolicies)
  *   - Manual assets, snapshots, budgets, profile (manualAssets, balanceSnapshots, budgets, userProfile, taxSettings, cashSettings, retirementScenarios, retirementSimulations)
@@ -209,6 +210,8 @@ export const holdings = pgTable(
     institutionPrice: numeric('institution_price', { precision: 18, scale: 6, mode: 'number' }),
     institutionValue: money('institution_value'),
     costBasis: money('cost_basis'),
+    vestedQuantity: numeric('vested_quantity', { precision: 24, scale: 8, mode: 'number' }),
+    vestedValue: money('vested_value'),
     ...timestamps,
   },
   (t) => [uniqueIndex('holdings_account_security_idx').on(t.accountId, t.securityId)],
@@ -227,10 +230,57 @@ export const investmentTransactions = pgTable('investment_transactions', {
   subtype: text('subtype'),
   quantity: numeric('quantity', { precision: 24, scale: 8, mode: 'number' }),
   price: numeric('price', { precision: 18, scale: 6, mode: 'number' }),
-  amount: money('amount'),
-  fees: money('fees'),
+    amount: money('amount'),
+    fees: money('fees'),
+    ...timestamps,
+  },
+);
+
+// --- Equity grants & vesting ------------------------------------------------
+
+export const equityGrants = pgTable('equity_grants', {
+  id: id(),
+  /** EquityGrantKind: rsu */
+  kind: text('kind').notNull().default('rsu'),
+  employer: text('employer').notNull(),
+  name: text('name').notNull(),
+  ticker: text('ticker'),
+  manualPrice: numeric('manual_price', { precision: 18, scale: 6, mode: 'number' }),
+  priceAsOf: date('price_as_of'),
+  grantDate: date('grant_date').notNull(),
+  grantNumberMask: text('grant_number_mask'),
+  totalShares: numeric('total_shares', { precision: 24, scale: 8, mode: 'number' }).notNull(),
+  linkedAccountId: uuid('linked_account_id').references(() => accounts.id, { onDelete: 'set null' }),
+  /** WithholdingMethod: sell_to_cover | net_share | cash */
+  withholdingMethod: text('withholding_method').notNull().default('sell_to_cover'),
+  federalWithholdingRate: numeric('federal_withholding_rate', { precision: 5, scale: 2, mode: 'number' }),
+  stateWithholdingRate: numeric('state_withholding_rate', { precision: 5, scale: 2, mode: 'number' }),
+  /** EquityGrantStatus: active | completed | forfeited */
+  status: text('status').notNull().default('active'),
+  documentId: uuid('document_id').references(() => documents.id, { onDelete: 'set null' }),
+  notes: text('notes'),
   ...timestamps,
 });
+
+export const equityVests = pgTable(
+  'equity_vests',
+  {
+    id: id(),
+    grantId: uuid('grant_id')
+      .notNull()
+      .references(() => equityGrants.id, { onDelete: 'cascade' }),
+    vestDate: date('vest_date').notNull(),
+    shares: numeric('shares', { precision: 24, scale: 8, mode: 'number' }).notNull(),
+    /** EquityVestStatus: scheduled | vested | forfeited */
+    status: text('status').notNull().default('scheduled'),
+    vestPrice: numeric('vest_price', { precision: 18, scale: 6, mode: 'number' }),
+    sharesWithheld: numeric('shares_withheld', { precision: 24, scale: 8, mode: 'number' }),
+    taxWithheld: money('tax_withheld'),
+    matchedTxnId: uuid('matched_txn_id').references(() => investmentTransactions.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  (t) => [index('equity_vests_grant_date_idx').on(t.grantId, t.vestDate), index('equity_vests_date_idx').on(t.vestDate)],
+);
 
 // --- Liabilities ------------------------------------------------------------
 

@@ -23,6 +23,8 @@ const holding = (overrides: Partial<Holding>): Holding => ({
   price: 17.7,
   value: 177_000,
   costBasis: 284_000,
+  vestedQuantity: null,
+  vestedValue: null,
   profile: {
     category: 'Long-term Treasury',
     assetClasses: { bonds: 0.99, cash: 0.01 },

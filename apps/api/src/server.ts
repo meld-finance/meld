@@ -20,6 +20,7 @@ import { registerCashRoutes } from './routes/cash';
 import { registerChatRoutes } from './routes/chat';
 import { registerChatGPTRoutes } from './routes/chatgpt';
 import { registerEstateRoutes } from './routes/estate';
+import { registerEquityRoutes } from './routes/equity';
 import { registerInsuranceRoutes } from './routes/insurance';
 import { registerManualAssetRoutes } from './routes/manual-assets';
 import { registerMcpRoutes } from './routes/mcp';
@@ -175,6 +176,7 @@ async function registerApi(app: FastifyInstance, deps: AppDeps) {
   await registerOverviewRoutes(app, deps);
   await registerManualAssetRoutes(app, deps);
   await registerInsuranceRoutes(app, deps);
+  await registerEquityRoutes(app, deps);
   await registerProfileRoutes(app, deps);
   await registerRetirementRoutes(app, deps);
   await registerTaxRoutes(app, deps);

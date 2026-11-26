@@ -117,6 +117,10 @@ export const Holding = z.object({
   price: z.number().nullable(),
   value: z.number().nullable(),
   costBasis: z.number().nullable(),
+  /** Vested share quantity reported by the institution, when provided. */
+  vestedQuantity: z.number().nullable().default(null),
+  /** Vested market value reported by the institution, when provided. */
+  vestedValue: z.number().nullable().default(null),
   /** What the security holds; null until it's been looked up, or when it couldn't be. */
   profile: SecurityProfile.nullable(),
   /** Terms of an individual bond; null for everything else. */

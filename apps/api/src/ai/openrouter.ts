@@ -3,9 +3,18 @@ import { z } from 'zod';
 import { HttpError } from '../lib/http';
 import { localDate } from '../lib/networth';
 import { MAX_TOOL_ROUNDS, runTool, toolLabel, toToolJsonSchema, type ChatTool } from './chat-tools';
+import { EQUITY_EXTRACTION_PROMPT, EquityExtractionSchema, normalizeEquityExtraction } from './equity-extraction';
 import { EXTRACTION_PROMPT, ExtractionSchema, normalizeExtraction } from './insurance-extraction';
 import { normalizeValuation, valuationPrompt, ValuationSchema } from './property-valuation';
-import type { AIProvider, ChatModelInfo, ChatTurnInput, ChatTurnResult, ExtractedPolicy, StoredChatMessage } from './provider';
+import type {
+  AIProvider,
+  ChatModelInfo,
+  ChatTurnInput,
+  ChatTurnResult,
+  ExtractedEquityGrant,
+  ExtractedPolicy,
+  StoredChatMessage,
+} from './provider';
 import { normalizeProfiles, ProfilesSchema, profilesPrompt, type SecurityDescription } from './security-profiles';
 import { readEvents } from './sse';
 import { normalizeVehicleValuation, vehicleValuationPrompt, VehicleValuationSchema } from './vehicle-valuation';
@@ -206,6 +215,54 @@ export class OpenRouterProvider implements AIProvider {
   }
 
   async extractInsurancePolicy(pdf: Buffer): Promise<ExtractedPolicy> {
+    const raw = await this.readPdfStructured(
+      'policy.pdf',
+      pdf,
+      EXTRACTION_PROMPT,
+      ExtractionSchema,
+      'policy',
+      'Couldn’t read policy details from this document. Enter them by hand instead.',
+    );
+    return normalizeExtraction(raw);
+  }
+
+  async extractEquityGrantFromPdf(pdf: Buffer): Promise<ExtractedEquityGrant> {
+    const raw = await this.readPdfStructured(
+      'grant.pdf',
+      pdf,
+      EQUITY_EXTRACTION_PROMPT,
+      EquityExtractionSchema,
+      'equity_grant',
+      'Couldn’t read RSU grant details from this document. Enter them by hand instead.',
+    );
+    return normalizeEquityExtraction(raw);
+  }
+
+  async extractEquityGrantFromText(text: string): Promise<ExtractedEquityGrant> {
+    const content: ContentPart[] = [{ type: 'text', text: `${EQUITY_EXTRACTION_PROMPT}\n\n---\n\n${text}` }];
+    const raw = await this.structured(
+      this.tasks.lookupModel,
+      content,
+      EquityExtractionSchema,
+      'equity_grant',
+      'parse this vesting schedule',
+    ).catch((err) => {
+      if (err instanceof HttpError && err.statusCode === 422 && !/declined/.test(err.message)) {
+        throw new HttpError(422, 'Couldn’t read a vesting schedule from that text. Enter the grant by hand instead.');
+      }
+      throw err;
+    });
+    return normalizeEquityExtraction(raw);
+  }
+
+  private async readPdfStructured<T>(
+    filename: string,
+    pdf: Buffer,
+    prompt: string,
+    schema: z.ZodType<T>,
+    schemaName: string,
+    fallbackError: string,
+  ): Promise<T> {
     const model = this.tasks.model;
     const catalog = await this.loadCatalog();
     const inputs = catalog?.get(model)?.architecture?.input_modalities;
@@ -213,18 +270,17 @@ export class OpenRouterProvider implements AIProvider {
       throw new HttpError(422, `${model} can’t read PDFs. Set OPENROUTER_MODEL to one that can, like google/gemini-4-carbon.`);
     }
     const content: ContentPart[] = [
-      { type: 'file', file: { filename: 'policy.pdf', file_data: `data:application/pdf;base64,${pdf.toString('base64')}` } },
-      { type: 'text', text: EXTRACTION_PROMPT },
+      { type: 'file', file: { filename, file_data: `data:application/pdf;base64,${pdf.toString('base64')}` } },
+      { type: 'text', text: prompt },
     ];
     // `native` hands the PDF to the model itself; otherwise OpenRouter may send it to an OCR service first.
     const plugins = [{ id: 'file-parser', pdf: { engine: 'native' } }];
-    const raw = await this.structured(model, content, ExtractionSchema, 'policy', 'read this document', { plugins }).catch((err) => {
+    return this.structured(model, content, schema, schemaName, 'read this document', { plugins }).catch((err) => {
       if (err instanceof HttpError && err.statusCode === 422 && !/declined/.test(err.message)) {
-        throw new HttpError(422, 'Couldn’t read policy details from this document. Enter them by hand instead.');
+        throw new HttpError(422, fallbackError);
       }
       throw err;
     });
-    return normalizeExtraction(raw);
   }
 
   async estimatePropertyValue(address: string): Promise<PropertyEstimate> {
