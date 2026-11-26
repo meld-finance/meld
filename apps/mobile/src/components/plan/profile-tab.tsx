@@ -1,4 +1,4 @@
-import { Child, FilingStatus, type UserProfile } from '@meld/shared';
+import { Child, FilingStatus, householdGrossIncome, type Partner, type UserProfile } from '@meld/shared';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
@@ -9,6 +9,7 @@ import { WithTip, type Tip } from '@/components/info-tip';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { formatWholeCurrency } from '@/lib/format';
 import { useEquity, useProfile, useSaveProfile } from '@/lib/queries';
 
 const FILING_LABELS: Record<FilingStatus, string> = {
@@ -59,6 +60,10 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
   const [state, setState] = useState(str(initial.state));
   const [dependents, setDependents] = useState(str(initial.dependents));
   const [income, setIncome] = useState(str(initial.annualGrossIncome));
+  const [hasPartner, setHasPartner] = useState(initial.partner !== null);
+  const [partnerName, setPartnerName] = useState(str(initial.partner?.name ?? null));
+  const [partnerBirthYear, setPartnerBirthYear] = useState(str(initial.partner?.birthYear ?? null));
+  const [partnerIncome, setPartnerIncome] = useState(str(initial.partner?.annualGrossIncome ?? null));
   const [occupation, setOccupation] = useState(str(initial.occupation));
   const [benefits, setBenefits] = useState(str(initial.employerBenefits));
   const [goals, setGoals] = useState(str(initial.goals));
@@ -68,16 +73,39 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
   const [saved, setSaved] = useState(false);
 
   const text = (s: string) => s.trim() || null;
-  const numbers = { birthYear: int(birthYear), dependents: int(dependents), annualGrossIncome: int(income) };
+  const numbers = {
+    birthYear: int(birthYear),
+    dependents: int(dependents),
+    annualGrossIncome: int(income),
+    partnerBirthYear: int(partnerBirthYear),
+    partnerIncome: int(partnerIncome),
+  };
+  const validYear = (y: number | null) => y === null || (Number.isInteger(y) && y > 1900 && y <= thisYear);
+  const validMoney = (m: number | null) => m === null || (Number.isFinite(m) && m >= 0);
   const invalid = {
-    birthYear: numbers.birthYear !== null && !(Number.isInteger(numbers.birthYear) && numbers.birthYear > 1900 && numbers.birthYear <= new Date().getFullYear()),
+    birthYear: !validYear(numbers.birthYear),
     dependents: numbers.dependents !== null && !(Number.isInteger(numbers.dependents) && numbers.dependents >= 0),
-    annualGrossIncome: numbers.annualGrossIncome !== null && !(Number.isFinite(numbers.annualGrossIncome) && numbers.annualGrossIncome >= 0),
+    annualGrossIncome: !validMoney(numbers.annualGrossIncome),
+    partnerBirthYear: hasPartner && !validYear(numbers.partnerBirthYear),
+    partnerIncome: hasPartner && !validMoney(numbers.partnerIncome),
     state: !!state.trim() && !/^[A-Za-z]{2}$/.test(state.trim()),
   };
   const draftChildren = children.map((c) => ({ id: c.id, name: text(c.name), birthYear: thisYear - (int(c.age) ?? NaN) }));
   const invalidChildren = draftChildren.map((c) => !Child.safeParse(c).success || c.birthYear > thisYear);
   const valid = !Object.values(invalid).some(Boolean) && !invalidChildren.some(Boolean);
+
+  const draftPartner: Partner | null = hasPartner
+    ? {
+        name: text(partnerName),
+        birthYear: invalid.partnerBirthYear ? null : numbers.partnerBirthYear,
+        annualGrossIncome: invalid.partnerIncome ? null : numbers.partnerIncome,
+      }
+    : null;
+  const householdIncome = householdGrossIncome({
+    annualGrossIncome: invalid.annualGrossIncome ? null : numbers.annualGrossIncome,
+    partner: draftPartner,
+  });
+  const isMarried = filingStatus === 'married_joint' || filingStatus === 'married_separate';
 
   function setChild(id: string, change: Partial<ChildDraft>) {
     setChildren((all) => all.map((c) => (c.id === id ? { ...c, ...change } : c)));
@@ -95,6 +123,7 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
         dependents: numbers.dependents,
         children: draftChildren,
         annualGrossIncome: numbers.annualGrossIncome,
+        partner: draftPartner,
         occupation: text(occupation),
         employerBenefits: text(benefits),
         goals: text(goals),
@@ -117,6 +146,63 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
         <Field label="Occupation">
           <Input value={occupation} onChangeText={setOccupation} placeholder="Used for disability insurance questions" />
         </Field>
+      </Card>
+
+      <Card
+        title="Partner"
+        subtitle="Optional. Lets Retirement model staggered retirement, bridge income and separate Social Security.">
+        {hasPartner ? (
+          <>
+            <Row>
+              <Field label="Name">
+                <Input value={partnerName} onChangeText={setPartnerName} placeholder="Optional" maxLength={60} />
+              </Field>
+              <Field label="Birth year" invalid={invalid.partnerBirthYear}>
+                <Input
+                  value={partnerBirthYear}
+                  onChangeText={setPartnerBirthYear}
+                  placeholder="e.g. 1989"
+                  keyboardType="number-pad"
+                  inputMode="numeric"
+                  maxLength={4}
+                />
+              </Field>
+            </Row>
+            <Field label="Annual gross income / yr" invalid={invalid.partnerIncome}>
+              <Input
+                value={partnerIncome}
+                onChangeText={setPartnerIncome}
+                placeholder="$"
+                keyboardType="decimal-pad"
+                inputMode="decimal"
+              />
+            </Field>
+            <View style={styles.buttons}>
+              <Button
+                label="Remove partner"
+                variant="secondary"
+                size="small"
+                onPress={() => {
+                  setHasPartner(false);
+                  setPartnerName('');
+                  setPartnerBirthYear('');
+                  setPartnerIncome('');
+                }}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            {isMarried && (
+              <ThemedText type="small" themeColor="textSecondary">
+                Filing married? Add your partner to set separate retirement ages and Social Security.
+              </ThemedText>
+            )}
+            <View style={styles.buttons}>
+              <Button label="Add partner" variant="secondary" size="small" onPress={() => setHasPartner(true)} />
+            </View>
+          </>
+        )}
       </Card>
 
       <Card title="Children" subtitle="Their ages let Plan time spending on kids, like when they leave home or start college.">
@@ -166,8 +252,19 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
           <Field label="Dependents" invalid={invalid.dependents}>
             <Input value={dependents} onChangeText={setDependents} placeholder="0" keyboardType="number-pad" inputMode="numeric" />
           </Field>
-          <Field label="Household gross income / yr" invalid={invalid.annualGrossIncome}>
+          <Field label={hasPartner ? 'Your gross income / yr' : 'Household gross income / yr'} invalid={invalid.annualGrossIncome}>
             <Input value={income} onChangeText={setIncome} placeholder="$" keyboardType="decimal-pad" inputMode="decimal" />
+            {hasPartner && householdIncome !== null && (
+              <ThemedText type="small" themeColor="textSecondary">
+                Household total: {formatWholeCurrency(householdIncome)}/yr
+                {!invalid.annualGrossIncome &&
+                !invalid.partnerIncome &&
+                numbers.annualGrossIncome !== null &&
+                numbers.partnerIncome !== null
+                  ? ` (${formatWholeCurrency(numbers.annualGrossIncome)} + ${formatWholeCurrency(numbers.partnerIncome)})`
+                  : ''}
+              </ThemedText>
+            )}
             {hasActiveGrants && (
               <ThemedText type="small" themeColor="textSecondary">
                 Enter cash pay (salary & bonus); Meld adds tracked RSU vests in Tax.

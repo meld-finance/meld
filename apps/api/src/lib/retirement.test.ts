@@ -1,19 +1,29 @@
 import {
+  PARTNER_AGE_ID,
+  claimedAnnualBenefit,
   claimingFactor,
   EMPTY_RETIREMENT_PLAN,
+  estimateAfterTaxIncome,
+  estimateIndividualSocialSecurityMonthly,
   estimateSocialSecurityMonthly,
+  firstRetireAge,
+  fullRetireAge,
   fullRetirementAgeMonths,
+  inYourAges,
   isEducationAccount,
   mortgagePayoffAge,
   projectRetirement,
   remainingLoanBalance,
+  resolveCoupleSocialSecurity,
   resolvePlan,
   retirementCashFlow,
   saleBreakdown,
   saleProceeds,
   simulateRetirement,
   spendingAt,
+  spousalClaimingFactor,
   withPlan,
+  yearPhase,
   type Child,
   type RetirementAccount,
   type RetirementInputs,
@@ -481,8 +491,11 @@ describe('retirementCashFlow', () => {
     // Working years: saving + rent (+ catch-up at 61), spending/pension/withdrawal are 0.
     expect(rows.find((r) => r.age === 60)).toEqual({
       age: 60,
+      phase: 'working',
+      partnerAge: null,
       retired: false,
       spending: 0,
+      workingIncome: 0,
       socialSecurity: 0,
       pension: 0,
       rent: 12_000,
@@ -495,8 +508,11 @@ describe('retirementCashFlow', () => {
     // First year retired (62): spending 80k, pension 10k, rent 12k, eventIncome 15k -> withdrawal 43k.
     expect(rows.find((r) => r.age === 62)).toEqual({
       age: 62,
+      phase: 'retired',
+      partnerAge: null,
       retired: true,
       spending: 80_000,
+      workingIncome: 0,
       socialSecurity: 0,
       pension: 10_000,
       rent: 12_000,
@@ -511,5 +527,310 @@ describe('retirementCashFlow', () => {
     expect(rows.find((r) => r.age === 65)).toMatchObject({ rent: 0, lump: 250_000, withdrawal: 70_000 });
     // Social Security starts at 67.
     expect(rows.find((r) => r.age === 67)).toMatchObject({ socialSecurity: 30_000, pension: 10_000, withdrawal: 40_000 });
+  });
+});
+
+describe('partner Social Security & after-tax bridge estimate', () => {
+  it('caps spousal claiming factor at FRA with no delayed credits', () => {
+    expect(spousalClaimingFactor(1960, 62)).toBeCloseTo(0.65);
+    expect(spousalClaimingFactor(1960, 67)).toBe(1);
+    expect(spousalClaimingFactor(1960, 70)).toBe(1);
+    expect(claimedAnnualBenefit(0, 20_000, 1960, 70)).toBe(20_000);
+    expect(claimedAnnualBenefit(20_000, 0, 1960, 70)).toBe(24_800);
+  });
+
+  it('computes individual benefits and spousal top-ups accurately', () => {
+    // Dual high earners ($250k each) each earn full wage-base credits.
+    const dual = resolveCoupleSocialSecurity({
+      married: true,
+      yourBirthYear: 1986,
+      yourIncome: 250_000,
+      yourRetireAge: 65,
+      yourOverrideAnnual: null,
+      yourClaimAge: 67,
+      partnerBirthYear: 1988,
+      partnerIncome: 250_000,
+      partnerRetireAge: 65,
+      partnerOverrideAnnual: null,
+      partnerClaimAge: 67,
+    });
+    expect(dual.yours.ownFullAnnual).toBe(12 * estimateIndividualSocialSecurityMonthly(250_000, 65));
+    expect(dual.partner.ownFullAnnual).toBe(dual.yours.ownFullAnnual);
+    expect(dual.yours.spousalExcessAnnual).toBe(0);
+    expect(dual.partner.spousalExcessAnnual).toBe(0);
+
+    // Stay-at-home spouse receives 50% spousal benefit when married, and none when unmarried.
+    const singleEarner = resolveCoupleSocialSecurity({
+      married: true,
+      yourBirthYear: 1986,
+      yourIncome: 150_000,
+      yourRetireAge: 65,
+      yourOverrideAnnual: null,
+      yourClaimAge: 70,
+      partnerBirthYear: 1988,
+      partnerIncome: 0,
+      partnerRetireAge: 65,
+      partnerOverrideAnnual: null,
+      partnerClaimAge: 70,
+    });
+    expect(singleEarner.partner.ownFullAnnual).toBe(0);
+    expect(singleEarner.partner.spousalExcessAnnual).toBe(Math.round(0.5 * singleEarner.yours.ownFullAnnual));
+    expect(singleEarner.partner.estimated).toBe(true);
+    expect(singleEarner.partner.claimedAnnual).toBe(singleEarner.partner.spousalExcessAnnual); // capped at FRA even at 70
+    expect(singleEarner.yours.claimedAnnual).toBe(Math.round(singleEarner.yours.ownFullAnnual * 1.24));
+
+    const unmarried = resolveCoupleSocialSecurity({
+      married: false,
+      yourBirthYear: 1986,
+      yourIncome: 150_000,
+      yourRetireAge: 65,
+      yourOverrideAnnual: null,
+      yourClaimAge: 67,
+      partnerBirthYear: 1988,
+      partnerIncome: 0,
+      partnerRetireAge: 65,
+      partnerOverrideAnnual: null,
+      partnerClaimAge: 67,
+    });
+    expect(unmarried.partner.spousalExcessAnnual).toBe(0);
+    expect(unmarried.partner.claimedAnnual).toBe(0);
+
+    // Explicit $0 override is respected and suppresses spousal top-up.
+    const zeroOverride = resolveCoupleSocialSecurity({
+      married: true,
+      yourBirthYear: 1986,
+      yourIncome: 150_000,
+      yourRetireAge: 65,
+      yourOverrideAnnual: null,
+      yourClaimAge: 67,
+      partnerBirthYear: 1988,
+      partnerIncome: 0,
+      partnerRetireAge: 65,
+      partnerOverrideAnnual: 0,
+      partnerClaimAge: 67,
+    });
+    expect(zeroOverride.partner.fullAnnual).toBe(0);
+    expect(zeroOverride.partner.estimated).toBe(false);
+  });
+
+  it('estimates after-tax bridge income by filing status and state', () => {
+    expect(estimateAfterTaxIncome(0, 'married_joint', 'CA')).toBe(0);
+    const tx = estimateAfterTaxIncome(120_000, 'married_joint', 'TX');
+    const ny = estimateAfterTaxIncome(120_000, 'married_joint', 'NY');
+    const ca = estimateAfterTaxIncome(120_000, 'married_joint', 'CA');
+    expect(tx).toBeGreaterThan(ca);
+    expect(tx).toBeGreaterThan(ny);
+    expect(ca).toBeGreaterThan(70_000);
+    expect(ca).toBeLessThan(110_000);
+  });
+});
+
+describe('staggered partner retirement', () => {
+  const coupleSummary = {
+    defaults: {
+      currentAge: 40,
+      birthYear: 1986,
+      married: true,
+      annualSpending: 100_000,
+      annualIncome: 250_000,
+      yourIncome: 150_000,
+      filingStatus: 'married_joint',
+      state: 'TX',
+      partner: { name: 'Jordan', currentAge: 38, birthYear: 1988, annualIncome: 100_000 },
+      children: [] as Child[],
+    },
+    accounts: [
+      {
+        id: '00000000-0000-4000-8000-000000000010',
+        name: '401k',
+        institutionName: null,
+        subtype: '401k',
+        taxTreatment: 'tax_deferred',
+        value: 200_000,
+        included: true,
+        excludedReason: null,
+      },
+    ],
+    properties: [],
+    mortgages: [],
+  } satisfies Parameters<typeof resolvePlan>[1];
+
+  it('maps partner ages to your timeline and drops partner events when partner is removed', () => {
+    const events: SpendingChange[] = [
+      { label: 'Jordan Medicare', kind: 'spending', childId: PARTNER_AGE_ID, startAge: 65, endAge: 68, annualChange: -6_000, monthly: false },
+    ];
+    // Partner born 1988 vs your 1986 -> partner 65 is your 67.
+    expect(inYourAges(events, [], 1986, { birthYear: 1988 })).toEqual([
+      { label: 'Jordan Medicare', kind: 'spending', childId: null, startAge: 67, endAge: 70, annualChange: -6_000, monthly: false },
+    ]);
+    expect(inYourAges(events, [], 1986, null)).toEqual([]);
+    expect(inYourAges(events, [], 1986, { birthYear: null })).toEqual([]);
+  });
+
+  it('extends life expectancy when a younger partner plans further out', () => {
+    const r = resolvePlan(
+      { ...EMPTY_RETIREMENT_PLAN, retirementAge: 60, lifeExpectancy: 95, partnerRetirementAge: 65, partnerLifeExpectancy: 98 },
+      coupleSummary,
+    );
+    expect(r.inputs!.yourLifeExpectancy).toBe(95);
+    // Partner born 2 years later -> partner 98 is your 100.
+    expect(r.inputs!.lifeExpectancy).toBe(100);
+    expect(r.inputs!.partner!.retirementAgeInYours).toBe(67);
+    expect(r.inputs!.partner!.socialSecurityAgeInYours).toBe(69);
+  });
+
+  it('handles shortfall bridge years accurately and preserves exact depletion math', () => {
+    // You retire at 58, Jordan retires at 65 (your 67), spending $150k, Jordan's net bridge pay < $150k.
+    const r = resolvePlan(
+      {
+        ...EMPTY_RETIREMENT_PLAN,
+        expectedReturn: 5,
+        retirementAge: 58,
+        lifeExpectancy: 90,
+        partnerRetirementAge: 65,
+        partnerLifeExpectancy: 90,
+        annualContribution: 5_000,
+        partnerAnnualContribution: 5_000,
+        annualSpending: 150_000,
+        socialSecurityAnnual: 24_000,
+        socialSecurityAge: 67,
+        partnerSocialSecurityAnnual: 18_000,
+        partnerSocialSecurityAge: 67,
+      },
+      coupleSummary,
+    );
+    const inputs = r.inputs!;
+    expect(firstRetireAge(inputs)).toBe(58);
+    expect(fullRetireAge(inputs)).toBe(67);
+    expect(yearPhase(inputs, 57)).toBe('working');
+    expect(yearPhase(inputs, 58)).toBe('bridge');
+    expect(yearPhase(inputs, 66)).toBe('bridge');
+    expect(yearPhase(inputs, 67)).toBe('retired');
+
+    const p = projectRetirement(inputs);
+    expect(p.gap).toBeGreaterThan(0);
+
+    // Exact depletion invariant: starting at `needed` at firstRetireAge lasts exactly to lifeExpectancy.
+    const atBridge = projectRetirement({ ...inputs, currentAge: 58, startingBalance: p.needed });
+    expect(atBridge.gap).toBe(0);
+    expect(atBridge.depletionAge).toBeNull();
+    expect(atBridge.points.at(-1)!.balance).toBeLessThan(10);
+
+    // Suggested extra monthly closes the gap.
+    const closed = projectRetirement({ ...inputs, annualContribution: inputs.annualContribution + p.extraMonthly! * 12 });
+    expect(Math.abs(closed.gap)).toBeLessThan(500);
+
+    // Monte Carlo with zero volatility matches deterministic projection.
+    const sim = simulateRetirement(inputs, { trials: 100, volatility: 0, seed: 1 });
+    expect(sim.atRetirement.p50).toBe(p.atRetirement);
+    expect(sim.bands.map((b) => ({ age: b.age, balance: b.p50 }))).toEqual(p.points);
+    expect(sim.successRate).toBe(p.depletionAge === null ? 1 : 0);
+  });
+
+  it('handles surplus bridge years (capped at working partner contribution) and exact depletion math', () => {
+    // You retire at 55, partner earns $200k in TX (net > $80k spending), saves up to planned contribution.
+    const highPartnerSummary: Parameters<typeof resolvePlan>[1] = {
+      ...coupleSummary,
+      defaults: {
+        ...coupleSummary.defaults,
+        annualSpending: 80_000,
+        annualIncome: 250_000,
+        yourIncome: 50_000,
+        partner: { name: 'Jordan', currentAge: 38, birthYear: 1988, annualIncome: 200_000 },
+      },
+    };
+
+    const r = resolvePlan(
+      {
+        ...EMPTY_RETIREMENT_PLAN,
+        expectedReturn: 5,
+        retirementAge: 55,
+        lifeExpectancy: 90,
+        partnerRetirementAge: 62,
+        partnerLifeExpectancy: 90,
+        annualContribution: 5_000,
+        partnerAnnualContribution: 20_000,
+        socialSecurityAnnual: 12_000,
+        socialSecurityAge: 67,
+        partnerSocialSecurityAnnual: 30_000,
+        partnerSocialSecurityAge: 67,
+      },
+      highPartnerSummary,
+    );
+    const inputs = r.inputs!;
+    const cf = retirementCashFlow(inputs);
+    const bridgeRow = cf.find((row) => row.age === 58)!;
+    expect(bridgeRow).toMatchObject({
+      phase: 'bridge',
+      partnerAge: 56,
+      retired: true,
+      spending: 80_000,
+      saving: 20_000,
+      withdrawal: 0,
+    });
+    expect(bridgeRow.workingIncome).toBeGreaterThan(100_000);
+
+    // Verify exact depletion invariant across surplus bridge + later retirement.
+    const p = projectRetirement(inputs);
+    const atFirst = projectRetirement({ ...inputs, currentAge: 55, startingBalance: p.needed });
+    expect(atFirst.gap).toBe(0);
+    expect(atFirst.depletionAge).toBeNull();
+    expect(atFirst.points.at(-1)!.balance).toBeLessThan(10);
+
+    // When surplus is smaller than planned contribution, saving is capped at surplus.
+    const tight = resolvePlan(
+      {
+        ...EMPTY_RETIREMENT_PLAN,
+        expectedReturn: 0,
+        retirementAge: 55,
+        partnerRetirementAge: 60,
+        annualSpending: inputs.partner!.bridgeIncomeAnnual - 5_000,
+        partnerAnnualContribution: 25_000,
+      },
+      highPartnerSummary,
+    );
+    const tightBridge = retirementCashFlow(tight.inputs!).find((row) => row.age === 55)!;
+    expect(tightBridge.saving).toBe(5_000);
+    expect(tightBridge.withdrawal).toBe(0);
+  });
+
+  it('starts each partner pension at their own retirement age and draws full spending if stay-at-home partner retires later', () => {
+    const stayAtHomeSummary: Parameters<typeof resolvePlan>[1] = {
+      ...coupleSummary,
+      defaults: {
+        ...coupleSummary.defaults,
+        annualIncome: 150_000,
+        yourIncome: 150_000,
+        partner: { name: 'Jordan', currentAge: 38, birthYear: 1988, annualIncome: 0 },
+      },
+    };
+
+    const r = resolvePlan(
+      {
+        ...EMPTY_RETIREMENT_PLAN,
+        retirementAge: 60,
+        partnerRetirementAge: 65, // your 67
+        annualSpending: 90_000,
+        pensionAnnual: 10_000,
+        partnerPensionAnnual: 6_000,
+        socialSecurityAnnual: 0,
+        partnerSocialSecurityAnnual: 0,
+      },
+      stayAtHomeSummary,
+    );
+    const cf = retirementCashFlow(r.inputs!);
+    // Age 60: your pension starts, Jordan earns $0 so full 80k draws from savings.
+    expect(cf.find((row) => row.age === 60)).toMatchObject({
+      phase: 'bridge',
+      workingIncome: 0,
+      pension: 10_000,
+      withdrawal: 80_000,
+    });
+    // Age 67: Jordan retires and partner pension joins.
+    expect(cf.find((row) => row.age === 67)).toMatchObject({
+      phase: 'retired',
+      pension: 16_000,
+      withdrawal: 74_000,
+    });
   });
 });

@@ -52,6 +52,111 @@ function earnerBenefit(annualPay: number, stopWorkAge: number): number {
   return primaryInsuranceAmount(aime);
 }
 
+/** Individual monthly benefit at full retirement age, from gross pay and stop-work age. */
+export function estimateIndividualSocialSecurityMonthly(annualPay: number, stopWorkAge: number): number {
+  return Math.round(earnerBenefit(annualPay, stopWorkAge));
+}
+
+/**
+ * Spousal top-up factor when claiming at `claimAge`: reduced before full retirement age (25/36%
+ * per month for up to 36 months early and 5/12% beyond), and capped at 100% from FRA onward
+ * (spousal benefits do not earn delayed credits past full retirement age).
+ */
+export function spousalClaimingFactor(birthYear: number, claimAge: number): number {
+  const months = claimAge * 12 - fullRetirementAgeMonths(birthYear);
+  if (months >= 0) return 1;
+  const early = -months;
+  return 1 - (Math.min(early, 36) * 25) / 36 / 100 - (Math.max(early - 36, 0) * 5) / 12 / 100;
+}
+
+/** Yearly Social Security benefit received at `claimAge`, combining own benefit and any spousal top-up. */
+export function claimedAnnualBenefit(
+  ownFullAnnual: number,
+  spousalExcessAnnual: number,
+  birthYear: number,
+  claimAge: number,
+): number {
+  return Math.round(
+    ownFullAnnual * claimingFactor(birthYear, claimAge) +
+      spousalExcessAnnual * spousalClaimingFactor(birthYear, claimAge),
+  );
+}
+
+export type SocialSecurityPersonBreakdown = {
+  /** Person's own benefit at full retirement age (before any spousal top-up). */
+  ownFullAnnual: number;
+  /** Additional spousal top-up at full retirement age (0 when unmarried or own >= 50% of partner's). */
+  spousalExcessAnnual: number;
+  /** Total benefit at full retirement age (`ownFullAnnual + spousalExcessAnnual`). */
+  fullAnnual: number;
+  /** Yearly benefit received starting at the chosen claiming age. */
+  claimedAnnual: number;
+  /** True when estimated from income rather than entered from an SSA statement. */
+  estimated: boolean;
+};
+
+export type CoupleSocialSecurity = {
+  yours: SocialSecurityPersonBreakdown;
+  partner: SocialSecurityPersonBreakdown;
+};
+
+/**
+ * Computes separate Social Security benefits for each partner, adding a spousal top-up (up to 50%
+ * of the higher earner's own FRA benefit) when married and no statement figure was entered.
+ */
+export function resolveCoupleSocialSecurity(opts: {
+  married: boolean;
+  yourBirthYear: number;
+  yourIncome: number | null;
+  yourRetireAge: number;
+  yourOverrideAnnual: number | null;
+  yourClaimAge: number;
+  partnerBirthYear: number;
+  partnerIncome: number | null;
+  partnerRetireAge: number;
+  partnerOverrideAnnual: number | null;
+  partnerClaimAge: number;
+}): CoupleSocialSecurity {
+  const yourOwn =
+    opts.yourOverrideAnnual !== null
+      ? opts.yourOverrideAnnual
+      : opts.yourIncome !== null
+        ? 12 * estimateIndividualSocialSecurityMonthly(opts.yourIncome, opts.yourRetireAge)
+        : 0;
+  const partnerOwn =
+    opts.partnerOverrideAnnual !== null
+      ? opts.partnerOverrideAnnual
+      : opts.partnerIncome !== null
+        ? 12 * estimateIndividualSocialSecurityMonthly(opts.partnerIncome, opts.partnerRetireAge)
+        : 0;
+
+  const yourSpousal =
+    opts.married && opts.yourOverrideAnnual === null
+      ? Math.max(0, Math.round(0.5 * partnerOwn) - yourOwn)
+      : 0;
+  const partnerSpousal =
+    opts.married && opts.partnerOverrideAnnual === null
+      ? Math.max(0, Math.round(0.5 * yourOwn) - partnerOwn)
+      : 0;
+
+  return {
+    yours: {
+      ownFullAnnual: yourOwn,
+      spousalExcessAnnual: yourSpousal,
+      fullAnnual: yourOwn + yourSpousal,
+      claimedAnnual: claimedAnnualBenefit(yourOwn, yourSpousal, opts.yourBirthYear, opts.yourClaimAge),
+      estimated: opts.yourOverrideAnnual === null && yourOwn + yourSpousal > 0,
+    },
+    partner: {
+      ownFullAnnual: partnerOwn,
+      spousalExcessAnnual: partnerSpousal,
+      fullAnnual: partnerOwn + partnerSpousal,
+      claimedAnnual: claimedAnnualBenefit(partnerOwn, partnerSpousal, opts.partnerBirthYear, opts.partnerClaimAge),
+      estimated: opts.partnerOverrideAnnual === null && partnerOwn + partnerSpousal > 0,
+    },
+  };
+}
+
 /**
  * Estimated household benefit per month at full retirement age, from gross income and the age you stop
  * working. A couple's split of income is unknown, so it takes the lower of one earner (whose spouse

@@ -1,9 +1,13 @@
 import {
   childName,
+  firstRetireAge,
+  fullRetireAge,
   inYourAges,
   mortgagePayoffAge,
+  partnerName,
   projectRetirement,
   PropertySale,
+  resolveCoupleSocialSecurity,
   resolvePlan,
   RETIREMENT_DEFAULTS,
   RetirementPlan,
@@ -63,12 +67,18 @@ const FIELDS: NumberField[] = [
   'retirementAge',
   'lifeExpectancy',
   'annualContribution',
+  'partnerRetirementAge',
+  'partnerLifeExpectancy',
+  'partnerAnnualContribution',
   'expectedReturn',
   'annualSpending',
   'spendingDeclinePercent',
   'socialSecurityAnnual',
   'socialSecurityAge',
+  'partnerSocialSecurityAnnual',
+  'partnerSocialSecurityAge',
   'pensionAnnual',
+  'partnerPensionAnnual',
   'otherSavings',
   'propertyAppreciation',
   'sellingCostPercent',
@@ -99,7 +109,7 @@ const str = (v: number | null) => (v === null ? '' : String(v));
 const num = (s: string) => (s.trim() ? Number(s.replace(/[$,%\s]/g, '')) : null);
 
 /** Social Security is typed per month, as the SSA statement shows it, and saved per year. */
-const MONTHLY = new Set<NumberField>(['socialSecurityAnnual']);
+const MONTHLY = new Set<NumberField>(['socialSecurityAnnual', 'partnerSocialSecurityAnnual']);
 const toText = (f: NumberField, v: number | null) => (v !== null && MONTHLY.has(f) ? str(Math.round((v / 12) * 100) / 100) : str(v));
 
 /** Projection, gap and assumptions for retirement, in today's dollars. */
@@ -161,7 +171,7 @@ function RetirementPlanner({
   );
   const [events, setEvents] = useState<EventDraft[]>(() =>
     summary.plan.spendingChanges.map((c) =>
-      eventDraft(c, false, resolvedSortAge(c, summary.defaults.children, summary.defaults.birthYear)),
+      eventDraft(c, false, resolvedSortAge(c, summary.defaults.children, summary.defaults.birthYear, summary.defaults.partner)),
     ),
   );
   const [saved, setSaved] = useState(false);
@@ -243,8 +253,30 @@ function RetirementPlanner({
 
   const d = summary.defaults;
   const income = d.annualIncome;
+  const yourIncome = d.yourIncome ?? null;
+  const partnerMeta = d.partner ?? null;
+  const hasPartner = !!(partnerMeta && partnerMeta.birthYear !== null && partnerMeta.currentAge !== null);
+  const pName = partnerName(partnerMeta);
+  const coupleSS =
+    hasPartner && resolved.inputs && resolved.inputs.partner
+      ? resolveCoupleSocialSecurity({
+          married: d.married,
+          yourBirthYear: d.birthYear!,
+          yourIncome,
+          yourRetireAge: resolved.inputs.retirementAge,
+          yourOverrideAnnual: !invalid.socialSecurityAnnual ? values.socialSecurityAnnual : summary.plan.socialSecurityAnnual,
+          yourClaimAge: resolved.inputs.socialSecurityAge,
+          partnerBirthYear: partnerMeta!.birthYear!,
+          partnerIncome: partnerMeta!.annualIncome,
+          partnerRetireAge: resolved.inputs.partner.retirementAge,
+          partnerOverrideAnnual: !invalid.partnerSocialSecurityAnnual
+            ? values.partnerSocialSecurityAnnual
+            : summary.plan.partnerSocialSecurityAnnual,
+          partnerClaimAge: resolved.inputs.partner.socialSecurityAge,
+        })
+      : null;
   const ssEstimate =
-    resolved.inputs && income
+    !hasPartner && resolved.inputs && income
       ? socialSecurityAtFullAge({ socialSecurityAnnual: null }, d, resolved.inputs.retirementAge).annual
       : null;
 
@@ -291,7 +323,7 @@ function RetirementPlanner({
           list.length === 1,
           list.length === 1
             ? Infinity
-            : resolvedSortAge({ startAge: e.startAge ?? NaN, childId: e.childId ?? null }, d.children, d.birthYear),
+            : resolvedSortAge({ startAge: e.startAge ?? NaN, childId: e.childId ?? null }, d.children, d.birthYear, d.partner),
         ),
       ),
     ]);
@@ -314,7 +346,7 @@ function RetirementPlanner({
             all.map((e) => ({
               ...e,
               open: false,
-              sortAge: resolvedSortAge(toEvent(e), d.children, d.birthYear),
+              sortAge: resolvedSortAge(toEvent(e), d.children, d.birthYear, d.partner),
             })),
           );
           setProperties((all) =>
@@ -368,7 +400,7 @@ function RetirementPlanner({
       ? []
       : eventChecks.flatMap((c) => {
           if (c.bad) return [];
-          const [mine] = inYourAges([c.event], d.children, d.birthYear!);
+          const [mine] = inYourAges([c.event], d.children, d.birthYear!, d.partner);
           return mine ? [{ ...mine, key: c.key }] : [];
         });
 
@@ -393,12 +425,18 @@ function RetirementPlanner({
     invalid.retirementAge ||
     invalid.lifeExpectancy ||
     invalid.annualContribution ||
+    invalid.partnerRetirementAge ||
+    invalid.partnerLifeExpectancy ||
+    invalid.partnerAnnualContribution ||
     invalid.expectedReturn ||
     invalid.annualSpending ||
     invalid.spendingDeclinePercent ||
     invalid.socialSecurityAnnual ||
     invalid.socialSecurityAge ||
-    invalid.pensionAnnual;
+    invalid.partnerSocialSecurityAnnual ||
+    invalid.partnerSocialSecurityAge ||
+    invalid.pensionAnnual ||
+    invalid.partnerPensionAnnual;
   const accountsError = invalid.otherSavings;
   const propertiesError = invalidPropIds.length > 0 || invalid.propertyAppreciation || invalid.sellingCostPercent;
 
@@ -448,10 +486,23 @@ function RetirementPlanner({
   const activeSection: WorkspaceSection = sectionOptions.some((o) => o.id === section) ? section : 'assumptions';
 
   const effectiveContribution = !invalid.annualContribution ? values.annualContribution : summary.plan.annualContribution;
+  const effectivePartnerContribution = !invalid.partnerAnnualContribution
+    ? values.partnerAnnualContribution
+    : summary.plan.partnerAnnualContribution;
+  const combinedContribution = (effectiveContribution ?? 0) + (hasPartner ? (effectivePartnerContribution ?? 0) : 0);
   const effectiveSpending =
     (!invalid.annualSpending ? values.annualSpending : summary.plan.annualSpending) ?? d.annualSpending;
   const effectivePension = !invalid.pensionAnnual ? values.pensionAnnual : summary.plan.pensionAnnual;
+  const effectivePartnerPension = !invalid.partnerPensionAnnual
+    ? values.partnerPensionAnnual
+    : summary.plan.partnerPensionAnnual;
   const retireFallback = Math.max(RETIREMENT_DEFAULTS.retirementAge, d.currentAge ?? RETIREMENT_DEFAULTS.retirementAge);
+  const partnerRetireFallback = hasPartner
+    ? Math.max(RETIREMENT_DEFAULTS.retirementAge, partnerMeta!.currentAge!)
+    : RETIREMENT_DEFAULTS.retirementAge;
+  const staggered = !!(
+    resolved.inputs?.partner && resolved.inputs.retirementAge !== resolved.inputs.partner.retirementAgeInYours
+  );
 
   const saveBar = (dirty || saved || save.isError) && (
     <SaveBar
@@ -522,8 +573,12 @@ function RetirementPlanner({
           tip={TIPS.projected}
           subtitle={
             chartMode === 'balance'
-              ? `Growing ${resolved.inputs.expectedReturn}% a year after inflation, then drawn down from age ${resolved.inputs.retirementAge}. Tap or hover for any year.`
-              : 'What you save before retirement, and how spending is covered afterward. Tap or hover for any year.'
+              ? staggered
+                ? `Growing ${resolved.inputs.expectedReturn}% a year after inflation, bridging from ${firstRetireAge(resolved.inputs)} to ${fullRetireAge(resolved.inputs)}, then drawn down. Tap or hover for any year.`
+                : `Growing ${resolved.inputs.expectedReturn}% a year after inflation, then drawn down from age ${resolved.inputs.retirementAge}. Tap or hover for any year.`
+              : staggered
+                ? 'What you save before retirement, bridge paychecks, and how spending is covered afterward. Tap or hover for any year.'
+                : 'What you save before retirement, and how spending is covered afterward. Tap or hover for any year.'
           }
           action={
             <Segmented
@@ -541,6 +596,7 @@ function RetirementPlanner({
               points={projection.points}
               retirementAge={resolved.inputs.retirementAge}
               socialSecurityAge={resolved.inputs.socialSecurityAnnual > 0 ? resolved.inputs.socialSecurityAge : null}
+              partner={resolved.inputs.partner ?? null}
               sales={projection.sales}
               events={chartEvents}
               cashFlow={cashFlow}
@@ -552,6 +608,7 @@ function RetirementPlanner({
             <RetirementCashFlow
               rows={cashFlow}
               retirementAge={resolved.inputs.retirementAge}
+              partner={resolved.inputs.partner ?? null}
               sales={projection.sales}
               events={chartEvents}
               activeAge={activeAge}
@@ -657,52 +714,224 @@ function RetirementPlanner({
         <View style={styles.columns}>
           <View style={[styles.column, styles.side]}>
             <Card title="The basics" subtitle="Leave a field empty to use the suggestion in it.">
-              <Row>
-                <Field label="Retire at age" invalid={invalid.retirementAge} tip={TIPS.retirementAge}>
-                  <AgeStepper
-                    value={text.retirementAge}
-                    onChangeText={set('retirementAge')}
-                    onStep={(delta) => stepAge('retirementAge', retireFallback, 18, 100, delta)}
-                    placeholder={String(RETIREMENT_DEFAULTS.retirementAge)}
-                    accessibilityLabel="Retire at age"
-                  />
-                </Field>
-                <Field label="Plan to age" invalid={invalid.lifeExpectancy} tip={TIPS.planToAge}>
-                  <AgeStepper
-                    value={text.lifeExpectancy}
-                    onChangeText={set('lifeExpectancy')}
-                    onStep={(delta) => stepAge('lifeExpectancy', RETIREMENT_DEFAULTS.lifeExpectancy, 50, 120, delta)}
-                    placeholder={String(RETIREMENT_DEFAULTS.lifeExpectancy)}
-                    accessibilityLabel="Plan to age"
-                  />
-                </Field>
-              </Row>
-              <Row>
-                <Field label="Saving per year" invalid={invalid.annualContribution} tip={TIPS.contribution}>
-                  <Input
-                    value={text.annualContribution}
-                    onChangeText={set('annualContribution')}
-                    placeholder={income ? `$0 · 15% is ${formatCompactCurrency(income * 0.15)}` : '$0'}
-                    keyboardType="decimal-pad"
-                    inputMode="decimal"
-                  />
-                  {effectiveContribution !== null && effectiveContribution > 0 && (
+              {hasPartner ? (
+                <>
+                  <ThemedText type="smallBold">You</ThemedText>
+                  <Row>
+                    <Field label="Retire at age" invalid={invalid.retirementAge} tip={TIPS.retirementAge}>
+                      <AgeStepper
+                        value={text.retirementAge}
+                        onChangeText={set('retirementAge')}
+                        onStep={(delta) => stepAge('retirementAge', retireFallback, 18, 100, delta)}
+                        placeholder={String(RETIREMENT_DEFAULTS.retirementAge)}
+                        accessibilityLabel="Retire at age"
+                      />
+                    </Field>
+                    <Field label="Plan to age" invalid={invalid.lifeExpectancy} tip={TIPS.planToAge}>
+                      <AgeStepper
+                        value={text.lifeExpectancy}
+                        onChangeText={set('lifeExpectancy')}
+                        onStep={(delta) => stepAge('lifeExpectancy', RETIREMENT_DEFAULTS.lifeExpectancy, 50, 120, delta)}
+                        placeholder={String(RETIREMENT_DEFAULTS.lifeExpectancy)}
+                        accessibilityLabel="Plan to age"
+                      />
+                    </Field>
+                  </Row>
+                  <Row>
+                    <Field label="Your saving per year" invalid={invalid.annualContribution} tip={TIPS.contribution}>
+                      <Input
+                        value={text.annualContribution}
+                        onChangeText={set('annualContribution')}
+                        placeholder={yourIncome ? `$0 · 15% is ${formatCompactCurrency(yourIncome * 0.15)}` : '$0'}
+                        keyboardType="decimal-pad"
+                        inputMode="decimal"
+                      />
+                      {effectiveContribution !== null && effectiveContribution > 0 && (
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {formatWholeCurrency(Math.round(effectiveContribution / 12))}/mo
+                          {yourIncome ? ` · ${Math.round((effectiveContribution / yourIncome) * 100)}% of your income` : ''}
+                        </ThemedText>
+                      )}
+                    </Field>
+                    <Field label="Return after inflation, %" invalid={invalid.expectedReturn} tip={TIPS.expectedReturn}>
+                      <Input
+                        value={text.expectedReturn}
+                        onChangeText={set('expectedReturn')}
+                        placeholder={String(RETIREMENT_DEFAULTS.expectedReturn)}
+                        keyboardType="decimal-pad"
+                        inputMode="decimal"
+                      />
+                    </Field>
+                  </Row>
+
+                  <View style={[styles.sectionDivider, { borderTopColor: theme.border }]}>
+                    <ThemedText type="smallBold">{pName}</ThemedText>
+                    <Row>
+                      <Field label={`${pName} retires at age`} invalid={invalid.partnerRetirementAge} tip={TIPS.retirementAge}>
+                        <AgeStepper
+                          value={text.partnerRetirementAge}
+                          onChangeText={set('partnerRetirementAge')}
+                          onStep={(delta) => stepAge('partnerRetirementAge', partnerRetireFallback, 18, 100, delta)}
+                          placeholder={String(RETIREMENT_DEFAULTS.retirementAge)}
+                          accessibilityLabel={`${pName} retires at age`}
+                        />
+                      </Field>
+                      <Field label={`${pName} plans to age`} invalid={invalid.partnerLifeExpectancy} tip={TIPS.planToAge}>
+                        <AgeStepper
+                          value={text.partnerLifeExpectancy}
+                          onChangeText={set('partnerLifeExpectancy')}
+                          onStep={(delta) => stepAge('partnerLifeExpectancy', RETIREMENT_DEFAULTS.lifeExpectancy, 50, 120, delta)}
+                          placeholder={String(RETIREMENT_DEFAULTS.lifeExpectancy)}
+                          accessibilityLabel={`${pName} plans to age`}
+                        />
+                      </Field>
+                    </Row>
+                    <Field label={`${pName}’s saving per year`} invalid={invalid.partnerAnnualContribution} tip={TIPS.contribution}>
+                      <Input
+                        value={text.partnerAnnualContribution}
+                        onChangeText={set('partnerAnnualContribution')}
+                        placeholder={
+                          partnerMeta!.annualIncome
+                            ? `$0 · 15% is ${formatCompactCurrency(partnerMeta!.annualIncome * 0.15)}`
+                            : '$0'
+                        }
+                        keyboardType="decimal-pad"
+                        inputMode="decimal"
+                      />
+                      {effectivePartnerContribution !== null && effectivePartnerContribution > 0 && (
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {formatWholeCurrency(Math.round(effectivePartnerContribution / 12))}/mo
+                          {partnerMeta!.annualIncome
+                            ? ` · ${Math.round((effectivePartnerContribution / partnerMeta!.annualIncome) * 100)}% of ${pName}’s income`
+                            : ''}
+                        </ThemedText>
+                      )}
+                    </Field>
+                  </View>
+
+                  {combinedContribution > 0 && (
                     <ThemedText type="small" themeColor="textSecondary">
-                      {formatWholeCurrency(Math.round(effectiveContribution / 12))}/mo
-                      {income ? ` · ${Math.round((effectiveContribution / income) * 100)}% of income` : ''}
+                      Combined saving while both work: {formatWholeCurrency(Math.round(combinedContribution / 12))}/mo
+                      {income ? ` · ${Math.round((combinedContribution / income) * 100)}% of household income` : ''}
                     </ThemedText>
                   )}
-                </Field>
-                <Field label="Return after inflation, %" invalid={invalid.expectedReturn} tip={TIPS.expectedReturn}>
-                  <Input
-                    value={text.expectedReturn}
-                    onChangeText={set('expectedReturn')}
-                    placeholder={String(RETIREMENT_DEFAULTS.expectedReturn)}
-                    keyboardType="decimal-pad"
-                    inputMode="decimal"
-                  />
-                </Field>
-              </Row>
+
+                  {staggered &&
+                    resolved.inputs?.partner &&
+                    (() => {
+                      const rp = resolved.inputs!.partner!;
+                      const firstR = firstRetireAge(resolved.inputs!);
+                      const fullR = fullRetireAge(resolved.inputs!);
+                      const youFirst = resolved.inputs!.retirementAge < rp.retirementAgeInYours;
+                      const workingName = youFirst ? pName : 'You';
+                      const workingGross = youFirst ? partnerMeta!.annualIncome : yourIncome;
+                      const workingNet = youFirst ? rp.bridgeIncomeAnnual : (resolved.inputs!.bridgeIncomeAnnual ?? 0);
+                      const shift = partnerMeta!.birthYear! - d.birthYear!;
+                      return (
+                        <View
+                          style={[
+                            styles.bridgeNote,
+                            { backgroundColor: theme.background, borderColor: theme.border },
+                          ]}>
+                          <View style={styles.bridgeHead}>
+                            <WithTip tip={TIPS.bridgeYears}>
+                              <ThemedText type="smallBold">Bridge years</ThemedText>
+                            </WithTip>
+                            <ThemedText type="small" themeColor="textSecondary">
+                              Your ages {firstR}–{fullR} ({pName} {firstR - shift}–{fullR - shift})
+                            </ThemedText>
+                          </View>
+                          {workingGross === null ? (
+                            <View style={styles.missing}>
+                              <ThemedText type="small" themeColor="textSecondary">
+                                {workingName} {youFirst ? 'keeps' : 'keep'} working while{' '}
+                                {youFirst ? 'you’re' : `${pName} is`} retired. Add{' '}
+                                {youFirst ? `${pName}’s` : 'your'} income on your profile so Meld counts{' '}
+                                {youFirst ? 'their' : 'your'} paycheck during those years.
+                              </ThemedText>
+                              <Button label="Add income" variant="secondary" size="small" onPress={onShowProfile} />
+                            </View>
+                          ) : workingNet > 0 ? (
+                            <ThemedText type="small" themeColor="textSecondary">
+                              {workingName} {youFirst ? 'keeps' : 'keep'} working: counts{' '}
+                              {formatWholeCurrency(workingNet)}/yr estimated after-tax pay toward spending before
+                              tapping savings.
+                            </ThemedText>
+                          ) : (
+                            <ThemedText type="small" themeColor="textSecondary">
+                              {workingName} {youFirst ? 'has' : 'have'} $0 income on your profile, so household spending
+                              draws from savings during these years.
+                            </ThemedText>
+                          )}
+                        </View>
+                      );
+                    })()}
+                </>
+              ) : (
+                <>
+                  <Row>
+                    <Field label="Retire at age" invalid={invalid.retirementAge} tip={TIPS.retirementAge}>
+                      <AgeStepper
+                        value={text.retirementAge}
+                        onChangeText={set('retirementAge')}
+                        onStep={(delta) => stepAge('retirementAge', retireFallback, 18, 100, delta)}
+                        placeholder={String(RETIREMENT_DEFAULTS.retirementAge)}
+                        accessibilityLabel="Retire at age"
+                      />
+                    </Field>
+                    <Field label="Plan to age" invalid={invalid.lifeExpectancy} tip={TIPS.planToAge}>
+                      <AgeStepper
+                        value={text.lifeExpectancy}
+                        onChangeText={set('lifeExpectancy')}
+                        onStep={(delta) => stepAge('lifeExpectancy', RETIREMENT_DEFAULTS.lifeExpectancy, 50, 120, delta)}
+                        placeholder={String(RETIREMENT_DEFAULTS.lifeExpectancy)}
+                        accessibilityLabel="Plan to age"
+                      />
+                    </Field>
+                  </Row>
+                  <Row>
+                    <Field label="Saving per year" invalid={invalid.annualContribution} tip={TIPS.contribution}>
+                      <Input
+                        value={text.annualContribution}
+                        onChangeText={set('annualContribution')}
+                        placeholder={income ? `$0 · 15% is ${formatCompactCurrency(income * 0.15)}` : '$0'}
+                        keyboardType="decimal-pad"
+                        inputMode="decimal"
+                      />
+                      {effectiveContribution !== null && effectiveContribution > 0 && (
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {formatWholeCurrency(Math.round(effectiveContribution / 12))}/mo
+                          {income ? ` · ${Math.round((effectiveContribution / income) * 100)}% of income` : ''}
+                        </ThemedText>
+                      )}
+                    </Field>
+                    <Field label="Return after inflation, %" invalid={invalid.expectedReturn} tip={TIPS.expectedReturn}>
+                      <Input
+                        value={text.expectedReturn}
+                        onChangeText={set('expectedReturn')}
+                        placeholder={String(RETIREMENT_DEFAULTS.expectedReturn)}
+                        keyboardType="decimal-pad"
+                        inputMode="decimal"
+                      />
+                    </Field>
+                  </Row>
+                  {(partnerMeta && partnerMeta.birthYear === null) || (d.married && !partnerMeta) ? (
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {partnerMeta && partnerMeta.birthYear === null
+                        ? `Add ${pName}’s birth year `
+                        : 'Planning with a partner? Add them '}
+                      <ThemedText
+                        type="small"
+                        themeColor="tint"
+                        accessibilityRole="link"
+                        onPress={onShowProfile}>
+                        on your profile
+                      </ThemedText>{' '}
+                      for staggered retirement and separate Social Security.
+                    </ThemedText>
+                  ) : null}
+                </>
+              )}
             </Card>
 
             <Card title="Spending in retirement" tip={TIPS.spending}>
@@ -752,53 +981,202 @@ function RetirementPlanner({
 
           <View style={[styles.column, styles.side]}>
             <Card title="Income in retirement" subtitle="Money that comes in without selling investments.">
-              <Row>
-                <Field label="Social Security per month" invalid={invalid.socialSecurityAnnual} tip={TIPS.socialSecurity}>
-                  <Input
-                    value={text.socialSecurityAnnual}
-                    onChangeText={set('socialSecurityAnnual')}
-                    placeholder={ssEstimate ? `${formatWholeCurrency(ssEstimate / 12)} · estimated` : '$ · from your statement'}
-                    keyboardType="decimal-pad"
-                    inputMode="decimal"
+              {hasPartner && resolved.inputs && resolved.inputs.partner && coupleSS ? (
+                <>
+                  <ThemedText type="smallBold">Your Social Security</ThemedText>
+                  <Row>
+                    <Field label="Your Social Security / mo" invalid={invalid.socialSecurityAnnual} tip={TIPS.socialSecurity}>
+                      <Input
+                        value={text.socialSecurityAnnual}
+                        onChangeText={set('socialSecurityAnnual')}
+                        placeholder={
+                          coupleSS.yours.estimated
+                            ? `${formatWholeCurrency(coupleSS.yours.fullAnnual / 12)} · estimated`
+                            : '$ · from your statement'
+                        }
+                        keyboardType="decimal-pad"
+                        inputMode="decimal"
+                      />
+                    </Field>
+                    <Field label="Start at age" invalid={invalid.socialSecurityAge} tip={TIPS.claimAge}>
+                      <AgeStepper
+                        value={text.socialSecurityAge}
+                        onChangeText={set('socialSecurityAge')}
+                        onStep={(delta) => stepAge('socialSecurityAge', RETIREMENT_DEFAULTS.socialSecurityAge, 62, 70, delta)}
+                        placeholder={String(RETIREMENT_DEFAULTS.socialSecurityAge)}
+                        accessibilityLabel="Your Social Security start age"
+                        maxLength={2}
+                      />
+                    </Field>
+                  </Row>
+                  <SocialSecurity
+                    birthYear={d.birthYear!}
+                    claimAge={resolved.inputs.socialSecurityAge}
+                    fullAnnual={{
+                      annual: coupleSS.yours.ownFullAnnual,
+                      spousalExcess: coupleSS.yours.spousalExcessAnnual,
+                      estimated: coupleSS.yours.estimated,
+                    }}
+                    income={yourIncome}
+                    married={d.married}
+                    retirementAge={resolved.inputs.retirementAge}
+                    otherName={pName}
+                    hasPartner
+                    onClaimAge={(age) => set('socialSecurityAge')(String(age))}
+                    onShowProfile={onShowProfile}
                   />
-                </Field>
-                <Field label="Start it at age" invalid={invalid.socialSecurityAge} tip={TIPS.claimAge}>
-                  <AgeStepper
-                    value={text.socialSecurityAge}
-                    onChangeText={set('socialSecurityAge')}
-                    onStep={(delta) => stepAge('socialSecurityAge', RETIREMENT_DEFAULTS.socialSecurityAge, 62, 70, delta)}
-                    placeholder={String(RETIREMENT_DEFAULTS.socialSecurityAge)}
-                    accessibilityLabel="Social Security start age"
-                    maxLength={2}
-                  />
-                </Field>
-              </Row>
-              {resolved.inputs && (
-                <SocialSecurity
-                  birthYear={d.birthYear!}
-                  claimAge={resolved.inputs.socialSecurityAge}
-                  fullAnnual={socialSecurityAtFullAge(draft, d, resolved.inputs.retirementAge)}
-                  income={income}
-                  married={d.married}
-                  retirementAge={resolved.inputs.retirementAge}
-                  onClaimAge={(age) => set('socialSecurityAge')(String(age))}
-                  onShowProfile={onShowProfile}
-                />
+
+                  <View style={[styles.sectionDivider, { borderTopColor: theme.border }]}>
+                    <ThemedText type="smallBold">{pName}’s Social Security</ThemedText>
+                    <Row>
+                      <Field
+                        label={`${pName}’s Social Security / mo`}
+                        invalid={invalid.partnerSocialSecurityAnnual}
+                        tip={TIPS.socialSecurity}>
+                        <Input
+                          value={text.partnerSocialSecurityAnnual}
+                          onChangeText={set('partnerSocialSecurityAnnual')}
+                          placeholder={
+                            coupleSS.partner.estimated
+                              ? `${formatWholeCurrency(coupleSS.partner.fullAnnual / 12)} · estimated`
+                              : `$ · from ${pName}’s statement`
+                          }
+                          keyboardType="decimal-pad"
+                          inputMode="decimal"
+                        />
+                      </Field>
+                      <Field label="Start at age" invalid={invalid.partnerSocialSecurityAge} tip={TIPS.claimAge}>
+                        <AgeStepper
+                          value={text.partnerSocialSecurityAge}
+                          onChangeText={set('partnerSocialSecurityAge')}
+                          onStep={(delta) =>
+                            stepAge('partnerSocialSecurityAge', RETIREMENT_DEFAULTS.socialSecurityAge, 62, 70, delta)
+                          }
+                          placeholder={String(RETIREMENT_DEFAULTS.socialSecurityAge)}
+                          accessibilityLabel={`${pName}’s Social Security start age`}
+                          maxLength={2}
+                        />
+                      </Field>
+                    </Row>
+                    <SocialSecurity
+                      birthYear={partnerMeta!.birthYear!}
+                      claimAge={resolved.inputs.partner.socialSecurityAge}
+                      fullAnnual={{
+                        annual: coupleSS.partner.ownFullAnnual,
+                        spousalExcess: coupleSS.partner.spousalExcessAnnual,
+                        estimated: coupleSS.partner.estimated,
+                      }}
+                      income={partnerMeta!.annualIncome}
+                      married={d.married}
+                      retirementAge={resolved.inputs.partner.retirementAge}
+                      personLabel={`${pName}’s`}
+                      otherName="you"
+                      hasPartner
+                      onClaimAge={(age) => set('partnerSocialSecurityAge')(String(age))}
+                      onShowProfile={onShowProfile}
+                    />
+                  </View>
+
+                  {resolved.inputs.socialSecurityAnnual > 0 && resolved.inputs.partner.socialSecurityAnnual > 0 && (
+                    <ThemedText type="small" themeColor="textSecondary">
+                      Combined when both are claiming:{' '}
+                      {formatWholeCurrency(
+                        Math.round(
+                          (resolved.inputs.socialSecurityAnnual + resolved.inputs.partner.socialSecurityAnnual) / 12,
+                        ),
+                      )}
+                      /mo (
+                      {formatWholeCurrency(
+                        resolved.inputs.socialSecurityAnnual + resolved.inputs.partner.socialSecurityAnnual,
+                      )}
+                      /yr)
+                    </ThemedText>
+                  )}
+
+                  <View style={[styles.sectionDivider, { borderTopColor: theme.border }]}>
+                    <Row>
+                      <Field label="Your pension / yr" invalid={invalid.pensionAnnual} tip={TIPS.pension}>
+                        <Input
+                          value={text.pensionAnnual}
+                          onChangeText={set('pensionAnnual')}
+                          placeholder="$0"
+                          keyboardType="decimal-pad"
+                          inputMode="decimal"
+                        />
+                        {effectivePension !== null && effectivePension > 0 && (
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {formatWholeCurrency(Math.round(effectivePension / 12))}/mo
+                          </ThemedText>
+                        )}
+                      </Field>
+                      <Field label={`${pName}’s pension / yr`} invalid={invalid.partnerPensionAnnual} tip={TIPS.pension}>
+                        <Input
+                          value={text.partnerPensionAnnual}
+                          onChangeText={set('partnerPensionAnnual')}
+                          placeholder="$0"
+                          keyboardType="decimal-pad"
+                          inputMode="decimal"
+                        />
+                        {effectivePartnerPension !== null && effectivePartnerPension > 0 && (
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {formatWholeCurrency(Math.round(effectivePartnerPension / 12))}/mo
+                          </ThemedText>
+                        )}
+                      </Field>
+                    </Row>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Row>
+                    <Field label="Social Security per month" invalid={invalid.socialSecurityAnnual} tip={TIPS.socialSecurity}>
+                      <Input
+                        value={text.socialSecurityAnnual}
+                        onChangeText={set('socialSecurityAnnual')}
+                        placeholder={ssEstimate ? `${formatWholeCurrency(ssEstimate / 12)} · estimated` : '$ · from your statement'}
+                        keyboardType="decimal-pad"
+                        inputMode="decimal"
+                      />
+                    </Field>
+                    <Field label="Start it at age" invalid={invalid.socialSecurityAge} tip={TIPS.claimAge}>
+                      <AgeStepper
+                        value={text.socialSecurityAge}
+                        onChangeText={set('socialSecurityAge')}
+                        onStep={(delta) => stepAge('socialSecurityAge', RETIREMENT_DEFAULTS.socialSecurityAge, 62, 70, delta)}
+                        placeholder={String(RETIREMENT_DEFAULTS.socialSecurityAge)}
+                        accessibilityLabel="Social Security start age"
+                        maxLength={2}
+                      />
+                    </Field>
+                  </Row>
+                  {resolved.inputs && (
+                    <SocialSecurity
+                      birthYear={d.birthYear!}
+                      claimAge={resolved.inputs.socialSecurityAge}
+                      fullAnnual={socialSecurityAtFullAge(draft, d, resolved.inputs.retirementAge)}
+                      income={income}
+                      married={d.married}
+                      retirementAge={resolved.inputs.retirementAge}
+                      onClaimAge={(age) => set('socialSecurityAge')(String(age))}
+                      onShowProfile={onShowProfile}
+                    />
+                  )}
+                  <Field label="Pension per year" invalid={invalid.pensionAnnual} tip={TIPS.pension}>
+                    <Input
+                      value={text.pensionAnnual}
+                      onChangeText={set('pensionAnnual')}
+                      placeholder="$0"
+                      keyboardType="decimal-pad"
+                      inputMode="decimal"
+                    />
+                    {effectivePension !== null && effectivePension > 0 && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {formatWholeCurrency(Math.round(effectivePension / 12))}/mo
+                      </ThemedText>
+                    )}
+                  </Field>
+                </>
               )}
-              <Field label="Pension per year" invalid={invalid.pensionAnnual} tip={TIPS.pension}>
-                <Input
-                  value={text.pensionAnnual}
-                  onChangeText={set('pensionAnnual')}
-                  placeholder="$0"
-                  keyboardType="decimal-pad"
-                  inputMode="decimal"
-                />
-                {effectivePension !== null && effectivePension > 0 && (
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {formatWholeCurrency(Math.round(effectivePension / 12))}/mo
-                  </ThemedText>
-                )}
-              </Field>
             </Card>
           </View>
         </View>
@@ -810,6 +1188,7 @@ function RetirementPlanner({
           inputs={resolved.inputs}
           kids={d.children}
           birthYear={d.birthYear}
+          partner={d.partner}
           suggestions={suggestions}
           onAdd={addEvents}
           onChange={setEvent}
@@ -890,4 +1269,7 @@ const styles = StyleSheet.create({
   columns: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, alignItems: 'flex-start' },
   column: { flexGrow: 1, flexShrink: 1, flexBasis: 420, minWidth: 0 },
   side: { gap: Spacing.three },
+  sectionDivider: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: Spacing.three, gap: Spacing.three },
+  bridgeNote: { borderWidth: 1, borderRadius: Spacing.two, padding: Spacing.two + Spacing.half, gap: Spacing.one + Spacing.half },
+  bridgeHead: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.two },
 });

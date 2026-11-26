@@ -1,10 +1,15 @@
 import {
+  PARTNER_AGE_ID,
   childName,
+  firstRetireAge,
+  fullRetireAge,
   inYourAges,
+  partnerName,
   SpendingChange,
   type Child,
   type LifeEventKind,
   type RetirementInputs,
+  type RetirementSummary,
 } from '@meld/shared';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -73,10 +78,20 @@ const str = (v: number | null | undefined) => (v === null || v === undefined ? '
 const num = (s: string) => (s.trim() ? Number(s.replace(/[$,%\s]/g, '')) : null);
 const cents = (v: number) => Math.round(v * 100) / 100;
 
+type PartnerMeta = RetirementSummary['defaults']['partner'];
+
 /** Resolves a draft's start age into your age for chronological sorting without changing array order. */
-export function resolvedSortAge(e: Pick<SpendingChange, 'startAge' | 'childId'>, children: Child[], birthYear: number | null): number {
+export function resolvedSortAge(
+  e: Pick<SpendingChange, 'startAge' | 'childId'>,
+  children: Child[],
+  birthYear: number | null,
+  partner?: PartnerMeta,
+): number {
   if (!Number.isFinite(e.startAge)) return Infinity;
   if (e.childId === null || birthYear === null) return e.startAge;
+  if (e.childId === PARTNER_AGE_ID) {
+    return partner?.birthYear != null ? e.startAge + (partner.birthYear - birthYear) : e.startAge;
+  }
   const child = children.find((k) => k.id === e.childId);
   return child ? e.startAge + (child.birthYear - birthYear) : e.startAge;
 }
@@ -177,9 +192,26 @@ export function commonEvents(inputs: RetirementInputs | null, children: Child[],
   if (retire > 50 && now < retire) {
     out.push({
       id: 'catch-up',
-      caption: 'Catch-up contributions at 50',
-      events: [{ label: 'Catch-up contributions', kind: 'saving', startAge: Math.max(50, now), endAge: null, annualChange: 7_500 }],
+      caption: inputs?.partner ? 'Your catch-up contributions at 50' : 'Catch-up contributions at 50',
+      events: [{ label: inputs?.partner ? 'Your catch-up contributions' : 'Catch-up contributions', kind: 'saving', startAge: Math.max(50, now), endAge: null, annualChange: 7_500 }],
     });
+  }
+  if (inputs?.partner) {
+    const p = inputs.partner;
+    if (p.retirementAge < 65 && p.retirementAge >= p.currentAge) {
+      out.push({
+        id: 'partner-health',
+        caption: `${p.name}’s health insurance until Medicare`,
+        events: [{ label: `${p.name}’s health insurance`, kind: 'spending', childId: PARTNER_AGE_ID, startAge: p.retirementAge, endAge: 65, annualChange: 12_000 }],
+      });
+    }
+    if (p.retirementAge > 50 && p.currentAge < p.retirementAge) {
+      out.push({
+        id: 'partner-catch-up',
+        caption: `${p.name}’s catch-up contributions at 50`,
+        events: [{ label: `${p.name}’s catch-up contributions`, kind: 'saving', childId: PARTNER_AGE_ID, startAge: Math.max(50, p.currentAge), endAge: null, annualChange: 7_500 }],
+      });
+    }
   }
   out.push(
     { id: 'inheritance', caption: 'Inheritance', events: [{ label: 'Inheritance', kind: 'once' }] },
@@ -195,6 +227,7 @@ export function LifeEvents({
   inputs,
   kids: children,
   birthYear,
+  partner = null,
   suggestions,
   onAdd,
   onChange,
@@ -205,6 +238,7 @@ export function LifeEvents({
   inputs: RetirementInputs | null;
   kids: Child[];
   birthYear: number | null;
+  partner?: PartnerMeta;
   suggestions: Suggestion[];
   onAdd: (events: EventSeed[]) => void;
   onChange: (key: number, change: Partial<EventDraft>) => void;
@@ -269,6 +303,7 @@ export function LifeEvents({
               inputs={inputs}
               kids={children}
               birthYear={birthYear}
+              partner={partner}
               onChange={(change) => onChange(d.key, change)}
               onRemove={() => onRemove(d.key)}
             />
@@ -344,19 +379,41 @@ function formatImpactPill(e: SpendingChange): string {
   return `${sign}${amt}/${e.monthly ? 'mo' : 'yr'}`;
 }
 
-function formatTimingLine(e: SpendingChange, children: Child[], birthYear: number | null): string {
-  const child = e.childId === null ? null : children.find((k) => k.id === e.childId);
-  if (child) {
-    const startYear = child.birthYear + e.startAge;
+function formatTimingLine(
+  e: SpendingChange,
+  children: Child[],
+  birthYear: number | null,
+  partner?: PartnerMeta,
+): string {
+  const personBirth =
+    e.childId === PARTNER_AGE_ID
+      ? partner?.birthYear ?? null
+      : e.childId !== null
+        ? children.find((k) => k.id === e.childId)?.birthYear ?? null
+        : null;
+  const personLabel =
+    e.childId === PARTNER_AGE_ID
+      ? partnerName(partner)
+      : e.childId !== null && personBirth !== null
+        ? childName(children, e.childId)
+        : null;
+
+  if (personLabel !== null && personBirth !== null) {
+    const startYear = personBirth + e.startAge;
     const yourStart = birthYear === null ? null : startYear - birthYear;
-    const childPrefix = `${childName(children, child.id)} is ${e.startAge}`;
+    const prefix = `${personLabel} is ${e.startAge}`;
     if (e.kind === 'once') {
-      return `When ${childPrefix} (${yourStart !== null ? `you’re ${yourStart}, ` : ''}${startYear})`;
+      return `When ${prefix} (${yourStart !== null ? `you’re ${yourStart}, ` : ''}${startYear})`;
     }
-    const span = e.endAge === null ? `${childPrefix}+` : `${childName(children, child.id)} ${e.startAge}–${e.endAge}`;
+    const span = e.endAge === null ? `${prefix}+` : `${personLabel} ${e.startAge}–${e.endAge}`;
     return yourStart !== null
-      ? `When ${span} (you’re ${yourStart}${e.endAge !== null ? `–${child.birthYear + e.endAge - birthYear!}` : ''}, ${startYear})`
+      ? `When ${span} (you’re ${yourStart}${e.endAge !== null ? `–${personBirth + e.endAge - birthYear!}` : ''}, ${startYear})`
       : `When ${span} (${startYear})`;
+  }
+  if (e.childId === PARTNER_AGE_ID) {
+    const pName = partnerName(partner);
+    if (e.kind === 'once') return `When ${pName} is ${e.startAge}`;
+    return e.endAge === null ? `When ${pName} is ${e.startAge}+` : `When ${pName} is ${e.startAge}–${e.endAge}`;
   }
   const calStart = birthYear === null ? null : birthYear + e.startAge;
   if (e.kind === 'once') return calStart !== null ? `At age ${e.startAge} (${calStart})` : `At age ${e.startAge}`;
@@ -372,6 +429,7 @@ function EventRow({
   inputs,
   kids: children,
   birthYear,
+  partner,
   onChange,
   onRemove,
 }: {
@@ -380,6 +438,7 @@ function EventRow({
   inputs: RetirementInputs | null;
   kids: Child[];
   birthYear: number | null;
+  partner?: PartnerMeta;
   onChange: (change: Partial<EventDraft>) => void;
   onRemove: () => void;
 }) {
@@ -395,12 +454,14 @@ function EventRow({
   };
   const complete = !Object.values(bad).some(Boolean);
   const open = d.open || !complete;
-  const lostChild = d.childId !== null && !children.some((k) => k.id === d.childId);
+  const lostPartner = d.childId === PARTNER_AGE_ID && (!partner || partner.birthYear === null);
+  const lostChild = d.childId !== null && d.childId !== PARTNER_AGE_ID && !children.some((k) => k.id === d.childId);
+  const hasPartnerAge = partner?.birthYear != null;
   const [more, less] = DIRECTIONS[d.kind];
   const once = d.kind === 'once';
 
   function toggleOpen(nextOpen: boolean) {
-    onChange(nextOpen ? { open: true } : { open: false, sortAge: resolvedSortAge(event, children, birthYear) });
+    onChange(nextOpen ? { open: true } : { open: false, sortAge: resolvedSortAge(event, children, birthYear, partner) });
   }
 
   function setMonthly(monthly: boolean) {
@@ -440,10 +501,10 @@ function EventRow({
             {d.label.trim() || 'New event'}
           </ThemedText>
           <ThemedText type="small" themeColor={complete ? 'textSecondary' : 'warning'}>
-            {complete ? formatTimingLine(event, children, birthYear) : 'Unfinished: fill in the fields below'}
+            {complete ? formatTimingLine(event, children, birthYear, partner) : 'Unfinished: fill in the fields below'}
           </ThemedText>
           {narrow && impactPill && <View style={styles.narrowPillWrap}>{impactPill}</View>}
-          {complete && inputs && <Effect event={event} inputs={inputs} kids={children} birthYear={birthYear} />}
+          {complete && inputs && <Effect event={event} inputs={inputs} kids={children} birthYear={birthYear} partner={partner} />}
         </Pressable>
         {!narrow && impactPill}
         <View style={styles.eventActions}>
@@ -468,6 +529,11 @@ function EventRow({
         </View>
       </View>
 
+      {lostPartner && (
+        <ThemedText type="small" themeColor="negative">
+          Your partner’s birth year isn’t set on your profile, so this event is left out.
+        </ThemedText>
+      )}
       {lostChild && (
         <ThemedText type="small" themeColor="negative">
           This child is no longer on your profile, so the event is left out.
@@ -492,7 +558,7 @@ function EventRow({
               ))}
             </View>
           </View>
-          {(children.length > 0 || d.childId !== null) && (
+          {(children.length > 0 || hasPartnerAge || d.childId !== null) && (
             <View style={styles.group}>
               <View style={styles.labelRow}>
                 <ThemedText type="small" themeColor="textSecondary">
@@ -502,6 +568,13 @@ function EventRow({
               </View>
               <View style={styles.chips}>
                 <Chip label="Yours" selected={d.childId === null} onPress={() => onChange({ childId: null })} />
+                {(hasPartnerAge || d.childId === PARTNER_AGE_ID) && (
+                  <Chip
+                    label={`${partnerName(partner)}’s`}
+                    selected={d.childId === PARTNER_AGE_ID}
+                    onPress={() => onChange({ childId: PARTNER_AGE_ID })}
+                  />
+                )}
                 {children.map((k) => (
                   <Chip key={k.id} label={`${childName(children, k.id)}’s`} selected={d.childId === k.id} onPress={() => onChange({ childId: k.id })} />
                 ))}
@@ -549,7 +622,13 @@ function EventRow({
 }
 
 /** "at 52 (2031)", or "when Maya is 18 (you’re 52, in 2031)". */
-function when(age: number, childId: string | null, children: Child[], birthYear: number | null) {
+function when(age: number, childId: string | null, children: Child[], birthYear: number | null, partner?: PartnerMeta) {
+  if (childId === PARTNER_AGE_ID) {
+    const pName = partnerName(partner);
+    if (partner?.birthYear == null) return `when ${pName} is ${age}`;
+    const year = partner.birthYear + age;
+    return `when ${pName} is ${age}${birthYear === null ? '' : ` (you’re ${year - birthYear}, in ${year})`}`;
+  }
   const child = childId === null ? null : children.find((k) => k.id === childId);
   if (!child) return birthYear === null ? `at ${age}` : `at ${age} (${birthYear + age})`;
   const year = child.birthYear + age;
@@ -557,10 +636,10 @@ function when(age: number, childId: string | null, children: Child[], birthYear:
 }
 
 /** The event in a sentence, e.g. "Spend $1,500 less a month at 52 (2031), for good". */
-export function describe(e: SpendingChange, children: Child[], birthYear: number | null) {
+export function describe(e: SpendingChange, children: Child[], birthYear: number | null, partner?: PartnerMeta) {
   const amount = formatWholeCurrency(Math.abs(e.monthly ? e.annualChange / 12 : e.annualChange));
   const less = e.annualChange < 0;
-  if (e.kind === 'once') return `${amount} ${less ? 'out of' : 'into'} savings ${when(e.startAge, e.childId, children, birthYear)}`;
+  if (e.kind === 'once') return `${amount} ${less ? 'out of' : 'into'} savings ${when(e.startAge, e.childId, children, birthYear, partner)}`;
   const per = e.monthly ? 'a month' : 'a year';
   const what = {
     spending: `Spend ${amount} ${less ? 'less' : 'more'} ${per}`,
@@ -568,7 +647,7 @@ export function describe(e: SpendingChange, children: Child[], birthYear: number
     saving: `Save ${amount} ${less ? 'less' : 'more'} ${per}`,
   }[e.kind ?? 'spending'];
   const until = e.endAge === null ? ', for good' : `, until ${e.endAge}`;
-  return `${what} from ${when(e.startAge, e.childId, children, birthYear).replace(/^at /, '')}${until}`;
+  return `${what} from ${when(e.startAge, e.childId, children, birthYear, partner).replace(/^at /, '')}${until}`;
 }
 
 /** A note when an event falls where it can't change the projection. */
@@ -577,22 +656,25 @@ function Effect({
   inputs,
   kids: children,
   birthYear,
+  partner,
 }: {
   event: SpendingChange;
   inputs: RetirementInputs;
   kids: Child[];
   birthYear: number | null;
+  partner?: PartnerMeta;
 }) {
   if (birthYear === null) return null;
-  const [mine] = inYourAges([event], children, birthYear);
+  const [mine] = inYourAges([event], children, birthYear, partner);
   if (!mine) return null;
-  const retire = inputs.retirementAge;
+  const firstRetire = firstRetireAge(inputs);
+  const fullRetire = fullRetireAge(inputs);
   const end = mine.endAge ?? Infinity;
   let note: string | null = null;
-  if (mine.kind === 'spending' && end <= retire) {
-    note = 'This is all before you retire, so it doesn’t change the projection. If it means saving less, make it a saving change.';
-  } else if (mine.kind === 'saving' && mine.startAge >= retire) {
-    note = 'This starts after you retire, when you’re no longer saving, so it has no effect.';
+  if (mine.kind === 'spending' && end <= firstRetire) {
+    note = 'This is all before retirement, so it doesn’t change the projection. If it means saving less, make it a saving change.';
+  } else if (mine.kind === 'saving' && mine.startAge >= fullRetire) {
+    note = 'This starts after both of you retire, when you’re no longer saving, so it has no effect.';
   } else if (end <= inputs.currentAge || mine.startAge > inputs.lifeExpectancy) {
     note = 'This falls outside your plan’s years, so it has no effect.';
   }

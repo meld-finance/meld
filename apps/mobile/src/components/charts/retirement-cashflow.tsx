@@ -1,4 +1,4 @@
-import type { RetirementCashFlowYear, RetirementProjection as Projection } from '@meld/shared';
+import type { ResolvedPartner, RetirementCashFlowYear, RetirementProjection as Projection } from '@meld/shared';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Line, Path, Rect } from 'react-native-svg';
@@ -28,6 +28,7 @@ const { height: HEIGHT, padTop: PAD_TOP, endPadX: END_PAD_X, yAxisWidth: Y_AXIS_
 export function RetirementCashFlow({
   rows,
   retirementAge,
+  partner = null,
   sales = [],
   events = [],
   activeAge: controlledActiveAge,
@@ -36,6 +37,7 @@ export function RetirementCashFlow({
 }: {
   rows: RetirementCashFlowYear[];
   retirementAge: number;
+  partner?: Pick<ResolvedPartner, 'name' | 'retirementAge' | 'retirementAgeInYours'> | null;
   sales?: Projection['sales'];
   events?: ProjectionEventMarker[];
   activeAge?: number | null;
@@ -69,12 +71,27 @@ export function RetirementCashFlow({
   const barW = Math.max(2, plotW / rows.length - 1.5);
 
   const retireIndex = rows.findIndex((r) => r.age === retirementAge);
+  const partnerRetireIndex = partner ? rows.findIndex((r) => r.age === partner.retirementAgeInYours) : -1;
+  const staggered = !!partner && partner.retirementAgeInYours !== retirementAge;
+  const firstRetire = partner ? Math.min(retirementAge, partner.retirementAgeInYours) : retirementAge;
+  const fullRetire = partner ? Math.max(retirementAge, partner.retirementAgeInYours) : retirementAge;
+  const firstRetireIndex = rows.findIndex((r) => r.age === Math.max(firstRetire, minAge));
+  const separateRetireLabels =
+    staggered && retireIndex > 0 && partnerRetireIndex > 0 && Math.abs(x(partnerRetireIndex) - x(retireIndex)) > 88;
+  const combinedRetireLabel = staggered && (retireIndex > 0 || partnerRetireIndex > 0) && !separateRetireLabels;
+  const combinedCenterX =
+    retireIndex > 0 && partnerRetireIndex > 0
+      ? (x(retireIndex) + x(partnerRetireIndex)) / 2
+      : retireIndex > 0
+        ? x(retireIndex)
+        : x(partnerRetireIndex);
+  const hasWorkIncome = rows.some((r) => r.workingIncome > 0);
   const every = rows.length > 40 ? 10 : 5;
   const labeled = rows.map((r, i) => (r.age % every === 0 ? i : -1)).filter((i) => i >= 0);
 
-  // Crisp spending curve across retired years.
+  // Crisp spending curve across bridge and retired years.
   const retiredSegments = rows
-    .map((r, i) => (r.retired ? `${i === retireIndex || !rows[i - 1]?.retired ? 'M' : 'L'}${x(i).toFixed(1)},${y(r.spending).toFixed(1)}` : null))
+    .map((r, i) => (r.retired ? `${i === firstRetireIndex || !rows[i - 1]?.retired ? 'M' : 'L'}${x(i).toFixed(1)},${y(r.spending).toFixed(1)}` : null))
     .filter(Boolean)
     .join(' ');
 
@@ -136,11 +153,13 @@ export function RetirementCashFlow({
                       />
                     );
                   }
+                  const work = Math.max(0, r.workingIncome);
                   const ss = Math.max(0, r.socialSecurity);
                   const other = Math.max(0, r.pension + Math.max(0, r.rent) + Math.max(0, r.eventIncome));
                   const draw = Math.max(0, r.withdrawal);
                   let cum = 0;
                   const segs: { val: number; color: string }[] = [
+                    { val: work, color: accents.teal.fg },
                     { val: ss, color: viz.trend },
                     { val: other, color: viz.series1 },
                     { val: draw, color: viz.series2 },
@@ -185,10 +204,22 @@ export function RetirementCashFlow({
                     strokeDasharray="4 4"
                   />
                 )}
+                {partnerRetireIndex > 0 && partnerRetireIndex !== retireIndex && (
+                  <Line
+                    x1={x(partnerRetireIndex)}
+                    x2={x(partnerRetireIndex)}
+                    y1={PAD_TOP - 4}
+                    y2={HEIGHT}
+                    stroke={accents.teal.fg}
+                    strokeOpacity={0.65}
+                    strokeWidth={1}
+                    strokeDasharray="4 4"
+                  />
+                )}
                 {hasActive && <Line x1={x(activeIdx)} x2={x(activeIdx)} y1={0} y2={HEIGHT} stroke={viz.axis} strokeWidth={1} />}
               </Svg>
             )}
-            {retireIndex > 0 && width > 0 && (
+            {!staggered && retireIndex > 0 && width > 0 && (
               <ThemedText
                 type="small"
                 themeColor="textSecondary"
@@ -197,18 +228,61 @@ export function RetirementCashFlow({
                 Retire at {retirementAge}
               </ThemedText>
             )}
+            {separateRetireLabels && width > 0 && (
+              <>
+                <ThemedText
+                  type="small"
+                  themeColor="textSecondary"
+                  numberOfLines={1}
+                  pointerEvents="none"
+                  style={[styles.splitMarker, { left: Math.min(Math.max(x(retireIndex) - 48, 0), width - 96) }]}>
+                  You {retirementAge}
+                </ThemedText>
+                <ThemedText
+                  type="small"
+                  numberOfLines={1}
+                  pointerEvents="none"
+                  style={[
+                    styles.splitMarker,
+                    { color: accents.teal.fg, left: Math.min(Math.max(x(partnerRetireIndex) - 48, 0), width - 96) },
+                  ]}>
+                  {partner!.name} {partner!.retirementAge}
+                </ThemedText>
+              </>
+            )}
+            {combinedRetireLabel && width > 0 && (
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                numberOfLines={1}
+                pointerEvents="none"
+                style={[styles.marker, { left: Math.min(Math.max(combinedCenterX - 60, 0), width - 120) }]}>
+                {retireIndex > 0 && partnerRetireIndex > 0
+                  ? `Retire ${firstRetire}–${fullRetire}`
+                  : retireIndex > 0
+                    ? `You retire ${retirementAge}`
+                    : `${partner!.name} ${partner!.retirementAge}`}
+              </ThemedText>
+            )}
             {activeRow && width > 0 && (
               <ChartTooltipBox anchorX={x(activeIdx)} plotWidth={width}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Age {activeRow.age} · {new Date().getFullYear() + (activeRow.age - minAge)}
+                <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                  {partner && activeRow.partnerAge != null
+                    ? `Age ${activeRow.age} · ${partner.name} ${activeRow.partnerAge} · ${new Date().getFullYear() + (activeRow.age - minAge)}`
+                    : `Age ${activeRow.age} · ${new Date().getFullYear() + (activeRow.age - minAge)}`}
                 </ThemedText>
-                {!activeRow.retired ? (
+                {activeRow.phase === 'working' ? (
                   <ThemedText type="smallBold" style={{ color: viz.series1 }}>
                     Saving: {formatWholeCurrency(activeRow.saving)}/yr
                   </ThemedText>
                 ) : (
                   <>
                     <ThemedText type="smallBold">Spending: {formatWholeCurrency(activeRow.spending)}/yr</ThemedText>
+                    {activeRow.workingIncome > 0 && (
+                      <ThemedText type="small" style={{ color: accents.teal.fg }}>
+                        Work income: {formatWholeCurrency(activeRow.workingIncome)}
+                      </ThemedText>
+                    )}
                     {activeRow.socialSecurity > 0 && (
                       <ThemedText type="small" style={{ color: viz.trend }}>
                         Social Security: {formatWholeCurrency(activeRow.socialSecurity)}
@@ -221,12 +295,21 @@ export function RetirementCashFlow({
                     )}
                     <ThemedText
                       type="small"
-                      style={{ color: activeRow.withdrawal > 0 ? viz.series2 : theme.positive }}>
-                      {activeRow.withdrawal > 0
-                        ? `From savings: ${formatWholeCurrency(activeRow.withdrawal)}`
-                        : activeRow.withdrawal < 0
-                          ? `Surplus saved: +${formatWholeCurrency(-activeRow.withdrawal)}`
-                          : 'Covered by income'}
+                      style={{
+                        color:
+                          activeRow.phase === 'bridge' && activeRow.saving > 0
+                            ? theme.positive
+                            : activeRow.withdrawal > 0
+                              ? viz.series2
+                              : theme.positive,
+                      }}>
+                      {activeRow.phase === 'bridge' && activeRow.saving > 0
+                        ? `Saved: +${formatWholeCurrency(activeRow.saving)}`
+                        : activeRow.withdrawal > 0
+                          ? `From savings: ${formatWholeCurrency(activeRow.withdrawal)}`
+                          : activeRow.withdrawal < 0
+                            ? `Surplus saved: +${formatWholeCurrency(-activeRow.withdrawal)}`
+                            : 'Covered by income'}
                     </ThemedText>
                   </>
                 )}
@@ -270,6 +353,7 @@ export function RetirementCashFlow({
       <ChartAgeAxis ages={rows.map((r) => r.age)} labeledIndices={labeled} width={width} xAtIndex={x} />
       <View style={styles.legend}>
         <LegendItem color={viz.series1} label="Saving / other income" />
+        {hasWorkIncome && <LegendItem color={accents.teal.fg} label="Work income" />}
         <LegendItem color={viz.trend} label="Social Security" />
         <LegendItem color={viz.series2} label="From savings" />
         <View style={styles.legendItem}>
@@ -303,6 +387,7 @@ const styles = StyleSheet.create({
   slices: { flex: 1, flexDirection: 'row' },
   slice: { flex: 1 },
   marker: { position: 'absolute', top: 0, width: 120, textAlign: 'center', fontSize: 12 },
+  splitMarker: { position: 'absolute', top: 0, width: 96, textAlign: 'center', fontSize: 11 },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three, paddingLeft: Y_AXIS_WIDTH },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one + Spacing.half },
   legendSwatch: { width: 10, height: 10, borderRadius: 2 },

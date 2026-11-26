@@ -1,5 +1,6 @@
 import {
-  claimingFactor,
+  claimedAnnualBenefit,
+  firstRetireAge,
   formatFullRetirementAge,
   fullRetirementAgeMonths,
   SIMULATION_DEFAULTS,
@@ -127,7 +128,7 @@ const STICKY = (Platform.OS === 'web' ? { position: 'sticky', bottom: Spacing.th
 /** Spending at key milestone ages, as scannable pills. */
 export function SpendingPath({ inputs }: { inputs: RetirementInputs }) {
   const theme = useTheme();
-  const start = Math.max(inputs.retirementAge, inputs.currentAge);
+  const start = Math.max(firstRetireAge(inputs), inputs.currentAge);
   const ages = [start, ...[75, 85].filter((a) => a > start && a < inputs.lifeExpectancy)];
   return (
     <View style={styles.pathWrap}>
@@ -159,25 +160,40 @@ export function Summary({
   successRate: number | null;
   onPressStress: () => void;
 }) {
-  const retired = inputs.retirementAge <= inputs.currentAge;
+  const firstRetire = firstRetireAge(inputs);
+  const staggered = !!inputs.partner && inputs.retirementAge !== inputs.partner.retirementAgeInYours;
+  const retired = firstRetire <= inputs.currentAge;
   const saleTotal = p.sales.reduce((sum, s) => sum + s.proceeds, 0);
   const successPct = successRate !== null ? Math.round(successRate * 100) : null;
   const successTone =
     successRate === null ? undefined : successRate >= 0.8 ? 'positive' : successRate >= 0.6 ? 'warning' : 'negative';
 
+  const projectedCaption = retired
+    ? 'Counted toward retirement'
+    : staggered
+      ? `${inputs.retirementAge < inputs.partner!.retirementAgeInYours ? 'When you retire' : `When ${inputs.partner!.name} retires (${inputs.partner!.retirementAge})`} · from ${formatWholeCurrency(inputs.startingBalance)} today`
+      : `From ${formatWholeCurrency(inputs.startingBalance)} today`;
+
+  const yourEnd = inputs.yourLifeExpectancy ?? inputs.lifeExpectancy;
+  const neededCaption = inputs.partner
+    ? inputs.lifeExpectancy > yourEnd
+      ? `To ${inputs.partner.name}’s ${inputs.partner.lifeExpectancy} (your ${inputs.lifeExpectancy})`
+      : `To your ${yourEnd} & ${inputs.partner.name}’s ${inputs.partner.lifeExpectancy}`
+    : `To age ${inputs.lifeExpectancy}`;
+
   return (
     <TileRow>
       <StatTile
-        label={retired ? 'Saved today' : `Projected at ${inputs.retirementAge}`}
+        label={retired ? 'Saved today' : `Projected at ${firstRetire}`}
         tip={TIPS.projected}
         value={p.atRetirement}
-        caption={retired ? 'Counted toward retirement' : `From ${formatWholeCurrency(inputs.startingBalance)} today`}
+        caption={projectedCaption}
       />
       <StatTile
-        label={`Needed at ${inputs.retirementAge}`}
+        label={`Needed at ${firstRetire}`}
         tip={TIPS.needed}
         value={p.needed}
-        caption={`To last to age ${inputs.lifeExpectancy}`}
+        caption={neededCaption}
       />
       {p.gap <= 0 ? (
         <StatTile
@@ -230,19 +246,25 @@ export function Summary({
 export function SocialSecurity({
   birthYear,
   claimAge,
-  fullAnnual: { annual, estimated },
+  fullAnnual: { annual, spousalExcess = 0, estimated },
   income,
   married,
   retirementAge,
+  personLabel,
+  otherName,
+  hasPartner = false,
   onClaimAge,
   onShowProfile,
 }: {
   birthYear: number;
   claimAge: number;
-  fullAnnual: { annual: number; estimated: boolean };
+  fullAnnual: { annual: number; spousalExcess?: number; estimated: boolean };
   income: number | null;
   married: boolean;
   retirementAge: number;
+  personLabel?: string;
+  otherName?: string;
+  hasPartner?: boolean;
   onClaimAge: (age: number) => void;
   onShowProfile: () => void;
 }) {
@@ -251,27 +273,30 @@ export function SocialSecurity({
       ssa.gov
     </ThemedText>
   );
-  if (annual === 0) {
+  const totalFull = annual + spousalExcess;
+  const whose = personLabel ?? 'your';
+  if (totalFull === 0) {
     return (
       <View style={styles.missing}>
         <ThemedText type="small" themeColor="textSecondary">
           {income === null
-            ? 'Add your income to your profile and Meld will estimate your Social Security, or '
+            ? `Add ${whose} income to your profile and Meld will estimate ${whose} Social Security, or `
             : 'Not counting Social Security. To count it, '}
-          type the amount at full retirement age from your statement at {statementLink}.
+          type the amount at full retirement age from the statement at {statementLink}.
         </ThemedText>
         {income === null && <Button label="Add income" variant="secondary" size="small" onPress={onShowProfile} />}
       </View>
     );
   }
-  const monthly = (age: number) => (annual / 12) * claimingFactor(birthYear, age);
+  const monthly = (age: number) => claimedAnnualBenefit(annual, spousalExcess, birthYear, age) / 12;
   const fullAge = Math.ceil(fullRetirementAgeMonths(birthYear) / 12);
   const ages = [...new Set([62, fullAge, 70])];
+  const otherPossessive = otherName === 'you' ? 'your' : otherName ? `${otherName}’s` : 'your partner’s';
   return (
     <View style={styles.missing}>
       <WithTip tip={TIPS.fullRetirementAge}>
         <ThemedText type="small" themeColor="textSecondary" style={styles.shrinkText}>
-          Pick when to start · your full retirement age is {formatFullRetirementAge(birthYear)}
+          Pick when to start · {whose} full retirement age is {formatFullRetirementAge(birthYear)}
         </ThemedText>
       </WithTip>
       <View style={styles.buttons}>
@@ -282,17 +307,38 @@ export function SocialSecurity({
             variant={age === claimAge ? 'primary' : 'secondary'}
             size="small"
             onPress={() => onClaimAge(age)}
-            accessibilityLabel={`Start Social Security at ${age}`}
+            accessibilityLabel={`Start ${whose} Social Security at ${age}`}
           />
         ))}
       </View>
       <ThemedText type="small" themeColor="textSecondary">
         {estimated ? (
-          <>
-            Estimated from your {formatWholeCurrency(income!)} income{married ? ' for you and your spouse' : ''}, working
-            to {retirementAge}. For your exact figure, sign in at {statementLink} and type the monthly amount at full
-            retirement age.
-          </>
+          spousalExcess > 0 ? (
+            annual === 0 ? (
+              <>
+                Estimated spousal benefit from {otherPossessive} income (half of their full benefit, capped at full
+                retirement age). For an exact figure, sign in at {statementLink} and type the monthly amount at full
+                retirement age.
+              </>
+            ) : (
+              <>
+                Estimated from {formatWholeCurrency(income!)} income working to {retirementAge}, including a spousal
+                top-up to half of {otherPossessive} full benefit. For an exact figure, sign in at {statementLink} and
+                type the monthly amount at full retirement age.
+              </>
+            )
+          ) : hasPartner ? (
+            <>
+              Estimated from {formatWholeCurrency(income!)} income, working to {retirementAge}. For the exact figure,
+              sign in at {statementLink} and type the monthly amount at full retirement age.
+            </>
+          ) : (
+            <>
+              Estimated from your {formatWholeCurrency(income!)} income{married ? ' for you and your spouse' : ''}, working
+              to {retirementAge}. For your exact figure, sign in at {statementLink} and type the monthly amount at full
+              retirement age.
+            </>
+          )
         ) : (
           <>
             Starting at {claimAge} pays {formatWholeCurrency(monthly(claimAge))} a month for life.

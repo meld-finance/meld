@@ -1,4 +1,4 @@
-import type { RetirementCashFlowYear, RetirementProjection as Projection } from '@meld/shared';
+import type { ResolvedPartner, RetirementCashFlowYear, RetirementProjection as Projection } from '@meld/shared';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
@@ -31,6 +31,7 @@ export function RetirementProjection({
   points,
   retirementAge,
   socialSecurityAge = null,
+  partner = null,
   sales = [],
   events = [],
   cashFlow,
@@ -42,6 +43,10 @@ export function RetirementProjection({
   retirementAge: number;
   /** Shown as a subtle marker when Social Security starts at a different age than retirement. */
   socialSecurityAge?: number | null;
+  partner?: Pick<
+    ResolvedPartner,
+    'name' | 'retirementAge' | 'retirementAgeInYours' | 'socialSecurityAgeInYours' | 'socialSecurityAnnual'
+  > | null;
   /** Property sales, marked on the line where the balance steps up. */
   sales?: Projection['sales'];
   /** Life events, marked along the bottom by kind and listed in tooltips when active. */
@@ -81,15 +86,48 @@ export function RetirementProjection({
   const area = `${line} L${x(points.length - 1).toFixed(1)},${y(min)} L${x(0).toFixed(1)},${y(min)} Z`;
 
   const retireIndex = points.findIndex((p) => p.age === retirementAge);
-  const ssIndex = socialSecurityAge !== null && socialSecurityAge !== retirementAge ? points.findIndex((p) => p.age === socialSecurityAge) : -1;
-  const showSsLabel = ssIndex > 0 && (retireIndex <= 0 || Math.abs(x(ssIndex) - x(retireIndex)) > 78);
+  const partnerRetireIndex = partner ? points.findIndex((p) => p.age === partner.retirementAgeInYours) : -1;
+  const staggered = !!partner && partner.retirementAgeInYours !== retirementAge;
+  const firstRetire = partner ? Math.min(retirementAge, partner.retirementAgeInYours) : retirementAge;
+  const fullRetire = partner ? Math.max(retirementAge, partner.retirementAgeInYours) : retirementAge;
+  const firstIdx = points.findIndex((p) => p.age === Math.max(firstRetire, minAge));
+  const fullIdx = points.findIndex((p) => p.age === Math.max(fullRetire, minAge));
+  const separateRetireLabels =
+    staggered && retireIndex > 0 && partnerRetireIndex > 0 && Math.abs(x(partnerRetireIndex) - x(retireIndex)) > 88;
+  const combinedRetireLabel = staggered && (retireIndex > 0 || partnerRetireIndex > 0) && !separateRetireLabels;
+  const combinedCenterX =
+    retireIndex > 0 && partnerRetireIndex > 0
+      ? (x(retireIndex) + x(partnerRetireIndex)) / 2
+      : retireIndex > 0
+        ? x(retireIndex)
+        : x(partnerRetireIndex);
+
+  const ssIndex =
+    socialSecurityAge !== null && socialSecurityAge !== retirementAge
+      ? points.findIndex((p) => p.age === socialSecurityAge)
+      : -1;
+  const ssSameAge = !!partner && partner.socialSecurityAnnual > 0 && socialSecurityAge === partner.socialSecurityAgeInYours;
+  const partnerSsIndex =
+    partner &&
+    partner.socialSecurityAnnual > 0 &&
+    !ssSameAge &&
+    partner.socialSecurityAgeInYours !== retirementAge &&
+    partner.socialSecurityAgeInYours !== partner.retirementAgeInYours
+      ? points.findIndex((p) => p.age === partner.socialSecurityAgeInYours)
+      : -1;
+  const clearOfRetire = (idx: number) =>
+    idx > 0 &&
+    (retireIndex <= 0 || Math.abs(x(idx) - x(retireIndex)) > 84) &&
+    (partnerRetireIndex <= 0 || Math.abs(x(idx) - x(partnerRetireIndex)) > 84);
+  const showSsLabel = clearOfRetire(ssIndex);
+  const showPartnerSsLabel = clearOfRetire(partnerSsIndex) && (!showSsLabel || Math.abs(x(partnerSsIndex) - x(ssIndex)) > 84);
 
   const every = points.length > 40 ? 10 : 5;
   const labeled = points.map((p, i) => (p.age % every === 0 ? i : -1)).filter((i) => i >= 0);
 
   const activeIdx = activeAge !== null ? points.findIndex((p) => p.age === activeAge) : -1;
   const hasActive = activeIdx >= 0;
-  const shown = hasActive ? activeIdx : retireIndex >= 0 ? retireIndex : points.length - 1;
+  const shown = hasActive ? activeIdx : firstIdx >= 0 ? firstIdx : points.length - 1;
   const point = points[shown]!;
   const year = new Date().getFullYear() + (point.age - minAge);
   const salesShown = sales.filter((s) => s.age === point.age);
@@ -128,6 +166,16 @@ export function RetirementProjection({
                 {ticks.map((t) => (
                   <Line key={t} x1={0} x2={width} y1={y(t)} y2={y(t)} stroke={viz.grid} strokeWidth={1} />
                 ))}
+                {staggered && firstIdx >= 0 && fullIdx > firstIdx && !spanBand && (
+                  <Rect
+                    x={x(firstIdx)}
+                    y={PAD_TOP}
+                    width={x(fullIdx) - x(firstIdx)}
+                    height={HEIGHT - PAD_TOP}
+                    fill={accents.teal.fg}
+                    fillOpacity={0.06}
+                  />
+                )}
                 {spanBand && (
                   <Rect
                     x={spanBand.x}
@@ -150,10 +198,34 @@ export function RetirementProjection({
                     strokeDasharray="4 4"
                   />
                 )}
+                {partnerRetireIndex > 0 && partnerRetireIndex !== retireIndex && (
+                  <Line
+                    x1={x(partnerRetireIndex)}
+                    x2={x(partnerRetireIndex)}
+                    y1={PAD_TOP - 4}
+                    y2={HEIGHT}
+                    stroke={accents.teal.fg}
+                    strokeOpacity={0.65}
+                    strokeWidth={1}
+                    strokeDasharray="4 4"
+                  />
+                )}
                 {ssIndex > 0 && (
                   <Line
                     x1={x(ssIndex)}
                     x2={x(ssIndex)}
+                    y1={PAD_TOP - 4}
+                    y2={HEIGHT}
+                    stroke={viz.trend}
+                    strokeOpacity={0.55}
+                    strokeWidth={1}
+                    strokeDasharray="2 3"
+                  />
+                )}
+                {partnerSsIndex > 0 && (
+                  <Line
+                    x1={x(partnerSsIndex)}
+                    x2={x(partnerSsIndex)}
                     y1={PAD_TOP - 4}
                     y2={HEIGHT}
                     stroke={viz.trend}
@@ -201,7 +273,7 @@ export function RetirementProjection({
                 <Circle cx={x(shown)} cy={y(point.balance)} r={5} fill={viz.trend} stroke={theme.backgroundElement} strokeWidth={2} />
               </Svg>
             )}
-            {retireIndex > 0 && width > 0 && (
+            {!staggered && retireIndex > 0 && width > 0 && (
               <ThemedText
                 type="small"
                 themeColor="textSecondary"
@@ -210,40 +282,95 @@ export function RetirementProjection({
                 Retire at {retirementAge}
               </ThemedText>
             )}
+            {separateRetireLabels && width > 0 && (
+              <>
+                <ThemedText
+                  type="small"
+                  themeColor="textSecondary"
+                  numberOfLines={1}
+                  pointerEvents="none"
+                  style={[styles.splitMarker, { left: Math.min(Math.max(x(retireIndex) - 48, 0), width - 96) }]}>
+                  You {retirementAge}
+                </ThemedText>
+                <ThemedText
+                  type="small"
+                  numberOfLines={1}
+                  pointerEvents="none"
+                  style={[
+                    styles.splitMarker,
+                    { color: accents.teal.fg, left: Math.min(Math.max(x(partnerRetireIndex) - 48, 0), width - 96) },
+                  ]}>
+                  {partner!.name} {partner!.retirementAge}
+                </ThemedText>
+              </>
+            )}
+            {combinedRetireLabel && width > 0 && (
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                numberOfLines={1}
+                pointerEvents="none"
+                style={[styles.marker, { left: Math.min(Math.max(combinedCenterX - 60, 0), width - 120) }]}>
+                {retireIndex > 0 && partnerRetireIndex > 0
+                  ? `Retire ${firstRetire}–${fullRetire}`
+                  : retireIndex > 0
+                    ? `You retire ${retirementAge}`
+                    : `${partner!.name} ${partner!.retirementAge}`}
+              </ThemedText>
+            )}
             {showSsLabel && width > 0 && (
               <ThemedText
                 type="small"
+                numberOfLines={1}
                 pointerEvents="none"
                 style={[
                   styles.ssMarker,
                   { color: viz.trend, left: Math.min(Math.max(x(ssIndex) - 36, 0), width - 72) },
                 ]}>
-                SS at {socialSecurityAge}
+                {partner && partner.socialSecurityAnnual > 0 && !ssSameAge ? 'Your SS' : `SS at ${socialSecurityAge}`}
+              </ThemedText>
+            )}
+            {showPartnerSsLabel && width > 0 && partner && (
+              <ThemedText
+                type="small"
+                numberOfLines={1}
+                pointerEvents="none"
+                style={[
+                  styles.ssMarker,
+                  { color: viz.trend, left: Math.min(Math.max(x(partnerSsIndex) - 40, 0), width - 80), width: 80 },
+                ]}>
+                {partner.name} SS
               </ThemedText>
             )}
             {hasActive && width > 0 && (
               <ChartTooltipBox anchorX={x(shown)} plotWidth={width}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Age {point.age} · {year}
+                <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                  {partner && cashRow?.partnerAge != null
+                    ? `Age ${point.age} · ${partner.name} ${cashRow.partnerAge} · ${year}`
+                    : `Age ${point.age} · ${year}`}
                 </ThemedText>
                 <ThemedText type="smallBold">{formatWholeCurrency(point.balance)}</ThemedText>
-                {cashRow && !cashRow.retired && (
+                {cashRow && cashRow.phase === 'working' && (
                   <ThemedText type="small" themeColor="textSecondary">
                     Saving {formatWholeCurrency(cashRow.saving)}/yr
                   </ThemedText>
                 )}
-                {cashRow && cashRow.retired && (
+                {cashRow && cashRow.phase !== 'working' && (
                   <>
                     <ThemedText type="small" themeColor="textSecondary">
                       Spend {formatCompactCurrency(cashRow.spending)} · Income{' '}
                       {formatCompactCurrency(cashFlowIncomeTotal(cashRow))}
                     </ThemedText>
-                    <ThemedText type="small" themeColor={cashRow.withdrawal < 0 ? 'positive' : 'textSecondary'}>
-                      {cashRow.withdrawal > 0
-                        ? `Draw ${formatCompactCurrency(cashRow.withdrawal)} from savings`
-                        : cashRow.withdrawal < 0
-                          ? `Surplus +${formatCompactCurrency(-cashRow.withdrawal)} saved`
-                          : 'Covered by income'}
+                    <ThemedText
+                      type="small"
+                      themeColor={cashRow.saving > 0 || cashRow.withdrawal < 0 ? 'positive' : 'textSecondary'}>
+                      {cashRow.phase === 'bridge' && cashRow.saving > 0
+                        ? `Saved +${formatCompactCurrency(cashRow.saving)} (bridge)`
+                        : cashRow.withdrawal > 0
+                          ? `Draw ${formatCompactCurrency(cashRow.withdrawal)} from savings`
+                          : cashRow.withdrawal < 0
+                            ? `Surplus +${formatCompactCurrency(-cashRow.withdrawal)} saved`
+                            : 'Covered by income'}
                     </ThemedText>
                   </>
                 )}
@@ -291,5 +418,6 @@ const styles = StyleSheet.create({
   slices: { flex: 1, flexDirection: 'row' },
   slice: { flex: 1 },
   marker: { position: 'absolute', top: 0, width: 120, textAlign: 'center', fontSize: 12 },
+  splitMarker: { position: 'absolute', top: 0, width: 96, textAlign: 'center', fontSize: 11 },
   ssMarker: { position: 'absolute', top: 0, width: 72, textAlign: 'center', fontSize: 11 },
 });

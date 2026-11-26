@@ -1,4 +1,5 @@
 import {
+  firstRetireAge,
   SIMULATION_DEFAULTS,
   SimulationSettings,
   simulateRetirement,
@@ -35,11 +36,13 @@ const VOLATILITY_PRESETS = [
 ] as const;
 
 const percent = (rate: number) => `${Math.round(rate * 100)}%`;
-/** Balances at retirement, or at the end of the plan once already retired. */
-const milestoneOf = (inputs: RetirementInputs, result: SimulationResult) =>
-  inputs.retirementAge > inputs.currentAge
-    ? { age: inputs.retirementAge, balance: result.atRetirement }
+/** Balances at the first retirement age, or at the end of the plan once already retired. */
+const milestoneOf = (inputs: RetirementInputs, result: SimulationResult) => {
+  const firstRetire = firstRetireAge(inputs);
+  return firstRetire > inputs.currentAge
+    ? { age: firstRetire, balance: result.atRetirement }
     : { age: inputs.lifeExpectancy, balance: result.endingBalance };
+};
 
 const runDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -101,7 +104,11 @@ export function MonteCarlo({ scenarioId, inputs, dirty }: { scenarioId: string; 
           label="Lasts to the end"
           tone={successTone}
           value={percent(result.successRate)}
-          caption={`Of runs, money lasts to ${shown.inputs.lifeExpectancy}`}
+          caption={
+            shown.inputs.partner && shown.inputs.lifeExpectancy > (shown.inputs.yourLifeExpectancy ?? shown.inputs.lifeExpectancy)
+              ? `Of runs, lasts to ${shown.inputs.partner.name}’s ${shown.inputs.partner.lifeExpectancy}`
+              : `Of runs, money lasts to ${shown.inputs.lifeExpectancy}`
+          }
         />
         <StatTile label={`Median at ${milestone.age}`} value={milestone.balance.p50} caption="Half the runs end up above this" />
         <StatTile label={`Bad case at ${milestone.age}`} value={milestone.balance.p10} caption="1 run in 10 ends up below this" />
@@ -113,7 +120,7 @@ export function MonteCarlo({ scenarioId, inputs, dirty }: { scenarioId: string; 
           />
         )}
       </TileRow>
-      <RetirementFan bands={result.bands} retirementAge={shown.inputs.retirementAge} />
+      <RetirementFan bands={result.bands} retirementAge={shown.inputs.retirementAge} partner={shown.inputs.partner ?? null} />
       <ThemedText type="small" themeColor="textSecondary">
         The line is the median. The darker band holds half the runs and the lighter one 8 in 10. A run of bad years
         early in retirement hurts most, which a single average return can’t show.

@@ -1,4 +1,5 @@
 import {
+  householdGrossIncome,
   isEducationAccount,
   ownedBalance,
   ownedValue,
@@ -191,16 +192,28 @@ export async function getRetirement(db: Db, today = localDate(), scenarioId?: st
   });
 
   const spending = cashflow.reduce((sum, m) => sum + m.spending, 0);
+  const year = Number(today.slice(0, 4));
   return {
     scenario,
     scenarios,
     plan,
     defaults: {
-      currentAge: profile.birthYear === null ? null : Number(today.slice(0, 4)) - profile.birthYear,
+      currentAge: profile.birthYear === null ? null : year - profile.birthYear,
       birthYear: profile.birthYear,
       married: profile.filingStatus === 'married_joint' || profile.filingStatus === 'married_separate',
       annualSpending: spending > 0 ? Math.round(spending) : null,
-      annualIncome: profile.annualGrossIncome,
+      annualIncome: householdGrossIncome(profile),
+      yourIncome: profile.annualGrossIncome,
+      filingStatus: profile.filingStatus,
+      state: profile.state,
+      partner: profile.partner
+        ? {
+            name: profile.partner.name,
+            currentAge: profile.partner.birthYear === null ? null : year - profile.partner.birthYear,
+            birthYear: profile.partner.birthYear,
+            annualIncome: profile.partner.annualGrossIncome,
+          }
+        : null,
       children: profile.children,
     },
     accounts: retirementAccounts,

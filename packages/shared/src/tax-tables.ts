@@ -216,3 +216,35 @@ export function bracketAt(table: Brackets, income: number): { rate: number; from
   const last = table.at(-1)!;
   return { rate: last.rate, from, upTo: null };
 }
+
+/**
+ * Rough after-tax annual take-home pay for one still-working earner during a staggered-retirement
+ * bridge year, used to estimate how much of household spending their paycheck covers.
+ */
+export function estimateAfterTaxIncome(
+  grossAnnual: number,
+  filingStatus: FilingStatus | null,
+  state: string | null,
+): number {
+  if (grossAnnual <= 0) return 0;
+  const fed = federalTables(2026);
+  const status = tableStatus(filingStatus ?? 'married_joint');
+  const fedTaxable = Math.max(0, grossAnnual - fed.standardDeduction[status]);
+  const federalTax = bracketTax(fed.brackets[status], fedTaxable);
+  const fica =
+    0.062 * Math.min(grossAnnual, fed.socialSecurityWageBase) +
+    0.0145 * grossAnnual +
+    0.009 * Math.max(0, grossAnnual - fed.additionalMedicareThreshold[status]);
+  const st = state?.trim().toUpperCase();
+  let stateTax = 0;
+  if (st && !NO_INCOME_TAX_STATES.has(st)) {
+    if (st === 'CA') {
+      const ca = californiaTables(2025);
+      const caTaxable = Math.max(0, grossAnnual - ca.standardDeduction[status]);
+      stateTax = Math.max(0, bracketTax(ca.brackets[status], caTaxable) - ca.personalCredit[status]);
+    } else {
+      stateTax = 0.05 * fedTaxable;
+    }
+  }
+  return Math.max(0, Math.round(grossAnnual - federalTax - fica - stateTax));
+}

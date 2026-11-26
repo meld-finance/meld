@@ -136,7 +136,7 @@ export function ScenarioBar({
 
 const COLUMNS = [
   { label: 'Scenario', width: 180, numeric: false },
-  { label: 'Retire at', width: 76, numeric: true },
+  { label: 'Retire at', width: 88, numeric: true },
   { label: 'Spending', width: 92, numeric: true },
   { label: 'Projected', width: 100, numeric: true },
   { label: 'Needed', width: 100, numeric: true },
@@ -170,7 +170,12 @@ export function ScenarioCompare({
       const sim = simulateRetirement(inputs, { ...SIMULATION_DEFAULTS, trials: COMPARE_TRIALS });
       const pct = Math.round(sim.successRate * 100);
       const cells: CellSpec[] = [
-        { text: String(inputs.retirementAge) },
+        {
+          text:
+            inputs.partner && inputs.partner.retirementAge !== inputs.retirementAge
+              ? `${inputs.retirementAge} / ${inputs.partner.retirementAge}`
+              : String(inputs.retirementAge),
+        },
         { text: formatCompactCurrency(p.spendingAtRetirement) },
         { text: formatCompactCurrency(p.atRetirement) },
         { text: formatCompactCurrency(p.needed) },

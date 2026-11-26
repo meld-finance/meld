@@ -11,6 +11,7 @@ const EMPTY: UserProfile = {
   dependents: null,
   children: [],
   annualGrossIncome: null,
+  partner: null,
   occupation: null,
   employerBenefits: null,
   goals: null,
@@ -19,8 +20,10 @@ const EMPTY: UserProfile = {
 export async function getProfile(db: Db): Promise<UserProfile> {
   const row = await db.query.userProfile.findFirst({ where: eq(userProfile.id, 1) });
   if (!row) return EMPTY;
-  // Pick known fields only (drops id/timestamps); the DB stores filing status as text.
-  return UserProfile.parse(Object.fromEntries(Object.keys(EMPTY).map((k) => [k, row[k as keyof typeof row]])));
+  // Pick known fields only (drops id/timestamps); fall back to EMPTY for any column omitted in mocks.
+  return UserProfile.parse(
+    Object.fromEntries(Object.keys(EMPTY).map((k) => [k, row[k as keyof typeof row] ?? EMPTY[k as keyof UserProfile]])),
+  );
 }
 
 export async function saveProfile(db: Db, profile: UserProfile): Promise<UserProfile> {

@@ -405,6 +405,10 @@ export const MELD_DOC_GUIDES: readonly MeldDocGuide[] = [
         "heading": "The projection"
       },
       {
+        "id": "features/retirement#partners-and-staggered-retirement",
+        "heading": "Partners and staggered retirement"
+      },
+      {
         "id": "features/retirement#social-security",
         "heading": "Social Security"
       },
@@ -1167,21 +1171,28 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = [
     "doc": "features/retirement",
     "docTitle": "Retirement",
     "heading": "Where to find it",
-    "content": "- **Plan → Retirement**\n- Profile birth year and income under **Plan → Profile** feed age and Social Security estimates\n- Opt a home into the plan from the Accounts tab"
+    "content": "- **Plan → Retirement**\n- Profile birth year, optional partner (name, birth year, income), and income under **Plan → Profile** feed age, bridge-year pay, and Social Security estimates\n- Opt a home into the plan from the Accounts tab"
   },
   {
     "id": "features/retirement#the-projection",
     "doc": "features/retirement",
     "docTitle": "Retirement",
     "heading": "The projection",
-    "content": "**Plan → Retirement** projects your savings to retirement age, compares that with what you'll need for your money to last to the age you plan for, and shows the gap and the extra monthly saving that closes it. The chart shows your balance by age, growing until you retire and drawn down after.\n\nEverything is in **today's dollars**: the return is after inflation (5% by default), and spending, contributions, Social Security and pension are today's amounts."
+    "content": "**Plan → Retirement** projects your savings to retirement age, compares that with what you'll need for your money to last to the age you plan for, and shows the gap and the extra monthly saving that closes it. The chart shows your balance by age, growing until you retire and drawn down after.\n\nEverything is in **today's dollars**: the return is after inflation (5% by default), and spending, contributions, Social Security and pensions are today's amounts."
+  },
+  {
+    "id": "features/retirement#partners-and-staggered-retirement",
+    "doc": "features/retirement",
+    "docTitle": "Retirement",
+    "heading": "Partners and staggered retirement",
+    "content": "Add an optional **Partner** (name, birth year and annual gross income) under **Plan → Profile** to give them their own retirement age, plan-to age, yearly savings, Social Security and pension:\n\n- **Joint planning horizon:** Meld projects until whichever partner's plan-to age reaches furthest into the future.\n- **Bridge years:** When you and your partner retire at different ages, the years in between are **bridge years**. Meld estimates the still-working partner's after-tax pay (with any active Social Security, pension or net rent) to cover household spending first, draws only any shortfall from savings, and caps bridge saving at the working partner's planned contribution when income covers spending.\n- **Life events:** Time spending, saving, income or one-time life events by your age, your partner's age, or a child's age from your profile."
   },
   {
     "id": "features/retirement#social-security",
     "doc": "features/retirement",
     "docTitle": "Retirement",
     "heading": "Social Security",
-    "content": "**Social Security** is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assumes you earn your current pay from 22 until you retire (up to 35 years), and for a married couple takes the lower of one earner plus a spousal benefit and two equal earners. Meld adjusts the benefit for the age you claim (67 by default): less before full retirement age, 8% a year more after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age."
+    "content": "**Social Security** is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assuming you earn your current pay from 22 until you retire (up to 35 years).\n\n- **With a partner on your profile:** Each person's benefit is estimated from their own income and stop-work age (or overridden individually) and claimed at their own claiming age (67 by default). When married and no statement figure is entered for the lower earner, Meld adds a spousal top-up up to half of the higher earner's full benefit (capped at full retirement age, with no delayed credits past FRA on the spousal top-up).\n- **Without a partner on your profile:** A married estimate takes the lower of one earner plus a spousal benefit and two equal earners.\n\nMeld adjusts the benefit for the age you claim: less before full retirement age, 8% a year more on your own benefit after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age."
   },
   {
     "id": "features/retirement#which-accounts-count",
@@ -1223,7 +1234,7 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = [
     "doc": "features/tax",
     "docTitle": "Tax",
     "heading": "Income and gains",
-    "content": "**Income** starts from your profile's household gross income and filing status. Tracked RSU vests for the year (vested YTD plus remaining scheduled tranches) are added as their own `RSU vesting` line item, with a toggle in Tax inputs if your Profile figure already includes RSUs. Pre-tax 401(k) deferrals and HSA contributions are projected from what your 401(k) and HSA accounts report. Dividends, interest and fund distributions come from taxable accounts and bank interest. The year is projected as this year so far plus whatever came in over the rest of last year, so December distributions count. A dividend's qualified share comes from what the fund holds: its stocks, apart from REITs.\n\n**Realized gains** are rebuilt from buys and sells with average cost, because Plaid reports one cost basis per holding and no lots. Holding periods follow shares in the order they were bought. Enter your broker's figures to replace the estimate."
+    "content": "**Income** starts from your profile's household gross income (yours plus your partner's when filing jointly, or your own when filing separately) and filing status. Tracked RSU vests for the year (vested YTD plus remaining scheduled tranches) are added as their own `RSU vesting` line item, with a toggle in Tax inputs if your Profile figure already includes RSUs. Pre-tax 401(k) deferrals and HSA contributions are projected from what your 401(k) and HSA accounts report. Dividends, interest and fund distributions come from taxable accounts and bank interest. The year is projected as this year so far plus whatever came in over the rest of last year, so December distributions count. A dividend's qualified share comes from what the fund holds: its stocks, apart from REITs.\n\n**Realized gains** are rebuilt from buys and sells with average cost, because Plaid reports one cost basis per holding and no lots. Holding periods follow shares in the order they were bought. Enter your broker's figures to replace the estimate."
   },
   {
     "id": "features/tax#tax-inputs",

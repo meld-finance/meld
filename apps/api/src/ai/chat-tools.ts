@@ -15,12 +15,15 @@
 import {
   currentValue,
   estimatePayoff,
+  firstRetireAge,
   formatFullRetirementAge,
+  fullRetireAge,
   insuranceTotals,
   lookThrough,
   Month,
   netCashValue,
   projectRetirement,
+  resolveCoupleSocialSecurity,
   resolvePlan,
   RetirementPlan,
   SIMULATION_DEFAULTS,
@@ -441,7 +444,7 @@ export function createChatTools(db: Db): ChatTool[] {
     }),
     tool({
       name: 'get_profile',
-      description: 'User profile: birth year, filing status, state, dependents, children, income, occupation, employer benefits, and goals.',
+      description: 'User profile: birth year, partner, filing status, state, dependents, children, income, occupation, employer benefits, and goals.',
       input: z.object({}),
       label: () => 'Checked your profile',
       run: () => getProfile(db),
@@ -580,6 +583,10 @@ export function createChatTools(db: Db): ChatTool[] {
       input: RetirementPlan.pick({
         retirementAge: true,
         annualContribution: true,
+        partnerRetirementAge: true,
+        partnerLifeExpectancy: true,
+        partnerAnnualContribution: true,
+        partnerSocialSecurityAge: true,
         annualSpending: true,
         spendingChanges: true,
         spendingDeclinePercent: true,
@@ -604,14 +611,53 @@ export function createChatTools(db: Db): ChatTool[] {
         const projection = projectRetirement(resolved.inputs);
         const simulation = includeMonteCarlo ? simulateRetirement(resolved.inputs, SIMULATION_DEFAULTS) : null;
         const { excludedAccountIds: _e, ...saved } = summary.plan;
+        const d = summary.defaults;
+        const partner = resolved.inputs.partner;
+        const socialSecurity =
+          partner && d.partner && d.partner.birthYear !== null
+            ? (() => {
+                const couple = resolveCoupleSocialSecurity({
+                  married: d.married,
+                  yourBirthYear: d.birthYear!,
+                  yourIncome: d.yourIncome,
+                  yourRetireAge: resolved.inputs.retirementAge,
+                  yourOverrideAnnual: plan.socialSecurityAnnual,
+                  yourClaimAge: resolved.inputs.socialSecurityAge,
+                  partnerBirthYear: d.partner.birthYear,
+                  partnerIncome: d.partner.annualIncome,
+                  partnerRetireAge: partner.retirementAge,
+                  partnerOverrideAnnual: plan.partnerSocialSecurityAnnual,
+                  partnerClaimAge: partner.socialSecurityAge,
+                });
+                return {
+                  yours: {
+                    ...couple.yours,
+                    claimAge: resolved.inputs.socialSecurityAge,
+                    fullRetirementAge: formatFullRetirementAge(d.birthYear!),
+                  },
+                  partner: {
+                    name: partner.name,
+                    ...couple.partner,
+                    claimAge: partner.socialSecurityAge,
+                    fullRetirementAge: formatFullRetirementAge(partner.birthYear),
+                  },
+                };
+              })()
+            : {
+                ...socialSecurityAtFullAge(plan, d, resolved.inputs.retirementAge),
+                fullRetirementAge: formatFullRetirementAge(d.birthYear!),
+              };
         return {
           scenario: summary.scenario.name,
           otherScenarios: summary.scenarios.filter((s) => !s.active).map((s) => s.name),
           assumptions: resolved.inputs,
-          socialSecurity: {
-            ...socialSecurityAtFullAge(plan, summary.defaults, resolved.inputs.retirementAge),
-            fullRetirementAge: formatFullRetirementAge(summary.defaults.birthYear!),
-          },
+          ...(partner
+            ? {
+                firstRetireAge: firstRetireAge(resolved.inputs),
+                fullRetireAge: fullRetireAge(resolved.inputs),
+              }
+            : {}),
+          socialSecurity,
           defaulted: Object.entries(saved)
             .filter(([k, v]) => v === null && !(k in whatIf))
             .map(([k]) => k),

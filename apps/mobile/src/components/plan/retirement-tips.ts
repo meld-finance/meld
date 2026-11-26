@@ -10,11 +10,11 @@ export const TIPS = {
   },
   retirementAge: {
     title: 'Retire at age',
-    body: 'The age you stop working and start living on your savings. Every extra year of work helps twice: one more year of saving, and one less year your money has to cover.',
+    body: 'The age someone stops working and starts relying on savings. When you and a partner retire at different ages, the years in between use the still-working partner’s after-tax pay to help cover household spending.\n\nEvery extra year of work helps twice: one more year of saving, and one less year your savings have to cover.',
   },
   planToAge: {
     title: 'Plan to age',
-    body: `How long your money needs to last. ${RETIREMENT_DEFAULTS.lifeExpectancy} is cautious on purpose: many people live well into their 90s, and running out of money late in life is much worse than leaving some behind.`,
+    body: `How long your money needs to last. ${RETIREMENT_DEFAULTS.lifeExpectancy} is cautious on purpose: many people live well into their 90s.\n\nWhen planning with a partner, Meld projects until whichever plan-to age reaches furthest into the future.`,
   },
   expectedReturn: {
     title: 'Return after inflation',
@@ -22,7 +22,11 @@ export const TIPS = {
   },
   contribution: {
     title: 'Saving per year',
-    body: 'Everything that goes into your retirement savings in a year: what comes out of your paycheck for your 401(k), your employer’s match (free money your employer adds when you contribute), and anything you put in an IRA or brokerage account for retirement.\n\nA common rule of thumb is to save 15% of your income, match included.',
+    body: 'Everything that goes into retirement savings in a year: paycheck deferrals for a 401(k), employer match, and IRA or retirement brokerage contributions.\n\nEach partner’s saving runs while they are working. A common rule of thumb is 15% of income, match included.',
+  },
+  bridgeYears: {
+    title: 'Bridge years',
+    body: 'Years when one partner has retired and the other is still working. Meld estimates the working partner’s after-tax pay (plus any Social Security, pension or rent) and uses it to cover household spending first.\n\nIf spending exceeds that income, the shortfall comes from savings. If income exceeds spending, the surplus funds up to the working partner’s planned contribution.',
   },
   spending: {
     title: 'Spending per year',
@@ -34,7 +38,7 @@ export const TIPS = {
   },
   socialSecurity: {
     title: 'Social Security',
-    body: 'A monthly payment from the government for life, based on how much you earned over your career. Your statement at ssa.gov shows what you’d get at your full retirement age.\n\nIt rises with inflation each year, so it’s already in today’s dollars.',
+    body: 'A monthly payment from the government for life, based on how much each earner made over their career. Statements at ssa.gov show what you’d get at full retirement age.\n\nWhen married and a partner earns less, Meld also checks the spousal benefit (up to half the higher earner’s full benefit). Benefits rise with inflation each year, so they are already in today’s dollars.',
   },
   fullRetirementAge: {
     title: 'Full retirement age',
@@ -42,7 +46,7 @@ export const TIPS = {
   },
   claimAge: {
     title: 'When you claim',
-    body: 'Claiming Social Security early gives you smaller checks for life: about 30% less at 62. Waiting past full retirement age adds about 8% a year, up to 70.\n\nWaiting usually pays off if you live past your early 80s, and helps a spouse who may outlive you. Claiming early can make sense if you need the money or have health concerns.',
+    body: 'Claiming Social Security early gives smaller checks for life: about 30% less at 62. Waiting past full retirement age adds about 8% a year on your own benefit, up to 70 (spousal top-ups cap at full retirement age).\n\nFor couples, having the lower earner claim earlier while the higher earner waits to 70 often raises lifetime and survivor income.',
   },
   pension: {
     title: 'Pension',
@@ -66,7 +70,7 @@ export const TIPS = {
   },
   lifeEvents: {
     title: 'Life events',
-    body: 'Big changes you can see coming: kids leaving home, paying off the mortgage, working part-time in retirement, an inheritance, a new roof. Each one changes your spending, income or saving from a certain age, or adds or takes a one-time sum.\n\nTime them by your age, or by a child’s age if you’ve added children on your profile.',
+    body: 'Big changes you can see coming: kids leaving home, paying off the mortgage, working part-time in retirement, an inheritance, a new roof. Each one changes your spending, income or saving from a certain age, or adds or takes a one-time sum.\n\nTime them by your age, your partner’s age, or a child’s age from your profile.',
   },
   spendingEvent: {
     title: 'Spending change',
@@ -86,7 +90,7 @@ export const TIPS = {
   },
   childAges: {
     title: 'Whose age',
-    body: 'Time an event by your age, or by a child’s, like “when Maya turns 18”. Meld works out how old you’ll be then.',
+    body: 'Time an event by your age, your partner’s age, or by a child’s age, like “when Maya turns 18”. Meld works out how old you’ll be then.',
   },
   counted: {
     title: 'What’s counted',

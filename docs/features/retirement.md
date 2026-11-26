@@ -9,18 +9,31 @@ Project savings to retirement age, compare with what you'll need, and see the mo
 ## Where to find it
 
 - **Plan → Retirement**
-- Profile birth year and income under **Plan → Profile** feed age and Social Security estimates
+- Profile birth year, optional partner (name, birth year, income), and income under **Plan → Profile** feed age, bridge-year pay, and Social Security estimates
 - Opt a home into the plan from the Accounts tab
 
 ## The projection
 
 **Plan → Retirement** projects your savings to retirement age, compares that with what you'll need for your money to last to the age you plan for, and shows the gap and the extra monthly saving that closes it. The chart shows your balance by age, growing until you retire and drawn down after.
 
-Everything is in **today's dollars**: the return is after inflation (5% by default), and spending, contributions, Social Security and pension are today's amounts.
+Everything is in **today's dollars**: the return is after inflation (5% by default), and spending, contributions, Social Security and pensions are today's amounts.
+
+## Partners and staggered retirement
+
+Add an optional **Partner** (name, birth year and annual gross income) under **Plan → Profile** to give them their own retirement age, plan-to age, yearly savings, Social Security and pension:
+
+- **Joint planning horizon:** Meld projects until whichever partner's plan-to age reaches furthest into the future.
+- **Bridge years:** When you and your partner retire at different ages, the years in between are **bridge years**. Meld estimates the still-working partner's after-tax pay (with any active Social Security, pension or net rent) to cover household spending first, draws only any shortfall from savings, and caps bridge saving at the working partner's planned contribution when income covers spending.
+- **Life events:** Time spending, saving, income or one-time life events by your age, your partner's age, or a child's age from your profile.
 
 ## Social Security
 
-**Social Security** is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assumes you earn your current pay from 22 until you retire (up to 35 years), and for a married couple takes the lower of one earner plus a spousal benefit and two equal earners. Meld adjusts the benefit for the age you claim (67 by default): less before full retirement age, 8% a year more after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age.
+**Social Security** is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assuming you earn your current pay from 22 until you retire (up to 35 years).
+
+- **With a partner on your profile:** Each person's benefit is estimated from their own income and stop-work age (or overridden individually) and claimed at their own claiming age (67 by default). When married and no statement figure is entered for the lower earner, Meld adds a spousal top-up up to half of the higher earner's full benefit (capped at full retirement age, with no delayed credits past FRA on the spousal top-up).
+- **Without a partner on your profile:** A married estimate takes the lower of one earner plus a spousal benefit and two equal earners.
+
+Meld adjusts the benefit for the age you claim: less before full retirement age, 8% a year more on your own benefit after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age.
 
 ## Which accounts count
 

@@ -22,6 +22,7 @@ import type {
   EstatePerson,
   EstateSettings,
   FixedIncomeTerms,
+  Partner,
   RetirementInputs,
   RetirementPlan,
   SecurityProfile,
@@ -401,6 +402,7 @@ export const userProfile = pgTable('user_profile', {
   /** Child[]: each child's birth year. */
   children: jsonb('children').$type<Child[]>().notNull().default([]),
   annualGrossIncome: money('annual_gross_income'),
+  partner: jsonb('partner').$type<Partner | null>(),
   occupation: text('occupation'),
   employerBenefits: text('employer_benefits'),
   goals: text('goals'),
