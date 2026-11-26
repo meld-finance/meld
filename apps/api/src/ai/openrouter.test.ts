@@ -369,6 +369,12 @@ describe('createAIProvider', () => {
     expect(createAIProvider(env({ ANTHROPIC_API_KEY: 'sk-ant', AI_PROVIDER: 'openrouter' }))?.name).toBe('anthropic');
   });
 
+  it('keeps a provider of another kind passed in as the AI provider', async () => {
+    const fake = { ...new OpenRouterProvider('k', []), name: 'fake', listChatModels: async () => [{ model: 'big', label: 'Big', note: null, local: false }] };
+    const list = await createChatModels(env({}), fake as never).list();
+    expect(list.defaultId).toBe('fake:big');
+  });
+
   it('keeps both cloud providers’ models in Ask Meld', async () => {
     const catalog = { data: [{ id: 'google/gemini-4-carbon', name: 'Google: Gemini 4 Carbon', supported_parameters: ['tools'] }] };
     vi.stubGlobal('fetch', vi.fn(async () => Response.json(catalog)));

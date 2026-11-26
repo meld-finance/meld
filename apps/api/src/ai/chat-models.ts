@@ -59,7 +59,9 @@ export function createChatModels(env: Env, ai: AIProvider | null, chatgpt?: Chat
   // `ai` runs the other AI features; chat also offers the cloud provider it didn't pick.
   const anthropic = ai?.name === 'anthropic' ? ai : createAnthropicProvider(env);
   const openrouter = ai?.name === 'openrouter' ? ai : createOpenRouterProvider(env);
+  // Any other provider (e.g. one passed in by tests) comes first, as `ai` always did.
+  const other = ai && ai !== anthropic && ai !== openrouter ? ai : null;
   // ChatGPT offers models only while signed in, so it's always listed and signing in needs no restart.
-  const providers: (ChatProvider | null)[] = [anthropic, chatgpt ? new ChatGPTProvider(chatgpt) : null, openrouter, ollama];
+  const providers: (ChatProvider | null)[] = [other, anthropic, chatgpt ? new ChatGPTProvider(chatgpt) : null, openrouter, ollama];
   return new ChatModels(providers.filter((p): p is ChatProvider => p !== null));
 }
