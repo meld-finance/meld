@@ -2,6 +2,7 @@ import type { InsurancePolicyInput, PropertyEstimate, SecurityProfile, VehicleDe
 import type { Env } from '../env';
 import { HttpError } from '../lib/http';
 import { AnthropicProvider } from './anthropic';
+import { OpenRouterProvider } from './openrouter';
 import type { ChatTool } from './chat-tools';
 import type { SecurityDescription } from './security-profiles';
 
@@ -58,8 +59,8 @@ export interface ChatProvider {
 }
 
 /**
- * The LLM-backed features Meld uses, independent of vendor. Add an implementation
- * (OpenAI, ...) and select it with AI_PROVIDER.
+ * The LLM-backed features Meld uses, independent of vendor: Anthropic or OpenRouter,
+ * picked with AI_PROVIDER when both keys are set.
  */
 export interface AIProvider extends ChatProvider {
   /** Reads an insurance policy PDF into a draft for the user to review. */
@@ -72,23 +73,36 @@ export interface AIProvider extends ChatProvider {
   profileSecurities(securities: SecurityDescription[]): Promise<(SecurityProfile | null)[]>;
 }
 
-/** Returns null when no provider is configured, so AI features can say so instead of failing. */
+export function createAnthropicProvider(env: Env): AnthropicProvider | null {
+  if (!env.ANTHROPIC_API_KEY) return null;
+  return new AnthropicProvider(
+    env.ANTHROPIC_API_KEY,
+    env.ANTHROPIC_MODEL,
+    env.ANTHROPIC_LOOKUP_MODEL,
+    [env.ANTHROPIC_CHAT_MODEL, ...env.ANTHROPIC_CHAT_MODELS],
+    env.ANTHROPIC_CHAT_EFFORT || undefined,
+  );
+}
+
+export function createOpenRouterProvider(env: Env): OpenRouterProvider | null {
+  if (!env.OPENROUTER_API_KEY) return null;
+  return new OpenRouterProvider(env.OPENROUTER_API_KEY, env.OPENROUTER_CHAT_MODELS, {
+    model: env.OPENROUTER_MODEL,
+    lookupModel: env.OPENROUTER_LOOKUP_MODEL,
+  });
+}
+
+/**
+ * The provider for PDF reading, value lookups and fund make-up: AI_PROVIDER's when both keys
+ * are set, else whichever is. Null when neither is, so AI features can say so instead of failing.
+ */
 export function createAIProvider(env: Env): AIProvider | null {
-  switch (env.AI_PROVIDER) {
-    case 'anthropic':
-      return env.ANTHROPIC_API_KEY
-        ? new AnthropicProvider(
-            env.ANTHROPIC_API_KEY,
-            env.ANTHROPIC_MODEL,
-            env.ANTHROPIC_LOOKUP_MODEL,
-            [env.ANTHROPIC_CHAT_MODEL, ...env.ANTHROPIC_CHAT_MODELS],
-            env.ANTHROPIC_CHAT_EFFORT || undefined,
-          )
-        : null;
-  }
+  const anthropic = createAnthropicProvider(env);
+  const openrouter = createOpenRouterProvider(env);
+  return env.AI_PROVIDER === 'openrouter' ? (openrouter ?? anthropic) : (anthropic ?? openrouter);
 }
 
 export function requireAI(ai: AIProvider | null): AIProvider {
-  if (!ai) throw new HttpError(503, 'AI isn’t set up. Add an Anthropic API key in Settings → AI (or ANTHROPIC_API_KEY in .env).');
+  if (!ai) throw new HttpError(503, 'AI isn’t set up. Add an Anthropic or OpenRouter API key in Settings → AI.');
   return ai;
 }

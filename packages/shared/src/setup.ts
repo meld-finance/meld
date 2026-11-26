@@ -23,14 +23,30 @@ export const PlaidKeys = z.object({
 });
 export type PlaidKeys = z.infer<typeof PlaidKeys>;
 
+/**
+ * OpenRouter models offered in Ask Meld when none are chosen: Gemini first, plus Claude and GPT,
+ * all good at tool calling. IDs as listed at openrouter.ai/models.
+ */
+export const DEFAULT_OPENROUTER_MODELS = [
+  'google/gemini-4-hydrogen',
+  'google/gemini-4-carbon',
+  'anthropic/claude-sonnet-5.5',
+  'openai/gpt-6.2-sol',
+] as const;
+
 export const AISettings = z.object({
   anthropicApiKey: z.string().trim().default(''),
+  /** One key for many vendors' models (Gemini, GPT, Claude, ...), for Ask Meld. */
+  openrouterApiKey: z.string().trim().default(''),
+  /** OpenRouter model IDs to offer; empty means DEFAULT_OPENROUTER_MODELS. */
+  openrouterModels: z.array(z.string().trim().min(1)).default([]),
   /** Empty turns Ollama off. */
   ollamaUrl: z.union([z.url(), z.literal('')]).default(''),
   /** Empty offers every installed model that supports tool calling. */
   ollamaModels: z.array(z.string()).default([]),
   /** From Settings: drop the saved key (an empty field otherwise keeps it). */
   removeAnthropicKey: z.boolean().default(false),
+  removeOpenRouterKey: z.boolean().default(false),
 });
 export type AISettings = z.infer<typeof AISettings>;
 
@@ -65,7 +81,7 @@ export type SettingsView = {
   /** Unlocking takes a passphrase. */
   passphrase: boolean;
   plaid: { clientId: string; sandboxSecret: string; productionSecret: string; env: PlaidEnvironment };
-  ai: { anthropicApiKey: string; ollamaUrl: string; ollamaModels: string[] };
+  ai: { anthropicApiKey: string; openrouterApiKey: string; openrouterModels: string[]; ollamaUrl: string; ollamaModels: string[] };
   /** Settings fixed by the environment (.env), which the app can't change. */
   fromEnv: ('plaid' | 'ai' | 'passphrase')[];
 };
@@ -77,8 +93,9 @@ export const PlaidKeyTest = z.object({
 });
 export type PlaidKeyTest = z.input<typeof PlaidKeyTest>;
 
-export const AnthropicKeyTest = z.object({ apiKey: z.string().trim().default('') });
-export type AnthropicKeyTest = z.input<typeof AnthropicKeyTest>;
+/** Tests an API key (Anthropic or OpenRouter); empty means the saved one. */
+export const ApiKeyTest = z.object({ apiKey: z.string().trim().default('') });
+export type ApiKeyTest = z.input<typeof ApiKeyTest>;
 
 export type KeyTestResult = { ok: true } | { ok: false; error: string };
 

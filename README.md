@@ -31,7 +31,7 @@ With Meld you link your accounts once and they sync automatically every few hour
 - **Retirement.** A projection in today's dollars with Social Security, property sales, life events, what-if scenarios and 1,000 simulated markets.
 - **Estate & family packet.** Flags missing beneficiaries and documents, keeps trusts/wills/POAs and contacts organized, and exports a PDF family packet (optionally password-protected) listing every account and who to call.
 - **Tax & insurance.** Federal and California tax estimates with a year-end checklist, plus life and disability policy coverage read from PDFs and checked against your family's needs.
-- **Ask Meld.** Ask about your own numbers using free local models through Ollama, your ChatGPT Go, Plus, Pro or Business plan (no API key needed), or Claude.
+- **Ask Meld.** Ask about your own numbers using free local models through Ollama, your ChatGPT Go, Plus, Pro or Business plan (no API key needed), Gemini and other models through OpenRouter, or Claude.
 
 <table>
   <tr>
@@ -77,13 +77,13 @@ The trade-off is setup: you create your own free Plaid developer account (Plaid 
 ## What you need
 
 - **Your own [Plaid](https://dashboard.plaid.com/signup) developer account.** Meld has no server of its own, so it connects directly to your banks with your Plaid keys. Sandbox (fake data) is free and instant. Real accounts need Plaid production access (usually approved automatically); the free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank. [docs/plaid.md](docs/plaid.md) walks through it.
-- **Optional AI:** [Ollama](https://ollama.com) for completely free local chat models, a ChatGPT Go, Plus, Pro or Business plan (sign in under **Settings → AI → ChatGPT plan**), or an [Anthropic API key](https://console.anthropic.com/) for Ask Meld with Claude, PDF extraction and value lookups.
+- **Optional AI:** [Ollama](https://ollama.com) for completely free local chat models, a ChatGPT Go, Plus, Pro or Business plan (sign in under **Settings → AI → ChatGPT plan**), an [OpenRouter API key](https://openrouter.ai/settings/keys) for Gemini, GPT, Claude and more (Ask Meld, PDF extraction and value lookups), or an [Anthropic API key](https://console.anthropic.com/) for Ask Meld with Claude, PDF extraction and value lookups.
 
 ## Install on a Mac
 
 1. Download Meld for [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) (not sure? Apple menu → **About This Mac**: "Apple M…" is Apple silicon), open it and drag Meld to Applications.
 2. Open Meld. The first time, macOS asks whether you're sure you want to open an app downloaded from the Internet: click **Open**. Every app downloaded outside the App Store gets this once. Meld is signed and notarized by Apple, so you won't see the "cannot be opened" warning unsigned apps get.
-3. Meld walks you through setup the first time it opens: a passphrase (optional), your Plaid client ID and secrets (with a **Test keys** button), and optionally an Anthropic key or Ollama, which it finds by itself if it's running.
+3. Meld walks you through setup the first time it opens: a passphrase (optional), your Plaid client ID and secrets (with a **Test keys** button), and optionally an Anthropic or OpenRouter key or Ollama, which it finds by itself if it's running.
 4. Start with Plaid's Sandbox to look around (any bank, `user_good` / `pass_good`), then follow [docs/plaid.md](docs/plaid.md) to connect your real accounts and switch to production in **Settings**.
 
 Everything stays on your Mac in `~/Library/Application Support/Meld`: a Postgres database that only listens on `127.0.0.1`, uploaded documents, settings, and logs. The keys that encrypt Plaid tokens, documents and saved settings are made on first run and kept encrypted with your macOS Keychain. Closing the window leaves Meld running in the menu bar, where you can also turn on **Open at Login**, show the data folder or quit.

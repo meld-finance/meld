@@ -1,3 +1,4 @@
+import { DEFAULT_OPENROUTER_MODELS } from '@meld/shared';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,7 +12,7 @@ import { PlaidFields } from '@/components/setup/plaid-fields';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { useCompleteSetup, useSetupStatus, type AIForm, type PlaidForm } from '@/lib/setup';
+import { aiSettings, modelsText, useCompleteSetup, useSetupStatus, type AIForm, type PlaidForm } from '@/lib/setup';
 
 const STEPS = ['Passphrase', 'Plaid', 'AI'] as const;
 const MIN_PASSPHRASE = 8;
@@ -25,7 +26,13 @@ export default function SetupScreen() {
   const [passphrase, setPassphrase] = useState('');
   const [confirm, setConfirm] = useState('');
   const [plaid, setPlaid] = useState<PlaidForm>({ clientId: '', sandboxSecret: '', productionSecret: '', env: 'sandbox' });
-  const [ai, setAI] = useState<AIForm>({ anthropicApiKey: '', ollamaUrl: '', ollamaModels: [] });
+  const [ai, setAI] = useState<AIForm>({
+    anthropicApiKey: '',
+    openrouterApiKey: '',
+    openrouterModels: modelsText(DEFAULT_OPENROUTER_MODELS),
+    ollamaUrl: '',
+    ollamaModels: [],
+  });
 
   const passphraseError =
     passphrase.length < MIN_PASSPHRASE
@@ -53,7 +60,7 @@ export default function SetupScreen() {
 
   function next() {
     if (step < STEPS.length - 1) return setStep(step + 1);
-    complete.mutate({ passphrase: usePassphrase ? passphrase : undefined, plaid, ai: { ...ai, removeAnthropicKey: false } });
+    complete.mutate({ passphrase: usePassphrase ? passphrase : undefined, plaid, ai: aiSettings(ai) });
   }
 
   return (
@@ -117,7 +124,7 @@ export default function SetupScreen() {
         {step > 0 && <Button label="Back" variant="secondary" onPress={() => setStep(step - 1)} disabled={complete.isPending} />}
         <View style={formStyles.spacer} />
         <Button
-          label={step < STEPS.length - 1 ? 'Continue' : ai.anthropicApiKey || ai.ollamaUrl ? 'Finish' : 'Skip AI and finish'}
+          label={step < STEPS.length - 1 ? 'Continue' : ai.anthropicApiKey || ai.openrouterApiKey || ai.ollamaUrl ? 'Finish' : 'Skip AI and finish'}
           onPress={next}
           disabled={!canContinue}
           loading={complete.isPending}

@@ -31,7 +31,7 @@ Meld walks you through setup the first time it opens:
 
 1. **Passphrase** (optional). It locks Meld in the browser and on your phone. You can turn it on or off later.
 2. **Plaid keys:** your client ID and secrets, with a **Test keys** button. [Plaid setup](plaid.md) shows where to find them.
-3. **AI** (optional): [Ollama](https://ollama.com) for free local models (Meld finds it if it's running), a ChatGPT plan, or an Anthropic API key.
+3. **AI** (optional): [Ollama](https://ollama.com) for free local models (Meld finds it if it's running), a ChatGPT plan, an OpenRouter API key (Gemini, GPT, Claude and more), or an Anthropic API key.
 
 Start with Plaid's Sandbox to look around (pick any bank, sign in with `user_good` / `pass_good`), then follow [Plaid setup](plaid.md) to connect your real accounts and switch to production in **Settings**.
 

@@ -1,3 +1,4 @@
+import { DEFAULT_OPENROUTER_MODELS } from '@meld/shared';
 import { z } from 'zod';
 
 /** Comma-separated; empty means `fallback`, since .env templates list every key with no value. */
@@ -52,7 +53,11 @@ const EnvSchema = z
     /** This database's Plaid items are shared with another Meld (a copy of the Mac app's data): unlinking removes them here only. */
     PLAID_SHARED_ITEMS: flag,
 
-    AI_PROVIDER: z.enum(['anthropic']).default('anthropic'),
+    /**
+     * Which key runs PDF reading, value lookups and fund make-up when both are set. Either
+     * one is used when it's the only key.
+     */
+    AI_PROVIDER: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['anthropic', 'openrouter']).default('anthropic')),
     ANTHROPIC_API_KEY: z.string().default(''),
     ANTHROPIC_MODEL: z.string().default('claude-opus-5-5'),
     /** Chat runs many tool rounds per message over a long history, so it's the largest cost. */
@@ -63,6 +68,15 @@ const EnvSchema = z
     ANTHROPIC_CHAT_EFFORT: z.enum(['', 'low', 'medium', 'high']).default(''),
     /** Property value lookups are a chain of web searches; a fast model finishes them several times sooner. */
     ANTHROPIC_LOOKUP_MODEL: z.string().default('claude-haiku-5-5'),
+
+    /** OpenRouter API key, for Ask Meld on Gemini, GPT, Claude and other models with one key; empty turns it off. */
+    OPENROUTER_API_KEY: z.string().default(''),
+    /** OpenRouter model IDs offered in the Ask model picker (see openrouter.ai/models). */
+    OPENROUTER_CHAT_MODELS: list(DEFAULT_OPENROUTER_MODELS.join(',')),
+    /** Reads insurance PDFs; must take file input. */
+    OPENROUTER_MODEL: z.string().default('google/gemini-4-carbon'),
+    /** Home and car value lookups (with the model's own web search) and fund make-up. */
+    OPENROUTER_LOOKUP_MODEL: z.string().default('google/gemini-4-hydrogen'),
 
     /** Ollama server for local chat models, e.g. http://127.0.0.1:11434; empty turns it off. */
     OLLAMA_URL: z.union([z.url(), z.literal('')]).default(''),

@@ -18,7 +18,7 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { desktop } from '@/lib/desktop';
 import { useFeatures } from '@/lib/queries';
-import { useSaveSettings, useSettings, useSetupStatus, type AIForm, type PlaidForm } from '@/lib/setup';
+import { aiSettings, modelsText, useSaveSettings, useSettings, useSetupStatus, type AIForm, type PlaidForm } from '@/lib/setup';
 
 export default function SettingsScreen() {
   const settings = useSettings();
@@ -148,11 +148,30 @@ function PlaidCard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
 }
 
 function AICard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
-  const initial: AIForm = { anthropicApiKey: '', ollamaUrl: view.ai.ollamaUrl, ollamaModels: view.ai.ollamaModels };
+  const initial: AIForm = {
+    anthropicApiKey: '',
+    openrouterApiKey: '',
+    openrouterModels: modelsText(view.ai.openrouterModels),
+    ollamaUrl: view.ai.ollamaUrl,
+    ollamaModels: view.ai.ollamaModels,
+  };
   const [form, setForm] = useState(initial);
   const [saved, setSaved] = useState(initial);
-  const [removeKey, setRemoveKey] = useState(false);
-  const dirty = removeKey || JSON.stringify(form) !== JSON.stringify(saved);
+  const [remove, setRemove] = useState({ anthropic: false, openrouter: false });
+  const dirty = remove.anthropic || remove.openrouter || JSON.stringify(form) !== JSON.stringify(saved);
+  /** Shown under a saved key while its field is empty: drop it on save, or change your mind. */
+  const removeButton = (which: 'anthropic' | 'openrouter', name: string, savedKey: string, typed: string) =>
+    !!savedKey &&
+    !typed && (
+      <View style={formStyles.buttons}>
+        <Button
+          label={remove[which] ? `Keep the saved ${name} key` : `Remove the saved ${name} key`}
+          variant={remove[which] ? 'secondary' : 'danger'}
+          size="small"
+          onPress={() => setRemove({ ...remove, [which]: !remove[which] })}
+        />
+      </View>
+    );
   return (
     <Card title="AI">
       {fixed ? (
@@ -162,30 +181,20 @@ function AICard({ view, fixed }: { view: SettingsView; fixed: boolean }) {
           <AIFields
             value={form}
             onChange={setForm}
-            savedKey={removeKey ? '' : view.ai.anthropicApiKey}
-            afterAnthropic={
-              !!view.ai.anthropicApiKey &&
-              !form.anthropicApiKey && (
-                <View style={formStyles.buttons}>
-                  <Button
-                    label={removeKey ? 'Keep the saved Anthropic key' : 'Remove the saved Anthropic key'}
-                    variant={removeKey ? 'secondary' : 'danger'}
-                    size="small"
-                    onPress={() => setRemoveKey(!removeKey)}
-                  />
-                </View>
-              )
-            }
+            savedKey={remove.anthropic ? '' : view.ai.anthropicApiKey}
+            savedOpenRouterKey={remove.openrouter ? '' : view.ai.openrouterApiKey}
+            afterAnthropic={removeButton('anthropic', 'Anthropic', view.ai.anthropicApiKey, form.anthropicApiKey)}
+            afterOpenRouter={removeButton('openrouter', 'OpenRouter', view.ai.openrouterApiKey, form.openrouterApiKey)}
           />
           <SaveRow
             dirty={dirty}
             onSave={(save) =>
               save.mutate(
-                { ai: { ...form, removeAnthropicKey: removeKey } },
+                { ai: aiSettings(form, remove) },
                 {
                   onSuccess: () => {
                     setSaved(form);
-                    setRemoveKey(false);
+                    setRemove({ anthropic: false, openrouter: false });
                   },
                 },
               )

@@ -54,7 +54,7 @@ async function startMeld() {
   const storage = createStorage(env);
   const phoneAccess = env.TAILSCALE_CONTROL ? new PhoneAccessService(`http://127.0.0.1:${env.API_PORT}`) : null;
   app = await buildServer({ env, db, plaid, sync, ai, chatgpt, mcp, storage, settings, phoneAccess });
-  if (!ai) app.log.warn('No AI provider configured (ANTHROPIC_API_KEY is empty); AI features are disabled.');
+  if (!ai) app.log.warn('No AI provider configured (ANTHROPIC_API_KEY and OPENROUTER_API_KEY are empty); AI features are disabled.');
 
   // Localhost only unless API_HOST says otherwise (the Docker setup listens inside its private network).
   await app.listen({ port: env.API_PORT, host: env.API_HOST });

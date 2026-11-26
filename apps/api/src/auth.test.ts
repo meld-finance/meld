@@ -43,7 +43,7 @@ describe('POST /auth/login', () => {
   it('reports cloud AI as off when no provider is configured', async () => {
     const { token } = (await login(PASSPHRASE)).json();
     const res = await app.inject({ method: 'GET', url: '/features', headers: { authorization: `Bearer ${token}` } });
-    expect(res.json()).toEqual({ cloudAI: false, version: expect.any(String) });
+    expect(res.json()).toEqual({ cloudAI: false, cloudAIProvider: null, version: expect.any(String) });
   });
 
   it('rate-limits repeated attempts', async () => {

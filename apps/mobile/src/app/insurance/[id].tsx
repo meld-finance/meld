@@ -144,7 +144,7 @@ export default function PolicyScreen() {
       {isNew && features.data?.cloudAI && (
         <Card
           title="Fill in from a PDF"
-          subtitle="Upload a policy, certificate or benefits summary and AI will fill in the form. Nothing is saved until you check it and press Save. The PDF is sent to Anthropic to read."
+          subtitle={`Upload a policy, certificate or benefits summary and AI will fill in the form. Nothing is saved until you check it and press Save. The PDF is sent to ${features.data.cloudAIProvider === 'openrouter' ? 'OpenRouter and the model’s maker (Google for Gemini)' : 'Anthropic'} to read.`}
           action={
             <Button
               label={extraction ? 'Use another PDF' : 'Upload PDF'}

@@ -13,8 +13,12 @@
     ],
     "Stop": [
       {
-        "type": "command",
-        "command": "node \"${CLAUDE_PROJECT_DIR:-.}/scripts/claude-docs-hook.mjs\" stop"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR:-.}/scripts/claude-docs-hook.mjs\" stop"
+          }
+        ]
       }
     ]
   }

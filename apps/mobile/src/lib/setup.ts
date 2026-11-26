@@ -86,12 +86,31 @@ export function testAnthropicKey(apiKey: string) {
   return api<KeyTestResult>('/setup/test-anthropic', { method: 'POST', body: JSON.stringify({ apiKey }) });
 }
 
+export function testOpenRouterKey(apiKey: string) {
+  return api<KeyTestResult>('/setup/test-openrouter', { method: 'POST', body: JSON.stringify({ apiKey }) });
+}
+
 export function detectOllama(url: string) {
   return api<OllamaDetectResult>('/setup/detect-ollama', { method: 'POST', body: JSON.stringify({ url }) });
 }
 
 export type PlaidForm = { clientId: string; sandboxSecret: string; productionSecret: string; env: PlaidEnvironment };
-export type AIForm = Pick<AISettings, 'anthropicApiKey' | 'ollamaUrl' | 'ollamaModels'>;
+export type AIForm = Pick<AISettings, 'anthropicApiKey' | 'openrouterApiKey' | 'ollamaUrl' | 'ollamaModels'> & {
+  /** OpenRouter model IDs as typed: one per line (commas work too). */
+  openrouterModels: string;
+};
+
+export const modelsText = (models: readonly string[]) => models.join('\n');
+
+/** The form as the API takes it. */
+export function aiSettings(form: AIForm, remove: { anthropic?: boolean; openrouter?: boolean } = {}): AISettings {
+  return {
+    ...form,
+    openrouterModels: form.openrouterModels.split(/[\s,]+/).filter(Boolean),
+    removeAnthropicKey: !!remove.anthropic,
+    removeOpenRouterKey: !!remove.openrouter,
+  };
+}
 
 export function usePhoneAccess(enabled: boolean) {
   return useQuery({ queryKey: keys.phone, queryFn: () => api<PhoneAccess>('/phone-access'), enabled });

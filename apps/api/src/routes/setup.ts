@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
-  AnthropicKeyTest,
+  ApiKeyTest,
+  DEFAULT_OPENROUTER_MODELS,
   OllamaDetectRequest,
   PlaidKeyTest,
   SettingsUpdate,
@@ -13,6 +14,7 @@ import {
 import type { FastifyInstance } from 'fastify';
 import { CountryCode } from 'plaid';
 import { OllamaProvider } from '../ai/ollama';
+import { testOpenRouterKey } from '../ai/openrouter';
 import { passphraseMatches } from '../auth';
 import { readSettings, writeSettings, type SettingKey, type Settings } from '../config-file';
 import { passphraseRequired, type Env } from '../env';
@@ -30,7 +32,7 @@ export type SettingsDeps = {
 const SECTIONS = {
   passphrase: ['APP_PASSPHRASE', 'APP_PASSPHRASE_HASH', 'APP_PASSPHRASE_OFF'],
   plaid: ['PLAID_CLIENT_ID', 'PLAID_SANDBOX_SECRET', 'PLAID_PRODUCTION_SECRET', 'PLAID_ENV'],
-  ai: ['ANTHROPIC_API_KEY', 'OLLAMA_URL', 'OLLAMA_CHAT_MODELS'],
+  ai: ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'OPENROUTER_CHAT_MODELS', 'OLLAMA_URL', 'OLLAMA_CHAT_MODELS'],
 } as const;
 type Section = keyof typeof SECTIONS;
 
@@ -38,6 +40,10 @@ const OLLAMA_CANDIDATES = ['http://127.0.0.1:11434', 'http://host.docker.interna
 const OLLAMA_PROBE_TIMEOUT_MS = 2_000;
 
 const mask = (secret: string) => (secret ? `••••${secret.slice(-4)}` : '');
+
+/** Kept only when it differs from the defaults, so a later Meld's better defaults still apply. */
+const openrouterModelsSetting = (models: string[]) =>
+  models.length && models.join(',') !== DEFAULT_OPENROUTER_MODELS.join(',') ? models.join(',') : undefined;
 
 function sectionsFromEnv(fromEnv: ReadonlySet<string>): Section[] {
   return (Object.keys(SECTIONS) as Section[]).filter((s) => SECTIONS[s].some((k) => fromEnv.has(k)));
@@ -124,6 +130,8 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
       PLAID_PRODUCTION_SECRET: body.plaid.productionSecret,
       PLAID_ENV: body.plaid.env,
       ANTHROPIC_API_KEY: body.ai.anthropicApiKey,
+      OPENROUTER_API_KEY: body.ai.openrouterApiKey,
+      OPENROUTER_CHAT_MODELS: openrouterModelsSetting(body.ai.openrouterModels),
       OLLAMA_URL: body.ai.ollamaUrl,
       OLLAMA_CHAT_MODELS: body.ai.ollamaModels.join(','),
     }));
@@ -139,8 +147,13 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
   });
 
   app.post('/setup/test-anthropic', { config }, async (req): Promise<KeyTestResult> => {
-    const body = parse(AnthropicKeyTest, req.body);
+    const body = parse(ApiKeyTest, req.body);
     return testAnthropicKey(body.apiKey || (configured ? env.ANTHROPIC_API_KEY : ''));
+  });
+
+  app.post('/setup/test-openrouter', { config }, async (req): Promise<KeyTestResult> => {
+    const body = parse(ApiKeyTest, req.body);
+    return testOpenRouterKey(body.apiKey || (configured ? env.OPENROUTER_API_KEY : ''));
   });
 
   app.post('/setup/detect-ollama', { config }, async (req): Promise<OllamaDetectResult> => {
@@ -159,7 +172,13 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
       productionSecret: mask(env.PLAID_PRODUCTION_SECRET),
       env: env.PLAID_ENV,
     },
-    ai: { anthropicApiKey: mask(env.ANTHROPIC_API_KEY), ollamaUrl: env.OLLAMA_URL, ollamaModels: env.OLLAMA_CHAT_MODELS },
+    ai: {
+      anthropicApiKey: mask(env.ANTHROPIC_API_KEY),
+      openrouterApiKey: mask(env.OPENROUTER_API_KEY),
+      openrouterModels: env.OPENROUTER_CHAT_MODELS,
+      ollamaUrl: env.OLLAMA_URL,
+      ollamaModels: env.OLLAMA_CHAT_MODELS,
+    },
     fromEnv: sectionsFromEnv(settings.fromEnv),
   }));
 
@@ -194,6 +213,9 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
       if (body.ai) {
         if (body.ai.removeAnthropicKey) delete next.ANTHROPIC_API_KEY;
         else if (body.ai.anthropicApiKey) next.ANTHROPIC_API_KEY = body.ai.anthropicApiKey;
+        if (body.ai.removeOpenRouterKey) delete next.OPENROUTER_API_KEY;
+        else if (body.ai.openrouterApiKey) next.OPENROUTER_API_KEY = body.ai.openrouterApiKey;
+        next.OPENROUTER_CHAT_MODELS = openrouterModelsSetting(body.ai.openrouterModels);
         next.OLLAMA_URL = body.ai.ollamaUrl;
         next.OLLAMA_CHAT_MODELS = body.ai.ollamaModels.join(',');
       }

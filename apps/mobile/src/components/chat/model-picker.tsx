@@ -22,6 +22,8 @@ export function ModelPicker({ openUp }: { openUp?: boolean }) {
 export function privacyNote(model: ChatModelOption | null) {
   if (model?.local) return 'Answered by a model on this computer; your data stays here.';
   if (model?.provider === 'chatgpt') return 'Questions and the data needed to answer them are sent to OpenAI, on your ChatGPT plan.';
+  if (model?.provider === 'openrouter')
+    return 'Questions and the data needed to answer them are sent to OpenRouter and the model’s provider, which mustn’t store or train on them.';
   if (model?.provider === 'ollama') return 'Questions and the data needed to answer them are sent to your Ollama server.';
   return 'Questions and the data needed to answer them are sent to Anthropic.';
 }
