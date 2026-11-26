@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Generates the static web documentation portal under site/docs/ from the repository's
-// canonical Markdown files (docs/*.md, PRIVACY.md, SECURITY.md, CONTRIBUTING.md).
+// canonical Markdown files (docs/**/*.md, PRIVACY.md, SECURITY.md, CONTRIBUTING.md).
+// Nested slugs (e.g. features/estate) render to site/docs/features/estate/index.html.
 //
 // Usage:
 //   node scripts/build-docs.mjs          # generate site/docs/
@@ -24,7 +25,7 @@ export const DOC_GROUPS = [
     id: 'using-meld',
     inAppHelp: true,
     title: 'Using Meld',
-    description: 'Everything you need to connect accounts, understand each screen, and reach Meld from your phone or server.',
+    description: 'Install Meld, connect your banks, and reach it from your phone or a self-hosted server.',
     docs: [
       {
         slug: 'install',
@@ -32,13 +33,6 @@ export const DOC_GROUPS = [
         title: 'Install',
         description: 'Install the Mac or Windows app, get through first-run setup, and keep Meld running around the clock.',
         icon: 'download',
-      },
-      {
-        slug: 'features',
-        sourcePath: 'docs/features.md',
-        title: 'Features & Guide',
-        description: 'How accounts, spending, autopay, cash, investments, retirement, tax, insurance, estate, and Ask Meld work.',
-        icon: 'compass',
       },
       {
         slug: 'plaid',
@@ -60,6 +54,105 @@ export const DOC_GROUPS = [
         title: 'Self-Hosting with Docker',
         description: 'Run Meld on Linux, a NAS, or a headless server that starts without anyone logging in.',
         icon: 'server',
+      },
+    ],
+  },
+  {
+    id: 'features-guide',
+    inAppHelp: true,
+    title: 'Features & Guide',
+    description: 'How each screen works: accounts, spending, autopay, cash, investments, retirement, tax, insurance, estate, and Ask Meld.',
+    docs: [
+      {
+        slug: 'features',
+        sourcePath: 'docs/features.md',
+        title: 'Overview',
+        description: 'Map of every major area in Meld, with links to the detailed guides and screenshots.',
+        icon: 'compass',
+      },
+      {
+        slug: 'features/demo',
+        sourcePath: 'docs/features/demo.md',
+        title: 'Demo data & tour',
+        description: 'Explore the Rivera demo household and the ten-stop product tour without Plaid keys.',
+        icon: 'map',
+      },
+      {
+        slug: 'features/accounts',
+        sourcePath: 'docs/features/accounts.md',
+        title: 'Linking accounts',
+        description: 'Link banks with Plaid, sync balances and history, reconnect when needed, and use Sandbox.',
+        icon: 'link',
+      },
+      {
+        slug: 'features/home-and-spending',
+        sourcePath: 'docs/features/home-and-spending.md',
+        title: 'Home, spending & budgets',
+        description: 'Net worth, cash flow, category drill-downs, recategorize rules, and monthly budgets.',
+        icon: 'home',
+      },
+      {
+        slug: 'features/recurring-and-alerts',
+        sourcePath: 'docs/features/recurring-and-alerts.md',
+        title: 'Recurring, autopay & alerts',
+        description: 'Subscriptions and bills, autopay coverage checks, Coming up, and phone push via ntfy.',
+        icon: 'bell',
+      },
+      {
+        slug: 'features/cash',
+        sourcePath: 'docs/features/cash.md',
+        title: 'Cash & emergency fund',
+        description: 'Liquid cash, estimated APYs, emergency-fund runway, and nudges for idle balances.',
+        icon: 'wallet',
+      },
+      {
+        slug: 'features/investments',
+        sourcePath: 'docs/features/investments.md',
+        title: 'Investments & loans',
+        description: 'Holdings, performance, exposure, income, loan payoff estimates, and hidden accounts.',
+        icon: 'chart',
+      },
+      {
+        slug: 'features/retirement',
+        sourcePath: 'docs/features/retirement.md',
+        title: 'Retirement',
+        description: 'Today’s-dollar projections, Social Security, property sales, and the savings gap.',
+        icon: 'calendar',
+      },
+      {
+        slug: 'features/tax',
+        sourcePath: 'docs/features/tax.md',
+        title: 'Tax',
+        description: 'Federal and state estimates, realized gains, contribution room, and harvest suggestions.',
+        icon: 'percent',
+      },
+      {
+        slug: 'features/insurance',
+        sourcePath: 'docs/features/insurance.md',
+        title: 'Insurance',
+        description: 'Life and disability policies, PDF upload extraction, and cash surrender value.',
+        icon: 'shield',
+      },
+      {
+        slug: 'features/estate',
+        sourcePath: 'docs/features/estate.md',
+        title: 'Estate',
+        description: 'Beneficiaries, documents, readiness checks, and the family packet PDF.',
+        icon: 'file',
+      },
+      {
+        slug: 'features/ask-meld',
+        sourcePath: 'docs/features/ask-meld.md',
+        title: 'Ask Meld',
+        description: 'AI chat with Claude, ChatGPT, Gemini, OpenRouter, or local Ollama models.',
+        icon: 'sparkle',
+      },
+      {
+        slug: 'features/mcp',
+        sourcePath: 'docs/features/mcp.md',
+        title: 'External agents (MCP)',
+        description: 'Read-only MCP server for Claude Code, Cursor, Codex, and other agents.',
+        icon: 'plug',
       },
     ],
   },
@@ -114,14 +207,50 @@ export const ALL_DOCS = DOC_GROUPS.flatMap((group) =>
 );
 
 const DOC_BY_SOURCE = new Map(ALL_DOCS.map((doc) => [doc.sourcePath, doc]));
+const DOC_BY_SLUG = new Map(ALL_DOCS.map((doc) => [doc.slug, doc]));
+
+/** Relative path from a doc page up to site/docs/ (no trailing slash). */
+function docsRootRel(slug) {
+  return '../'.repeat(slug.split('/').length).replace(/\/$/, '') || '.';
+}
+
+/** Relative path from a doc page up to site/ (no trailing slash). */
+function siteRootRel(slug) {
+  return '../'.repeat(slug.split('/').length + 1).replace(/\/$/, '');
+}
+
+/** Top-level directory names under site/docs/ produced from slugs. */
+function topLevelDocDirs() {
+  return [...new Set(ALL_DOCS.map((d) => d.slug.split('/')[0]))];
+}
 
 const ICONS = {
   download:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
   compass:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
+  map:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>',
   link:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+  home:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>',
+  bell:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>',
+  wallet:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="16" cy="14" r="1.5"/></svg>',
+  chart:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5"/><path d="M12 16V8"/><path d="M16 16v-3"/></svg>',
+  calendar:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>',
+  percent:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>',
+  file:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>',
+  sparkle:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/><path d="M19 15l.75 2.25L22 18l-2.25.75L19 21l-.75-2.25L16 18l2.25-.75L19 15z"/></svg>',
+  plug:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7v4a3 3 0 0 0 6 0V7"/><path d="M8 7h8"/><path d="M12 14v7"/><path d="M9 3v4M15 3v4"/></svg>',
   phone:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M12 18h.01"/></svg>',
   server:
@@ -180,10 +309,13 @@ function rewriteHref(rawHref, sourcePath) {
   const hashPart = hashIdx === -1 ? '' : trimmed.slice(hashIdx);
   const sourceDir = posix.dirname(sourcePath);
   const normalized = posix.normalize(sourceDir === '.' ? pathPart : posix.join(sourceDir, pathPart));
+  const fromDoc = DOC_BY_SOURCE.get(sourcePath);
+  const docsRoot = fromDoc ? docsRootRel(fromDoc.slug) : '..';
+  const siteRoot = fromDoc ? siteRootRel(fromDoc.slug) : '../..';
 
   const targetDoc = DOC_BY_SOURCE.get(normalized);
   if (targetDoc) {
-    return { href: `../${targetDoc.slug}/${hashPart}`, external: false };
+    return { href: `${docsRoot}/${targetDoc.slug}/${hashPart}`, external: false };
   }
   if (normalized === 'README.md') {
     return { href: `${REPO_URL}${hashPart || '#readme'}`, external: true };
@@ -192,7 +324,7 @@ function rewriteHref(rawHref, sourcePath) {
     return { href: `${REPO_URL}/blob/main/LICENSE`, external: true };
   }
   if (normalized.startsWith('site/')) {
-    return { href: `../../${normalized.slice('site/'.length)}${hashPart}`, external: false };
+    return { href: `${siteRoot}/${normalized.slice('site/'.length)}${hashPart}`, external: false };
   }
   return { href: `${REPO_URL}/blob/main/${normalized}${hashPart}`, external: true };
 }
@@ -223,7 +355,9 @@ function renderInline(text, sourcePath) {
   out = out.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt, src) => {
     const normalized = posix.normalize(posix.join(posix.dirname(sourcePath), src));
     if (!normalized.startsWith(`${IMAGES_SRC}/`)) throw new Error(`Image ${src} in ${sourcePath} must live in ${IMAGES_SRC}/`);
-    const url = `../images/${normalized.slice(IMAGES_SRC.length + 1)}`;
+    const fromDoc = DOC_BY_SOURCE.get(sourcePath);
+    const docsRoot = fromDoc ? docsRootRel(fromDoc.slug) : '..';
+    const url = `${docsRoot}/images/${normalized.slice(IMAGES_SRC.length + 1)}`;
     return hold(
       `<a class="doc-figure" href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}" loading="lazy"></a>`,
     );
@@ -721,9 +855,9 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = ${JSON.stringify(hel
 `;
 }
 
-function renderTopBar({ docsRoot, showMenuBtn }) {
-  const siteRoot = docsRoot === '.' ? '../' : '../../';
-  const docsIndex = docsRoot === '.' ? './' : '../';
+function renderTopBar({ docsRoot, siteRoot, showMenuBtn }) {
+  const docsIndex = docsRoot === '.' ? './' : `${docsRoot}/`;
+  const siteHref = siteRoot.endsWith('/') ? siteRoot : `${siteRoot}/`;
   return `<header class="top">
   <div class="top-inner">
     ${
@@ -734,7 +868,7 @@ function renderTopBar({ docsRoot, showMenuBtn }) {
         : ''
     }
     <div class="brand-group">
-      <a class="brand" href="${siteRoot}"><img src="${siteRoot}logo.svg" alt="" width="28" height="28">Meld</a>
+      <a class="brand" href="${siteHref}"><img src="${siteHref}logo.svg" alt="" width="28" height="28">Meld</a>
       <span class="brand-sep" aria-hidden="true">/</span>
       <a class="docs-badge" href="${docsIndex}">Docs</a>
     </div>
@@ -745,7 +879,7 @@ function renderTopBar({ docsRoot, showMenuBtn }) {
       <kbd>⌘K</kbd>
     </button>
     <nav class="top-links" aria-label="Primary">
-      <a class="hide-xs" href="${siteRoot}">Home</a>
+      <a class="hide-xs" href="${siteHref}">Home</a>
       <a href="${REPO_URL}">GitHub</a>
     </nav>
     <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
@@ -773,14 +907,14 @@ function renderSearchModal() {
 </div>`;
 }
 
-function renderFooter(docsRoot) {
-  const siteRoot = docsRoot === '.' ? '../' : '../../';
-  const docsIndex = docsRoot === '.' ? './' : '../';
+function renderFooter(docsRoot, siteRoot = docsRoot === '.' ? '..' : '../..') {
+  const docsIndex = docsRoot === '.' ? './' : `${docsRoot}/`;
+  const siteHref = `${siteRoot}/`;
   return `<footer class="docs-footer">
   <div class="foot-inner">
     <span>Meld is free software under the <a href="${REPO_URL}/blob/main/LICENSE">GNU AGPL v3</a>.</span>
     <nav aria-label="Footer">
-      <a href="${siteRoot}">Home</a>
+      <a href="${siteHref}">Home</a>
       <a href="${docsIndex}">Docs</a>
       <a href="${docsIndex}privacy/">Privacy</a>
       <a href="${docsIndex}security/">Security</a>
@@ -792,12 +926,14 @@ function renderFooter(docsRoot) {
 }
 
 function renderSidebar(activeSlug) {
+  const docsRoot = docsRootRel(activeSlug);
   const groupsHtml = DOC_GROUPS.map((group) => {
     const links = group.docs
       .map((doc) => {
         const active = doc.slug === activeSlug ? ' active' : '';
         const current = doc.slug === activeSlug ? ' aria-current="page"' : '';
-        return `<li><a class="nav-link${active}" href="../${doc.slug}/"${current}>${escapeHtml(doc.title)}</a></li>`;
+        const nested = doc.slug.includes('/') ? ' nested' : '';
+        return `<li><a class="nav-link${nested}${active}" href="${docsRoot}/${doc.slug}/"${current}>${escapeHtml(doc.title)}</a></li>`;
       })
       .join('\n        ');
     return `<div class="nav-group">
@@ -810,13 +946,15 @@ function renderSidebar(activeSlug) {
 
   return `<div class="sidebar-backdrop" data-sidebar-backdrop></div>
   <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
-    <a class="nav-home" href="../">← All documentation</a>
+    <a class="nav-home" href="${docsRoot}/">← All documentation</a>
     ${groupsHtml}
   </aside>`;
 }
 
 function renderDocPage(doc, parsed, prevDoc, nextDoc) {
   const pageTitle = `${doc.title} — Meld Docs`;
+  const docsRoot = docsRootRel(doc.slug);
+  const siteRoot = siteRootRel(doc.slug);
   const tocLinks = parsed.toc
     .map(
       (item) =>
@@ -832,7 +970,7 @@ function renderDocPage(doc, parsed, prevDoc, nextDoc) {
       ? `<nav class="pager" aria-label="Page navigation">
       ${
         prevDoc
-          ? `<a class="pager-card prev" href="../${prevDoc.slug}/">
+          ? `<a class="pager-card prev" href="${docsRoot}/${prevDoc.slug}/">
         <span class="pager-dir">← Previous</span>
         <span class="pager-title">${escapeHtml(prevDoc.title)}</span>
       </a>`
@@ -840,7 +978,7 @@ function renderDocPage(doc, parsed, prevDoc, nextDoc) {
       }
       ${
         nextDoc
-          ? `<a class="pager-card next" href="../${nextDoc.slug}/">
+          ? `<a class="pager-card next" href="${docsRoot}/${nextDoc.slug}/">
         <span class="pager-dir">Next →</span>
         <span class="pager-title">${escapeHtml(nextDoc.title)}</span>
       </a>`
@@ -849,31 +987,38 @@ function renderDocPage(doc, parsed, prevDoc, nextDoc) {
     </nav>`
       : '';
 
+  const parentCrumb =
+    doc.slug.includes('/') && DOC_BY_SLUG.has(doc.slug.split('/')[0])
+      ? `<a href="${docsRoot}/${doc.slug.split('/')[0]}/">${escapeHtml(DOC_BY_SLUG.get(doc.slug.split('/')[0]).title)}</a>
+          <span class="sep" aria-hidden="true">/</span>`
+      : '';
+
   return `<!doctype html>
-<html lang="en" data-docs-root="..">
+<html lang="en" data-docs-root="${docsRoot}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(pageTitle)}</title>
 <meta name="description" content="${escapeHtml(doc.description)}">
 <meta name="theme-color" content="#1a7fe6">
-<link rel="icon" type="image/png" href="../../favicon.png">
-<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<link rel="icon" type="image/png" href="${siteRoot}/favicon.png">
+<link rel="apple-touch-icon" href="${siteRoot}/apple-touch-icon.png">
 ${THEME_PREINIT}
-<link rel="stylesheet" href="../docs.css">
+<link rel="stylesheet" href="${docsRoot}/docs.css">
 </head>
 <body>
-${renderTopBar({ docsRoot: '..', showMenuBtn: true })}
+${renderTopBar({ docsRoot, siteRoot, showMenuBtn: true })}
 <div class="docs-shell">
   ${renderSidebar(doc.slug)}
   <main class="doc-main">
     <article class="doc-article">
       <div class="doc-header">
         <nav class="breadcrumbs" aria-label="Breadcrumb">
-          <a href="../">Docs</a>
+          <a href="${docsRoot}/">Docs</a>
           <span class="sep" aria-hidden="true">/</span>
           <span>${escapeHtml(doc.groupTitle)}</span>
           <span class="sep" aria-hidden="true">/</span>
+          ${parentCrumb}
           <span aria-current="page">${escapeHtml(doc.title)}</span>
         </nav>
         <h1>${escapeHtml(parsed.h1Title || doc.title)}</h1>
@@ -910,9 +1055,9 @@ ${renderTopBar({ docsRoot: '..', showMenuBtn: true })}
       : ''
   }
 </div>
-${renderFooter('..')}
+${renderFooter(docsRoot, siteRoot)}
 ${renderSearchModal()}
-<script src="../docs.js" defer></script>
+<script src="${docsRoot}/docs.js" defer></script>
 </body>
 </html>
 `;
@@ -960,7 +1105,7 @@ ${THEME_PREINIT}
 <link rel="stylesheet" href="./docs.css">
 </head>
 <body>
-${renderTopBar({ docsRoot: '.', showMenuBtn: false })}
+${renderTopBar({ docsRoot: '.', siteRoot: '..', showMenuBtn: false })}
 <main>
   <section class="hub-hero">
     <div class="hub-wrap">
@@ -1013,7 +1158,7 @@ function validateGeneratedLinks(generatedFiles) {
 
   for (const [relPath, content] of generatedFiles) {
     if (!relPath.endsWith('.html')) continue;
-    const slugMatch = relPath.match(/^([^/]+)\/index\.html$/);
+    const slugMatch = relPath.match(/^(.+)\/index\.html$/);
     if (slugMatch) {
       const ids = new Set([...content.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
       docIdsBySlug.set(slugMatch[1], ids);
@@ -1024,7 +1169,7 @@ function validateGeneratedLinks(generatedFiles) {
   for (const [relPath, content] of generatedFiles) {
     if (!relPath.endsWith('.html')) continue;
     const isSubPage = relPath !== 'index.html';
-    const currentSlug = isSubPage ? relPath.split('/')[0] : null;
+    const currentSlug = isSubPage ? relPath.replace(/\/index\.html$/, '') : null;
     for (const m of content.matchAll(/\bhref="([^"]+)"/g)) {
       const href = m[1];
       if (/^(https?:\/\/|mailto:|tel:)/.test(href)) continue;
@@ -1063,7 +1208,7 @@ function validateGeneratedLinks(generatedFiles) {
         continue;
       }
       if (hashPart) {
-        const targetSlug = targetHtml.split('/')[0];
+        const targetSlug = targetHtml.replace(/\/index\.html$/, '');
         const ids = docIdsBySlug.get(targetSlug);
         if (ids && !ids.has(hashPart)) {
           errors.push(`Broken anchor "${href}" in site/docs/${relPath}`);
@@ -1084,7 +1229,7 @@ function validateGeneratedLinks(generatedFiles) {
       continue;
     }
     if (hashPart) {
-      const targetSlug = targetHtml.split('/')[0];
+      const targetSlug = targetHtml.replace(/\/index\.html$/, '');
       const ids = docIdsBySlug.get(targetSlug);
       if (ids && !ids.has(hashPart)) {
         errors.push(`Broken anchor "${href}" in site/index.html`);
@@ -1098,10 +1243,19 @@ function validateGeneratedLinks(generatedFiles) {
 export function buildDocs({ check = false } = {}) {
   const errors = [];
 
-  // 1. Ensure every Markdown file in docs/ is registered in DOC_GROUPS.
-  const docsDirFiles = readdirSync(join(root, 'docs')).filter((f) => f.endsWith('.md')).sort();
-  for (const file of docsDirFiles) {
-    const rel = `docs/${file}`;
+  // 1. Ensure every Markdown file under docs/ (except images/) is registered in DOC_GROUPS.
+  function listDocMarkdownFiles(dir = join(root, 'docs'), prefix = 'docs') {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      if (entry.name.startsWith('.')) return [];
+      const rel = `${prefix}/${entry.name}`;
+      if (entry.isDirectory()) {
+        if (entry.name === 'images') return [];
+        return listDocMarkdownFiles(join(dir, entry.name), rel);
+      }
+      return entry.name.endsWith('.md') ? [rel] : [];
+    });
+  }
+  for (const rel of listDocMarkdownFiles().sort()) {
     if (!DOC_BY_SOURCE.has(rel)) {
       errors.push(`Unregistered doc "${rel}". Add it to DOC_GROUPS in scripts/build-docs.mjs.`);
     }
@@ -1217,7 +1371,7 @@ export function buildDocs({ check = false } = {}) {
 
     // Check for orphaned generated directories/files in site/docs/.
     if (existsSync(docsOutDir)) {
-      const allowedTop = new Set(['docs.css', 'docs.js', 'index.html', 'search-index.json', 'images', ...ALL_DOCS.map((d) => d.slug)]);
+      const allowedTop = new Set(['docs.css', 'docs.js', 'index.html', 'search-index.json', 'images', ...topLevelDocDirs()]);
       for (const entry of readdirSync(docsOutDir)) {
         if (!allowedTop.has(entry)) {
           errors.push(`Unexpected file or directory in site/docs/: ${entry} (run npm run docs:build)`);
@@ -1237,10 +1391,22 @@ export function buildDocs({ check = false } = {}) {
 
   // Write generated outputs and prune stale directories.
   mkdirSync(docsOutDir, { recursive: true });
-  const allowedTop = new Set(['docs.css', 'docs.js', 'index.html', 'search-index.json', 'images', ...ALL_DOCS.map((d) => d.slug)]);
+  const allowedTop = new Set(['docs.css', 'docs.js', 'index.html', 'search-index.json', 'images', ...topLevelDocDirs()]);
   for (const entry of readdirSync(docsOutDir)) {
     if (!allowedTop.has(entry)) {
       rmSync(join(docsOutDir, entry), { recursive: true, force: true });
+    }
+  }
+  // Prune stale nested feature pages under site/docs/features/ (keep index.html for the hub).
+  const featuresOut = join(docsOutDir, 'features');
+  if (existsSync(featuresOut)) {
+    const allowedFeatureChildren = new Set(
+      ALL_DOCS.filter((d) => d.slug.startsWith('features/')).map((d) => d.slug.slice('features/'.length).split('/')[0]),
+    );
+    for (const entry of readdirSync(featuresOut, { withFileTypes: true })) {
+      if (entry.isDirectory() && !allowedFeatureChildren.has(entry.name)) {
+        rmSync(join(featuresOut, entry.name), { recursive: true, force: true });
+      }
     }
   }
   for (const [relPath, content] of generated) {

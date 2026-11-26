@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en" data-docs-root="../..">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linking accounts — Meld Docs</title>
+<meta name="description" content="Link banks with Plaid, sync balances and history, reconnect when needed, and use Sandbox.">
+<meta name="theme-color" content="#1a7fe6">
+<link rel="icon" type="image/png" href="../../../favicon.png">
+<link rel="apple-touch-icon" href="../../../apple-touch-icon.png">
+<script>try{const t=localStorage.getItem('meld.site.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch{}</script>
+<link rel="stylesheet" href="../../docs.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Toggle navigation" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <div class="brand-group">
+      <a class="brand" href="../../../"><img src="../../../logo.svg" alt="" width="28" height="28">Meld</a>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <a class="docs-badge" href="../../">Docs</a>
+    </div>
+    <div class="top-spacer"></div>
+    <button type="button" class="search-trigger" data-search-open aria-label="Search documentation">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span class="search-label">Search docs…</span>
+      <kbd>⌘K</kbd>
+    </button>
+    <nav class="top-links" aria-label="Primary">
+      <a class="hide-xs" href="../../../">Home</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+    <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+</header>
+<div class="docs-shell">
+  <div class="sidebar-backdrop" data-sidebar-backdrop></div>
+  <aside class="sidebar" data-sidebar aria-label="Documentation navigation">
+    <a class="nav-home" href="../../">← All documentation</a>
+    <div class="nav-group">
+      <div class="nav-group-title">Using Meld</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../install/">Install</a></li>
+        <li><a class="nav-link" href="../../plaid/">Plaid Bank Setup</a></li>
+        <li><a class="nav-link" href="../../phone-access/">Phone Access (Tailscale)</a></li>
+        <li><a class="nav-link" href="../../docker/">Self-Hosting with Docker</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Features &amp; Guide</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../features/">Overview</a></li>
+        <li><a class="nav-link nested" href="../../features/demo/">Demo data &amp; tour</a></li>
+        <li><a class="nav-link nested active" href="../../features/accounts/" aria-current="page">Linking accounts</a></li>
+        <li><a class="nav-link nested" href="../../features/home-and-spending/">Home, spending &amp; budgets</a></li>
+        <li><a class="nav-link nested" href="../../features/recurring-and-alerts/">Recurring, autopay &amp; alerts</a></li>
+        <li><a class="nav-link nested" href="../../features/cash/">Cash &amp; emergency fund</a></li>
+        <li><a class="nav-link nested" href="../../features/investments/">Investments &amp; loans</a></li>
+        <li><a class="nav-link nested" href="../../features/retirement/">Retirement</a></li>
+        <li><a class="nav-link nested" href="../../features/tax/">Tax</a></li>
+        <li><a class="nav-link nested" href="../../features/insurance/">Insurance</a></li>
+        <li><a class="nav-link nested" href="../../features/estate/">Estate</a></li>
+        <li><a class="nav-link nested" href="../../features/ask-meld/">Ask Meld</a></li>
+        <li><a class="nav-link nested" href="../../features/mcp/">External agents (MCP)</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Privacy &amp; Security</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../privacy/">Privacy</a></li>
+        <li><a class="nav-link" href="../../security/">Security</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title">Developers</div>
+      <ul class="nav-list">
+        <li><a class="nav-link" href="../../development/">Development</a></li>
+        <li><a class="nav-link" href="../../contributing/">Contributing</a></li>
+      </ul>
+    </div>
+  </aside>
+  <main class="doc-main">
+    <article class="doc-article">
+      <div class="doc-header">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../../">Docs</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span>Features &amp; Guide</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <a href="../../features/">Overview</a>
+          <span class="sep" aria-hidden="true">/</span>
+          <span aria-current="page">Linking accounts</span>
+        </nav>
+        <h1>Linking accounts</h1>
+        <p class="doc-summary">Link banks with Plaid, sync balances and history, reconnect when needed, and use Sandbox.</p>
+        <div class="doc-meta">
+          <span class="doc-meta-pill">1 min read</span>
+          <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/accounts.md">View docs/features/accounts.md on GitHub ↗</a>
+        </div>
+      </div>
+      <details class="mobile-toc">
+        <summary>On this page</summary>
+        <nav aria-label="On this page">
+          <a class="depth-2" href="#where-to-find-it">Where to find it</a>
+          <a class="depth-2" href="#syncing">Syncing</a>
+          <a class="depth-2" href="#keys-and-environments">Keys and environments</a>
+          <a class="depth-2" href="#reconnect-and-mobile">Reconnect and mobile</a>
+          <a class="depth-2" href="#related">Related</a>
+        </nav>
+      </details>
+      <div class="prose">
+        <p>Meld pulls balances, transactions, investments and loans through <a href="https://plaid.com" target="_blank" rel="noopener">Plaid</a> with <strong>your own</strong> free developer keys. Step-by-step screenshots of Plaid's sign-up live in <a href="../../plaid/">Connecting your accounts with Plaid</a>.</p>
+
+<p><a class="doc-figure" href="../../images/features/accounts.png" target="_blank" rel="noopener"><img src="../../images/features/accounts.png" alt="Accounts tab with linked balances and net worth" loading="lazy"></a></p>
+
+<h2 id="where-to-find-it">Where to find it<a class="heading-anchor" href="#where-to-find-it" aria-label="Link to Where to find it">#</a></h2>
+
+<ul>
+<li><strong>Accounts → Link account</strong> in the web app</li>
+<li>Keys: first-run setup, <strong>Connect your banks</strong>, or <strong>Settings → Bank connections</strong></li>
+<li>Sandbox: <strong>Settings → Bank connections → Developer options</strong></li>
+</ul>
+
+<h2 id="syncing">Syncing<a class="heading-anchor" href="#syncing" aria-label="Link to Syncing">#</a></h2>
+
+<p>Use <strong>Accounts → Link account</strong>. Accounts and balances sync immediately; transaction history (up to 2 years) arrives over the next minute or so and is fetched automatically. Every linked connection also re-syncs every 6 hours while the API is running, or on demand with <strong>Refresh</strong>.</p>
+
+<h2 id="keys-and-environments">Keys and environments<a class="heading-anchor" href="#keys-and-environments" aria-label="Link to Keys and environments">#</a></h2>
+
+<ul>
+<li><strong>Production keys:</strong> your own Plaid client ID and production secret (<code>PLAID_CLIENT_ID</code>, <code>PLAID_PRODUCTION_SECRET</code>, <code>PLAID_ENV=production</code> in <code>.env</code>). The guided sign-up shows each Plaid screen; <a href="../../plaid/">Connecting your accounts with Plaid</a> has the same steps. The free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank.</li>
+<li><strong>Sandbox</strong> (for developers): paste the Sandbox secret and switch environments (<code>PLAID_SANDBOX_SECRET</code>, <code>PLAID_ENV=sandbox</code>). Pick any institution and sign in with <code>user_good</code> / <code>pass_good</code>.</li>
+<li>Each environment, and demo data, has its own database (<code>SANDBOX_DATABASE_URL</code>, <code>PRODUCTION_DATABASE_URL</code>, <code>DEMO_DATABASE_URL</code>), so they never mix. Switching restarts the API.</li>
+</ul>
+
+<h2 id="reconnect-and-mobile">Reconnect and mobile<a class="heading-anchor" href="#reconnect-and-mobile" aria-label="Link to Reconnect and mobile">#</a></h2>
+
+<p>If a bank needs you to sign in again, the connection shows <strong>Reconnect</strong>, which reopens Plaid Link in update mode.</p>
+
+<p>Linking on iOS/Android arrives with the mobile phase; use the web app until then.</p>
+
+<h2 id="related">Related<a class="heading-anchor" href="#related" aria-label="Link to Related">#</a></h2>
+
+<ul>
+<li><a href="../../features/demo/">Demo data &amp; tour</a> — explore without keys first</li>
+<li><a href="../../features/home-and-spending/">Home, spending &amp; budgets</a> — what linked data feeds</li>
+<li><a href="../../features/investments/">Investments &amp; loans</a> — holdings and liabilities sync</li>
+</ul>
+      </div>
+      <nav class="pager" aria-label="Page navigation">
+      <a class="pager-card prev" href="../../features/demo/">
+        <span class="pager-dir">← Previous</span>
+        <span class="pager-title">Demo data &amp; tour</span>
+      </a>
+      <a class="pager-card next" href="../../features/home-and-spending/">
+        <span class="pager-dir">Next →</span>
+        <span class="pager-title">Home, spending &amp; budgets</span>
+      </a>
+    </nav>
+    </article>
+  </main>
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul class="toc-list">
+      <li><a class="toc-link depth-2" href="#where-to-find-it">Where to find it</a></li>
+          <li><a class="toc-link depth-2" href="#syncing">Syncing</a></li>
+          <li><a class="toc-link depth-2" href="#keys-and-environments">Keys and environments</a></li>
+          <li><a class="toc-link depth-2" href="#reconnect-and-mobile">Reconnect and mobile</a></li>
+          <li><a class="toc-link depth-2" href="#related">Related</a></li>
+    </ul>
+  </aside>
+</div>
+<footer class="docs-footer">
+  <div class="foot-inner">
+    <span>Meld is free software under the <a href="https://github.com/meld-finance/meld/blob/main/LICENSE">GNU AGPL v3</a>.</span>
+    <nav aria-label="Footer">
+      <a href="../../../">Home</a>
+      <a href="../../">Docs</a>
+      <a href="../../privacy/">Privacy</a>
+      <a href="../../security/">Security</a>
+      <a href="../../contributing/">Contributing</a>
+      <a href="https://github.com/meld-finance/meld">GitHub</a>
+    </nav>
+  </div>
+</footer>
+<div class="search-modal" data-search-modal hidden role="dialog" aria-modal="true" aria-label="Search documentation">
+  <div class="search-dialog">
+    <div class="search-input-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" class="search-input" data-search-input placeholder="Search Meld documentation…" autocomplete="off" spellcheck="false" aria-label="Search documentation">
+      <button type="button" class="search-close" data-search-close>ESC</button>
+    </div>
+    <div class="search-results" data-search-results role="listbox" aria-label="Search results"></div>
+    <div class="search-footer">
+      <span>↑↓ navigate · ↵ open · esc close</span>
+      <span>Tip: press / anywhere to search</span>
+    </div>
+  </div>
+</div>
+<script src="../../docs.js" defer></script>
+</body>
+</html>

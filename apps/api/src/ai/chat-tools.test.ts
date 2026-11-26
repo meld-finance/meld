@@ -95,7 +95,7 @@ describe('runTool', () => {
     const res = await runTool(docsTool, { query: 'autopay' });
     expect(res.isError).toBe(false);
     const parsed = JSON.parse(res.content) as { sections: { id: string }[] };
-    expect(parsed.sections[0]!.id).toBe('features#recurring-payments-autopay--alerts');
+    expect(parsed.sections[0]!.id.startsWith('features/recurring-and-alerts#')).toBe(true);
     expect(maskNumbers(MELD_DOC_SECTIONS)).toEqual(MELD_DOC_SECTIONS);
   });
 });

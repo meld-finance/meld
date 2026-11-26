@@ -59,66 +59,6 @@ export const MELD_DOC_GUIDES: readonly MeldDocGuide[] = [
     ]
   },
   {
-    "slug": "features",
-    "title": "Features & Guide",
-    "description": "How accounts, spending, autopay, cash, investments, retirement, tax, insurance, estate, and Ask Meld work.",
-    "sourcePath": "docs/features.md",
-    "sections": [
-      {
-        "id": "features#overview",
-        "heading": "Overview"
-      },
-      {
-        "id": "features#demo-data--tour",
-        "heading": "Demo data & tour"
-      },
-      {
-        "id": "features#linking-accounts-plaid",
-        "heading": "Linking accounts (Plaid)"
-      },
-      {
-        "id": "features#overview--budgets",
-        "heading": "Overview & budgets"
-      },
-      {
-        "id": "features#recurring-payments-autopay--alerts",
-        "heading": "Recurring payments, autopay & alerts"
-      },
-      {
-        "id": "features#cash--emergency-fund",
-        "heading": "Cash & emergency fund"
-      },
-      {
-        "id": "features#investments--loans",
-        "heading": "Investments & loans"
-      },
-      {
-        "id": "features#plan-retirement",
-        "heading": "Plan: retirement"
-      },
-      {
-        "id": "features#plan-tax",
-        "heading": "Plan: tax"
-      },
-      {
-        "id": "features#plan-insurance",
-        "heading": "Plan: insurance"
-      },
-      {
-        "id": "features#plan-estate",
-        "heading": "Plan: estate"
-      },
-      {
-        "id": "features#ask-meld-ai-chat",
-        "heading": "Ask Meld (AI chat)"
-      },
-      {
-        "id": "features#external-agents-mcp-server",
-        "heading": "External agents (MCP server)"
-      }
-    ]
-  },
-  {
     "slug": "plaid",
     "title": "Plaid Bank Setup",
     "description": "Set up your own free Plaid developer keys, try Sandbox test data, and switch to live bank connections.",
@@ -223,6 +163,462 @@ export const MELD_DOC_GUIDES: readonly MeldDocGuide[] = [
     ]
   },
   {
+    "slug": "features",
+    "title": "Overview",
+    "description": "Map of every major area in Meld, with links to the detailed guides and screenshots.",
+    "sourcePath": "docs/features.md",
+    "sections": [
+      {
+        "id": "features#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features#the-app-at-a-glance",
+        "heading": "The app at a glance"
+      },
+      {
+        "id": "features#guides",
+        "heading": "Guides"
+      }
+    ]
+  },
+  {
+    "slug": "features/demo",
+    "title": "Demo data & tour",
+    "description": "Explore the Rivera demo household and the ten-stop product tour without Plaid keys.",
+    "sourcePath": "docs/features/demo.md",
+    "sections": [
+      {
+        "id": "features/demo#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/demo#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/demo#the-rivera-household",
+        "heading": "The Rivera household"
+      },
+      {
+        "id": "features/demo#the-tour",
+        "heading": "The tour"
+      },
+      {
+        "id": "features/demo#connect-your-own-banks",
+        "heading": "Connect your own banks"
+      }
+    ]
+  },
+  {
+    "slug": "features/accounts",
+    "title": "Linking accounts",
+    "description": "Link banks with Plaid, sync balances and history, reconnect when needed, and use Sandbox.",
+    "sourcePath": "docs/features/accounts.md",
+    "sections": [
+      {
+        "id": "features/accounts#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/accounts#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/accounts#syncing",
+        "heading": "Syncing"
+      },
+      {
+        "id": "features/accounts#keys-and-environments",
+        "heading": "Keys and environments"
+      },
+      {
+        "id": "features/accounts#reconnect-and-mobile",
+        "heading": "Reconnect and mobile"
+      },
+      {
+        "id": "features/accounts#related",
+        "heading": "Related"
+      }
+    ]
+  },
+  {
+    "slug": "features/home-and-spending",
+    "title": "Home, spending & budgets",
+    "description": "Net worth, cash flow, category drill-downs, recategorize rules, and monthly budgets.",
+    "sourcePath": "docs/features/home-and-spending.md",
+    "sections": [
+      {
+        "id": "features/home-and-spending#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/home-and-spending#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/home-and-spending#net-worth",
+        "heading": "Net worth"
+      },
+      {
+        "id": "features/home-and-spending#cash-flow",
+        "heading": "Cash flow"
+      },
+      {
+        "id": "features/home-and-spending#category-drill-down",
+        "heading": "Category drill-down"
+      },
+      {
+        "id": "features/home-and-spending#recategorize-and-rules",
+        "heading": "Recategorize and rules"
+      },
+      {
+        "id": "features/home-and-spending#budgets",
+        "heading": "Budgets"
+      },
+      {
+        "id": "features/home-and-spending#related",
+        "heading": "Related"
+      }
+    ]
+  },
+  {
+    "slug": "features/recurring-and-alerts",
+    "title": "Recurring, autopay & alerts",
+    "description": "Subscriptions and bills, autopay coverage checks, Coming up, and phone push via ntfy.",
+    "sourcePath": "docs/features/recurring-and-alerts.md",
+    "sections": [
+      {
+        "id": "features/recurring-and-alerts#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/recurring-and-alerts#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/recurring-and-alerts#recurring-series",
+        "heading": "Recurring series"
+      },
+      {
+        "id": "features/recurring-and-alerts#autopay",
+        "heading": "Autopay"
+      },
+      {
+        "id": "features/recurring-and-alerts#coming-up",
+        "heading": "Coming up"
+      },
+      {
+        "id": "features/recurring-and-alerts#alerts",
+        "heading": "Alerts"
+      },
+      {
+        "id": "features/recurring-and-alerts#push-to-your-phone",
+        "heading": "Push to your phone"
+      }
+    ]
+  },
+  {
+    "slug": "features/cash",
+    "title": "Cash & emergency fund",
+    "description": "Liquid cash, estimated APYs, emergency-fund runway, and nudges for idle balances.",
+    "sourcePath": "docs/features/cash.md",
+    "sections": [
+      {
+        "id": "features/cash#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/cash#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/cash#what-counts-as-cash",
+        "heading": "What counts as cash"
+      },
+      {
+        "id": "features/cash#estimated-rates",
+        "heading": "Estimated rates"
+      },
+      {
+        "id": "features/cash#emergency-fund",
+        "heading": "Emergency fund"
+      },
+      {
+        "id": "features/cash#nudges",
+        "heading": "Nudges"
+      }
+    ]
+  },
+  {
+    "slug": "features/investments",
+    "title": "Investments & loans",
+    "description": "Holdings, performance, exposure, income, loan payoff estimates, and hidden accounts.",
+    "sourcePath": "docs/features/investments.md",
+    "sections": [
+      {
+        "id": "features/investments#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/investments#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/investments#what-syncs",
+        "heading": "What syncs"
+      },
+      {
+        "id": "features/investments#investment-views",
+        "heading": "Investment views"
+      },
+      {
+        "id": "features/investments#look-through-exposure",
+        "heading": "Look-through exposure"
+      },
+      {
+        "id": "features/investments#loans-cards-and-hiding-accounts",
+        "heading": "Loans, cards, and hiding accounts"
+      }
+    ]
+  },
+  {
+    "slug": "features/retirement",
+    "title": "Retirement",
+    "description": "Today’s-dollar projections, Social Security, property sales, and the savings gap.",
+    "sourcePath": "docs/features/retirement.md",
+    "sections": [
+      {
+        "id": "features/retirement#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/retirement#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/retirement#the-projection",
+        "heading": "The projection"
+      },
+      {
+        "id": "features/retirement#social-security",
+        "heading": "Social Security"
+      },
+      {
+        "id": "features/retirement#which-accounts-count",
+        "heading": "Which accounts count"
+      },
+      {
+        "id": "features/retirement#properties",
+        "heading": "Properties"
+      }
+    ]
+  },
+  {
+    "slug": "features/tax",
+    "title": "Tax",
+    "description": "Federal and state estimates, realized gains, contribution room, and harvest suggestions.",
+    "sourcePath": "docs/features/tax.md",
+    "sections": [
+      {
+        "id": "features/tax#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/tax#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/tax#the-estimate",
+        "heading": "The estimate"
+      },
+      {
+        "id": "features/tax#income-and-gains",
+        "heading": "Income and gains"
+      },
+      {
+        "id": "features/tax#tax-inputs",
+        "heading": "Tax inputs"
+      },
+      {
+        "id": "features/tax#tables",
+        "heading": "Tables"
+      },
+      {
+        "id": "features/tax#suggestions",
+        "heading": "Suggestions"
+      }
+    ]
+  },
+  {
+    "slug": "features/insurance",
+    "title": "Insurance",
+    "description": "Life and disability policies, PDF upload extraction, and cash surrender value.",
+    "sourcePath": "docs/features/insurance.md",
+    "sections": [
+      {
+        "id": "features/insurance#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/insurance#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/insurance#policies",
+        "heading": "Policies"
+      },
+      {
+        "id": "features/insurance#upload-pdf-ai-fill-in",
+        "heading": "Upload PDF (AI fill-in)"
+      },
+      {
+        "id": "features/insurance#attach-pdf-local-only",
+        "heading": "Attach PDF (local only)"
+      }
+    ]
+  },
+  {
+    "slug": "features/estate",
+    "title": "Estate",
+    "description": "Beneficiaries, documents, readiness checks, and the family packet PDF.",
+    "sourcePath": "docs/features/estate.md",
+    "sections": [
+      {
+        "id": "features/estate#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/estate#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/estate#checklist",
+        "heading": "Checklist"
+      },
+      {
+        "id": "features/estate#accounts-and-policies",
+        "heading": "Accounts and policies"
+      },
+      {
+        "id": "features/estate#full-account-numbers",
+        "heading": "Full account numbers"
+      },
+      {
+        "id": "features/estate#readiness-checks",
+        "heading": "Readiness checks"
+      },
+      {
+        "id": "features/estate#documents-and-trusts",
+        "heading": "Documents and trusts"
+      },
+      {
+        "id": "features/estate#contacts-and-instructions",
+        "heading": "Contacts and instructions"
+      },
+      {
+        "id": "features/estate#family-packet",
+        "heading": "Family packet"
+      },
+      {
+        "id": "features/estate#alerts",
+        "heading": "Alerts"
+      }
+    ]
+  },
+  {
+    "slug": "features/ask-meld",
+    "title": "Ask Meld",
+    "description": "AI chat with Claude, ChatGPT, Gemini, OpenRouter, or local Ollama models.",
+    "sourcePath": "docs/features/ask-meld.md",
+    "sections": [
+      {
+        "id": "features/ask-meld#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/ask-meld#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/ask-meld#choosing-a-model",
+        "heading": "Choosing a model"
+      },
+      {
+        "id": "features/ask-meld#what-it-answers",
+        "heading": "What it answers"
+      },
+      {
+        "id": "features/ask-meld#progressive-context--tools",
+        "heading": "Progressive context & tools"
+      },
+      {
+        "id": "features/ask-meld#fast-responses-by-default",
+        "heading": "Fast responses by default"
+      },
+      {
+        "id": "features/ask-meld#pick-the-model",
+        "heading": "Pick the model"
+      },
+      {
+        "id": "features/ask-meld#local-models-ollama",
+        "heading": "Local models (Ollama)"
+      },
+      {
+        "id": "features/ask-meld#chatgpt-plan",
+        "heading": "ChatGPT plan"
+      },
+      {
+        "id": "features/ask-meld#openrouter",
+        "heading": "OpenRouter"
+      },
+      {
+        "id": "features/ask-meld#privacy",
+        "heading": "Privacy"
+      },
+      {
+        "id": "features/ask-meld#related",
+        "heading": "Related"
+      }
+    ]
+  },
+  {
+    "slug": "features/mcp",
+    "title": "External agents (MCP)",
+    "description": "Read-only MCP server for Claude Code, Cursor, Codex, and other agents.",
+    "sourcePath": "docs/features/mcp.md",
+    "sections": [
+      {
+        "id": "features/mcp#overview",
+        "heading": "Overview"
+      },
+      {
+        "id": "features/mcp#where-to-find-it",
+        "heading": "Where to find it"
+      },
+      {
+        "id": "features/mcp#off-by-default",
+        "heading": "Off by default"
+      },
+      {
+        "id": "features/mcp#endpoint--clients",
+        "heading": "Endpoint & clients"
+      },
+      {
+        "id": "features/mcp#whats-exposed-read-only",
+        "heading": "What's exposed (read-only)"
+      },
+      {
+        "id": "features/mcp#security",
+        "heading": "Security"
+      },
+      {
+        "id": "features/mcp#related",
+        "heading": "Related"
+      }
+    ]
+  },
+  {
     "slug": "privacy",
     "title": "Privacy",
     "description": "Every outside service Meld talks to, what is sent, how digit masking works, and what is encrypted on disk.",
@@ -320,97 +716,6 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = [
     "docTitle": "Install",
     "heading": "Uninstall",
     "content": "Quit Meld, then delete the app (drag it from Applications to the Trash on a Mac; **Settings → Apps** on Windows). Your data folder and the `Meld` Keychain or Credential Manager item stay behind until you delete them too."
-  },
-  {
-    "id": "features#overview",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Overview",
-    "content": "What each part of Meld does and how it works. For installing, see the [README](../README.md).\n\n> **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice."
-  },
-  {
-    "id": "features#demo-data--tour",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Demo data & tour",
-    "content": "- **Start with demo data** on the welcome screen (or `MELD_DEMO=1`) shows a made-up household, the Riveras, in its own database (`meld_demo`, or `DEMO_DATABASE_URL`), with two years of history dated up to today. Nothing needs Plaid keys or a passphrase.\n- The household is built so every area has something to show: checking that won't cover the card's autopay after childcare and the phone bill (an urgent alert), a Netflix price rise and a new Headspace charge, Disney+ stopped, eating out pushing food over budget, savings earning 0.4%, 401(k), HSA and Roth IRA room, a fund to harvest for a tax loss, a rollover IRA with no beneficiary, and a will older than the younger child.\n- It's rebuilt automatically once it's two days old, so due dates and alerts stay current; changes you make to it don't last. Demo connections never call Plaid: **Refresh** just says they're up to date, and **Link account** is replaced by **Connect my banks**.\n- **The tour** starts after you choose demo data, and from **Take the tour** on Home. It walks through ten questions people ask about their money (what am I worth, will a payment bounce, where does my money go, what am I subscribed to, is my cash earning enough, am I on track to retire, am I missing tax savings, would my family know what to do, can I just ask, and ready for your own numbers?), opening the page that answers each one. It floats over the page, can be minimized to a pill, and picks up where it left off after a reload.\n- **Connect my banks** (on Home, in the top bar while demo data is showing, and under **Settings → Bank connections**) opens the guided Plaid sign-up. Saving your keys switches Meld to your own, empty database. **Settings → Bank connections → Show demo data** switches back, and **Use my accounts** returns."
-  },
-  {
-    "id": "features#linking-accounts-plaid",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Linking accounts (Plaid)",
-    "content": "Use **Accounts → Link account** in the web app. Accounts and balances sync immediately; transaction history (up to 2 years) arrives over the next minute or so and is fetched automatically. Every linked connection also re-syncs every 6 hours while the API is running, or on demand with **Refresh**.\n\n- **Keys:** your own Plaid client ID and production secret, entered in first-run setup, on the **Connect your banks** page, or under **Settings → Bank connections** (`PLAID_CLIENT_ID`, `PLAID_PRODUCTION_SECRET`, `PLAID_ENV=production` in `.env`). The guided sign-up shows each Plaid screen; [Connecting your accounts with Plaid](plaid.md) has the same steps. The free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank.\n- **Sandbox** (for developers): **Settings → Bank connections → Developer options** takes the Sandbox secret and switches environments (`PLAID_SANDBOX_SECRET`, `PLAID_ENV=sandbox`). Pick any institution and sign in with `user_good` / `pass_good`. Each environment, and demo data, has its own database (`SANDBOX_DATABASE_URL`, `PRODUCTION_DATABASE_URL`, `DEMO_DATABASE_URL`), so they never mix. Switching restarts the API.\n- If a bank needs you to sign in again, the connection shows **Reconnect**, which reopens Plaid Link in update mode.\n- Linking on iOS/Android arrives with the mobile phase; use the web app until then."
-  },
-  {
-    "id": "features#overview--budgets",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Overview & budgets",
-    "content": "The app has five tabs: **Home**, **Ask Meld**, **Accounts** (sub-tabs Accounts, Cash and Investments), **Spending** (Overview, Transactions, Recurring, Budgets) and **Plan** (Retirement, Tax, Insurance, Estate, Profile).\n\n\n- **Net worth** = linked balances + manual assets (home, vehicles; add them on the Accounts tab) + life insurance cash surrender value − credit, loan and mortgage balances. Meld records one snapshot per day (after each sync and every 6 hours), so the trend line starts after the second day.\n- **Cash flow** counts cash and credit card accounts only. Transfers between your accounts and credit card payments are excluded, so card purchases aren't double counted. Income is anything categorized `INCOME`; spending is everything else, net of refunds. Recategorize a transaction to change where it counts.\n- **Drill into a category** by tapping it on **Spending → Overview** (Spending Breakdown, Top Movers, Where You Spend the Most): spending by subcategory and merchant against a year earlier, and the transactions behind it. Subcategories are Plaid's detailed categories (e.g. Groceries vs. Restaurants under Food and drink) unless you set your own.\n- **Recategorize** by tapping any transaction: pick a category and subcategory, or type new ones. Turn on **Always categorize matching transactions this way** to create a rule: new transactions whose merchant or description contains the text you give are categorized as they sync, and optionally past matches you haven't changed by hand are updated too. The longest matching pattern wins, and a hand edit always overrides a rule. Manage rules from **Spending → Transactions → Rules**; deleting one puts its transactions back to their original category.\n- **Budgets** are monthly targets per category, set under **Spending → Budgets**."
-  },
-  {
-    "id": "features#recurring-payments-autopay--alerts",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Recurring payments, autopay & alerts",
-    "content": "- **Spending → Recurring** finds charges and deposits that repeat on a schedule (weekly to yearly) in up to two years of card and bank transactions: subscriptions, bills (utilities, insurance, loans, and anything whose amount varies) and income. A merchant with more than one subscription (an app store) or a membership among other purchases is split by amount. Each series shows its cadence, expected amount, monthly cost, next date, and a badge when a steady price changes. Series that stopped charging are listed separately, since they may have been canceled. Tap one to change its kind, rename it, see its charges, or mark it **Not recurring**. Corrections are kept in `recurring_overrides`; the series are worked out from transactions each time. Transfers and card payments aren't counted, as in cash flow.\n- **Autopay** links a card or loan to the bank account that pays it, paying the statement balance, minimum, current balance or a fixed amount (a loan pays its scheduled payment). For a card on the statement balance, Meld takes Plaid's last statement less payments since, due on the statement's due date. Once that's paid, or before the next statement is out, it estimates from the current balance. It then checks the bank account's available balance against everything else due from it first: other autopays, recurring bills charged to it, and (optionally) paychecks expected into it at least a day before. Each autopay shows **Covered**, **Tight** (less than your cushion left), **Short**, **Paid** or **Unknown**, with the breakdown. Meld also suggests links when a bank payment and a card payment of the same amount line up a few days apart.\n- **Coming up** lists the next 30 days of recurring charges, paychecks and autopay payments.\n- **Alerts** (the bell on web, and a card on Home) are checked after every sync, every 6 hours, and when you change autopay or alert settings:\n  - an autopay its bank account won't cover (urgent), or that leaves less than your cushion. Estimated amounts only alert within a week of the due date.\n  - a bank account below a minimum you set\n  - any charge at or above an amount you set\n  - a subscription or bill whose steady price went up\n  - a new recurring charge (shown in the app only, by default)\n  - a bank connection that needs you to sign in again\n\n  Alerts about a state clear themselves once it's fixed; a dismissed one comes back only if it gets worse. Settings are on the Alerts page (`alert_settings`).\n- **Push to your phone** with [ntfy](https://ntfy.sh): install the app, subscribe to a long random topic, and paste its URL under Alerts. Pick whether to push urgent alerts only, warnings and urgent (the default), or everything. Alert text includes account names and amounts, so use your own ntfy server to keep it off the public one (see [PRIVACY.md](../PRIVACY.md)).\n- Ask Meld reads all of this through `get_recurring`."
-  },
-  {
-    "id": "features#cash--emergency-fund",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Cash & emergency fund",
-    "content": "- **Accounts → Cash** gathers liquid cash: checking, savings, money market and cash management accounts, money market funds, T-bill ETFs (SGOV, BIL…) and brokerage sweep cash. CDs, HSAs and cash in retirement accounts aren't counted toward the emergency fund.\n- Each position's rate is estimated: bank accounts from each interest posting in about the last three months against the average daily balance since the posting before (worked back from today's balance through the transactions), compounded monthly into an APY, taking the median across postings, cash ETFs from a year of distributions (Yahoo Finance), and money market funds as roughly the 3-month Treasury yield (`^IRX`), which is also the \"high-yield rate now\" benchmark. Only tickers are sent. You can enter any rate yourself.\n- The emergency fund target is a number of months (6 by default) of your average monthly spending over the last 12 complete months, or a monthly figure you enter. The page shows your runway in months and how far above or below the target you are.\n- Rule-based nudges: move low-earning cash to a high-yield account (keeping a month of spending in checking), invest cash beyond the target, put idle cash in retirement accounts to work, and fill in missing rates. Positions can be set aside (e.g. for a down payment) so they don't count. Settings live in `cash_settings`; Ask Meld reads it all through `get_cash_plan`."
-  },
-  {
-    "id": "features#investments--loans",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Investments & loans",
-    "content": "- Holdings (with cost basis and gain/loss), investment transactions (2 years), and loan/card details (rate, payment, due date, escrow) sync with every refresh when the institution supports Plaid's Investments and Liabilities products.\n- **Accounts → Investments** has six views. **Overview**: totals, asset allocation and accounts. **Performance**: gains over 1M/3M/YTD/1Y/all and each calendar year, kept separate from deposits and withdrawals, with time-weighted growth rates (annualized past a year), in total and by account. History before Meld's first daily snapshot is estimated by replaying investment transactions backward from today's holdings against daily closes from Yahoo Finance (only tickers are sent; cached in `price_history`). Holdings without a public ticker (e.g. 401(k) pooled funds) are priced from their own transactions instead, and accounts with little transaction history are flagged. **Exposure**: sector, region and bond-type breakdowns plus your largest positions, with an **Include unvested RSUs** toggle on Concentration to see combined single-stock risk. **Income**: dividends, interest and reinvestment from investment transactions, with yield. **Holdings**: every position, filterable by account or search. **Equity**: track RSU grants and vesting schedules (with standard schedule presets, AI PDF/table extraction, and historical vest-date pricing from Yahoo Finance or manual prices for private companies). Unvested RSUs are excluded from net worth and portfolio totals until vested (including Plaid stock-plan holdings reporting unvested shares). All count only your ownership share of joint accounts.\n- **Look-through exposure** (what's inside your funds) is an AI estimate from each fund's published allocation, looked up once per security when you open Investments and refreshed every 90 days. It needs an Anthropic or OpenRouter key; only tickers and fund names are sent.\n- Tap any account for details. Loans and cards show a payoff estimate at the current payment.\n- **Hide from totals** on an account's page excludes it from net worth, cash flow, budgets and lists (e.g. a closed or duplicate account). Hidden accounts are listed at the bottom of the Accounts tab.\n- Full account numbers that Plaid returns for loans are dropped before storage."
-  },
-  {
-    "id": "features#plan-retirement",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Plan: retirement",
-    "content": "- **Plan → Retirement** projects your savings to retirement age, compares that with what you'll need for your money to last to the age you plan for, and shows the gap and the extra monthly saving that closes it. The chart shows your balance by age, growing until you retire and drawn down after.\n- Everything is in **today's dollars**: the return is after inflation (5% by default), and spending, contributions, Social Security and pension are today's amounts.\n- **Social Security** is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assumes you earn your current pay from 22 until you retire (up to 35 years), and for a married couple takes the lower of one earner plus a spousal benefit and two equal earners. Meld adjusts the benefit for the age you claim (67 by default): less before full retirement age, 8% a year more after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age.\n- Every visible investment account counts at your ownership share, except 529, Coverdell, UTMA/UGMA and other education or custodial accounts. Turn off any account you're saving for something else (a down payment, say), and add cash set aside for retirement as **Other savings**.\n- Empty fields use suggestions: age from your profile's birth year, retirement at 65, planning to 95, and spending from your last 12 full months of cash flow. Edits update the projection as you type; **Save assumptions** keeps them.\n- **Properties** you'd sell to fund retirement can count too. Turn on a home from the Accounts tab and set the age you'd sell it, its mortgage, and net rent per year (rent minus costs). At that age your share of the price (grown 1% a year after inflation by default, less 6% selling costs) minus what's left on the mortgage joins your savings; rent counts as saving before retirement and as income after, until the sale. The mortgage balance is projected from its rate and payment; taxes on the gain aren't included.\n- Ask Meld can read the plan and try what-ifs (\"what if I retire at 60?\") without changing what you saved."
-  },
-  {
-    "id": "features#plan-tax",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Plan: tax",
-    "content": "- **Plan → Tax** estimates this year's (or last year's) federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It's an estimate, not a return.\n- **Income** starts from your profile's household gross income and filing status. Tracked RSU vests for the year (vested YTD plus remaining scheduled tranches) are added as their own `RSU vesting` line item, with a toggle in Tax inputs if your Profile figure already includes RSUs. Pre-tax 401(k) deferrals and HSA contributions are projected from what your 401(k) and HSA accounts report. Dividends, interest and fund distributions come from taxable accounts and bank interest. The year is projected as this year so far plus whatever came in over the rest of last year, so December distributions count. A dividend's qualified share comes from what the fund holds: its stocks, apart from REITs.\n- **Realized gains** are rebuilt from buys and sells with average cost, because Plaid reports one cost basis per holding and no lots. Holding periods follow shares in the order they were bought. Enter your broker's figures to replace the estimate.\n- **Tax inputs** (per year, in `tax_settings`) cover what Meld can't see:\n  - self-employment profit\n  - other income\n  - withholding and estimated payments\n  - property tax and other itemized deductions\n  - HSA coverage\n  - whether you have a workplace plan\n  - a flat state rate for states without tables\n- **Tables:**\n  - Federal brackets, deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs. The 2025 figures include the One Big Beautiful Bill changes.\n  - California uses FTB's 2025 schedules (2026's aren't out yet), adding back HSA money and taxing gains as ordinary income.\n  - States without an income tax owe nothing.\n  - Tables live in `packages/shared/src/tax-tables.ts`; add a year there when the IRS and FTB publish it.\n- **Suggestions** are fixed rules, each with the estimated tax saved this year. They cover:\n  - tax-loss harvesting, with wash-sale warnings for purchases or RSU vests within 30 days in any account\n  - RSU supplemental withholding gaps and $0 cost-basis checks on vested RSU holdings\n  - gain harvesting at 0%\n  - 401(k), HSA and IRA room\n  - a backdoor Roth, with a pro-rata warning when pre-tax IRAs have money in them\n  - a SEP IRA or solo 401(k) for self-employment income\n  - Roth conversion room in low brackets\n  - an underpayment warning\n\n  Tap one to ask Ask Meld about it."
-  },
-  {
-    "id": "features#plan-insurance",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Plan: insurance",
-    "content": "- Add life and disability policies under **Plan → Insurance**, including coverage through work. It totals your life coverage, monthly disability benefit and yearly premiums. Term policies past their end date aren't counted.\n- Whole and universal life policies count toward net worth at their surrender value, and are listed under **Insurance cash value** on the Accounts tab, which links back to each policy.\n- **Upload PDF** on the Add policy page sends a policy, certificate or benefits summary to the AI provider (Claude, or Gemini through OpenRouter), which fills in the form and flags anything it inferred or couldn't find. Nothing is saved until you check the fields and press **Save**. Needs an Anthropic or OpenRouter key; without it the page explains how to turn it on and you fill in the form by hand.\n- **Attach PDF** keeps a copy of the policy document with any policy, new or existing, with no AI involved: nothing is sent anywhere. **Replace PDF** and **Remove** take effect when you save, and the old file is deleted.\n- Uploaded PDFs are encrypted with `ENCRYPTION_KEY` and stored in `data/documents/` (gitignored; change with `DOCUMENTS_DIR`). PDFs saved before encryption was added are encrypted the next time the API starts. A PDF is deleted with its policy, when you cancel the draft, or after a day if it was never saved.\n- A policy's full number is optional and stored encrypted with `ENCRYPTION_KEY`. It's printed in the family packet, and everywhere else the app only shows the last 4. PDF extraction only ever reads the last 4."
-  },
-  {
-    "id": "features#plan-estate",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Plan: estate",
-    "content": "- **Plan → Estate** checks that everything you own passes the way you intend, keeps your estate documents in one place, and builds a packet your family can use. It helps you organize; it isn't legal advice.\n- **Checklist:** four steps that check themselves off: every account and policy set up, the core documents on file, someone to call, and a current family packet.\n- **Accounts and policies:** a **To do** list first, each row saying what's missing in a sentence. Rows that are already set up fold away under **Set up**. When several accounts would go through probate with nothing set up, **Leave them to my will** marks them all “By will” in one go. Each account, home or other asset (tap it, or **On death** on an account's page) records how it passes:\n  - a beneficiary designation\n  - transfer or payable on death (or a TOD deed for property)\n  - joint with survivorship\n  - one of your trusts\n  - by will\n\n  Beneficiaries are primary or contingent, with shares, as the institution has them on file. Life policies use the beneficiaries on the policy. Kept in `estate_designations`, apart from synced data.\n- **Full account numbers** for the packet are optional, typed in on the account's estate screen and stored encrypted with `ENCRYPTION_KEY`. The app only ever shows the last 4. For a linked checking or savings account, **Get from bank** fetches the number through Plaid Auth. Auth must be enabled for your Plaid account, and Plaid bills it once per connection. The first time, Meld asks you to reconnect the bank and allow account numbers. Set `PLAID_ADDITIONAL_CONSENTED_PRODUCTS=auth` to ask for that when you link new banks.\n- **Readiness checks** (pure rules in `apps/api/src/lib/estate.ts`), shown on the row they're about:\n  - a retirement account, HSA or life policy with no beneficiary (a new account is called out)\n  - accounts and property that would go through probate, or sit outside your revocable trust once you have one\n  - shares that don't add to 100%, your estate named as beneficiary, or a minor child from your profile named directly\n  - no contingent beneficiary\n  - designations and documents not reviewed in the interval you pick (3 years by default)\n  - a missing will, financial power of attorney or healthcare directive, and no guardian named when you have minor children\n  - a child born after a will or trust was signed\n  - a document drafted in another state than your profile's\n- **Documents and trusts** (`estate_documents`): missing core documents are listed as rows to add. Each document records its type, date signed, state, when you last reviewed it, where the signed original is kept, the people it names (trustees, successor trustees, executor, agents, guardians) with contact details, the attorney, and an optional scanned PDF, encrypted like policy PDFs.\n- **Contacts and instructions** (`estate_settings`): executor, attorney, CPA, advisor, employer HR and others; a note on where to find logins (Meld never stores passwords); and a letter to your family.\n- **Family packet:** **Export PDF** builds a PDF from today's data on your machine, optionally encrypted (AES-256) with a password. It holds instructions, who to call, first steps, every document and who it names, each account and policy with how it passes and its beneficiaries, property, debts, and bills on autopay or to cancel. Print it or keep it with your will. Meld remembers what it contained (a hash, not a copy) and flags it as out of date when beneficiaries, documents, contacts or accounts change, or after a year. Balance changes alone don't count. Export works in the web app for now.\n- **Alerts:** an account or policy with no beneficiary, and an out-of-date packet, show under Alerts (informational, so not pushed by default). Turn them off with **Estate planning** on the Alerts page.\n- Ask Meld reads all of this through `get_estate_plan`, with names and roles but no contact details."
-  },
-  {
-    "id": "features#ask-meld-ai-chat",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "Ask Meld (AI chat)",
-    "content": "- **Choosing a model.** AI isn't part of first-run setup. Until a model is set up, Ask Meld (the page and the side panel) explains the choice instead of the question box: a model on this computer through Ollama (free, nothing leaves the computer, but a few gigabytes to download and less reliable answers) or a cloud model (Claude, ChatGPT or Gemini: better answers, sending only what each question needs, with account numbers masked). Both buttons open **Settings → AI**. Asking from Home's question box with no model opens the same choice. Everything else in Meld works without AI.\n- **Ask Meld** answers questions about both your money (spending, debt payoff, investments, tax moves, insurance gaps) and how to use Meld itself (features, screens, calculations, settings, Plaid, phone access, Docker, privacy and security). Answers stream in and conversations are saved. The Ask Meld page lists past conversations with clickable examples for both your finances and how to use Meld. On web, the sparkle button next to your name opens a chat panel beside the page you're on, with financial and \"How Meld works\" questions about that page.\n- **Progressive context & tools:** Each new conversation starts with a tiny orientation summary (net worth totals, account/policy/alert counts, basic profile, and the page you asked from) rather than dumping every account and policy upfront. The AI then fetches only what your question needs through read-only, summary-first tools (`get_financial_overview`, `get_accounts`, filtered `get_holdings`, `get_net_worth` with 30d/90d/YTD/1y deltas and optional sampled history, transactions, spending/budgets, loans, specialist planning tools like `get_tax_plan`, `get_retirement_plan`, `get_estate_plan`, `get_recurring`, `get_cash_plan`, `get_insurance_policies`, and `get_equity_grants`, plus `get_meld_docs`). `get_meld_docs` is deferred and searches Meld's own docs section-by-section on demand (generated from the repository's canonical Markdown docs by `npm run docs:build`, keeping it in sync with the documentation while keeping context minimal). Ask Meld is read-only and can't change anything.\n- **Fast responses by default:** Claude uses `low` effort on Sonnet/Haiku and `medium` on Opus (override with `ANTHROPIC_CHAT_EFFORT`), caches the static prompt prefix across sessions, and defers specialist planning tool schemas via Anthropic tool search when supported. ChatGPT and OpenRouter set low reasoning effort, Ollama disables hidden thinking tokens by default (`OLLAMA_THINK=1` re-enables them), and `get_investment_performance` / `get_cash_plan` use cached market data instead of blocking chat on slow external price lookups.\n- Add your income, filing status, state, age and employer benefits under **Plan → Profile** (also in the account menu on web) for better tax and insurance answers.\n- PDF reading, value lookups and fund make-up go through a provider interface in `apps/api/src/ai/provider.ts`, run by Anthropic or OpenRouter (see below). With Anthropic, chat defaults to `ANTHROPIC_CHAT_MODEL` (default `claude-sonnet-5-5`), property value lookups use `ANTHROPIC_LOOKUP_MODEL` (default `claude-haiku-5-5`), and policy PDF extraction `ANTHROPIC_MODEL` (default `claude-opus-5-5`).\n- **Pick the model** under the chat box: any of `ANTHROPIC_CHAT_MODELS` (Opus, Sonnet, Haiku by default; Haiku costs least), a ChatGPT model on your own plan, Gemini, GPT, Claude and other models through [OpenRouter](https://openrouter.ai), or a local model through [Ollama](https://ollama.com). The choice is remembered, and you can switch mid-conversation.\n- **Local models:** install Ollama and pull a model that supports tool calling (e.g. `ollama pull qwen3.5`), then use **Settings → AI → Find Ollama**, or set `OLLAMA_URL=http://127.0.0.1:11434` (`http://host.docker.internal:11434` when Meld runs in Docker) and restart the API. Every installed model with tool support is listed, or set `OLLAMA_CHAT_MODELS` to choose. Local models are free and keep your data on your machine, but answer less reliably than Claude. Chat works with only Ollama set up; the other AI features still need an Anthropic or OpenRouter key.\n- **ChatGPT plan:** with ChatGPT Go, Plus, Pro or Business, choose **Settings → AI → ChatGPT plan → Continue with ChatGPT** and sign in. Ask Meld then lists the ChatGPT models your plan offers, billed to your plan's usage instead of an API key (set a limit or disconnect Meld at [chatgpt.com/settings/usage](https://chatgpt.com/settings/usage)). It takes effect without a restart. The browser returns to Meld at `http://127.0.0.1:1455`; if Meld runs in Docker or you sign in from another device, that page won't load, so copy its address into the box Settings shows. The sign-in is kept encrypted with `ENCRYPTION_KEY` in `chatgpt.json` next to Meld's settings file (`CHATGPT_AUTH_FILE` overrides). Free plans can't share usage; ChatGPT shows \"A required permission is unavailable\" and Meld explains it. On Business, an admin first sets **Use ChatGPT plan** to Allowed for Meld under **Tenant settings → External access** at admin.openai.com. It covers chat only; PDF reading and value lookups still need an Anthropic or OpenRouter key.\n- **OpenRouter:** one API key for many vendors' models, including Gemini. Create a key at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys), add credits, and paste it under **Settings → AI → OpenRouter** (or set `OPENROUTER_API_KEY`). Ask Meld then offers a few suggested Gemini, Claude and GPT models; list your own under **Models to offer in Ask Meld**, one [model ID](https://openrouter.ai/models?supported_parameters=tools) per line (or `OPENROUTER_CHAT_MODELS`, comma-separated). Only models that support tool calling appear. You pay OpenRouter per use. Google AI Pro and Ultra plans can't be used by other apps, so a Gemini subscription doesn't cover this. Without an Anthropic key (or with `AI_PROVIDER=openrouter`), OpenRouter also runs the other AI features: policy PDFs are read by `OPENROUTER_MODEL` (default `google/gemini-4-carbon`), which must read PDFs itself (Meld asks for OpenRouter's `native` PDF engine, so no OCR service sees the file); home and car value lookups and fund make-up use `OPENROUTER_LOOKUP_MODEL` (default `google/gemini-4-hydrogen`). Value lookups use the model provider's own web search (Google Search for Gemini), never a third-party search engine, and a lookup that comes back without cited pages is rejected rather than trusted.\n- Privacy: with a Claude model, your question and the data the AI looks up are sent to Anthropic, or to OpenAI with a ChatGPT model, or to OpenRouter and the model's provider with an OpenRouter model (only providers that don't store or train on prompts); with a local Ollama model they stay on your machine. Long digit runs (account, card and policy numbers) are masked first either way."
-  },
-  {
-    "id": "features#external-agents-mcp-server",
-    "doc": "features",
-    "docTitle": "Features & Guide",
-    "heading": "External agents (MCP server)",
-    "content": "For advanced workflows, Meld can also expose your financial data as a read-only **Model Context Protocol (MCP)** server so external agents (such as Claude Code, Cursor, Codex, or Claude Desktop) can answer questions directly.\n\n- **Off by default:** Turn it on in **Settings → External agents (MCP)** (no restart needed). Enabling generates a dedicated bearer token (`meld_mcp_…`) shown once—Meld keeps only a SHA-256 hash—or set `MCP_ENABLED=1` and `MCP_TOKEN` in `.env` for Docker/headless installs.\n- **Endpoint & clients:** Served over Streamable HTTP at `/api/mcp` in the desktop app and Docker (or `/mcp` in `npm run dev`). **Settings → External agents (MCP)** gives copy-pasteable configs for **Claude Code**, **Cursor / HTTP JSON**, and the thin stdio bridge (`scripts/meld-mcp.mjs`) for stdio-only clients.\n- **What's exposed (read-only):**\n  - **Tools:** All 22 read-only tools from Ask Meld (`get_financial_overview`, `get_accounts`, `get_net_worth`, `get_holdings`, `get_cashflow`, `search_transactions`, `get_tax_plan`, `get_retirement_plan`, `get_estate_plan`, `get_recurring`, `get_cash_plan`, `get_insurance_policies`, `get_equity_grants`, `get_meld_docs`, etc.), marked `readOnlyHint: true`.\n  - **Resources:** `meld://overview` (live compact summary), `meld://conventions`, `meld://docs/retirement`, `meld://docs/tax`, and `meld://docs/recurring` for progressive documentation loading.\n  - **Prompts:** `financial-checkup`, `spending-review`, `tax-plan-review`, and `retirement-checkup`.\n- **Security:** Restricted to localhost (`127.0.0.1`/`localhost`) by default even when Tailscale phone access is on (override with `MCP_ALLOW_REMOTE=1`), always requires the dedicated MCP bearer token even when passphrase login is turned off, and applies the same digit masking and privacy boundaries as Ask Meld. See [PRIVACY.md](../PRIVACY.md) and [SECURITY.md](../SECURITY.md)."
   },
   {
     "id": "plaid#overview",
@@ -551,6 +856,622 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = [
     "docTitle": "Self-Hosting with Docker",
     "heading": "Phone access over Tailscale",
     "content": "Meld only binds to `127.0.0.1:8080`, and its login is a single passphrase, so don't expose it to the public internet. Meld answers only to `localhost`, IP addresses, `*.local` and `*.ts.net` names; if you put it behind a reverse proxy with its own host name, add that name to `ALLOWED_HOSTS` in `.env`. To reach it from your phone:\n\n1. Install [Tailscale](https://tailscale.com/download) on the Docker host and on your phone, signed in to the same Tailscale account, and enable HTTPS certificates in the Tailscale admin console (**DNS → Enable HTTPS**).\n2. On the Docker host, run:\n\n```sh\ntailscale serve --bg 8080\n```\n\nTailscale will give you a private `https://...ts.net` URL that proxies securely over your tailnet to `127.0.0.1:8080` without exposing Meld to the public internet. See [docs/phone-access.md](phone-access.md) for adding Meld to your phone's home screen."
+  },
+  {
+    "id": "features#overview",
+    "doc": "features",
+    "docTitle": "Overview",
+    "heading": "Overview",
+    "content": "What each part of Meld does and how it works. For installing, see [Install](install.md). Each area below has its own guide with screenshots.\n\n> **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice."
+  },
+  {
+    "id": "features#the-app-at-a-glance",
+    "doc": "features",
+    "docTitle": "Overview",
+    "heading": "The app at a glance",
+    "content": "Five tabs:\n\n- **Home** — net worth, tasks that need attention, and what's coming up\n- **Ask Meld** — AI chat about your money and how Meld works\n- **Accounts** — linked banks, Cash, and Investments\n- **Spending** — Overview, Transactions, Recurring, Budgets\n- **Plan** — Retirement, Tax, Insurance, Estate, Profile"
+  },
+  {
+    "id": "features#guides",
+    "doc": "features",
+    "docTitle": "Overview",
+    "heading": "Guides",
+    "content": "| Guide | What it's for |\n| --- | --- |\n| [Demo data & tour](features/demo.md) | Look around with the Rivera household and the product tour |\n| [Linking accounts](features/accounts.md) | Connect banks with Plaid, sync, reconnect, Sandbox |\n| [Home, spending & budgets](features/home-and-spending.md) | Net worth, cash flow, categories, rules, budgets |\n| [Recurring, autopay & alerts](features/recurring-and-alerts.md) | Subscriptions, bills, autopay coverage, ntfy push |\n| [Cash & emergency fund](features/cash.md) | Liquid cash, APYs, runway, idle-cash nudges |\n| [Investments & loans](features/investments.md) | Holdings, performance, exposure, RSU equity, loan payoff |\n| [Retirement](features/retirement.md) | Today's-dollar projections, Social Security, gap |\n| [Tax](features/tax.md) | Federal/state estimates, harvests, contribution room |\n| [Insurance](features/insurance.md) | Life and disability policies, PDF upload |\n| [Estate](features/estate.md) | Beneficiaries, documents, family packet |\n| [Ask Meld](features/ask-meld.md) | Claude, ChatGPT, Gemini, OpenRouter, or Ollama |\n| [External agents (MCP)](features/mcp.md) | Read-only MCP for Claude Code, Cursor, and others |\n\nSetup that isn't a product screen: [Phone access over Tailscale](phone-access.md) · [Docker self-hosting](docker.md) · [Privacy](../PRIVACY.md) · [Security](../SECURITY.md)"
+  },
+  {
+    "id": "features/demo#overview",
+    "doc": "features/demo",
+    "docTitle": "Demo data & tour",
+    "heading": "Overview",
+    "content": "Look around without Plaid keys or a passphrase. The demo household is built so every area of Meld has something real to show."
+  },
+  {
+    "id": "features/demo#where-to-find-it",
+    "doc": "features/demo",
+    "docTitle": "Demo data & tour",
+    "heading": "Where to find it",
+    "content": "- Welcome screen → **Look around with demo data** (or set `MELD_DEMO=1`)\n- While demo data is showing: **Take the tour** on Home\n- Switch back later: **Settings → Bank connections → Show demo data** / **Use my accounts**"
+  },
+  {
+    "id": "features/demo#the-rivera-household",
+    "doc": "features/demo",
+    "docTitle": "Demo data & tour",
+    "heading": "The Rivera household",
+    "content": "**Start with demo data** shows a made-up household, the Riveras, in its own database (`meld_demo`, or `DEMO_DATABASE_URL`), with two years of history dated up to today.\n\nThe household is built so every area has something to show: checking that won't cover the card's autopay after childcare and the phone bill (an urgent alert), a Netflix price rise and a new Headspace charge, Disney+ stopped, eating out pushing food over budget, savings earning 0.4%, 401(k), HSA and Roth IRA room, a fund to harvest for a tax loss, a rollover IRA with no beneficiary, and a will older than the younger child.\n\nIt's rebuilt automatically once it's two days old, so due dates and alerts stay current; changes you make to it don't last. Demo connections never call Plaid: **Refresh** just says they're up to date, and **Link account** is replaced by **Connect my banks**."
+  },
+  {
+    "id": "features/demo#the-tour",
+    "doc": "features/demo",
+    "docTitle": "Demo data & tour",
+    "heading": "The tour",
+    "content": "The tour starts after you choose demo data, and from **Take the tour** on Home. It walks through ten questions people ask about their money:\n\n1. What am I worth?\n2. Will a payment bounce?\n3. Where does my money go?\n4. What am I subscribed to?\n5. Is my cash earning enough?\n6. Am I on track to retire?\n7. Am I missing tax savings?\n8. Would my family know what to do?\n9. Can I just ask?\n10. Ready for your own numbers?\n\nEach stop opens the page that answers that question. The tour floats over the page, can be minimized to a pill, and picks up where it left off after a reload."
+  },
+  {
+    "id": "features/demo#connect-your-own-banks",
+    "doc": "features/demo",
+    "docTitle": "Demo data & tour",
+    "heading": "Connect your own banks",
+    "content": "**Connect my banks** (on Home, in the top bar while demo data is showing, and under **Settings → Bank connections**) opens the guided Plaid sign-up. Saving your keys switches Meld to your own, empty database. See [Linking accounts](accounts.md) and [Connecting your accounts with Plaid](../plaid.md)."
+  },
+  {
+    "id": "features/accounts#overview",
+    "doc": "features/accounts",
+    "docTitle": "Linking accounts",
+    "heading": "Overview",
+    "content": "Meld pulls balances, transactions, investments and loans through [Plaid](https://plaid.com) with **your own** free developer keys. Step-by-step screenshots of Plaid's sign-up live in [Connecting your accounts with Plaid](../plaid.md)."
+  },
+  {
+    "id": "features/accounts#where-to-find-it",
+    "doc": "features/accounts",
+    "docTitle": "Linking accounts",
+    "heading": "Where to find it",
+    "content": "- **Accounts → Link account** in the web app\n- Keys: first-run setup, **Connect your banks**, or **Settings → Bank connections**\n- Sandbox: **Settings → Bank connections → Developer options**"
+  },
+  {
+    "id": "features/accounts#syncing",
+    "doc": "features/accounts",
+    "docTitle": "Linking accounts",
+    "heading": "Syncing",
+    "content": "Use **Accounts → Link account**. Accounts and balances sync immediately; transaction history (up to 2 years) arrives over the next minute or so and is fetched automatically. Every linked connection also re-syncs every 6 hours while the API is running, or on demand with **Refresh**."
+  },
+  {
+    "id": "features/accounts#keys-and-environments",
+    "doc": "features/accounts",
+    "docTitle": "Linking accounts",
+    "heading": "Keys and environments",
+    "content": "- **Production keys:** your own Plaid client ID and production secret (`PLAID_CLIENT_ID`, `PLAID_PRODUCTION_SECRET`, `PLAID_ENV=production` in `.env`). The guided sign-up shows each Plaid screen; [Connecting your accounts with Plaid](../plaid.md) has the same steps. The free Trial plan covers up to 10 bank logins, and each login can include any number of accounts at that bank.\n- **Sandbox** (for developers): paste the Sandbox secret and switch environments (`PLAID_SANDBOX_SECRET`, `PLAID_ENV=sandbox`). Pick any institution and sign in with `user_good` / `pass_good`.\n- Each environment, and demo data, has its own database (`SANDBOX_DATABASE_URL`, `PRODUCTION_DATABASE_URL`, `DEMO_DATABASE_URL`), so they never mix. Switching restarts the API."
+  },
+  {
+    "id": "features/accounts#reconnect-and-mobile",
+    "doc": "features/accounts",
+    "docTitle": "Linking accounts",
+    "heading": "Reconnect and mobile",
+    "content": "If a bank needs you to sign in again, the connection shows **Reconnect**, which reopens Plaid Link in update mode.\n\nLinking on iOS/Android arrives with the mobile phase; use the web app until then."
+  },
+  {
+    "id": "features/accounts#related",
+    "doc": "features/accounts",
+    "docTitle": "Linking accounts",
+    "heading": "Related",
+    "content": "- [Demo data & tour](demo.md) — explore without keys first\n- [Home, spending & budgets](home-and-spending.md) — what linked data feeds\n- [Investments & loans](investments.md) — holdings and liabilities sync"
+  },
+  {
+    "id": "features/home-and-spending#overview",
+    "doc": "features/home-and-spending",
+    "docTitle": "Home, spending & budgets",
+    "heading": "Overview",
+    "content": "Net worth on Home, cash flow and category breakdowns on Spending, and monthly budget targets."
+  },
+  {
+    "id": "features/home-and-spending#where-to-find-it",
+    "doc": "features/home-and-spending",
+    "docTitle": "Home, spending & budgets",
+    "heading": "Where to find it",
+    "content": "- **Home** — net worth trend, Worth your attention, Coming up\n- **Spending → Overview** — cash flow and category charts\n- **Spending → Transactions** — list, recategorize, rules\n- **Spending → Budgets** — monthly targets per category"
+  },
+  {
+    "id": "features/home-and-spending#net-worth",
+    "doc": "features/home-and-spending",
+    "docTitle": "Home, spending & budgets",
+    "heading": "Net worth",
+    "content": "**Net worth** = linked balances + manual assets (home, vehicles; add them on the Accounts tab) + life insurance cash surrender value − credit, loan and mortgage balances. Meld records one snapshot per day (after each sync and every 6 hours), so the trend line starts after the second day."
+  },
+  {
+    "id": "features/home-and-spending#cash-flow",
+    "doc": "features/home-and-spending",
+    "docTitle": "Home, spending & budgets",
+    "heading": "Cash flow",
+    "content": "**Cash flow** counts cash and credit card accounts only. Transfers between your accounts and credit card payments are excluded, so card purchases aren't double counted. Income is anything categorized `INCOME`; spending is everything else, net of refunds. Recategorize a transaction to change where it counts."
+  },
+  {
+    "id": "features/home-and-spending#category-drill-down",
+    "doc": "features/home-and-spending",
+    "docTitle": "Home, spending & budgets",
+    "heading": "Category drill-down",
+    "content": "**Drill into a category** by tapping it on **Spending → Overview** (Spending Breakdown, Top Movers, Where You Spend the Most): spending by subcategory and merchant against a year earlier, and the transactions behind it. Subcategories are Plaid's detailed categories (e.g. Groceries vs. Restaurants under Food and drink) unless you set your own."
+  },
+  {
+    "id": "features/home-and-spending#recategorize-and-rules",
+    "doc": "features/home-and-spending",
+    "docTitle": "Home, spending & budgets",
+    "heading": "Recategorize and rules",
+    "content": "**Recategorize** by tapping any transaction: pick a category and subcategory, or type new ones. Turn on **Always categorize matching transactions this way** to create a rule: new transactions whose merchant or description contains the text you give are categorized as they sync, and optionally past matches you haven't changed by hand are updated too. The longest matching pattern wins, and a hand edit always overrides a rule. Manage rules from **Spending → Transactions → Rules**; deleting one puts its transactions back to their original category."
+  },
+  {
+    "id": "features/home-and-spending#budgets",
+    "doc": "features/home-and-spending",
+    "docTitle": "Home, spending & budgets",
+    "heading": "Budgets",
+    "content": "**Budgets** are monthly targets per category, set under **Spending → Budgets**."
+  },
+  {
+    "id": "features/home-and-spending#related",
+    "doc": "features/home-and-spending",
+    "docTitle": "Home, spending & budgets",
+    "heading": "Related",
+    "content": "- [Recurring, autopay & alerts](recurring-and-alerts.md)\n- [Cash & emergency fund](cash.md) — spending feeds the emergency-fund target"
+  },
+  {
+    "id": "features/recurring-and-alerts#overview",
+    "doc": "features/recurring-and-alerts",
+    "docTitle": "Recurring, autopay & alerts",
+    "heading": "Overview",
+    "content": "Subscriptions and bills detected from your history, autopay coverage against the paying account, and alerts you can push to your phone."
+  },
+  {
+    "id": "features/recurring-and-alerts#where-to-find-it",
+    "doc": "features/recurring-and-alerts",
+    "docTitle": "Recurring, autopay & alerts",
+    "heading": "Where to find it",
+    "content": "- **Spending → Recurring** — series, Coming up, autopay links\n- Bell icon (web) or the Alerts card on Home\n- Alert settings and ntfy URL on the Alerts page"
+  },
+  {
+    "id": "features/recurring-and-alerts#recurring-series",
+    "doc": "features/recurring-and-alerts",
+    "docTitle": "Recurring, autopay & alerts",
+    "heading": "Recurring series",
+    "content": "**Spending → Recurring** finds charges and deposits that repeat on a schedule (weekly to yearly) in up to two years of card and bank transactions: subscriptions, bills (utilities, insurance, loans, and anything whose amount varies) and income. A merchant with more than one subscription (an app store) or a membership among other purchases is split by amount. Each series shows its cadence, expected amount, monthly cost, next date, and a badge when a steady price changes. Series that stopped charging are listed separately, since they may have been canceled. Tap one to change its kind, rename it, see its charges, or mark it **Not recurring**. Corrections are kept in `recurring_overrides`; the series are worked out from transactions each time. Transfers and card payments aren't counted, as in cash flow."
+  },
+  {
+    "id": "features/recurring-and-alerts#autopay",
+    "doc": "features/recurring-and-alerts",
+    "docTitle": "Recurring, autopay & alerts",
+    "heading": "Autopay",
+    "content": "**Autopay** links a card or loan to the bank account that pays it, paying the statement balance, minimum, current balance or a fixed amount (a loan pays its scheduled payment). For a card on the statement balance, Meld takes Plaid's last statement less payments since, due on the statement's due date. Once that's paid, or before the next statement is out, it estimates from the current balance. It then checks the bank account's available balance against everything else due from it first: other autopays, recurring bills charged to it, and (optionally) paychecks expected into it at least a day before. Each autopay shows **Covered**, **Tight** (less than your cushion left), **Short**, **Paid** or **Unknown**, with the breakdown. Meld also suggests links when a bank payment and a card payment of the same amount line up a few days apart."
+  },
+  {
+    "id": "features/recurring-and-alerts#coming-up",
+    "doc": "features/recurring-and-alerts",
+    "docTitle": "Recurring, autopay & alerts",
+    "heading": "Coming up",
+    "content": "**Coming up** lists the next 30 days of recurring charges, paychecks and autopay payments."
+  },
+  {
+    "id": "features/recurring-and-alerts#alerts",
+    "doc": "features/recurring-and-alerts",
+    "docTitle": "Recurring, autopay & alerts",
+    "heading": "Alerts",
+    "content": "**Alerts** (the bell on web, and a card on Home) are checked after every sync, every 6 hours, and when you change autopay or alert settings:\n\n- an autopay its bank account won't cover (urgent), or that leaves less than your cushion. Estimated amounts only alert within a week of the due date.\n- a bank account below a minimum you set\n- any charge at or above an amount you set\n- a subscription or bill whose steady price went up\n- a new recurring charge (shown in the app only, by default)\n- a bank connection that needs you to sign in again\n\nAlerts about a state clear themselves once it's fixed; a dismissed one comes back only if it gets worse. Settings are on the Alerts page (`alert_settings`)."
+  },
+  {
+    "id": "features/recurring-and-alerts#push-to-your-phone",
+    "doc": "features/recurring-and-alerts",
+    "docTitle": "Recurring, autopay & alerts",
+    "heading": "Push to your phone",
+    "content": "**Push to your phone** with [ntfy](https://ntfy.sh): install the app, subscribe to a long random topic, and paste its URL under Alerts. Pick whether to push urgent alerts only, warnings and urgent (the default), or everything. Alert text includes account names and amounts, so use your own ntfy server to keep it off the public one (see [PRIVACY.md](../../PRIVACY.md)).\n\nAsk Meld reads all of this through `get_recurring`."
+  },
+  {
+    "id": "features/cash#overview",
+    "doc": "features/cash",
+    "docTitle": "Cash & emergency fund",
+    "heading": "Overview",
+    "content": "Liquid cash across banks and brokerages, estimated yields, and how many months of spending you have set aside."
+  },
+  {
+    "id": "features/cash#where-to-find-it",
+    "doc": "features/cash",
+    "docTitle": "Cash & emergency fund",
+    "heading": "Where to find it",
+    "content": "- **Accounts → Cash**\n- Settings for the emergency-fund target and set-aside positions live in `cash_settings` on that page"
+  },
+  {
+    "id": "features/cash#what-counts-as-cash",
+    "doc": "features/cash",
+    "docTitle": "Cash & emergency fund",
+    "heading": "What counts as cash",
+    "content": "**Accounts → Cash** gathers liquid cash: checking, savings, money market and cash management accounts, money market funds, T-bill ETFs (SGOV, BIL…) and brokerage sweep cash. CDs, HSAs and cash in retirement accounts aren't counted toward the emergency fund."
+  },
+  {
+    "id": "features/cash#estimated-rates",
+    "doc": "features/cash",
+    "docTitle": "Cash & emergency fund",
+    "heading": "Estimated rates",
+    "content": "Each position's rate is estimated: bank accounts from each interest posting in about the last three months against the average daily balance since the posting before (worked back from today's balance through the transactions), compounded monthly into an APY, taking the median across postings, cash ETFs from a year of distributions (Yahoo Finance), and money market funds as roughly the 3-month Treasury yield (`^IRX`), which is also the \"high-yield rate now\" benchmark. Only tickers are sent. You can enter any rate yourself."
+  },
+  {
+    "id": "features/cash#emergency-fund",
+    "doc": "features/cash",
+    "docTitle": "Cash & emergency fund",
+    "heading": "Emergency fund",
+    "content": "The emergency fund target is a number of months (6 by default) of your average monthly spending over the last 12 complete months, or a monthly figure you enter. The page shows your runway in months and how far above or below the target you are."
+  },
+  {
+    "id": "features/cash#nudges",
+    "doc": "features/cash",
+    "docTitle": "Cash & emergency fund",
+    "heading": "Nudges",
+    "content": "Rule-based nudges: move low-earning cash to a high-yield account (keeping a month of spending in checking), invest cash beyond the target, put idle cash in retirement accounts to work, and fill in missing rates. Positions can be set aside (e.g. for a down payment) so they don't count. Ask Meld reads it all through `get_cash_plan`."
+  },
+  {
+    "id": "features/investments#overview",
+    "doc": "features/investments",
+    "docTitle": "Investments & loans",
+    "heading": "Overview",
+    "content": "Holdings with cost basis, performance and exposure views, investment income, and loan/card payoff estimates."
+  },
+  {
+    "id": "features/investments#where-to-find-it",
+    "doc": "features/investments",
+    "docTitle": "Investments & loans",
+    "heading": "Where to find it",
+    "content": "- **Accounts → Investments** — Overview, Performance, Exposure, Income, Holdings\n- Tap any account for details; loans and cards show payoff estimates\n- **Hide from totals** on an account's page"
+  },
+  {
+    "id": "features/investments#what-syncs",
+    "doc": "features/investments",
+    "docTitle": "Investments & loans",
+    "heading": "What syncs",
+    "content": "Holdings (with cost basis and gain/loss), investment transactions (2 years), and loan/card details (rate, payment, due date, escrow) sync with every refresh when the institution supports Plaid's Investments and Liabilities products."
+  },
+  {
+    "id": "features/investments#investment-views",
+    "doc": "features/investments",
+    "docTitle": "Investments & loans",
+    "heading": "Investment views",
+    "content": "**Accounts → Investments** has six views:\n\n- **Overview**: totals, asset allocation and accounts.\n- **Performance**: gains over 1M/3M/YTD/1Y/all and each calendar year, kept separate from deposits and withdrawals, with time-weighted growth rates (annualized past a year), in total and by account. History before Meld's first daily snapshot is estimated by replaying investment transactions backward from today's holdings against daily closes from Yahoo Finance (only tickers are sent; cached in `price_history`). Holdings without a public ticker (e.g. 401(k) pooled funds) are priced from their own transactions instead, and accounts with little transaction history are flagged.\n- **Exposure**: sector, region and bond-type breakdowns plus your largest positions, with an **Include unvested RSUs** toggle on Concentration to see combined single-stock risk.\n- **Income**: dividends, interest and reinvestment from investment transactions, with yield.\n- **Holdings**: every position, filterable by account or search.\n- **Equity**: track RSU grants and vesting schedules (with standard schedule presets, AI PDF/table extraction, and historical vest-date pricing from Yahoo Finance or manual prices for private companies). Unvested RSUs are excluded from net worth and portfolio totals until vested (including Plaid stock-plan holdings reporting unvested shares).\n\nAll count only your ownership share of joint accounts."
+  },
+  {
+    "id": "features/investments#look-through-exposure",
+    "doc": "features/investments",
+    "docTitle": "Investments & loans",
+    "heading": "Look-through exposure",
+    "content": "**Look-through exposure** (what's inside your funds) is an AI estimate from each fund's published allocation, looked up once per security when you open Investments and refreshed every 90 days. It needs an Anthropic or OpenRouter key; only tickers and fund names are sent."
+  },
+  {
+    "id": "features/investments#loans-cards-and-hiding-accounts",
+    "doc": "features/investments",
+    "docTitle": "Investments & loans",
+    "heading": "Loans, cards, and hiding accounts",
+    "content": "Tap any account for details. Loans and cards show a payoff estimate at the current payment.\n\n**Hide from totals** on an account's page excludes it from net worth, cash flow, budgets and lists (e.g. a closed or duplicate account). Hidden accounts are listed at the bottom of the Accounts tab.\n\nFull account numbers that Plaid returns for loans are dropped before storage."
+  },
+  {
+    "id": "features/retirement#overview",
+    "doc": "features/retirement",
+    "docTitle": "Retirement",
+    "heading": "Overview",
+    "content": "Project savings to retirement age, compare with what you'll need, and see the monthly saving that closes the gap—all in today's dollars."
+  },
+  {
+    "id": "features/retirement#where-to-find-it",
+    "doc": "features/retirement",
+    "docTitle": "Retirement",
+    "heading": "Where to find it",
+    "content": "- **Plan → Retirement**\n- Profile birth year and income under **Plan → Profile** feed age and Social Security estimates\n- Opt a home into the plan from the Accounts tab"
+  },
+  {
+    "id": "features/retirement#the-projection",
+    "doc": "features/retirement",
+    "docTitle": "Retirement",
+    "heading": "The projection",
+    "content": "**Plan → Retirement** projects your savings to retirement age, compares that with what you'll need for your money to last to the age you plan for, and shows the gap and the extra monthly saving that closes it. The chart shows your balance by age, growing until you retire and drawn down after.\n\nEverything is in **today's dollars**: the return is after inflation (5% by default), and spending, contributions, Social Security and pension are today's amounts."
+  },
+  {
+    "id": "features/retirement#social-security",
+    "doc": "features/retirement",
+    "docTitle": "Retirement",
+    "heading": "Social Security",
+    "content": "**Social Security** is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assumes you earn your current pay from 22 until you retire (up to 35 years), and for a married couple takes the lower of one earner plus a spousal benefit and two equal earners. Meld adjusts the benefit for the age you claim (67 by default): less before full retirement age, 8% a year more after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age."
+  },
+  {
+    "id": "features/retirement#which-accounts-count",
+    "doc": "features/retirement",
+    "docTitle": "Retirement",
+    "heading": "Which accounts count",
+    "content": "Every visible investment account counts at your ownership share, except 529, Coverdell, UTMA/UGMA and other education or custodial accounts. Turn off any account you're saving for something else (a down payment, say), and add cash set aside for retirement as **Other savings**.\n\nEmpty fields use suggestions: age from your profile's birth year, retirement at 65, planning to 95, and spending from your last 12 full months of cash flow. Edits update the projection as you type; **Save assumptions** keeps them."
+  },
+  {
+    "id": "features/retirement#properties",
+    "doc": "features/retirement",
+    "docTitle": "Retirement",
+    "heading": "Properties",
+    "content": "**Properties** you'd sell to fund retirement can count too. Turn on a home from the Accounts tab and set the age you'd sell it, its mortgage, and net rent per year (rent minus costs). At that age your share of the price (grown 1% a year after inflation by default, less 6% selling costs) minus what's left on the mortgage joins your savings; rent counts as saving before retirement and as income after, until the sale. The mortgage balance is projected from its rate and payment; taxes on the gain aren't included.\n\nAsk Meld can read the plan and try what-ifs (\"what if I retire at 60?\") without changing what you saved."
+  },
+  {
+    "id": "features/tax#overview",
+    "doc": "features/tax",
+    "docTitle": "Tax",
+    "heading": "Overview",
+    "content": "Estimate this year's (or last year's) federal and state income tax, see where you land in the brackets, and get rule-based suggestions for harvests and contribution room."
+  },
+  {
+    "id": "features/tax#where-to-find-it",
+    "doc": "features/tax",
+    "docTitle": "Tax",
+    "heading": "Where to find it",
+    "content": "- **Plan → Tax**\n- Household income and filing status under **Plan → Profile**\n- Per-year overrides in tax settings on the Tax page"
+  },
+  {
+    "id": "features/tax#the-estimate",
+    "doc": "features/tax",
+    "docTitle": "Tax",
+    "heading": "The estimate",
+    "content": "**Plan → Tax** estimates this year's (or last year's) federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It's an estimate, not a return."
+  },
+  {
+    "id": "features/tax#income-and-gains",
+    "doc": "features/tax",
+    "docTitle": "Tax",
+    "heading": "Income and gains",
+    "content": "**Income** starts from your profile's household gross income and filing status. Tracked RSU vests for the year (vested YTD plus remaining scheduled tranches) are added as their own `RSU vesting` line item, with a toggle in Tax inputs if your Profile figure already includes RSUs. Pre-tax 401(k) deferrals and HSA contributions are projected from what your 401(k) and HSA accounts report. Dividends, interest and fund distributions come from taxable accounts and bank interest. The year is projected as this year so far plus whatever came in over the rest of last year, so December distributions count. A dividend's qualified share comes from what the fund holds: its stocks, apart from REITs.\n\n**Realized gains** are rebuilt from buys and sells with average cost, because Plaid reports one cost basis per holding and no lots. Holding periods follow shares in the order they were bought. Enter your broker's figures to replace the estimate."
+  },
+  {
+    "id": "features/tax#tax-inputs",
+    "doc": "features/tax",
+    "docTitle": "Tax",
+    "heading": "Tax inputs",
+    "content": "**Tax inputs** (per year, in `tax_settings`) cover what Meld can't see:\n\n- self-employment profit\n- other income\n- withholding and estimated payments\n- property tax and other itemized deductions\n- HSA coverage\n- whether you have a workplace plan\n- a flat state rate for states without tables"
+  },
+  {
+    "id": "features/tax#tables",
+    "doc": "features/tax",
+    "docTitle": "Tax",
+    "heading": "Tables",
+    "content": "- Federal brackets, deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs. The 2025 figures include the One Big Beautiful Bill changes.\n- California uses FTB's 2025 schedules (2026's aren't out yet), adding back HSA money and taxing gains as ordinary income.\n- States without an income tax owe nothing.\n- Tables live in `packages/shared/src/tax-tables.ts`; add a year there when the IRS and FTB publish it."
+  },
+  {
+    "id": "features/tax#suggestions",
+    "doc": "features/tax",
+    "docTitle": "Tax",
+    "heading": "Suggestions",
+    "content": "**Suggestions** are fixed rules, each with the estimated tax saved this year. They cover:\n\n- tax-loss harvesting, with wash-sale warnings for purchases or RSU vests within 30 days in any account\n- RSU supplemental withholding gaps and $0 cost-basis checks on vested RSU holdings\n- gain harvesting at 0%\n- 401(k), HSA and IRA room\n- a backdoor Roth, with a pro-rata warning when pre-tax IRAs have money in them\n- a SEP IRA or solo 401(k) for self-employment income\n- Roth conversion room in low brackets\n- an underpayment warning\n\nTap one to ask Ask Meld about it."
+  },
+  {
+    "id": "features/insurance#overview",
+    "doc": "features/insurance",
+    "docTitle": "Insurance",
+    "heading": "Overview",
+    "content": "Track life and disability coverage (including through work), upload policy PDFs for AI fill-in, and count permanent-life cash value toward net worth."
+  },
+  {
+    "id": "features/insurance#where-to-find-it",
+    "doc": "features/insurance",
+    "docTitle": "Insurance",
+    "heading": "Where to find it",
+    "content": "- **Plan → Insurance** — add policies, totals, PDF upload\n- Permanent-life cash value also appears under **Insurance cash value** on the Accounts tab"
+  },
+  {
+    "id": "features/insurance#policies",
+    "doc": "features/insurance",
+    "docTitle": "Insurance",
+    "heading": "Policies",
+    "content": "Add life and disability policies under **Plan → Insurance**, including coverage through work. It totals your life coverage, monthly disability benefit and yearly premiums. Term policies past their end date aren't counted.\n\nWhole and universal life policies count toward net worth at their surrender value, and are listed under **Insurance cash value** on the Accounts tab, which links back to each policy."
+  },
+  {
+    "id": "features/insurance#upload-pdf-ai-fill-in",
+    "doc": "features/insurance",
+    "docTitle": "Insurance",
+    "heading": "Upload PDF (AI fill-in)",
+    "content": "**Upload PDF** on the Add policy page sends a policy, certificate or benefits summary to the AI provider (Claude, or Gemini through OpenRouter), which fills in the form and flags anything it inferred or couldn't find. Nothing is saved until you check the fields and press **Save**. Needs an Anthropic or OpenRouter key; without it the page explains how to turn it on and you fill in the form by hand."
+  },
+  {
+    "id": "features/insurance#attach-pdf-local-only",
+    "doc": "features/insurance",
+    "docTitle": "Insurance",
+    "heading": "Attach PDF (local only)",
+    "content": "**Attach PDF** keeps a copy of the policy document with any policy, new or existing, with no AI involved: nothing is sent anywhere. **Replace PDF** and **Remove** take effect when you save, and the old file is deleted.\n\nUploaded PDFs are encrypted with `ENCRYPTION_KEY` and stored in `data/documents/` (gitignored; change with `DOCUMENTS_DIR`). PDFs saved before encryption was added are encrypted the next time the API starts. A PDF is deleted with its policy, when you cancel the draft, or after a day if it was never saved.\n\nA policy's full number is optional and stored encrypted with `ENCRYPTION_KEY`. It's printed in the family packet, and everywhere else the app only shows the last 4. PDF extraction only ever reads the last 4."
+  },
+  {
+    "id": "features/estate#overview",
+    "doc": "features/estate",
+    "docTitle": "Estate",
+    "heading": "Overview",
+    "content": "Check that everything you own passes the way you intend, keep estate documents in one place, and build a packet your family can use. It helps you organize; it isn't legal advice."
+  },
+  {
+    "id": "features/estate#where-to-find-it",
+    "doc": "features/estate",
+    "docTitle": "Estate",
+    "heading": "Where to find it",
+    "content": "- **Plan → Estate** — checklist, accounts, documents, contacts, family packet\n- **On death** on an account's page (or tap a row on Estate)\n- Estate planning alerts under Alerts"
+  },
+  {
+    "id": "features/estate#checklist",
+    "doc": "features/estate",
+    "docTitle": "Estate",
+    "heading": "Checklist",
+    "content": "Four steps that check themselves off: every account and policy set up, the core documents on file, someone to call, and a current family packet."
+  },
+  {
+    "id": "features/estate#accounts-and-policies",
+    "doc": "features/estate",
+    "docTitle": "Estate",
+    "heading": "Accounts and policies",
+    "content": "A **To do** list first, each row saying what's missing in a sentence. Rows that are already set up fold away under **Set up**. When several accounts would go through probate with nothing set up, **Leave them to my will** marks them all \"By will\" in one go. Each account, home or other asset (tap it, or **On death** on an account's page) records how it passes:\n\n- a beneficiary designation\n- transfer or payable on death (or a TOD deed for property)\n- joint with survivorship\n- one of your trusts\n- by will\n\nBeneficiaries are primary or contingent, with shares, as the institution has them on file. Life policies use the beneficiaries on the policy. Kept in `estate_designations`, apart from synced data."
+  },
+  {
+    "id": "features/estate#full-account-numbers",
+    "doc": "features/estate",
+    "docTitle": "Estate",
+    "heading": "Full account numbers",
+    "content": "**Full account numbers** for the packet are optional, typed in on the account's estate screen and stored encrypted with `ENCRYPTION_KEY`. The app only ever shows the last 4. For a linked checking or savings account, **Get from bank** fetches the number through Plaid Auth. Auth must be enabled for your Plaid account, and Plaid bills it once per connection. The first time, Meld asks you to reconnect the bank and allow account numbers. Set `PLAID_ADDITIONAL_CONSENTED_PRODUCTS=auth` to ask for that when you link new banks."
+  },
+  {
+    "id": "features/estate#readiness-checks",
+    "doc": "features/estate",
+    "docTitle": "Estate",
+    "heading": "Readiness checks",
+    "content": "Pure rules in `apps/api/src/lib/estate.ts`, shown on the row they're about:\n\n- a retirement account, HSA or life policy with no beneficiary (a new account is called out)\n- accounts and property that would go through probate, or sit outside your revocable trust once you have one\n- shares that don't add to 100%, your estate named as beneficiary, or a minor child from your profile named directly\n- no contingent beneficiary\n- designations and documents not reviewed in the interval you pick (3 years by default)\n- a missing will, financial power of attorney or healthcare directive, and no guardian named when you have minor children\n- a child born after a will or trust was signed\n- a document drafted in another state than your profile's"
+  },
+  {
+    "id": "features/estate#documents-and-trusts",
+    "doc": "features/estate",
+    "docTitle": "Estate",
+    "heading": "Documents and trusts",
+    "content": "`estate_documents`: missing core documents are listed as rows to add. Each document records its type, date signed, state, when you last reviewed it, where the signed original is kept, the people it names (trustees, successor trustees, executor, agents, guardians) with contact details, the attorney, and an optional scanned PDF, encrypted like policy PDFs."
+  },
+  {
+    "id": "features/estate#contacts-and-instructions",
+    "doc": "features/estate",
+    "docTitle": "Estate",
+    "heading": "Contacts and instructions",
+    "content": "`estate_settings`: executor, attorney, CPA, advisor, employer HR and others; a note on where to find logins (Meld never stores passwords); and a letter to your family."
+  },
+  {
+    "id": "features/estate#family-packet",
+    "doc": "features/estate",
+    "docTitle": "Estate",
+    "heading": "Family packet",
+    "content": "**Export PDF** builds a PDF from today's data on your machine, optionally encrypted (AES-256) with a password. It holds instructions, who to call, first steps, every document and who it names, each account and policy with how it passes and its beneficiaries, property, debts, and bills on autopay or to cancel. Print it or keep it with your will. Meld remembers what it contained (a hash, not a copy) and flags it as out of date when beneficiaries, documents, contacts or accounts change, or after a year. Balance changes alone don't count. Export works in the web app for now."
+  },
+  {
+    "id": "features/estate#alerts",
+    "doc": "features/estate",
+    "docTitle": "Estate",
+    "heading": "Alerts",
+    "content": "An account or policy with no beneficiary, and an out-of-date packet, show under Alerts (informational, so not pushed by default). Turn them off with **Estate planning** on the Alerts page.\n\nAsk Meld reads all of this through `get_estate_plan`, with names and roles but no contact details."
+  },
+  {
+    "id": "features/ask-meld#overview",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "Overview",
+    "content": "AI chat about your money and how Meld itself works. Optional: everything else in Meld runs without a model."
+  },
+  {
+    "id": "features/ask-meld#where-to-find-it",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "Where to find it",
+    "content": "- **Ask Meld** tab — past conversations and example questions\n- Sparkle button next to your name (web) — side panel for the page you're on\n- Home's question box\n- **Settings → AI** — Claude, ChatGPT plan, OpenRouter, Ollama"
+  },
+  {
+    "id": "features/ask-meld#choosing-a-model",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "Choosing a model",
+    "content": "AI isn't part of first-run setup. Until a model is set up, Ask Meld (the page and the side panel) explains the choice instead of the question box: a model on this computer through Ollama (free, nothing leaves the computer, but a few gigabytes to download and less reliable answers) or a cloud model (Claude, ChatGPT or Gemini: better answers, sending only what each question needs, with account numbers masked). Both buttons open **Settings → AI**. Asking from Home's question box with no model opens the same choice."
+  },
+  {
+    "id": "features/ask-meld#what-it-answers",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "What it answers",
+    "content": "**Ask Meld** answers questions about both your money (spending, debt payoff, investments, tax moves, insurance gaps) and how to use Meld itself (features, screens, calculations, settings, Plaid, phone access, Docker, privacy and security). Answers stream in and conversations are saved. The Ask Meld page lists past conversations with clickable examples for both your finances and how to use Meld. On web, the sparkle button next to your name opens a chat panel beside the page you're on, with financial and \"How Meld works\" questions about that page."
+  },
+  {
+    "id": "features/ask-meld#progressive-context--tools",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "Progressive context & tools",
+    "content": "Each new conversation starts with a tiny orientation summary (net worth totals, account/policy/alert counts, basic profile, and the page you asked from) rather than dumping every account and policy upfront. The AI then fetches only what your question needs through read-only, summary-first tools (`get_financial_overview`, `get_accounts`, filtered `get_holdings`, `get_net_worth` with 30d/90d/YTD/1y deltas and optional sampled history, transactions, spending/budgets, loans, specialist planning tools like `get_tax_plan`, `get_retirement_plan`, `get_estate_plan`, `get_recurring`, `get_cash_plan`, `get_insurance_policies`, and `get_equity_grants`, plus `get_meld_docs`). `get_meld_docs` is deferred and searches Meld's own docs section-by-section on demand (generated from the repository's canonical Markdown docs by `npm run docs:build`, keeping it in sync with the documentation while keeping context minimal). Ask Meld is read-only and can't change anything."
+  },
+  {
+    "id": "features/ask-meld#fast-responses-by-default",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "Fast responses by default",
+    "content": "Claude uses `low` effort on Sonnet/Haiku and `medium` on Opus (override with `ANTHROPIC_CHAT_EFFORT`), caches the static prompt prefix across sessions, and defers specialist planning tool schemas via Anthropic tool search when supported. ChatGPT and OpenRouter set low reasoning effort, Ollama disables hidden thinking tokens by default (`OLLAMA_THINK=1` re-enables them), and `get_investment_performance` / `get_cash_plan` use cached market data instead of blocking chat on slow external price lookups.\n\nAdd your income, filing status, state, age and employer benefits under **Plan → Profile** (also in the account menu on web) for better tax and insurance answers.\n\nPDF reading, value lookups and fund make-up go through a provider interface in `apps/api/src/ai/provider.ts`, run by Anthropic or OpenRouter (see below). With Anthropic, chat defaults to `ANTHROPIC_CHAT_MODEL` (default `claude-sonnet-5-5`), property value lookups use `ANTHROPIC_LOOKUP_MODEL` (default `claude-haiku-5-5`), and policy PDF extraction `ANTHROPIC_MODEL` (default `claude-opus-5-5`)."
+  },
+  {
+    "id": "features/ask-meld#pick-the-model",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "Pick the model",
+    "content": "Under the chat box: any of `ANTHROPIC_CHAT_MODELS` (Opus, Sonnet, Haiku by default; Haiku costs least), a ChatGPT model on your own plan, Gemini, GPT, Claude and other models through [OpenRouter](https://openrouter.ai), or a local model through [Ollama](https://ollama.com). The choice is remembered, and you can switch mid-conversation."
+  },
+  {
+    "id": "features/ask-meld#local-models-ollama",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "Local models (Ollama)",
+    "content": "Install Ollama and pull a model that supports tool calling (e.g. `ollama pull qwen3.5`), then use **Settings → AI → Find Ollama**, or set `OLLAMA_URL=http://127.0.0.1:11434` (`http://host.docker.internal:11434` when Meld runs in Docker) and restart the API. Every installed model with tool support is listed, or set `OLLAMA_CHAT_MODELS` to choose. Local models are free and keep your data on your machine, but answer less reliably than Claude. Chat works with only Ollama set up; the other AI features still need an Anthropic or OpenRouter key."
+  },
+  {
+    "id": "features/ask-meld#chatgpt-plan",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "ChatGPT plan",
+    "content": "With ChatGPT Go, Plus, Pro or Business, choose **Settings → AI → ChatGPT plan → Continue with ChatGPT** and sign in. Ask Meld then lists the ChatGPT models your plan offers, billed to your plan's usage instead of an API key (set a limit or disconnect Meld at [chatgpt.com/settings/usage](https://chatgpt.com/settings/usage)). It takes effect without a restart. The browser returns to Meld at `http://127.0.0.1:1455`; if Meld runs in Docker or you sign in from another device, that page won't load, so copy its address into the box Settings shows. The sign-in is kept encrypted with `ENCRYPTION_KEY` in `chatgpt.json` next to Meld's settings file (`CHATGPT_AUTH_FILE` overrides). Free plans can't share usage; ChatGPT shows \"A required permission is unavailable\" and Meld explains it. On Business, an admin first sets **Use ChatGPT plan** to Allowed for Meld under **Tenant settings → External access** at admin.openai.com. It covers chat only; PDF reading and value lookups still need an Anthropic or OpenRouter key."
+  },
+  {
+    "id": "features/ask-meld#openrouter",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "OpenRouter",
+    "content": "One API key for many vendors' models, including Gemini. Create a key at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys), add credits, and paste it under **Settings → AI → OpenRouter** (or set `OPENROUTER_API_KEY`). Ask Meld then offers a few suggested Gemini, Claude and GPT models; list your own under **Models to offer in Ask Meld**, one [model ID](https://openrouter.ai/models?supported_parameters=tools) per line (or `OPENROUTER_CHAT_MODELS`, comma-separated). Only models that support tool calling appear. You pay OpenRouter per use. Google AI Pro and Ultra plans can't be used by other apps, so a Gemini subscription doesn't cover this. Without an Anthropic key (or with `AI_PROVIDER=openrouter`), OpenRouter also runs the other AI features: policy PDFs are read by `OPENROUTER_MODEL` (default `google/gemini-4-carbon`), which must read PDFs itself (Meld asks for OpenRouter's `native` PDF engine, so no OCR service sees the file); home and car value lookups and fund make-up use `OPENROUTER_LOOKUP_MODEL` (default `google/gemini-4-hydrogen`). Value lookups use the model provider's own web search (Google Search for Gemini), never a third-party search engine, and a lookup that comes back without cited pages is rejected rather than trusted."
+  },
+  {
+    "id": "features/ask-meld#privacy",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "Privacy",
+    "content": "With a Claude model, your question and the data the AI looks up are sent to Anthropic, or to OpenAI with a ChatGPT model, or to OpenRouter and the model's provider with an OpenRouter model (only providers that don't store or train on prompts); with a local Ollama model they stay on your machine. Long digit runs (account, card and policy numbers) are masked first either way. See [PRIVACY.md](../../PRIVACY.md)."
+  },
+  {
+    "id": "features/ask-meld#related",
+    "doc": "features/ask-meld",
+    "docTitle": "Ask Meld",
+    "heading": "Related",
+    "content": "- [External agents (MCP)](mcp.md) — same read-only tools for outside agents"
+  },
+  {
+    "id": "features/mcp#overview",
+    "doc": "features/mcp",
+    "docTitle": "External agents (MCP)",
+    "heading": "Overview",
+    "content": "For advanced workflows, Meld can expose your financial data as a read-only **Model Context Protocol (MCP)** server so external agents (such as Claude Code, Cursor, Codex, or Claude Desktop) can answer questions directly."
+  },
+  {
+    "id": "features/mcp#where-to-find-it",
+    "doc": "features/mcp",
+    "docTitle": "External agents (MCP)",
+    "heading": "Where to find it",
+    "content": "- **Settings → External agents (MCP)** — enable, copy token, client configs\n- Docker/headless: `MCP_ENABLED=1` and `MCP_TOKEN` in `.env`"
+  },
+  {
+    "id": "features/mcp#off-by-default",
+    "doc": "features/mcp",
+    "docTitle": "External agents (MCP)",
+    "heading": "Off by default",
+    "content": "Turn it on in **Settings → External agents (MCP)** (no restart needed). Enabling generates a dedicated bearer token (`meld_mcp_…`) shown once—Meld keeps only a SHA-256 hash—or set `MCP_ENABLED=1` and `MCP_TOKEN` in `.env` for Docker/headless installs."
+  },
+  {
+    "id": "features/mcp#endpoint--clients",
+    "doc": "features/mcp",
+    "docTitle": "External agents (MCP)",
+    "heading": "Endpoint & clients",
+    "content": "Served over Streamable HTTP at `/api/mcp` in the desktop app and Docker (or `/mcp` in `npm run dev`). **Settings → External agents (MCP)** gives copy-pasteable configs for **Claude Code**, **Cursor / HTTP JSON**, and the thin stdio bridge (`scripts/meld-mcp.mjs`) for stdio-only clients."
+  },
+  {
+    "id": "features/mcp#whats-exposed-read-only",
+    "doc": "features/mcp",
+    "docTitle": "External agents (MCP)",
+    "heading": "What's exposed (read-only)",
+    "content": "- **Tools:** All 22 read-only tools from Ask Meld (`get_financial_overview`, `get_accounts`, `get_net_worth`, `get_holdings`, `get_cashflow`, `search_transactions`, `get_tax_plan`, `get_retirement_plan`, `get_estate_plan`, `get_recurring`, `get_cash_plan`, `get_insurance_policies`, `get_equity_grants`, `get_meld_docs`, etc.), marked `readOnlyHint: true`.\n- **Resources:** `meld://overview` (live compact summary), `meld://conventions`, `meld://docs/retirement`, `meld://docs/tax`, and `meld://docs/recurring` for progressive documentation loading.\n- **Prompts:** `financial-checkup`, `spending-review`, `tax-plan-review`, and `retirement-checkup`."
+  },
+  {
+    "id": "features/mcp#security",
+    "doc": "features/mcp",
+    "docTitle": "External agents (MCP)",
+    "heading": "Security",
+    "content": "Restricted to localhost (`127.0.0.1`/`localhost`) by default even when Tailscale phone access is on (override with `MCP_ALLOW_REMOTE=1`), always requires the dedicated MCP bearer token even when passphrase login is turned off, and applies the same digit masking and privacy boundaries as Ask Meld. See [PRIVACY.md](../../PRIVACY.md) and [SECURITY.md](../../SECURITY.md)."
+  },
+  {
+    "id": "features/mcp#related",
+    "doc": "features/mcp",
+    "docTitle": "External agents (MCP)",
+    "heading": "Related",
+    "content": "- [Ask Meld](ask-meld.md) — same tools inside the app"
   },
   {
     "id": "privacy#overview",

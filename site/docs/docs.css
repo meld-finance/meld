@@ -661,6 +661,10 @@ nav.top-links a:hover { color: var(--text); }
   color: var(--accent-strong);
   font-weight: 600;
 }
+.nav-link.nested {
+  padding-left: 22px;
+  font-size: 13.5px;
+}
 
 /* Main Article */
 .doc-main {
