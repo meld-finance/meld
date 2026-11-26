@@ -5,11 +5,12 @@ import { z } from 'zod';
 import { HttpError } from '../lib/http';
 import { localDate } from '../lib/networth';
 import { MAX_TOOL_ROUNDS, runTool, toolLabel, toToolJsonSchema, type ChatTool } from './chat-tools';
+import { EQUITY_EXTRACTION_PROMPT, EquityExtractionSchema, normalizeEquityExtraction } from './equity-extraction';
 import { EXTRACTION_PROMPT, ExtractionSchema, normalizeExtraction } from './insurance-extraction';
 import { normalizeValuation, valuationPrompt, ValuationSchema } from './property-valuation';
 import { normalizeVehicleValuation, vehicleValuationPrompt, VehicleValuationSchema } from './vehicle-valuation';
 import { normalizeProfiles, ProfilesSchema, profilesPrompt, type SecurityDescription } from './security-profiles';
-import type { AIProvider, ChatModelInfo, ChatTurnInput, ChatTurnResult, ExtractedPolicy, StoredChatMessage } from './provider';
+import type { AIProvider, ChatModelInfo, ChatTurnInput, ChatTurnResult, ExtractedEquityGrant, ExtractedPolicy, StoredChatMessage } from './provider';
 
 type MessageParam = Anthropic.Beta.BetaMessageParam;
 type ContentBlock = Anthropic.Beta.BetaContentBlock;
@@ -130,6 +131,53 @@ export class AnthropicProvider implements AIProvider {
       throw new HttpError(422, 'Couldn’t read policy details from this document. Enter them by hand instead.');
     }
     return normalizeExtraction(response.parsed_output);
+  }
+
+  async extractEquityGrantFromPdf(pdf: Buffer): Promise<ExtractedEquityGrant> {
+    const response = await this.client.beta.messages
+      .parse({
+        model: this.model,
+        max_tokens: 16000,
+        ...FALLBACK,
+        output_config: { effort: 'medium', format: betaZodOutputFormat(EquityExtractionSchema) },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: { type: 'base64', media_type: 'application/pdf', data: pdf.toString('base64') },
+              },
+              { type: 'text', text: EQUITY_EXTRACTION_PROMPT },
+            ],
+          },
+        ],
+      })
+      .catch(toHttpError);
+
+    if (response.stop_reason === 'refusal') throw new HttpError(422, 'The AI declined to read this document.');
+    if (response.stop_reason === 'max_tokens' || !response.parsed_output) {
+      throw new HttpError(422, 'Couldn’t read RSU grant details from this document. Enter them by hand instead.');
+    }
+    return normalizeEquityExtraction(response.parsed_output);
+  }
+
+  async extractEquityGrantFromText(text: string): Promise<ExtractedEquityGrant> {
+    const response = await this.client.beta.messages
+      .parse({
+        model: this.lookupModel,
+        max_tokens: 16000,
+        ...FALLBACK,
+        output_config: { effort: 'low', format: betaZodOutputFormat(EquityExtractionSchema) },
+        messages: [{ role: 'user', content: `${EQUITY_EXTRACTION_PROMPT}\n\n---\n\n${text}` }],
+      })
+      .catch(toHttpError);
+
+    if (response.stop_reason === 'refusal') throw new HttpError(422, 'The AI declined to parse this vesting schedule.');
+    if (response.stop_reason === 'max_tokens' || !response.parsed_output) {
+      throw new HttpError(422, 'Couldn’t read a vesting schedule from that text. Enter the grant by hand instead.');
+    }
+    return normalizeEquityExtraction(response.parsed_output);
   }
 
   async estimatePropertyValue(address: string): Promise<PropertyEstimate> {

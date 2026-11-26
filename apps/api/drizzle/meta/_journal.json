@@ -176,6 +176,13 @@
       "when": 1793694024031,
       "tag": "0024_bond_terms",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795645893533,
+      "tag": "0025_equity_grants",
+      "breakpoints": true
     }
   ]
 }

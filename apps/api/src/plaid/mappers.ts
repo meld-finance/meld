@@ -86,6 +86,8 @@ export function toHoldingRow(h: PlaidHolding, accountId: string, securityId: str
     institutionPrice: h.institution_price,
     institutionValue: h.institution_value,
     costBasis: h.cost_basis,
+    vestedQuantity: h.vested_quantity ?? null,
+    vestedValue: h.vested_value ?? null,
   };
 }
 

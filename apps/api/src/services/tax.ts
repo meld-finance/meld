@@ -23,6 +23,7 @@ import {
   type SuggestionContext,
   type TaxInputs,
 } from '../lib/tax';
+import { getRsuVestEventsForWashSale, getTaxYearEquity } from './equity';
 import { shiftYears } from './overview';
 import { daysBetween, EARNINGS, isCash } from './performance';
 import { getProfile } from './profile';
@@ -32,7 +33,7 @@ export * from '../lib/tax';
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 const EPS = 1e-6;
-
+const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 // --- Loading -----------------------------------------------------------------------
 
 const K401_SUBTYPES = new Set(['401k', '401a', '403b', '457b', 'thrift savings plan']);
@@ -119,7 +120,7 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
   const investmentIds = accountRows.filter((a) => a.type === 'investment').map((a) => a.id);
   const isTaxable = (id: string) => taxTreatment(accountById.get(id)?.subtype ?? null) === 'taxable';
 
-  const [txnRows, holdingRows, bankRows] = await Promise.all([
+  const [txnRows, holdingRows, bankRows, equity, rsuWashEvents] = await Promise.all([
     investmentIds.length
       ? db
           .select({
@@ -145,6 +146,7 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
             price: holdings.institutionPrice,
             value: holdings.institutionValue,
             costBasis: holdings.costBasis,
+            vestedValue: holdings.vestedValue,
           })
           .from(holdings)
           .where(inArray(holdings.accountId, investmentIds))
@@ -170,6 +172,8 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
           or(isNull(transactions.category), eq(transactions.category, 'INCOME')),
         ),
       ),
+    getTaxYearEquity(db, year, today, profile.state),
+    getRsuVestEventsForWashSale(db, today),
   ]);
 
   const securityIds = [...new Set([...holdingRows.map((h) => h.securityId), ...txnRows.flatMap((t) => (t.securityId ? [t.securityId] : []))])];
@@ -273,12 +277,38 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     const latest = recentBuys.get(t.securityId);
     if (!latest || t.date > latest) recentBuys.set(t.securityId, t.date);
   }
+  const rsuRecentVestByTicker = new Map<string, string>();
+  const rsuUpcomingVestByTicker = new Map<string, string>();
+  for (const ev of rsuWashEvents) {
+    if (ev.kind === 'rsu_past') {
+      const prev = rsuRecentVestByTicker.get(ev.ticker);
+      if (!prev || ev.date > prev) rsuRecentVestByTicker.set(ev.ticker, ev.date);
+    } else {
+      const prev = rsuUpcomingVestByTicker.get(ev.ticker);
+      if (!prev || ev.date < prev) rsuUpcomingVestByTicker.set(ev.ticker, ev.date);
+    }
+  }
+  const rsuZeroBasisTickers = [
+    ...new Set(
+      taxableHoldings.flatMap((h) => {
+        const s = securityById.get(h.securityId);
+        const ticker = s?.ticker?.trim().toUpperCase();
+        if (!ticker || !equity.tickers.has(ticker)) return [];
+        const acctSubtype = accountById.get(h.accountId)?.subtype?.toLowerCase();
+        if (h.vestedValue === 0 && acctSubtype === 'stock plan') return [];
+        const val = h.vestedValue ?? h.value ?? 0;
+        return val > 0 && (h.costBasis === null || h.costBasis <= 0) ? [ticker] : [];
+      }),
+    ),
+  ].sort();
+
   const lotsByKey = new Map(replays.map((r) => [`${r.accountId}|${r.securityId}`, r.lots]));
   const yearAgo = shiftYears(today, -1);
   const harvest: HarvestCandidate[] = taxableHoldings
     .filter((h) => h.value !== null && h.costBasis !== null && h.costBasis > 0)
     .map((h) => {
       const s = securityById.get(h.securityId);
+      const tickerUpper = s?.ticker?.trim().toUpperCase() ?? null;
       const lots = lotsByKey.get(`${h.accountId}|${h.securityId}`) ?? [];
       const held = lots.reduce((sum, l) => sum + l.qty, 0);
       const recent = lots.filter((l) => l.date !== null && l.date > yearAgo).reduce((sum, l) => sum + l.qty, 0);
@@ -292,6 +322,8 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
         gain: round2((h.value! - h.costBasis!) * k),
         shortTermShare: held > EPS ? round2(recent / held) : 0,
         recentPurchase: recentBuys.get(h.securityId) ?? null,
+        recentVest: tickerUpper ? (rsuRecentVestByTicker.get(tickerUpper) ?? null) : null,
+        upcomingVest: tickerUpper ? (rsuUpcomingVestByTicker.get(tickerUpper) ?? null) : null,
       };
     })
     .sort((a, b) => a.gain - b.gain);
@@ -315,6 +347,12 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     rothContributions: round2(rothContributions),
     traditionalIraBalance: round2(traditionalIraBalance),
     has529: subtypes.some((a) => a.subtype === '529'),
+    rsuVestedYtd: equity.vestedYtd,
+    rsuScheduledRemaining: equity.scheduledRemaining,
+    rsuWithheldYtd: equity.withheldIncomeTaxYtd,
+    rsuProjectedWithholdingRemaining: equity.projectedIncomeTaxWithholdingRemaining,
+    rsuWithholdingGap: 0,
+    rsuZeroBasisTickers,
   };
 
   const missing: TaxPlan['missing'] = [];
@@ -354,6 +392,7 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     elapsed > 0 ? k401Contributions / elapsed : 0,
     fed.limits.k401 * Math.max(1, detected.k401Accounts) + fed.limits.k401CatchUp60to63,
   );
+  const rsuTotal = round2(equity.vestedYtd + equity.scheduledRemaining);
   const inputs: TaxInputs = {
     year,
     filingStatus: profile.filingStatus,
@@ -361,6 +400,8 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     childrenUnder17: profile.children.filter((c) => year - c.birthYear < 17).length,
     dependents: profile.dependents ?? profile.children.length,
     grossIncome: profile.annualGrossIncome,
+    rsuVesting: rsuTotal,
+    profileIncludesRsus: settings.profileIncludesRsus,
     selfEmployment: settings.selfEmploymentIncome ?? 0,
     otherIncome: settings.otherIncome ?? 0,
     pretax401k: settings.pretax401k ?? k401Projected,
@@ -379,10 +420,28 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
   const base = estimateTax(inputs);
   const marginal = marginalRate(inputs, base);
 
-  // Withholding so far, carried to year-end at the same pace; estimated payments as entered.
+  if (rsuTotal > 0) {
+    const taxWithoutRsus = estimateTax({
+      ...inputs,
+      grossIncome: settings.profileIncludesRsus ? Math.max(0, inputs.grossIncome - rsuTotal) : inputs.grossIncome,
+      rsuVesting: 0,
+      profileIncludesRsus: false,
+    }).total;
+    const rsuTaxOwed = Math.max(0, base.total - taxWithoutRsus);
+    const rsuWithheldTotal = equity.withheldIncomeTaxYtd + equity.projectedIncomeTaxWithholdingRemaining;
+    detected.rsuWithholdingGap = round2(Math.max(0, rsuTaxOwed - rsuWithheldTotal));
+  }
+
+  // Withholding so far, carried to year-end at the same pace (adjusting for lumpy RSU vests); estimated payments as entered.
   const withheld = settings.federalWithheld === null && settings.stateWithheld === null
     ? null
-    : ((settings.federalWithheld ?? 0) + (settings.stateWithheld ?? 0)) / Math.max(elapsed, 0.01);
+    : rsuTotal > 0 && elapsed < 1
+      ? (() => {
+          const enteredYtd = (settings.federalWithheld ?? 0) + (settings.stateWithheld ?? 0);
+          const steadyYtd = Math.max(0, enteredYtd - equity.withheldIncomeTaxYtd);
+          return steadyYtd / Math.max(elapsed, 0.01) + equity.withheldIncomeTaxYtd + equity.projectedIncomeTaxWithholdingRemaining;
+        })()
+      : ((settings.federalWithheld ?? 0) + (settings.stateWithheld ?? 0)) / Math.max(elapsed, 0.01);
   const balanceDue =
     withheld === null ? null : round2(base.total - withheld - (settings.federalEstimatedPayments ?? 0) - (settings.stateEstimatedPayments ?? 0));
 
@@ -391,6 +450,13 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
   if (base.state?.tablesYear) notes.push(`${base.state.state} figures use ${base.state.tablesYear} brackets; ${year}'s haven't been published.`);
   if (!profile.state) notes.push('Add your state to your profile to include state tax.');
   else if (!base.state) notes.push(`Meld has no tables for ${profile.state}; enter an effective state rate in Tax inputs to include it.`);
+  if (rsuTotal > 0) {
+    notes.push(
+      settings.profileIncludesRsus
+        ? `RSU vesting (${money(rsuTotal)}) is carved out of your Profile gross income rather than added on top.`
+        : `RSU vesting (${money(rsuTotal)}) is added on top of your Profile gross income. If your Profile figure already includes RSUs, toggle that in Tax inputs.`,
+    );
+  }
   if (elapsed < 1) notes.push('Dividends, interest and fund distributions are this year so far plus what came in over the rest of last year.');
   if (!settings.realizedGainsOverride && sales) {
     notes.push(

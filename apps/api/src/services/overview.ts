@@ -16,6 +16,7 @@ import { and, asc, desc, eq, gte, lt, lte, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { accounts, balanceSnapshots, budgets, insurancePolicies, manualAssets, transactions } from '../db/schema';
 import { computeNetWorth, localDate } from '../lib/networth';
+import { unvestedAmountsByAccount } from './accounts';
 import { categoryKey, countsTowardCashflow, effectiveSubcategory, ownedAmount } from './transactions';
 
 const INCOME = 'INCOME';
@@ -38,7 +39,7 @@ export function recentMonths(count: number, today: string): string[] {
 
 /** Everything that counts toward net worth, with ids so snapshots can track each one. */
 async function loadBalances(db: Db) {
-  const [accountRows, manualRows, policyRows] = await Promise.all([
+  const [rawAccounts, manualRows, policyRows, unvestedByAccount] = await Promise.all([
     db
       .select({
         id: accounts.id,
@@ -66,7 +67,13 @@ async function loadBalances(db: Db) {
         loanBalance: insurancePolicies.loanBalance,
       })
       .from(insurancePolicies),
+    unvestedAmountsByAccount(db),
   ]);
+  const accountRows = rawAccounts.map((a) => {
+    const excess = a.type === 'investment' ? (unvestedByAccount.get(a.id) ?? 0) : 0;
+    if (!excess || a.currentBalance === null) return a;
+    return { ...a, currentBalance: Math.max(0, a.currentBalance - excess) };
+  });
   const cashValues = policyRows.flatMap((p) => {
     const value = netCashValue(p);
     return value === null ? [] : [{ id: p.id, value }];

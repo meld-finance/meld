@@ -1,6 +1,7 @@
 export { keys } from './queries/keys';
 export * from './queries/overview';
 export * from './queries/accounts';
+export * from './queries/equity';
 export * from './queries/transactions';
 export * from './queries/insurance-estate';
 export * from './queries/planning';

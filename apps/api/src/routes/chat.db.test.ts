@@ -55,6 +55,8 @@ function fakeProvider(calls: ChatTurnInput[]): AIProvider {
       { model: 'small', label: 'Small', note: 'Cheap', local: false },
     ],
     extractInsurancePolicy: () => Promise.reject(new Error('not used')),
+    extractEquityGrantFromPdf: () => Promise.reject(new Error('not used')),
+    extractEquityGrantFromText: () => Promise.reject(new Error('not used')),
     estimatePropertyValue: () => Promise.reject(new Error('not used')),
     estimateVehicleValue: () => Promise.reject(new Error('not used')),
     profileSecurities: () => Promise.reject(new Error('not used')),

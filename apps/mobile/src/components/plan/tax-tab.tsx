@@ -143,7 +143,18 @@ function IncomeCard({ plan, style }: { plan: TaxPlan; style?: object }) {
   const d = plan.detected;
   const projected = plan.elapsed < 1;
   const rows: [string, number, string?][] = [
-    ['Wages', income.wages, `Gross income from your profile, less ${formatWholeCurrency(income.pretax401k)} pre-tax 401(k)`],
+    [
+      'Wages',
+      income.wages,
+      plan.settings.profileIncludesRsus && income.rsuVesting > 0
+        ? `Cash pay (Profile gross less RSU vests and ${formatWholeCurrency(income.pretax401k)} pre-tax 401(k))`
+        : `Gross income from your profile, less ${formatWholeCurrency(income.pretax401k)} pre-tax 401(k)`,
+    ],
+    [
+      'RSU vesting',
+      income.rsuVesting,
+      `${formatWholeCurrency(d.rsuVestedYtd)} vested so far, ${formatWholeCurrency(d.rsuScheduledRemaining)} scheduled`,
+    ],
     ['Self-employment', income.selfEmployment],
     ['Interest', income.interest, `${formatWholeCurrency(d.interest)} so far`],
     ['Qualified dividends', income.qualifiedDividends, `${formatWholeCurrency(d.qualifiedDividends)} so far, taxable accounts`],
@@ -310,6 +321,8 @@ function HarvestCard({ candidates }: { candidates: HarvestCandidate[] }) {
               `${formatWholeCurrency(c.value)} now, ${formatWholeCurrency(c.costBasis)} cost`,
               c.shortTermShare > 0 ? `${percent(c.shortTermShare)} short-term` : 'long-term',
               c.recentPurchase ? `bought ${formatDate(c.recentPurchase)}: wash-sale risk` : null,
+              c.recentVest ? `RSU vested ${formatDate(c.recentVest)}: wash-sale risk` : null,
+              c.upcomingVest ? `RSU vests ${formatDate(c.upcomingVest)}: wash-sale risk` : null,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -322,7 +335,7 @@ function HarvestCard({ candidates }: { candidates: HarvestCandidate[] }) {
 
 // --- Inputs ------------------------------------------------------------------------
 
-type MoneyField = Exclude<keyof TaxSettings, 'hsaCoverage' | 'coveredByWorkplacePlan' | 'realizedGainsOverride'>;
+type MoneyField = Exclude<keyof TaxSettings, 'hsaCoverage' | 'coveredByWorkplacePlan' | 'realizedGainsOverride' | 'profileIncludesRsus'>;
 
 const MONEY_FIELDS: { key: MoneyField; label: string; group: 'income' | 'paid' | 'deductions' }[] = [
   { key: 'selfEmploymentIncome', label: 'Self-employment profit (part of gross income)', group: 'income' },
@@ -349,6 +362,7 @@ function TaxInputs({ plan }: { plan: TaxPlan }) {
   const [text, setText] = useState(() => Object.fromEntries(MONEY_FIELDS.map((f) => [f.key, str(initial[f.key])])) as Record<MoneyField, string>);
   const [hsaCoverage, setHsaCoverage] = useState(initial.hsaCoverage);
   const [covered, setCovered] = useState(initial.coveredByWorkplacePlan);
+  const [profileIncludesRsus, setProfileIncludesRsus] = useState(initial.profileIncludesRsus);
   const [shortTerm, setShortTerm] = useState(str(initial.realizedGainsOverride?.shortTerm ?? null));
   const [longTerm, setLongTerm] = useState(str(initial.realizedGainsOverride?.longTerm ?? null));
   const [saved, setSaved] = useState(false);
@@ -381,6 +395,7 @@ function TaxInputs({ plan }: { plan: TaxPlan }) {
       coveredByWorkplacePlan: covered,
       realizedGainsOverride:
         gains.shortTerm === null && gains.longTerm === null ? null : { shortTerm: gains.shortTerm ?? 0, longTerm: gains.longTerm ?? 0 },
+      profileIncludesRsus,
     };
     save.mutate(settings, { onSuccess: () => setSaved(true) });
   }
@@ -423,6 +438,14 @@ function TaxInputs({ plan }: { plan: TaxPlan }) {
                 <Chip label="Not covered" selected={covered === false} onPress={() => setCovered(covered === false ? null : false)} />
               </View>
             </Field>
+            {d.rsuVestedYtd + d.rsuScheduledRemaining > 0 && (
+              <Field label="Profile gross income">
+                <View style={styles.chips}>
+                  <Chip label="Cash only (add RSUs)" selected={!profileIncludesRsus} onPress={() => setProfileIncludesRsus(false)} />
+                  <Chip label="Already includes RSUs" selected={profileIncludesRsus} onPress={() => setProfileIncludesRsus(true)} />
+                </View>
+              </Field>
+            )}
           </Row>
           <ThemedText type="smallBold">Paid so far</ThemedText>
           {fields('paid')}
@@ -457,7 +480,7 @@ function TaxInputs({ plan }: { plan: TaxPlan }) {
 
 const styles = StyleSheet.create({
   columns: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: Spacing.three },
-  half: { flexGrow: 1, flexBasis: 420 },
+  half: { flexGrow: 1, flexShrink: 1, flexBasis: 420, maxWidth: '100%', minWidth: 0 },
   suggestions: { gap: Spacing.two },
   line: {
     flexDirection: 'row',
@@ -466,7 +489,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  lineLabel: { flex: 1, gap: Spacing.half },
+  lineLabel: { flex: 1, minWidth: 0, gap: Spacing.half },
   num: { minWidth: 84, textAlign: 'right', fontVariant: ['tabular-nums'] },
   ladder: { gap: Spacing.two },
   rung: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },

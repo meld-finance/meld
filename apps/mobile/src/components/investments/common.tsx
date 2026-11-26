@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Icon, type IconName } from '@/components/icon';
 import { WithTip, type Tip } from '@/components/info-tip';
@@ -173,11 +173,41 @@ export function ExposureBars({
   colorOf: (row: ExposureRow, index: number) => string;
 }) {
   const theme = useTheme();
+  const { width } = useWindowDimensions();
+  const compact = width < 520;
   const max = Math.max(...rows.map((r) => r.amount), 1);
   return (
     <View style={styles.bars}>
       {rows.map((r, i) => {
         const color = colorOf(r, i);
+        const pct = `${(r.amount / max) * 100}%` as const;
+        if (compact) {
+          return (
+            <View
+              key={r.key}
+              style={styles.barItemCompact}
+              accessible
+              accessibilityLabel={`${r.label}: ${formatShare(r.amount, total)}, ${formatWholeCurrency(r.amount)}`}>
+              <View style={styles.barRowCompact}>
+                <View style={[styles.badge, { backgroundColor: color }]}>
+                  <ThemedText style={styles.badgeText}>{r.label[0]}</ThemedText>
+                </View>
+                <ThemedText type="small" style={styles.barLabelCompact} numberOfLines={1}>
+                  {r.label}
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.shareCompact}>
+                  {formatShare(r.amount, total)}
+                </ThemedText>
+                <ThemedText type="smallBold" style={styles.amountCompact}>
+                  {formatWholeCurrency(r.amount)}
+                </ThemedText>
+              </View>
+              <View style={[styles.trackCompact, { backgroundColor: theme.backgroundSelected }]}>
+                <View style={[styles.bar, { width: pct, backgroundColor: color }]} />
+              </View>
+            </View>
+          );
+        }
         return (
           <View key={r.key} style={styles.barRow} accessible accessibilityLabel={`${r.label}: ${formatShare(r.amount, total)}, ${formatWholeCurrency(r.amount)}`}>
             <View style={[styles.badge, { backgroundColor: color }]}>
@@ -187,7 +217,7 @@ export function ExposureBars({
               {r.label}
             </ThemedText>
             <View style={[styles.track, { backgroundColor: theme.backgroundSelected }]}>
-              <View style={[styles.bar, { width: `${(r.amount / max) * 100}%`, backgroundColor: color }]} />
+              <View style={[styles.bar, { width: pct, backgroundColor: color }]} />
             </View>
             <ThemedText type="small" style={styles.share}>
               {formatShare(r.amount, total)}
@@ -243,6 +273,12 @@ const styles = StyleSheet.create({
   tilePressed: { opacity: 0.7 },
   bars: { gap: Spacing.three },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  barItemCompact: { gap: Spacing.one },
+  barRowCompact: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  barLabelCompact: { flex: 1, minWidth: 0 },
+  shareCompact: { fontVariant: ['tabular-nums'] },
+  amountCompact: { textAlign: 'right', fontVariant: ['tabular-nums'] },
+  trackCompact: { height: 8, borderRadius: 4, overflow: 'hidden', marginLeft: 28 + Spacing.two },
   badge: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   badgeText: { color: '#ffffff', fontSize: 13, lineHeight: 16, fontWeight: 700 },
   barLabel: { width: 180, flexShrink: 1 },

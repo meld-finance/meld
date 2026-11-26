@@ -36,6 +36,7 @@ import { computeNetWorth, localDate } from '../lib/networth';
 import { listAccounts, listLiabilities } from '../services/accounts';
 import { listAlerts } from '../services/alerts';
 import { getCashPlan } from '../services/cash';
+import { getEquitySummary } from '../services/equity';
 import { getEstateSummary } from '../services/estate';
 import { listPolicies } from '../services/insurance';
 import { getInvestmentsSummary } from '../services/investments';
@@ -144,7 +145,7 @@ export function toolLabel(tool: ChatTool | undefined, name: string, input: unkno
 
 /** Compact overview used by `get_financial_overview` and the `meld://overview` MCP resource. */
 export async function buildOverview(db: Db, today = localDate()) {
-  const [profile, accountList, manual, policies, [openAlertsRow]] = await Promise.all([
+  const [profile, accountList, manual, policies, [openAlertsRow], equity] = await Promise.all([
     getProfile(db),
     listAccounts(db, eq(accounts.hidden, false)),
     db
@@ -159,6 +160,7 @@ export async function buildOverview(db: Db, today = localDate()) {
       .from(manualAssets),
     listPolicies(db),
     db.select({ n: count() }).from(alerts).where(and(isNull(alerts.dismissedAt), isNull(alerts.resolvedAt))),
+    getEquitySummary(db, undefined, today, { refresh: 'background' }),
   ]);
   const cashValues = policies.flatMap((p) => {
     const v = netCashValue(p);
@@ -190,6 +192,14 @@ export async function buildOverview(db: Db, today = localDate()) {
       ...(m.ownershipPercent !== null && { ownershipPercent: m.ownershipPercent }),
     })),
     insuranceTotals: insuranceTotals(policies, today),
+    ...(equity.grants.length > 0 && {
+      unvestedEquity: {
+        grants: equity.grants.length,
+        grossValue: round(equity.totalUnvestedGross),
+        netValue: round(equity.totalUnvestedNet),
+        nextVestDate: equity.nextVest?.vestDate ?? null,
+      },
+    }),
     openAlertsCount: openAlertsRow?.n ?? 0,
   };
 }
@@ -642,8 +652,7 @@ export function createChatTools(db: Db): ChatTool[] {
     }),
     tool({
       name: 'get_estate_plan',
-      description:
-        'Estate plan summary: transfer methods, beneficiaries, estate documents, readiness checks, and family packet status (no contact details).',
+      description: 'Estate plan: transfer methods, beneficiaries, documents, readiness checks, and packet status.',
       deferLoading: true,
       input: z.object({}),
       label: () => 'Checked your estate plan',
@@ -669,9 +678,36 @@ export function createChatTools(db: Db): ChatTool[] {
       },
     }),
     tool({
+      name: 'get_equity_grants',
+      description: 'RSU grants, vesting schedule, unvested gross/net totals, and YTD vests.',
+      deferLoading: true,
+      input: z.object({ includeVests: z.boolean().default(true) }),
+      label: () => 'Checked RSU grants and vesting',
+      run: async ({ includeVests }) => {
+        const summary = await getEquitySummary(db, undefined, undefined, { refresh: 'background' });
+        return {
+          asOf: summary.asOf,
+          totalUnvestedGross: summary.totalUnvestedGross,
+          totalUnvestedNet: summary.totalUnvestedNet,
+          next12MonthsGross: summary.next12MonthsGross,
+          next12MonthsNet: summary.next12MonthsNet,
+          ytdVestedGross: summary.ytdVestedGross,
+          ytdVestedWithheld: summary.ytdVestedWithheld,
+          remainingThisYearGross: summary.remainingThisYearGross,
+          nextVest: summary.nextVest,
+          byTicker: summary.byTicker,
+          yearlyTimeline: summary.yearlyTimeline,
+          grants: summary.grants.map(({ documentId: _d, documentFilename: _f, vests, ...g }) => ({
+            ...g,
+            ...(includeVests ? { vests } : {}),
+          })),
+        };
+      },
+    }),
+    tool({
       name: 'get_meld_docs',
       description:
-        'Look up Meld’s feature guides: how screens/calculations work, settings, Plaid, phone access (Tailscale), Docker, Ollama/ChatGPT/Claude, MCP, privacy, and security. Omit inputs for a guide index.',
+        'Look up Meld feature guides: screens, calculations, settings, Plaid, phone access, Docker, AI models, MCP, privacy, security.',
       deferLoading: true,
       input: z.object({
         query: z.string().trim().min(1).max(200).optional().describe('Keywords to search across Meld guides'),

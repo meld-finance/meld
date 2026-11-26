@@ -4,6 +4,7 @@ export * from './accounts';
 export * from './cash';
 export * from './insurance';
 export * from './investments';
+export * from './equity';
 export * from './bonds';
 export * from './liabilities';
 export * from './overview';

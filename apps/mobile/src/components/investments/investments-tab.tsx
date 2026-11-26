@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, View } from '
 import { Card } from '@/components/card';
 import { Segmented } from '@/components/cashflow/segmented';
 import { Icon } from '@/components/icon';
+import { EquityTab } from '@/components/investments/equity-tab';
 import { ExposureTab } from '@/components/investments/exposure-tab';
 import { HoldingsTab } from '@/components/investments/holdings-tab';
 import { IncomeTab } from '@/components/investments/income-tab';
@@ -24,9 +25,10 @@ const VIEWS = [
   { value: 'exposure', label: 'Exposure' },
   { value: 'income', label: 'Income' },
   { value: 'holdings', label: 'Holdings' },
+  { value: 'equity', label: 'Equity' },
 ] as const;
 
-/** The portfolio across investment accounts, in five views. */
+/** The portfolio across investment accounts, in six views. */
 export function InvestmentsTab({ header }: { header: ReactNode }) {
   const [view, setView] = useTabParam(VIEWS, 'view');
 
@@ -37,7 +39,10 @@ export function InvestmentsTab({ header }: { header: ReactNode }) {
   const refreshing = investments.isRefetching || income.isRefetching || performance.isRefetching;
   const onRefresh = () => void Promise.all([investments.refetch(), income.refetch(), ...(view === 'performance' ? [performance.refetch()] : [])]);
 
-  const content = investments.isPending ? (
+  const content =
+    view === 'equity' ? (
+      <EquityTab />
+    ) : investments.isPending ? (
     <ThemedText themeColor="textSecondary">Loading…</ThemedText>
   ) : investments.isError ? (
     <ThemedText themeColor="negative">Couldn’t load investments: {investments.error.message}</ThemedText>
@@ -77,7 +82,7 @@ export function InvestmentsTab({ header }: { header: ReactNode }) {
     <Screen wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       {header}
       <View style={styles.views}>
-        <Segmented options={[...VIEWS]} value={view} onChange={setView} />
+        <Segmented options={[...VIEWS]} value={view} onChange={setView} scrollable />
       </View>
       {content}
     </Screen>
@@ -131,7 +136,7 @@ function LookupStatus({ data }: { data: InvestmentsSummary }) {
 }
 
 const styles = StyleSheet.create({
-  views: { flexDirection: 'row' },
+  views: { flexDirection: 'row', maxWidth: '100%' },
   status: {
     flexDirection: 'row',
     alignItems: 'center',

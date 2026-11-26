@@ -1,8 +1,9 @@
-import { lookThrough, normalizeWeights, positionsBySecurity, type Holding, type InvestmentsSummary, type Sector } from '@meld/shared';
+import { lookThrough, normalizeWeights, positionsBySecurity, type EquityTickerBreakdown, type Holding, type InvestmentsSummary, type Sector } from '@meld/shared';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Card } from '@/components/card';
+import { Chip } from '@/components/chip';
 import { Dropdown } from '@/components/dropdown';
 import { Icon } from '@/components/icon';
 import { ExposureBars, TabHeading } from '@/components/investments/common';
@@ -14,6 +15,7 @@ import { useStartChat } from '@/hooks/use-start-chat';
 import { useTheme } from '@/hooks/use-theme';
 import { useVizColors } from '@/hooks/use-viz-colors';
 import { formatWholeCurrency } from '@/lib/format';
+import { useEquity } from '@/lib/queries';
 import {
   BOND_TYPE_LABELS,
   exposureRows,
@@ -41,7 +43,12 @@ type Breakdown = {
   explore: string[];
 };
 
-function breakdownFor(view: ExposureView, holdings: Holding[], scope: string): Breakdown {
+function breakdownFor(
+  view: ExposureView,
+  holdings: Holding[],
+  scope: string,
+  unvestedByTicker: EquityTickerBreakdown[] = [],
+): Breakdown {
   const e = lookThrough(holdings);
   const notLookedUp = e.unclassified >= 0.5 ? ` ${formatWholeCurrency(e.unclassified)} in holdings not yet looked up isn’t included.` : '';
 
@@ -109,6 +116,61 @@ function breakdownFor(view: ExposureView, holdings: Holding[], scope: string): B
   }
 
   const positions = positionsBySecurity(holdings);
+  if (unvestedByTicker.length > 0 && scope === ALL) {
+    type Combined = { key: string; label: string; value: number; unvested: number };
+    const combined: Combined[] = positions.map((p) => ({
+      key: p.securityId,
+      label: securityName(p.holdings[0]!),
+      value: p.value,
+      unvested: 0,
+    }));
+    const byUpperTicker = new Map<string, Combined>();
+    for (const p of positions) {
+      const t = p.holdings[0]?.ticker?.trim().toUpperCase();
+      if (t) {
+        const entry = combined.find((c) => c.key === p.securityId);
+        if (entry && !byUpperTicker.has(t)) byUpperTicker.set(t, entry);
+      }
+    }
+    let unvestedTotal = 0;
+    for (const u of unvestedByTicker) {
+      if (u.grossValue <= 0) continue;
+      unvestedTotal += u.grossValue;
+      const t = u.ticker?.trim().toUpperCase();
+      const match = t ? byUpperTicker.get(t) : undefined;
+      if (match) {
+        match.value += u.grossValue;
+        match.unvested += u.grossValue;
+        match.label = `${match.label} (+${formatWholeCurrency(match.unvested)} unvested)`;
+      } else {
+        combined.push({
+          key: `rsu:${u.label}`,
+          label: `${u.label} (unvested RSUs)`,
+          value: u.grossValue,
+          unvested: u.grossValue,
+        });
+      }
+    }
+    combined.sort((a, b) => b.value - a.value);
+    const total = e.total + unvestedTotal;
+    const top = combined.slice(0, TOP_POSITIONS);
+    const rest = combined.slice(TOP_POSITIONS).reduce((s, p) => s + p.value, 0);
+    const rows: ExposureRow[] = top.map((p) => ({ key: p.key, label: p.label, amount: p.value }));
+    if (rest >= 0.5) rows.push({ key: UNCLASSIFIED, label: `${combined.length - TOP_POSITIONS} other holdings`, amount: rest });
+    const top5 = combined.slice(0, 5).reduce((s, p) => s + p.value, 0);
+    const largest = combined[0];
+    return {
+      title: 'Largest positions (with unvested RSUs)',
+      note: 'Vested holdings plus scheduled unvested RSUs at current value. Unvested shares stay out of net worth, but add single-stock exposure alongside your paycheck.',
+      rows,
+      total,
+      insight: combined.length
+        ? `Including ${formatWholeCurrency(unvestedTotal)} in unvested RSUs, your top ${Math.min(5, combined.length)} holdings make up ${formatShare(top5, total)}; the largest, ${largest!.label}, is ${formatShare(largest!.value, total)}.`
+        : 'No holdings here.',
+      explore: ['How much single-stock risk do I have with my unvested RSUs and salary?', 'Should I sell RSUs as soon as they vest?'],
+    };
+  }
+
   const top = positions.slice(0, TOP_POSITIONS);
   const rest = positions.slice(TOP_POSITIONS).reduce((s, p) => s + p.value, 0);
   const rows: ExposureRow[] = top.map((p) => ({ key: p.securityId, label: securityName(p.holdings[0]!), amount: p.value }));
@@ -128,10 +190,14 @@ function breakdownFor(view: ExposureView, holdings: Holding[], scope: string): B
 
 export function ExposureTab({ data }: { data: InvestmentsSummary }) {
   const viz = useVizColors();
+  const equity = useEquity();
   const [view, setView] = useState<ExposureView>('sectors');
   const [account, setAccount] = useState(ALL);
+  const [includeUnvested, setIncludeUnvested] = useState(false);
   const holdings = account === ALL ? data.holdings : data.holdings.filter((h) => h.accountId === account);
-  const b = breakdownFor(view, holdings, account);
+  const unvestedPool = equity.data?.byTicker.filter((t) => t.grossValue > 0) ?? [];
+  const showRsuToggle = view === 'concentration' && account === ALL && unvestedPool.length > 0;
+  const b = breakdownFor(view, holdings, account, includeUnvested && showRsuToggle ? unvestedPool : []);
   const colorOf = (r: ExposureRow, i: number) =>
     r.key === UNCLASSIFIED ? viz.other : view === 'concentration' ? viz.series1 : (viz.categorical[i] ?? viz.other);
 
@@ -157,12 +223,17 @@ export function ExposureTab({ data }: { data: InvestmentsSummary }) {
           subtitle={b.note}
           style={styles.main}
           action={
-            <Dropdown
-              accessibilityLabel="Account"
-              value={account}
-              onChange={setAccount}
-              options={[{ value: ALL, label: 'Total portfolio' }, ...data.accounts.map((a) => ({ value: a.id, label: a.name }))]}
-            />
+            <View style={styles.actions}>
+              {showRsuToggle && (
+                <Chip label="Include unvested RSUs" selected={includeUnvested} onPress={() => setIncludeUnvested((v) => !v)} />
+              )}
+              <Dropdown
+                accessibilityLabel="Account"
+                value={account}
+                onChange={setAccount}
+                options={[{ value: ALL, label: 'Total portfolio' }, ...data.accounts.map((a) => ({ value: a.id, label: a.name }))]}
+              />
+            </View>
           }>
           {b.rows.length ? (
             <ExposureBars rows={b.rows} total={b.total} colorOf={colorOf} />
@@ -241,9 +312,10 @@ function ExploreDeeper({ questions }: { questions: string[] }) {
 }
 
 const styles = StyleSheet.create({
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two, maxWidth: '100%' },
   split: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: Spacing.three },
-  main: { flexGrow: 3, flexBasis: 520, zIndex: 1 },
-  side: { flexGrow: 1, flexBasis: 300, gap: Spacing.three },
+  main: { flexGrow: 3, flexShrink: 1, flexBasis: 520, maxWidth: '100%', minWidth: 0, zIndex: 1 },
+  side: { flexGrow: 1, flexShrink: 1, flexBasis: 300, maxWidth: '100%', minWidth: 0, gap: Spacing.three },
   insightHeading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   inputWrap: {
     flexDirection: 'row',

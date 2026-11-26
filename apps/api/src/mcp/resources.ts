@@ -58,6 +58,7 @@ const STATIC_RESOURCES: Record<string, { mimeType: string; text: string }> = {
 - **Joint ownership**: \`get_accounts\` returns full account \`currentBalance\` plus \`ownershipPercent\` (null = 100%). Net worth, cash flow, spending, budgets, holdings, performance, cash plan, and taxes count only the user's ownership share.
 - **Cash flow & spending**: Count checking/savings/card accounts only and exclude transfers between the user's own accounts and credit card payments.
 - **Insurance**: Life policy coverage is the death benefit; disability coverage is the monthly benefit. Permanent life policies count toward net worth at cash surrender value (policy loans already netted out).
+- **RSUs & vesting**: Unvested RSUs are excluded from net worth and portfolio totals until vested; use \`get_equity_grants\` for vesting schedules and estimated gross/net values.
 - **Retirement projections**: Amounts and after-inflation returns are in today's dollars.
 - **Privacy & masking**: Runs of 9+ digits are masked to \`••••1234\`. Hidden accounts, full account/policy numbers, estate contact details, and uploaded PDFs are never exposed.
 - **Educational disclaimer**: Meld outputs and estimates are educational, not licensed financial, tax, or legal advice.`,
@@ -83,8 +84,8 @@ const STATIC_RESOURCES: Record<string, { mimeType: string; text: string }> = {
     text: `# Tax Plan Guide (\`get_tax_plan\`)
 
 - **Estimate only**: Combines profile income/filing status/state, \`tax_settings\` overrides, and synced account activity. Not a filed return.
-- **\`detected\`**: YTD paychecks, contractor deposits, taxable-account dividends/interest, average-cost realized gains (\`realizedRough: true\` means incomplete history), retirement/HSA contributions, and pre-tax IRA balances (relevant for backdoor Roth pro-rata rule).
-- **\`harvest\`**: Taxable holdings with unrealized losses; \`recentPurchase\` flags buys within 30 days (wash-sale risk).
+- **\`detected\`**: YTD paychecks, contractor deposits, taxable-account dividends/interest, average-cost realized gains (\`realizedRough: true\` means incomplete history), retirement/HSA contributions, pre-tax IRA balances (relevant for backdoor Roth pro-rata rule), and RSU vest income/withholding gap.
+- **\`harvest\`**: Taxable holdings with unrealized losses; \`recentPurchase\`, \`recentVest\`, and \`upcomingVest\` flag buys or RSU vests within 30 days (wash-sale risk).
 - **\`checklist\`**: Upcoming deadlines (last trading day for harvesting, last paycheck for 401(k), Jan 15 for Q4 estimate, Apr 15 for IRA/HSA/SEP, Dec 31 for charity/FSA/RMD). Pass \`includeDetails: true\` for full bracket slices and explanatory prose.`,
   },
   'meld://docs/recurring': {
