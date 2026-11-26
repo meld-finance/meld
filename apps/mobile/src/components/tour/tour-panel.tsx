@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSetupStatus, useSwitchDemoMode } from '@/lib/setup';
 import { TOUR, useTour } from '@/lib/tour';
 
 /** Phones on the web get a bottom tab bar; keep clear of it. */
@@ -22,12 +23,16 @@ const WIDE_FROM = 1000;
 export function TourPanel() {
   const theme = useTheme();
   const tour = useTour();
+  const status = useSetupStatus().data;
+  const demo = status?.demo ?? false;
+  const plaidReady = status?.plaidReady ?? false;
+  const switchDemo = useSwitchDemoMode();
   const insets = useSafeAreaInsets();
   const width = useWindowDimensions().width;
   const phone = width < PHONE_BELOW;
   // In the corner on a wide window, where it covers the least; centered on a phone.
   const anchor = [styles.anchor, width >= WIDE_FROM && styles.anchorWide];
-  if (!tour.active) return null;
+  if (!demo || !tour.active) return null;
 
   const last = tour.index === TOUR.length - 1;
   const bottom = insets.bottom + Spacing.three + (phone && Platform.OS === 'web' ? BOTTOM_BAR : 0);
@@ -87,18 +92,33 @@ export function TourPanel() {
                 label="Keep exploring"
                 variant="secondary"
                 size="small"
+                disabled={switchDemo.isPending}
                 onPress={() => {
                   tour.end();
                   router.navigate('/');
                 }}
               />
-              {/* The last stop is the Connect page itself, so this just gets the tour out of the way. */}
-              <Button label="Start connecting" size="small" onPress={tour.end} />
+              {plaidReady ? (
+                <Button
+                  label="Back to my accounts"
+                  size="small"
+                  loading={switchDemo.isPending}
+                  onPress={() => switchDemo.mutate({ enabled: false })}
+                />
+              ) : (
+                /* The last stop is the Connect page itself, so this just gets the tour out of the way. */
+                <Button label="Start connecting" size="small" onPress={tour.end} />
+              )}
             </>
           ) : (
             <Button label="Next" size="small" onPress={tour.next} />
           )}
         </View>
+        {switchDemo.isError && (
+          <ThemedText type="small" themeColor="negative">
+            {switchDemo.error.message}
+          </ThemedText>
+        )}
       </ThemedView>
     </View>
   );

@@ -9,36 +9,41 @@ import { dismissAlert, evaluateAlerts, listAlerts, markAlertsRead, ntfyNotifier 
 const ReadBody = z.object({ ids: z.array(z.uuid()).optional() });
 const DismissBody = z.object({ dismissed: z.boolean() });
 
-export async function registerAlertRoutes(app: FastifyInstance, { db }: AppDeps) {
-  app.get('/alerts', () => listAlerts(db));
+export async function registerAlertRoutes(app: FastifyInstance, { db: initialDb, env, runtime }: AppDeps) {
+  const getDb = () => runtime?.getDb() ?? initialDb;
+  const isDemo = () => runtime?.isDemo() ?? env.MELD_DEMO;
+
+  app.get('/alerts', () => listAlerts(getDb()));
 
   app.post('/alerts/read', async (req) => {
-    await markAlertsRead(db, parse(ReadBody, req.body ?? {}).ids);
+    await markAlertsRead(getDb(), parse(ReadBody, req.body ?? {}).ids);
     return { ok: true };
   });
 
   app.post('/alerts/:id/dismiss', async (req) => {
     const { id } = parse(IdParams, req.params);
-    await dismissAlert(db, id, parse(DismissBody, req.body).dismissed);
+    await dismissAlert(getDb(), id, parse(DismissBody, req.body).dismissed);
     return { ok: true };
   });
 
   /** Checks for new alerts now instead of waiting for the next sync. */
-  app.post('/alerts/check', () => evaluateAlerts(db));
+  app.post('/alerts/check', () => evaluateAlerts(getDb(), isDemo() ? async () => {} : undefined));
 
-  app.get('/alerts/settings', () => getAlertSettings(db));
+  app.get('/alerts/settings', () => getAlertSettings(getDb()));
 
   app.put('/alerts/settings', async (req) => {
+    const db = getDb();
+    const demo = isDemo();
     const saved = await saveAlertSettings(db, parse(AlertSettings, req.body));
     // New thresholds can open or clear alerts.
-    void evaluateAlerts(db).catch((err) => app.log.error({ err }, 'Alert check failed'));
+    void evaluateAlerts(db, demo ? async () => {} : undefined).catch((err) => app.log.error({ err }, 'Alert check failed'));
     return saved;
   });
 
   /** Sends a test push to the ntfy URL given (or saved), so you can check it arrives before saving. */
   app.post('/alerts/test', async (req) => {
     const { ntfyUrl } = parse(z.object({ ntfyUrl: AlertSettings.shape.ntfyUrl.optional() }), req.body ?? {});
-    const settings = await getAlertSettings(db);
+    const settings = await getAlertSettings(getDb());
     const url = ntfyUrl ?? settings.ntfyUrl;
     if (!url) throw new HttpError(400, 'Enter an ntfy topic URL first');
     try {

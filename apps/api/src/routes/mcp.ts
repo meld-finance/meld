@@ -43,7 +43,8 @@ function isAllowedOrigin(origin: string, corsOrigins: string[]): boolean {
   }
 }
 
-export async function registerMcpRoutes(app: FastifyInstance, { env, db, mcp }: AppDeps) {
+export async function registerMcpRoutes(app: FastifyInstance, { env, db: initialDb, mcp, runtime }: AppDeps) {
+  const getDb = () => runtime?.getDb() ?? initialDb;
   const mcpConfig = mcp ?? createMcpConfig(env);
   const version = appVersion(env);
 
@@ -112,7 +113,7 @@ export async function registerMcpRoutes(app: FastifyInstance, { env, db, mcp }: 
     reply.hijack();
     reply.raw.setHeader('X-Content-Type-Options', 'nosniff');
 
-    const server = createMeldMcpServer(db, version ?? undefined);
+    const server = createMeldMcpServer(getDb(), version ?? undefined);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

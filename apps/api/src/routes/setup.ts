@@ -2,10 +2,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   ApiKeyTest,
   DEFAULT_OPENROUTER_MODELS,
+  DemoModeRequest,
   OllamaDetectRequest,
   PlaidKeyTest,
   SettingsUpdate,
   SetupRequest,
+  type DemoModeResponse,
   type KeyTestResult,
   type OllamaDetectResult,
   type SettingsView,
@@ -17,6 +19,7 @@ import { OllamaProvider } from '../ai/ollama';
 import { testOpenRouterKey } from '../ai/openrouter';
 import { passphraseMatches } from '../auth';
 import { readSettings, writeSettings, type SettingKey, type Settings } from '../config-file';
+import type { RuntimeMode } from '../demo/mode';
 import { passphraseRequired, passphraseSet, plaidConfigured, type Env } from '../env';
 import { HttpError, parse } from '../lib/http';
 import { hashPassphrase } from '../lib/passphrase';
@@ -31,7 +34,7 @@ export type SettingsDeps = {
 
 const SECTIONS = {
   passphrase: ['APP_PASSPHRASE', 'APP_PASSPHRASE_HASH', 'APP_PASSPHRASE_OFF'],
-  plaid: ['PLAID_CLIENT_ID', 'PLAID_SANDBOX_SECRET', 'PLAID_PRODUCTION_SECRET', 'PLAID_ENV', 'MELD_DEMO'],
+  plaid: ['PLAID_CLIENT_ID', 'PLAID_SANDBOX_SECRET', 'PLAID_PRODUCTION_SECRET', 'PLAID_ENV'],
   ai: ['ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'OPENROUTER_CHAT_MODELS', 'OLLAMA_URL', 'OLLAMA_CHAT_MODELS'],
 } as const;
 type Section = keyof typeof SECTIONS;
@@ -95,10 +98,18 @@ async function detectOllama(url: string, contextLength: number): Promise<OllamaD
  * First-run setup and Settings. Before setup is done, the API serves only these (and
  * the web app), all without a login; afterwards everything but the status needs one.
  */
-export async function registerSetupRoutes(app: FastifyInstance, env: Env, settings: SettingsDeps, configured: boolean) {
+export async function registerSetupRoutes(
+  app: FastifyInstance,
+  env: Env,
+  settings: SettingsDeps,
+  configured: boolean,
+  runtime?: RuntimeMode,
+) {
   const editable = !!env.MELD_CONFIG_FILE;
   // Before setup there is no passphrase to log in with; the desktop app's window has its own token.
   const config = { public: !configured && !env.DESKTOP_TOKEN };
+  const isDemo = () => runtime?.isDemo() ?? env.MELD_DEMO;
+  const demoAvailable = runtime?.demoAvailable ?? false;
 
   function requireEditable() {
     if (!editable) throw new HttpError(409, 'Settings come from .env here. Edit it and restart Meld.');
@@ -116,7 +127,9 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
     passphrase: !configured || passphraseRequired(env),
     passphraseSet: passphraseSet(env),
     desktop: !!env.DESKTOP_TOKEN,
-    demo: env.MELD_DEMO,
+    demo: isDemo(),
+    plaidReady: plaidConfigured(env),
+    demoAvailable,
   }));
 
   app.post('/setup', { config }, async (req, reply) => {
@@ -179,8 +192,9 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
     passphrase: passphraseRequired(env),
     passphraseSet: passphraseSet(env),
     desktop: !!env.DESKTOP_TOKEN,
-    demo: env.MELD_DEMO,
+    demo: isDemo(),
     plaidReady: plaidConfigured(env),
+    demoAvailable,
     plaid: {
       clientId: env.PLAID_CLIENT_ID,
       sandboxSecret: mask(env.PLAID_SANDBOX_SECRET),
@@ -197,11 +211,25 @@ export async function registerSetupRoutes(app: FastifyInstance, env: Env, settin
     fromEnv: sectionsFromEnv(settings.fromEnv),
   }));
 
+  app.put('/demo', async (req): Promise<DemoModeResponse> => {
+    const body = parse(DemoModeRequest, req.body);
+    if (!runtime?.setDemo) throw new HttpError(409, 'Demo mode switching isn’t available here.');
+    await runtime.setDemo(body.enabled, { reset: body.reset });
+    return {
+      demo: runtime.isDemo(),
+      plaidReady: plaidConfigured(env),
+      demoAvailable: runtime.demoAvailable,
+    };
+  });
+
   app.put('/settings', async (req, reply) => {
     requireEditable();
     const body = parse(SettingsUpdate, req.body);
-    const fixed = sectionsFromEnv(settings.fromEnv).filter((s) => (s === 'plaid' ? body.plaid || body.demo !== undefined : body[s]));
+    const fixed = sectionsFromEnv(settings.fromEnv).filter((s) => body[s]);
     if (fixed.length) throw new HttpError(409, `These settings come from .env, which wins: ${fixed.join(', ')}. Edit it instead.`);
+    if (body.demo !== undefined && settings.fromEnv.has('MELD_DEMO')) {
+      throw new HttpError(409, 'These settings come from .env, which wins: MELD_DEMO. Edit it instead.');
+    }
     // Turning the passphrase off or changing it takes the current one; turning it on doesn't. The
     // desktop app's own window is the computer's owner, so it can reset a forgotten one.
     if (

@@ -1,6 +1,8 @@
 import type {
   AISettings,
   ChatGPTStatus,
+  DemoModeRequest,
+  DemoModeResponse,
   McpConfigUpdate,
   McpStatus,
   McpTokenResponse,
@@ -15,8 +17,10 @@ import type {
   SetupStatus,
 } from '@meld/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { router, type Href } from 'expo-router';
 
 import { api } from './api';
+import { endTour, startTour } from './tour';
 
 const RESTART_POLL_MS = 500;
 const RESTART_TIMEOUT_MS = 60_000;
@@ -70,11 +74,57 @@ export function useSaveSettings(afterRestart?: (body: SettingsUpdate) => Promise
   return useMutation({
     mutationFn: async (body: SettingsUpdate) => {
       await api('/settings', { method: 'PUT', body: JSON.stringify(body) });
-      await waitForRestart(true);
+      const status = await waitForRestart(true);
       await afterRestart?.(body);
+      return status;
     },
     // Everything may look different with new keys (another Plaid environment, AI on or off).
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: (status) => {
+      qc.setQueryData(keys.status, status);
+      if (!status.demo) endTour();
+      qc.removeQueries({ type: 'inactive', predicate: (q) => q.queryKey[0] !== 'setup' });
+      void qc.resetQueries({ predicate: (q) => q.queryKey[0] !== 'setup' });
+    },
+  });
+}
+
+export type SwitchDemoInput = DemoModeRequest & {
+  /** When entering demo mode: true starts the guided tour, false explores the sandbox on your own. */
+  tour?: boolean;
+  /** Where to go after switching; defaults to '/'. Pass null to stay on the current screen. */
+  redirect?: Href | null;
+};
+
+/** Switches between the user's own accounts and the demo household at runtime without restarting. */
+export function useSwitchDemoMode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SwitchDemoInput) =>
+      api<DemoModeResponse>('/demo', {
+        method: 'PUT',
+        body: JSON.stringify({ enabled: input.enabled, reset: !!input.reset }),
+      }),
+    onSuccess: (res, input) => {
+      const prev = qc.getQueryData<SetupStatus>(keys.status);
+      if (prev) {
+        qc.setQueryData<SetupStatus>(keys.status, {
+          ...prev,
+          demo: res.demo,
+          plaidReady: res.plaidReady,
+          demoAvailable: res.demoAvailable,
+        });
+      } else {
+        void qc.invalidateQueries({ queryKey: keys.status });
+      }
+      qc.removeQueries({ type: 'inactive', predicate: (q) => q.queryKey[0] !== 'setup' });
+      void qc.resetQueries({ predicate: (q) => q.queryKey[0] !== 'setup' });
+      if (!res.demo) endTour();
+      else if (input.tour === true) startTour();
+      else if (input.tour === false) endTour();
+      if (!(res.demo && input.tour === true) && input.redirect !== null) {
+        router.replace(input.redirect ?? '/');
+      }
+    },
   });
 }
 

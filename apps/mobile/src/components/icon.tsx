@@ -160,6 +160,13 @@ const ICONS = {
       <Path d="M12 11v5M12 8h.01" />
     </>
   ),
+  play: <Path d="M6 4.5 19 12 6 19.5V4.5Z" />,
+  compass: (
+    <>
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12Z" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof ICONS;

@@ -99,7 +99,7 @@
         <h1>Demo data &amp; tour</h1>
         <p class="doc-summary">Explore the Rivera demo household and the ten-stop product tour without Plaid keys.</p>
         <div class="doc-meta">
-          <span class="doc-meta-pill">2 min read</span>
+          <span class="doc-meta-pill">3 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/demo.md">View docs/features/demo.md on GitHub ↗</a>
         </div>
       </div>
@@ -108,6 +108,7 @@
         <nav aria-label="On this page">
           <a class="depth-2" href="#where-to-find-it">Where to find it</a>
           <a class="depth-2" href="#the-rivera-household">The Rivera household</a>
+          <a class="depth-2" href="#switching-in-and-out">Switching in and out</a>
           <a class="depth-2" href="#the-tour">The tour</a>
           <a class="depth-2" href="#connect-your-own-banks">Connect your own banks</a>
         </nav>
@@ -120,22 +121,30 @@
 <h2 id="where-to-find-it">Where to find it<a class="heading-anchor" href="#where-to-find-it" aria-label="Link to Where to find it">#</a></h2>
 
 <ul>
-<li>Welcome screen → <strong>Look around with demo data</strong> (or set <code>MELD_DEMO=1</code>)</li>
-<li>While demo data is showing: <strong>Take the tour</strong> on Home</li>
-<li>Switch back later: <strong>Settings → Bank connections → Show demo data</strong> / <strong>Use my accounts</strong></li>
+<li>Welcome screen → <strong>Look around first</strong> (<strong>Start with tour</strong> or <strong>Explore on my own</strong>), or set <code>MELD_DEMO=1</code></li>
+<li>Anytime after linking real accounts (including <code>.env</code> installs): <strong>Account menu → Demo mode…</strong> or <strong>Settings → Demo mode</strong></li>
+<li>While demo data is showing: <strong>Start tour</strong> / <strong>Show tour</strong>, <strong>Reset data</strong>, and <strong>Back to my accounts</strong> (or <strong>Connect my banks</strong>) in the purple <strong>DEMO MODE</strong> bar pinned to the top of every screen</li>
 </ul>
 
 <h2 id="the-rivera-household">The Rivera household<a class="heading-anchor" href="#the-rivera-household" aria-label="Link to The Rivera household">#</a></h2>
 
-<p><strong>Start with demo data</strong> shows a made-up household, the Riveras, in its own database (<code>meld_demo</code>, or <code>DEMO_DATABASE_URL</code>), with two years of history dated up to today.</p>
+<p><strong>Look around first</strong> (or switching into demo mode anytime) shows a made-up household, the Riveras, in its own database (<code>meld_demo</code>, or <code>DEMO_DATABASE_URL</code>), with two years of history dated up to today. Your real database stays untouched and hidden while demo data is active.</p>
 
 <p>The household is built so every area has something to show: checking that won't cover the card's autopay after childcare and the phone bill (an urgent alert), a Netflix price rise and a new Headspace charge, Disney+ stopped, eating out pushing food over budget, savings earning 0.4%, 401(k), HSA and Roth IRA room, a fund to harvest for a tax loss, a rollover IRA with no beneficiary, and a will older than the younger child.</p>
 
-<p>It's rebuilt automatically once it's two days old, so due dates and alerts stay current; changes you make to it don't last. Demo connections never call Plaid: <strong>Refresh</strong> just says they're up to date, and <strong>Link account</strong> is replaced by <strong>Connect my banks</strong>.</p>
+<p>It's rebuilt automatically once it's two days old, so due dates and alerts stay current; changes you make to it don't last, and you can rebuild it anytime with <strong>Reset data</strong> in the demo bar (or <strong>Reset demo data</strong> in <strong>Settings → Demo mode</strong>). Demo connections never call Plaid: <strong>Refresh</strong> just says they're up to date, and <strong>Link account</strong> is replaced by <strong>Connect my banks</strong> (or <strong>Back to my accounts</strong> once Plaid keys are saved).</p>
+
+<h2 id="switching-in-and-out">Switching in and out<a class="heading-anchor" href="#switching-in-and-out" aria-label="Link to Switching in and out">#</a></h2>
+
+<p>Even after linking real accounts (or in <code>.env</code>-configured installs), opening <strong>Account menu → Demo mode…</strong> or <strong>Settings → Demo mode</strong> switches into the isolated <code>meld_demo</code> database at runtime without restarting Meld.</p>
+
+<p>When entering demo mode, choose between <strong>Start with guided tour</strong> or <strong>Explore sandbox on my own</strong>, with an optional <strong>Start with fresh sample data</strong> toggle to rebuild the Riveras before switching.</p>
+
+<p>While demo mode is active, a purple <strong>DEMO MODE</strong> bar remains pinned at the top of every screen so you always know you are looking at sample data. Click <strong>Back to my accounts</strong> in the bar (or <strong>Use my accounts</strong> in Settings) to return immediately to your own database without restarting.</p>
 
 <h2 id="the-tour">The tour<a class="heading-anchor" href="#the-tour" aria-label="Link to The tour">#</a></h2>
 
-<p>The tour starts after you choose demo data, and from <strong>Take the tour</strong> on Home. It walks through ten questions people ask about their money:</p>
+<p>The tour starts when you choose <strong>Start with tour</strong> from the welcome screen, <strong>Start with guided tour</strong> from the Demo mode modal, or <strong>Start tour</strong> in the demo bar. It walks through ten questions people ask about their money:</p>
 
 <ol>
 <li>What am I worth?</li>
@@ -154,7 +163,7 @@
 
 <h2 id="connect-your-own-banks">Connect your own banks<a class="heading-anchor" href="#connect-your-own-banks" aria-label="Link to Connect your own banks">#</a></h2>
 
-<p><strong>Connect my banks</strong> (on Home, in the top bar while demo data is showing, and under <strong>Settings → Bank connections</strong>) opens the guided Plaid sign-up. Saving your keys switches Meld to your own, empty database. See <a href="../../features/accounts/">Linking accounts</a> and <a href="../../plaid/">Connecting your accounts with Plaid</a>.</p>
+<p><strong>Connect my banks</strong> (in the demo bar, <strong>Settings → Demo mode</strong>, and <strong>Settings → Bank connections</strong>) opens the guided Plaid sign-up. Saving your keys switches Meld to your own, empty database. See <a href="../../features/accounts/">Linking accounts</a> and <a href="../../plaid/">Connecting your accounts with Plaid</a>.</p>
       </div>
       <nav class="pager" aria-label="Page navigation">
       <a class="pager-card prev" href="../../features/">
@@ -173,6 +182,7 @@
     <ul class="toc-list">
       <li><a class="toc-link depth-2" href="#where-to-find-it">Where to find it</a></li>
           <li><a class="toc-link depth-2" href="#the-rivera-household">The Rivera household</a></li>
+          <li><a class="toc-link depth-2" href="#switching-in-and-out">Switching in and out</a></li>
           <li><a class="toc-link depth-2" href="#the-tour">The tour</a></li>
           <li><a class="toc-link depth-2" href="#connect-your-own-banks">Connect your own banks</a></li>
     </ul>

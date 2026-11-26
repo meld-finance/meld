@@ -4,8 +4,9 @@ import path from 'node:path';
 import { DEFAULT_OPENROUTER_MODELS } from '@meld/shared';
 import type { PlaidApi } from 'plaid';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readSettings, withSettingsFile } from '../config-file';
+import { readSettings, settingsFromEnv, withSettingsFile } from '../config-file';
 import type { Db } from '../db/client';
+import { createDemoModeController } from '../demo/mode';
 import { loadEnv, setupComplete } from '../env';
 import { buildServer, buildSetupServer } from '../server';
 import type { PhoneAccessService } from '../services/tailscale';
@@ -56,6 +57,8 @@ describe('first-run setup', () => {
       passphraseSet: false,
       desktop: false,
       demo: false,
+      plaidReady: false,
+      demoAvailable: false,
     });
 
     const res = await app.inject({ method: 'POST', url: '/setup', payload: setup });
@@ -340,5 +343,111 @@ describe('host names', () => {
     const allowed = await buildSetupServer(loadEnv(source({ ALLOWED_HOSTS: 'meld.example.com' })), { fromEnv: new Set(), restart: () => {} });
     expect((await allowed.inject({ method: 'GET', url: '/setup/status', headers: { host: 'meld.example.com' } })).statusCode).toBe(200);
     await allowed.close();
+  });
+});
+
+describe('runtime demo mode switching', () => {
+  beforeEach(() => void n++);
+
+  it('switches demo mode at runtime via PUT /demo without restarting, even with .env Plaid keys', async () => {
+    const restart = vi.fn();
+    const realDb = { kind: 'real' } as unknown as Db;
+    const demoDb = { kind: 'demo' } as unknown as Db;
+    const src = {
+      SANDBOX_DATABASE_URL: 'postgres://meld:meld@127.0.0.1:5432/meld_sandbox',
+      PRODUCTION_DATABASE_URL: 'postgres://meld:meld@127.0.0.1:5432/meld',
+      PLAID_ENV: 'production',
+      PLAID_CLIENT_ID: 'env-client',
+      PLAID_PRODUCTION_SECRET: 'env-secret',
+      APP_PASSPHRASE: 'correct horse battery',
+      SESSION_SECRET: 'x'.repeat(32),
+      ENCRYPTION_KEY: key,
+    };
+    const env = loadEnv(src);
+    const runtime = createDemoModeController({
+      env,
+      initialDb: realDb,
+      createDb: () => ({ db: demoDb, sql: { end: async () => {} } }),
+      ensureDatabase: async () => {},
+      migrate: async () => {},
+      ensureDemoData: async () => true,
+      seedDemo: async () => {},
+    });
+    const plaid = {} as PlaidApi;
+    const app = await buildServer({
+      env,
+      db: realDb,
+      plaid,
+      sync: { db: realDb, plaid, encryptionKey: key },
+      ai: null,
+      storage: {} as DocumentStorage,
+      settings: { fromEnv: settingsFromEnv(src), restart },
+      runtime,
+    });
+
+    // Unauthenticated PUT /demo is rejected.
+    expect((await app.inject({ method: 'PUT', url: '/demo', payload: { enabled: true } })).statusCode).toBe(401);
+
+    const login = await app.inject({ method: 'POST', url: '/auth/login', payload: { passphrase: 'correct horse battery' } });
+    const headers = { authorization: `Bearer ${login.json().token}` };
+
+    expect((await app.inject({ method: 'GET', url: '/setup/status' })).json()).toMatchObject({
+      demo: false,
+      plaidReady: true,
+      demoAvailable: true,
+    });
+
+    // Even though Plaid keys are in .env, PUT /demo switches cleanly without restarting.
+    const enter = await app.inject({ method: 'PUT', url: '/demo', headers, payload: { enabled: true } });
+    expect(enter.statusCode).toBe(200);
+    expect(enter.json()).toEqual({ demo: true, plaidReady: true, demoAvailable: true });
+    expect(restart).not.toHaveBeenCalled();
+
+    expect((await app.inject({ method: 'GET', url: '/setup/status' })).json()).toMatchObject({ demo: true, plaidReady: true, demoAvailable: true });
+    expect((await app.inject({ method: 'GET', url: '/settings', headers })).json()).toMatchObject({
+      demo: true,
+      plaidReady: true,
+      demoAvailable: true,
+      fromEnv: ['plaid'],
+    });
+    // Plaid Link is disabled while in demo mode.
+    expect((await app.inject({ method: 'POST', url: '/plaid/link-token', headers, payload: {} })).statusCode).toBe(409);
+
+    // Switching back works immediately too.
+    const exit = await app.inject({ method: 'PUT', url: '/demo', headers, payload: { enabled: false } });
+    expect(exit.statusCode).toBe(200);
+    expect(exit.json()).toEqual({ demo: false, plaidReady: true, demoAvailable: true });
+    expect(restart).not.toHaveBeenCalled();
+
+    await app.close();
+  });
+
+  it('won’t let PUT /demo exit demo mode when Plaid keys are missing', async () => {
+    const src = {
+      SANDBOX_DATABASE_URL: 'postgres://meld:meld@127.0.0.1:5432/meld_sandbox',
+      PRODUCTION_DATABASE_URL: 'postgres://meld:meld@127.0.0.1:5432/meld',
+      MELD_DEMO: '1',
+      APP_PASSPHRASE_OFF: '1',
+      SESSION_SECRET: 'x'.repeat(32),
+      ENCRYPTION_KEY: key,
+    };
+    const env = loadEnv(src);
+    const runtime = createDemoModeController({ env, initialDb: {} as Db });
+    const plaid = {} as PlaidApi;
+    const app = await buildServer({
+      env,
+      db: {} as Db,
+      plaid,
+      sync: { db: {} as Db, plaid, encryptionKey: key },
+      ai: null,
+      storage: {} as DocumentStorage,
+      settings: { fromEnv: settingsFromEnv(src), restart: () => {} },
+      runtime,
+    });
+
+    const res = await app.inject({ method: 'PUT', url: '/demo', payload: { enabled: false } });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/Add your Plaid keys first/);
+    await app.close();
   });
 });

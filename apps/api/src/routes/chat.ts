@@ -13,6 +13,7 @@ import { createChatModels } from '../ai/chat-models';
 import { createChatTools } from '../ai/chat-tools';
 import { buildSnapshot, SYSTEM_PROMPT } from '../ai/prompt';
 import type { ChatTurnResult, StoredChatMessage } from '../ai/provider';
+import type { Db } from '../db/client';
 import { chatMessages, chatSessions } from '../db/schema';
 import { HttpError, IdParams, parse } from '../lib/http';
 import type { AppDeps } from '../server';
@@ -66,17 +67,17 @@ function titleFrom(text: string) {
   return line.length > 60 ? `${line.slice(0, 57).trimEnd()}…` : line;
 }
 
-export async function registerChatRoutes(app: FastifyInstance, { env, db, ai, chatgpt }: AppDeps) {
-  const tools = createChatTools(db);
+export async function registerChatRoutes(app: FastifyInstance, { env, db: initialDb, ai, chatgpt, runtime }: AppDeps) {
+  const getDb = () => runtime?.getDb() ?? initialDb;
   const chatModels = createChatModels(env, ai, chatgpt);
 
-  async function loadSession(id: string) {
+  async function loadSession(db: Db, id: string) {
     const session = await db.query.chatSessions.findFirst({ where: eq(chatSessions.id, id) });
     if (!session) throw new HttpError(404, 'Conversation not found');
     return session;
   }
 
-  const loadMessages = (sessionId: string) =>
+  const loadMessages = (db: Db, sessionId: string) =>
     db
       .select({ id: chatMessages.id, role: chatMessages.role, content: chatMessages.content, createdAt: chatMessages.createdAt })
       .from(chatMessages)
@@ -84,12 +85,13 @@ export async function registerChatRoutes(app: FastifyInstance, { env, db, ai, ch
       .orderBy(asc(chatMessages.createdAt));
 
   app.get('/chat/sessions', async () =>
-    (await db.select(summaryColumns).from(chatSessions).orderBy(desc(chatSessions.updatedAt)).limit(100)).map(toSummary),
+    (await getDb().select(summaryColumns).from(chatSessions).orderBy(desc(chatSessions.updatedAt)).limit(100)).map(toSummary),
   );
 
   app.get('/chat/models', (): Promise<ChatModelList> => chatModels.list());
 
   app.post('/chat/sessions', async (req) => {
+    const db = getDb();
     const body = parse(ChatCreateSessionRequest, req.body);
     await chatModels.resolve(body?.model);
     const [row] = await db
@@ -100,23 +102,26 @@ export async function registerChatRoutes(app: FastifyInstance, { env, db, ai, ch
   });
 
   app.get('/chat/sessions/:id', async (req): Promise<ChatSessionDetail> => {
-    const session = await loadSession(parse(IdParams, req.params).id);
-    return { ...toSummary(session), messages: toViews(await loadMessages(session.id)) };
+    const db = getDb();
+    const session = await loadSession(db, parse(IdParams, req.params).id);
+    return { ...toSummary(session), messages: toViews(await loadMessages(db, session.id)) };
   });
 
   app.delete('/chat/sessions/:id', async (req) => {
     const { id } = parse(IdParams, req.params);
-    const [row] = await db.delete(chatSessions).where(eq(chatSessions.id, id)).returning({ id: chatSessions.id });
+    const [row] = await getDb().delete(chatSessions).where(eq(chatSessions.id, id)).returning({ id: chatSessions.id });
     if (!row) throw new HttpError(404, 'Conversation not found');
     return { ok: true };
   });
 
   /** Streams the answer as server-sent events (see ChatStreamEvent). */
   app.post('/chat/sessions/:id/messages', async (req, reply) => {
+    const db = getDb();
+    const tools = createChatTools(db);
     const { text, model: modelId } = parse(ChatSendRequest, req.body);
     const { provider, model } = await chatModels.resolve(modelId);
-    const session = await loadSession(parse(IdParams, req.params).id);
-    const history = (await loadMessages(session.id)).map((r) => ({
+    const session = await loadSession(db, parse(IdParams, req.params).id);
+    const history = (await loadMessages(db, session.id)).map((r) => ({
       role: r.role,
       content: r.content as StoredChatMessage['content'],
     }));

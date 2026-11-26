@@ -8,6 +8,7 @@ import type { ChatGPTAuth } from './ai/chatgpt-auth';
 import type { AIProvider } from './ai/provider';
 import { isDesktopToken, registerAuth } from './auth';
 import type { Db } from './db/client';
+import { staticRuntimeMode, type RuntimeMode } from './demo/mode';
 import type { Env } from './env';
 import { isAllowedHost } from './lib/hosts';
 import { HttpError } from './lib/http';
@@ -57,6 +58,8 @@ export type AppDeps = {
   phoneAccess?: PhoneAccessService | null;
   /** Release notes from GitHub; tests can pass their own. */
   releases?: ReleaseNotes;
+  /** Runtime demo/real DB mode controller; defaults to static `deps.db` and `env.MELD_DEMO`. */
+  runtime?: RuntimeMode;
 };
 
 const NO_SETTINGS: SettingsDeps = { fromEnv: new Set(), restart: () => {} };
@@ -146,17 +149,19 @@ async function createApp(env: Env) {
 }
 
 async function registerApi(app: FastifyInstance, deps: AppDeps) {
-  const { env, db } = deps;
+  const { env } = deps;
+  const runtime = deps.runtime ?? staticRuntimeMode(deps.db, env);
+  const runtimeDeps: AppDeps = { ...deps, runtime };
   // Inside this scope only, so the web app's files need no login.
   await registerAuth(app, env);
 
   app.get('/health', { config: { public: true } }, async () => {
-    await db.execute('select 1');
+    await runtime.getDb().execute('select 1');
     return { ok: true };
   });
 
   app.get('/me', async () => ({ user: 'owner' }));
-  await registerSetupRoutes(app, env, deps.settings ?? NO_SETTINGS, true);
+  await registerSetupRoutes(app, env, deps.settings ?? NO_SETTINGS, true, runtime);
   if (deps.phoneAccess) await registerPhoneAccessRoutes(app, env, deps.phoneAccess);
   if (deps.chatgpt) await registerChatGPTRoutes(app, deps.chatgpt);
   const version = appVersion(env);
@@ -170,20 +175,20 @@ async function registerApi(app: FastifyInstance, deps: AppDeps) {
   );
   await registerReleaseRoutes(app, deps.releases ?? new ReleaseNotes());
 
-  await registerPlaidRoutes(app, deps);
-  await registerAccountRoutes(app, deps);
-  await registerTransactionRoutes(app, deps);
-  await registerOverviewRoutes(app, deps);
-  await registerManualAssetRoutes(app, deps);
-  await registerInsuranceRoutes(app, deps);
-  await registerEquityRoutes(app, deps);
-  await registerProfileRoutes(app, deps);
-  await registerRetirementRoutes(app, deps);
-  await registerTaxRoutes(app, deps);
-  await registerCashRoutes(app, deps);
-  await registerRecurringRoutes(app, deps);
-  await registerAlertRoutes(app, deps);
-  await registerEstateRoutes(app, deps);
-  await registerChatRoutes(app, deps);
-  await registerMcpRoutes(app, deps);
+  await registerPlaidRoutes(app, runtimeDeps);
+  await registerAccountRoutes(app, runtimeDeps);
+  await registerTransactionRoutes(app, runtimeDeps);
+  await registerOverviewRoutes(app, runtimeDeps);
+  await registerManualAssetRoutes(app, runtimeDeps);
+  await registerInsuranceRoutes(app, runtimeDeps);
+  await registerEquityRoutes(app, runtimeDeps);
+  await registerProfileRoutes(app, runtimeDeps);
+  await registerRetirementRoutes(app, runtimeDeps);
+  await registerTaxRoutes(app, runtimeDeps);
+  await registerCashRoutes(app, runtimeDeps);
+  await registerRecurringRoutes(app, runtimeDeps);
+  await registerAlertRoutes(app, runtimeDeps);
+  await registerEstateRoutes(app, runtimeDeps);
+  await registerChatRoutes(app, runtimeDeps);
+  await registerMcpRoutes(app, runtimeDeps);
 }

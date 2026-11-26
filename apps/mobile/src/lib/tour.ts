@@ -91,9 +91,11 @@ const KEY = 'tour';
 
 type State = { active: boolean; index: number; minimized: boolean };
 let state: State = { active: false, index: 0, minimized: false };
+let touched = false;
 const listeners = new Set<() => void>();
 
 function set(next: Partial<State>) {
+  touched = true;
   state = { ...state, ...next };
   listeners.forEach((l) => l());
   void prefs.set(KEY, state.active ? JSON.stringify({ index: state.index }) : '');
@@ -101,7 +103,7 @@ function set(next: Partial<State>) {
 
 // Pick up where a reload left off.
 void prefs.get(KEY).then((saved) => {
-  if (!saved || state.active) return;
+  if (!saved || state.active || touched) return;
   try {
     const { index } = JSON.parse(saved) as { index: number };
     if (index >= 0 && index < TOUR.length) set({ active: true, index, minimized: true });
@@ -111,6 +113,17 @@ void prefs.get(KEY).then((saved) => {
 /** Opens the tour at its first stop once Meld comes up, e.g. right after choosing demo data. */
 export function startTourOnArrival() {
   set({ active: true, index: 0, minimized: false });
+}
+
+/** Starts the tour immediately from step 1 on Home. */
+export function startTour() {
+  set({ active: true, index: 0, minimized: false });
+  router.replace(TOUR[0]!.href);
+}
+
+/** Ends and clears any active or minimized tour. */
+export function endTour() {
+  set({ active: false, index: 0, minimized: false });
 }
 
 function go(index: number) {
@@ -133,7 +146,7 @@ export function useTour() {
     start: () => go(0),
     next: () => go(s.index + 1),
     back: () => go(s.index - 1),
-    end: () => set({ active: false, index: 0, minimized: false }),
+    end: endTour,
     minimize: (minimized: boolean) => set({ minimized }),
   };
 }

@@ -14,14 +14,17 @@ import { deleteDocumentIfUnused, storeUploadedPdf } from './insurance';
 
 const VestParams = z.object({ vestId: z.string().uuid() });
 
-export async function registerEquityRoutes(app: FastifyInstance, { db, ai, storage }: AppDeps) {
-  app.get('/equity', () => getEquitySummary(db));
+export async function registerEquityRoutes(app: FastifyInstance, { db: initialDb, ai, storage, runtime }: AppDeps) {
+  const getDb = () => runtime?.getDb() ?? initialDb;
 
-  app.get('/equity/:id', (req) => getGrant(db, parse(IdParams, req.params).id));
+  app.get('/equity', () => getEquitySummary(getDb()));
 
-  app.post('/equity', (req) => createGrant(db, parse(EquityGrantInput, req.body)));
+  app.get('/equity/:id', (req) => getGrant(getDb(), parse(IdParams, req.params).id));
+
+  app.post('/equity', (req) => createGrant(getDb(), parse(EquityGrantInput, req.body)));
 
   app.put('/equity/:id', async (req) => {
+    const db = getDb();
     const { id } = parse(IdParams, req.params);
     const input = parse(EquityGrantInput, req.body);
     const { grant, previousDocumentId } = await updateGrant(db, id, input);
@@ -30,6 +33,7 @@ export async function registerEquityRoutes(app: FastifyInstance, { db, ai, stora
   });
 
   app.delete('/equity/:id', async (req) => {
+    const db = getDb();
     const { id } = parse(IdParams, req.params);
     const { documentId } = await deleteGrant(db, id);
     await deleteDocumentIfUnused(db, storage, documentId);
@@ -38,10 +42,11 @@ export async function registerEquityRoutes(app: FastifyInstance, { db, ai, stora
 
   app.patch('/equity/vests/:vestId', (req) => {
     const { vestId } = parse(VestParams, req.params);
-    return confirmVest(db, vestId, parse(EquityVestConfirmInput, req.body));
+    return confirmVest(getDb(), vestId, parse(EquityVestConfirmInput, req.body));
   });
 
   app.post('/equity/extract', async (req): Promise<EquityGrantExtraction> => {
+    const db = getDb();
     const provider = requireAI(ai);
     const { documentId, filename, data } = await storeUploadedPdf(req, db, storage, 'equity');
     try {

@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View, type ScrollViewProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing, WideContentWidth } from '@/constants/theme';
+import { useSetupStatus } from '@/lib/setup';
 
 type Props = {
   /** Omit to render the screen's own header inside `children`. */
@@ -20,6 +21,7 @@ type Props = {
 };
 
 export function Screen({ title, actions, children, scroll = true, refreshControl, wide }: Props) {
+  const demo = useSetupStatus().data?.demo ?? false;
   const header = (title || actions) && (
     <View style={styles.header}>
       {title && <ThemedText type="subtitle">{title}</ThemedText>}
@@ -30,7 +32,7 @@ export function Screen({ title, actions, children, scroll = true, refreshControl
 
   return (
     <ThemedView style={styles.fill}>
-      <SafeAreaView style={styles.fill} edges={['top', 'left', 'right']}>
+      <SafeAreaView style={styles.fill} edges={Platform.OS !== 'web' && demo ? ['left', 'right'] : ['top', 'left', 'right']}>
         {scroll ? (
           <ScrollView contentContainerStyle={content} refreshControl={refreshControl}>
             {header}

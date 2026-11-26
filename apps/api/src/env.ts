@@ -150,7 +150,7 @@ type DatabaseUrls = { SANDBOX_DATABASE_URL?: string; PRODUCTION_DATABASE_URL?: s
 const databaseUrlKey = (plaidEnv: PlaidEnv) =>
   plaidEnv === 'production' ? 'PRODUCTION_DATABASE_URL' : 'SANDBOX_DATABASE_URL';
 
-function databaseUrlFor(urls: DatabaseUrls, plaidEnv: PlaidEnv): string | undefined {
+export function databaseUrlFor(urls: DatabaseUrls, plaidEnv: PlaidEnv): string | undefined {
   return urls[databaseUrlKey(plaidEnv)];
 }
 
