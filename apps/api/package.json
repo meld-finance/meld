@@ -15,27 +15,27 @@
     "test:db": "vitest run --no-fileParallelism .db.test.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.3.0",
+    "@anthropic-ai/sdk": "^1.13.0",
     "@fastify/compress": "^9.3.0",
-    "@fastify/cors": "^11.3.1",
-    "@fastify/jwt": "^10.2.5",
-    "@fastify/multipart": "^10.1.6",
-    "@fastify/rate-limit": "^11.2.1",
-    "@fastify/static": "^10.1.10",
+    "@fastify/cors": "^11.4.3",
+    "@fastify/jwt": "^10.2.9",
+    "@fastify/multipart": "^10.1.9",
+    "@fastify/rate-limit": "^11.3.0",
+    "@fastify/static": "^10.1.12",
     "@meld/shared": "*",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "drizzle-orm": "^0.45.4",
-    "fastify": "^5.12.7",
-    "pdfkit": "^0.20.2",
+    "fastify": "^5.12.8",
+    "pdfkit": "^0.21.0",
     "plaid": "^49.0.0",
     "postgres": "^3.4.9",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^26.6.5",
+    "@types/node": "^26.6.6",
     "@types/pdfkit": "^0.17.7",
     "drizzle-kit": "^0.31.11",
     "tsx": "^4.23.15",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.1"
   }
 }
