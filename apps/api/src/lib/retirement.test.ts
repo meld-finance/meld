@@ -17,9 +17,11 @@ import {
   resolveCoupleSocialSecurity,
   resolvePlan,
   retirementCashFlow,
+  retirementLevers,
   saleBreakdown,
   saleProceeds,
   simulateRetirement,
+  socialSecurityResolver,
   spendingAt,
   spousalClaimingFactor,
   withPlan,
@@ -832,5 +834,317 @@ describe('staggered partner retirement', () => {
       pension: 16_000,
       withdrawal: 74_000,
     });
+  });
+});
+
+describe('retirementLevers', () => {
+  const sim = { trials: 300, volatility: 12, seed: 1 };
+  const defaults = { birthYear: 1986, annualIncome: 150_000, married: false };
+  const ssFor = socialSecurityResolver({ socialSecurityAnnual: null }, defaults);
+  const ssNum = (retireAge: number, claimAge: number) => {
+    const res = ssFor(retireAge, claimAge);
+    return typeof res === 'number' ? res : res.yours;
+  };
+
+  it('solves base shortfall levers consistent with projectRetirement', () => {
+    const p = projectRetirement(base);
+    const l = retirementLevers(base, { target: { kind: 'base' } });
+    expect(l.status).toBe('short');
+    expect(l.currentSuccessRate).toBeNull();
+    expect(l.longevity).toBeNull();
+
+    expect(l.saving!.monthlyDelta).toBe(p.extraMonthly);
+    const afterSave = projectRetirement({ ...base, annualContribution: l.saving!.targetAnnual });
+    expect(afterSave.gap).toBeLessThanOrEqual(0);
+    expect(afterSave.depletionAge).toBeNull();
+
+    expect(l.retirementAge!.yearsDelta).toBeGreaterThan(0);
+    const afterAge = projectRetirement({ ...base, retirementAge: l.retirementAge!.targetAge });
+    expect(afterAge.gap).toBeLessThanOrEqual(0);
+    expect(afterAge.depletionAge).toBeNull();
+
+    expect(l.spending!.monthlyDelta).toBeLessThan(0);
+    const afterSpend = projectRetirement({ ...base, annualSpending: l.spending!.targetAnnual });
+    expect(afterSpend.gap).toBeLessThanOrEqual(0);
+    expect(afterSpend.depletionAge).toBeNull();
+  });
+
+  it('solves delaying Social Security when sufficient and returns null when not enough', () => {
+    const at62: RetirementInputs = {
+      ...base,
+      currentAge: 60,
+      retirementAge: 62,
+      socialSecurityAge: 62,
+      socialSecurityAnnual: ssNum(62, 62),
+      annualSpending: 65_000,
+    };
+    const needAt62 = projectRetirement(at62).needed;
+    const modestShortfall = { ...at62, startingBalance: Math.round(needAt62 / 1.05 ** 2) - 20_000 };
+    const solvable = retirementLevers(modestShortfall, { target: { kind: 'base' }, context: { socialSecurityFor: ssFor } });
+    expect(solvable.socialSecurity).not.toBeNull();
+    expect(solvable.socialSecurity!.targetClaimAge).toBeGreaterThan(62);
+    expect(solvable.socialSecurity!.targetClaimAge).toBeLessThanOrEqual(70);
+    expect(solvable.socialSecurity!.annualBenefitDelta).toBeGreaterThan(0);
+    const afterSs = projectRetirement({
+      ...modestShortfall,
+      socialSecurityAge: solvable.socialSecurity!.targetClaimAge,
+      socialSecurityAnnual: ssNum(62, solvable.socialSecurity!.targetClaimAge),
+    });
+    expect(afterSs.gap).toBeLessThanOrEqual(0);
+    expect(afterSs.depletionAge).toBeNull();
+
+    const deepShortfall = { ...at62, startingBalance: 0, annualSpending: 200_000 };
+    const unsolvable = retirementLevers(deepShortfall, { target: { kind: 'base' }, context: { socialSecurityFor: ssFor } });
+    expect(unsolvable.socialSecurity).toBeNull();
+  });
+
+  it('solves Monte Carlo confidence shortfalls and matches simulateRetirement', () => {
+    const inputs: RetirementInputs = { ...base, startingBalance: 350_000, annualContribution: 12_000 };
+    const expectedRate = simulateRetirement(inputs, sim).successRate;
+    const l80 = retirementLevers(inputs, { target: { kind: 'confidence', rate: 0.8 }, context: { simulation: sim, socialSecurityFor: ssFor } });
+    const l90 = retirementLevers(inputs, { target: { kind: 'confidence', rate: 0.9 }, context: { simulation: sim, socialSecurityFor: ssFor } });
+
+    expect(l80.currentSuccessRate).toBe(expectedRate);
+    if (l80.status === 'short' && l90.status === 'short') {
+      expect(l90.saving!.monthlyDelta).toBeGreaterThanOrEqual(l80.saving!.monthlyDelta);
+      expect(l90.retirementAge!.targetAge).toBeGreaterThanOrEqual(l80.retirementAge!.targetAge);
+      expect(Math.abs(l90.spending!.monthlyDelta)).toBeGreaterThanOrEqual(Math.abs(l80.spending!.monthlyDelta));
+    }
+
+    for (const [rate, lever] of [
+      [0.8, l80],
+      [0.9, l90],
+    ] as const) {
+      if (lever.status !== 'short') continue;
+      if (lever.saving) {
+        expect(simulateRetirement({ ...inputs, annualContribution: lever.saving.targetAnnual }, sim).successRate).toBeGreaterThanOrEqual(rate);
+      }
+      if (lever.retirementAge) {
+        const age = lever.retirementAge.targetAge;
+        expect(
+          simulateRetirement({ ...inputs, retirementAge: age, socialSecurityAnnual: ssNum(age, inputs.socialSecurityAge) }, sim).successRate,
+        ).toBeGreaterThanOrEqual(rate);
+      }
+      if (lever.spending) {
+        expect(simulateRetirement({ ...inputs, annualSpending: lever.spending.targetAnnual }, sim).successRate).toBeGreaterThanOrEqual(rate);
+      }
+      if (lever.socialSecurity) {
+        const claim = lever.socialSecurity.targetClaimAge;
+        expect(
+          simulateRetirement({ ...inputs, socialSecurityAge: claim, socialSecurityAnnual: ssNum(inputs.retirementAge, claim) }, sim).successRate,
+        ).toBeGreaterThanOrEqual(rate);
+      }
+    }
+  });
+
+  it('reveals cushion levers when over-prepared in base and confidence modes', () => {
+    const rich: RetirementInputs = {
+      ...base,
+      startingBalance: 900_000,
+      annualContribution: 24_000,
+      annualSpending: 50_000,
+      socialSecurityAnnual: ssNum(65, 67),
+    };
+
+    const baseAhead = retirementLevers(rich, { target: { kind: 'base' }, context: { socialSecurityFor: ssFor } });
+    expect(baseAhead.status).toBe('ahead');
+    expect(baseAhead.socialSecurity).toBeNull();
+    // Spend more: tight upper bound.
+    expect(baseAhead.spending!.monthlyDelta).toBeGreaterThan(0);
+    const maxSpend = projectRetirement({ ...rich, annualSpending: baseAhead.spending!.targetAnnual });
+    expect(maxSpend.gap).toBeLessThanOrEqual(0);
+    expect(maxSpend.depletionAge).toBeNull();
+    const overSpend = projectRetirement({ ...rich, annualSpending: baseAhead.spending!.targetAnnual + 24 });
+    expect(overSpend.gap > 0 || overSpend.depletionAge !== null).toBe(true);
+
+    // Retire earlier (< 57, testing < 35 SS working years via resolver).
+    expect(baseAhead.retirementAge!.yearsDelta).toBeLessThan(0);
+    expect(baseAhead.retirementAge!.targetAge).toBeLessThan(57);
+    const early = projectRetirement({
+      ...rich,
+      retirementAge: baseAhead.retirementAge!.targetAge,
+      socialSecurityAnnual: ssNum(baseAhead.retirementAge!.targetAge, rich.socialSecurityAge),
+    });
+    expect(early.gap).toBeLessThanOrEqual(0);
+    expect(early.depletionAge).toBeNull();
+
+    // Coast FIRE down to $0/yr.
+    expect(baseAhead.saving!.targetAnnual).toBe(0);
+    expect(baseAhead.saving!.monthlyDelta).toBe(-2_000);
+
+    // Confidence cushion checks.
+    const mcAhead = retirementLevers(rich, {
+      target: { kind: 'confidence', rate: 0.8 },
+      context: { simulation: sim, socialSecurityFor: ssFor },
+    });
+    expect(mcAhead.status).toBe('ahead');
+    expect(mcAhead.spending!.monthlyDelta).toBeGreaterThan(0);
+    expect(simulateRetirement({ ...rich, annualSpending: mcAhead.spending!.targetAnnual }, sim).successRate).toBeGreaterThanOrEqual(0.8);
+    expect(simulateRetirement({ ...rich, annualSpending: mcAhead.spending!.targetAnnual + 24 }, sim).successRate).toBeLessThan(0.8);
+    expect(mcAhead.retirementAge!.yearsDelta).toBeLessThan(0);
+    expect(
+      simulateRetirement(
+        {
+          ...rich,
+          retirementAge: mcAhead.retirementAge!.targetAge,
+          socialSecurityAnnual: ssNum(mcAhead.retirementAge!.targetAge, rich.socialSecurityAge),
+        },
+        sim,
+      ).successRate,
+    ).toBeGreaterThanOrEqual(0.8);
+    expect(mcAhead.longevity).not.toBeNull();
+    expect(mcAhead.longevity!.maxAge).toBeGreaterThan(95);
+    expect(simulateRetirement({ ...rich, lifeExpectancy: mcAhead.longevity!.maxAge }, sim).successRate).toBeGreaterThanOrEqual(0.8);
+
+    // Partial saving cut when starting balance alone is not Coast FIRE.
+    const partial: RetirementInputs = { ...base, startingBalance: 200_000, annualContribution: 30_000, annualSpending: 55_000 };
+    const partialAhead = retirementLevers(partial, { target: { kind: 'base' } });
+    expect(partialAhead.status).toBe('ahead');
+    expect(partialAhead.saving!.targetAnnual).toBeGreaterThan(0);
+    expect(partialAhead.saving!.targetAnnual).toBeLessThan(30_000);
+    expect(partialAhead.saving!.monthlyDelta).toBeLessThan(0);
+    expect(projectRetirement({ ...partial, annualContribution: partialAhead.saving!.targetAnnual }).gap).toBeLessThanOrEqual(0);
+
+    // Longevity capped at 120 when very wealthy.
+    const veryRich: RetirementInputs = { ...base, startingBalance: 5_000_000, annualSpending: 60_000 };
+    expect(retirementLevers(veryRich, { target: { kind: 'base' } }).longevity).toEqual({
+      maxAge: 120,
+      yearsExtra: 25,
+      capped: true,
+    });
+    expect(retirementLevers(veryRich, { target: { kind: 'confidence', rate: 0.8 }, context: { simulation: sim } }).longevity).toEqual({
+      maxAge: 120,
+      yearsExtra: 25,
+      capped: true,
+    });
+  });
+
+  it('reports on_target when right at the goal, and handles already-retired plans', () => {
+    const needed = projectRetirement(base).needed;
+    const exact = retirementLevers({ ...base, currentAge: 65, startingBalance: needed }, { target: { kind: 'base' } });
+    expect(exact.status).toBe('on_target');
+    expect(exact.spending).toBeNull();
+    expect(exact.saving).toBeNull();
+    expect(exact.retirementAge).toBeNull();
+
+    const retiredShort = retirementLevers({ ...base, currentAge: 70, retirementAge: 65, startingBalance: 200_000 }, { target: { kind: 'base' } });
+    expect(retiredShort.status).toBe('short');
+    expect(retiredShort.saving).toBeNull();
+    expect(retiredShort.retirementAge).toBeNull();
+    expect(retiredShort.spending!.monthlyDelta).toBeLessThan(0);
+
+    const retiredRich = retirementLevers({ ...base, currentAge: 70, retirementAge: 65, startingBalance: 2_500_000 }, { target: { kind: 'base' } });
+    expect(retiredRich.status).toBe('ahead');
+    expect(retiredRich.saving).toBeNull();
+    expect(retiredRich.retirementAge).toBeNull();
+    expect(retiredRich.spending!.monthlyDelta).toBeGreaterThan(0);
+    expect(retiredRich.longevity!.maxAge).toBeGreaterThan(95);
+  });
+
+  it('supports custom targetAge and handles edge cases cleanly', () => {
+    const inputs: RetirementInputs = { ...base, startingBalance: 150_000, annualContribution: 6_000 };
+    const at95 = retirementLevers(inputs, { target: { kind: 'base' }, targetAge: 95 });
+    const at100 = retirementLevers(inputs, { target: { kind: 'base' }, targetAge: 100 });
+    expect(at95.status).toBe('short');
+    expect(at100.targetAge).toBe(100);
+    expect(at100.saving!.monthlyDelta).toBeGreaterThan(at95.saving!.monthlyDelta);
+
+    // Unsolvable one-time shock at currentAge returns null levers without throwing.
+    const impossible = retirementLevers(
+      {
+        ...base,
+        spendingChanges: [{ label: 'Shock', kind: 'once', childId: null, startAge: 40, endAge: null, annualChange: -5_000_000, monthly: false }],
+      },
+      { target: { kind: 'base' } },
+    );
+    expect(impossible.status).toBe('short');
+    expect(impossible.saving).toBeNull();
+    expect(impossible.retirementAge).toBeNull();
+    expect(impossible.spending).toBeNull();
+    expect(impossible.socialSecurity).toBeNull();
+
+    // Interim depletion before a late property sale: gap at retirement is <= 0, yet it depletes at 65 before the 80 sale.
+    const lateSale: RetirementInputs = {
+      ...base,
+      currentAge: 60,
+      retirementAge: 65,
+      lifeExpectancy: 95,
+      startingBalance: 50_000,
+      expectedReturn: 0,
+      sales: [{ name: 'Home', age: 80, proceeds: 2_000_000, netRentAnnual: 0 }],
+    };
+    const saleProj = projectRetirement(lateSale);
+    expect(saleProj.gap).toBeLessThanOrEqual(0);
+    expect(saleProj.depletionAge).toBe(65);
+    const saleLever = retirementLevers(lateSale, { target: { kind: 'base' } });
+    expect(saleLever.status).toBe('short');
+    expect(saleLever.saving).not.toBeNull();
+    const fixed = projectRetirement({ ...lateSale, annualContribution: saleLever.saving!.targetAnnual });
+    expect(fixed.depletionAge).toBeNull();
+  });
+
+  it('handles staggered-retirement couples with partner-aware Social Security', () => {
+    const coupleSummary = {
+      defaults: {
+        currentAge: 40,
+        birthYear: 1986,
+        married: true,
+        annualSpending: 100_000,
+        annualIncome: 250_000,
+        yourIncome: 150_000,
+        filingStatus: 'married_joint' as const,
+        state: 'TX',
+        partner: { name: 'Jordan', currentAge: 38, birthYear: 1988, annualIncome: 100_000 },
+        children: [] as Child[],
+      },
+      accounts: [
+        {
+          id: '00000000-0000-4000-8000-000000000010',
+          name: '401k',
+          institutionName: null,
+          subtype: '401k',
+          taxTreatment: 'tax_deferred' as const,
+          value: 200_000,
+          included: true,
+          excludedReason: null,
+        },
+      ],
+      properties: [],
+      mortgages: [],
+    };
+    const couplePlan = {
+      ...EMPTY_RETIREMENT_PLAN,
+      retirementAge: 58,
+      lifeExpectancy: 92,
+      partnerRetirementAge: 65,
+      partnerLifeExpectancy: 92,
+      annualContribution: 5_000,
+      partnerAnnualContribution: 5_000,
+      annualSpending: 150_000,
+      socialSecurityAge: 67,
+      partnerSocialSecurityAge: 67,
+    };
+    const inputs = resolvePlan(couplePlan, coupleSummary).inputs!;
+    const coupleSsFor = socialSecurityResolver(couplePlan, coupleSummary.defaults);
+    const shortCouple = retirementLevers(inputs, {
+      target: { kind: 'base' },
+      context: { socialSecurityFor: coupleSsFor },
+    });
+    expect(shortCouple.status).toBe('short');
+    expect(shortCouple.targetAge).toBe(94); // partner 92 is your 94
+    expect(shortCouple.saving!.monthlyDelta).toBeGreaterThan(0);
+    const fixedCouple = projectRetirement({ ...inputs, annualContribution: shortCouple.saving!.targetAnnual });
+    expect(fixedCouple.gap).toBeLessThanOrEqual(0);
+    expect(fixedCouple.depletionAge).toBeNull();
+
+    const richPlan = { ...couplePlan, retirementAge: 65, annualSpending: 80_000, otherSavings: 800_000 };
+    const richInputs = resolvePlan(richPlan, coupleSummary).inputs!;
+    const aheadCouple = retirementLevers(richInputs, {
+      target: { kind: 'confidence', rate: 0.8 },
+      context: { simulation: sim, socialSecurityFor: socialSecurityResolver(richPlan, coupleSummary.defaults) },
+    });
+    expect(aheadCouple.status).toBe('ahead');
+    expect(aheadCouple.spending!.monthlyDelta).toBeGreaterThan(0);
+    expect(aheadCouple.retirementAge!.yearsDelta).toBeLessThan(0);
   });
 });

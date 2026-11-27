@@ -26,6 +26,15 @@ Add an optional **Partner** (name, birth year and annual gross income) under **P
 - **Bridge years:** When you and your partner retire at different ages, the years in between are **bridge years**. Meld estimates the still-working partner's after-tax pay (with any active Social Security, pension or net rent) to cover household spending first, draws only any shortfall from savings, and caps bridge saving at the working partner's planned contribution when income covers spending.
 - **Life events:** Time spending, saving, income or one-time life events by your age, your partner's age, or a child's age from your profile.
 
+## Ways to adjust your plan
+
+Below the chart, Meld shows single-change options toward a goal—either **Base** (steady expected return) or a Monte Carlo confidence target (**80%**, **85%**, **90%**, or **95%**) lasting to any **Last to age** you choose:
+
+- **When you're short of the target:** see how much more to save per month, how many extra years to work, how much less to spend per month in retirement, or (when delaying to 70 is enough on its own) claiming Social Security later.
+- **When you have room to spare:** see how much **more** you can afford to spend per month, how many years **earlier** you can retire, how much **less** you need to save now (down to $0/yr if current savings already cover the goal), and how old your savings still last (**Lasts longer**).
+
+Click **Try it** on any option to preview it in the chart, KPI tiles, and stress test without saving yet, or **Undo** to revert that preview.
+
 ## Social Security
 
 **Social Security** is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assuming you earn your current pay from 22 until you retire (up to 35 years).

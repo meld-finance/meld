@@ -79,7 +79,8 @@ const STATIC_RESOURCES: Record<string, { mimeType: string; text: string }> = {
   - \`kind: 'once'\`: one-time inflow (+) or outflow (-) at \`startAge\` (\`endAge\` ignored).
   - Yearly events run for \`startAge <= age < endAge\` (\`endAge: null\` means ongoing). When \`childId\` is set to a child's id or \`'partner'\`, ages are that child's or partner's age. \`annualChange\` is always yearly even when \`monthly: true\`.
   - Passing \`spendingChanges\` in a what-if replaces the saved list.
-- **Gap & Monte Carlo**: \`needed\` is target balance at \`firstRetireAge\`; \`gap = needed - projected\` (<= 0 means on track). Pass \`includeMonteCarlo: true\` to run randomized lognormal return trials (\`successRate\`, \`p10\`/\`p50\`/\`p90\`).`,
+- **Gap & Monte Carlo**: \`needed\` is target balance at \`firstRetireAge\`; \`gap = needed - projected\` (<= 0 means on track). Pass \`includeMonteCarlo: true\` to run randomized lognormal return trials (\`successRate\`, \`p10\`/\`p50\`/\`p90\`).
+- **Levers (\`levers\`)**: Single-change adjustments toward the goal (\`base\` when Monte Carlo is off, or \`targetConfidence\`, defaulting to \`0.8\` when \`includeMonteCarlo: true\`): shortfall moves (\`saving\`, \`retirementAge\`, \`spending\`, \`socialSecurity\`) and over-prepared cushion (\`spending\` more, \`retirementAge\` earlier, \`saving\` less down to \`0\`, \`longevity\` \`maxAge\`).`,
   },
   'meld://docs/tax': {
     mimeType: 'text/markdown',

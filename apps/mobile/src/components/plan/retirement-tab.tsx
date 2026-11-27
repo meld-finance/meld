@@ -50,6 +50,7 @@ import {
 import { MonteCarlo } from '@/components/plan/monte-carlo';
 import { Field, Input, Row } from '@/components/plan/profile-tab';
 import { RetirementAccounts } from '@/components/plan/retirement-accounts';
+import { RetirementLevers, type LeverPatch } from '@/components/plan/retirement-levers';
 import { AgeStepper, SaveBar, SocialSecurity, SpendingPath, Summary } from '@/components/plan/retirement-parts';
 import { RetirementProperties, type PropertyDraft } from '@/components/plan/retirement-properties';
 import { TIPS } from '@/components/plan/retirement-tips';
@@ -175,6 +176,7 @@ function RetirementPlanner({
     ),
   );
   const [saved, setSaved] = useState(false);
+  const [lastTry, setLastTry] = useState<{ label: string; previous: Partial<Record<NumberField, string>> } | null>(null);
   const [section, setSection] = useState<WorkspaceSection>('assumptions');
   const [chartMode, setChartMode] = useState<ChartMode>('balance');
   const [activeAge, setActiveAge] = useState<number | null>(null);
@@ -283,8 +285,31 @@ function RetirementPlanner({
   function set(field: NumberField) {
     return (value: string) => {
       setSaved(false);
+      setLastTry(null);
       setText((t) => ({ ...t, [field]: value }));
     };
+  }
+
+  function applyLever(patch: LeverPatch, label: string) {
+    const previous: Partial<Record<NumberField, string>> = {};
+    const updates: Partial<Record<NumberField, string>> = {};
+    for (const [k, v] of Object.entries(patch) as [keyof LeverPatch, number | null | undefined][]) {
+      if (v === undefined) continue;
+      previous[k] = text[k];
+      updates[k] = toText(k, v);
+    }
+    if (!Object.keys(updates).length) return;
+    setSaved(false);
+    setText((cur) => ({ ...cur, ...updates }));
+    setLastTry({ label, previous });
+  }
+
+  function undoLever() {
+    if (!lastTry) return;
+    const { previous } = lastTry;
+    setSaved(false);
+    setText((cur) => ({ ...cur, ...previous }));
+    setLastTry(null);
   }
 
   function stepAge(field: NumberField, fallback: number, min: number, max: number, delta: number) {
@@ -342,6 +367,7 @@ function RetirementPlanner({
       {
         onSuccess: () => {
           setSaved(true);
+          setLastTry(null);
           setEvents((all) =>
             all.map((e) => ({
               ...e,
@@ -638,6 +664,22 @@ function RetirementPlanner({
             }}
           />
         </Card>
+      )}
+
+      {resolved.inputs && projection && (
+        <RetirementLevers
+          inputs={resolved.inputs}
+          plan={{
+            socialSecurityAnnual: draft.socialSecurityAnnual,
+            partnerSocialSecurityAnnual: draft.partnerSocialSecurityAnnual,
+            partnerRetirementAge: draft.partnerRetirementAge,
+            partnerSocialSecurityAge: draft.partnerSocialSecurityAge,
+          }}
+          defaults={d}
+          appliedTry={lastTry?.label ?? null}
+          onTry={applyLever}
+          onUndoTry={undoLever}
+        />
       )}
 
       {resolved.inputs && projection && (

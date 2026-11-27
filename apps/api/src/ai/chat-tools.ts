@@ -26,9 +26,11 @@ import {
   resolveCoupleSocialSecurity,
   resolvePlan,
   RetirementPlan,
+  retirementLevers,
   SIMULATION_DEFAULTS,
   simulateRetirement,
   socialSecurityAtFullAge,
+  socialSecurityResolver,
   TransactionQuery,
 } from '@meld/shared';
 import { and, asc, count, desc, eq, gte, ilike, isNull, lte } from 'drizzle-orm';
@@ -578,10 +580,11 @@ export function createChatTools(db: Db): ChatTool[] {
     tool({
       name: 'get_retirement_plan',
       description:
-        'Retirement projection (today’s dollars): assumptions, accounts, property sales, spendingChanges, Social Security, gap, and optional Monte Carlo. Pass overrides for what-ifs.',
+        'Retirement projection, gap, levers & Monte Carlo (today’s dollars); pass overrides.',
       deferLoading: true,
       input: RetirementPlan.pick({
         retirementAge: true,
+        lifeExpectancy: true,
         annualContribution: true,
         partnerRetirementAge: true,
         partnerLifeExpectancy: true,
@@ -595,21 +598,29 @@ export function createChatTools(db: Db): ChatTool[] {
       })
         .partial()
         .extend({
-          includeMonteCarlo: z.boolean().default(false).describe('Run Monte Carlo simulation'),
-        })
-        .describe('Optional what-if overrides and simulation flag'),
+          includeMonteCarlo: z.boolean().default(false).describe('Run Monte Carlo'),
+          targetConfidence: z.number().min(0.5).max(0.99).optional().describe('Confidence goal'),
+        }),
       label: (input) => {
-        const { includeMonteCarlo: _mc, ...overrides } = input;
+        const { includeMonteCarlo: _mc, targetConfidence: _tc, ...overrides } = input;
         return Object.values(overrides).some((v) => v !== undefined) ? 'Ran a retirement what-if' : 'Checked your retirement plan';
       },
-      run: async ({ includeMonteCarlo, ...overrides }) => {
+      run: async ({ includeMonteCarlo, targetConfidence, ...overrides }) => {
         const summary = await getRetirement(db);
         const whatIf = Object.fromEntries(Object.entries(overrides).filter(([, v]) => v !== undefined && v !== null));
         const plan = { ...summary.plan, ...whatIf };
         const resolved = resolvePlan(plan, summary);
         if (!resolved.inputs) return { missing: resolved.missing, accounts: summary.accounts };
         const projection = projectRetirement(resolved.inputs);
-        const simulation = includeMonteCarlo ? simulateRetirement(resolved.inputs, SIMULATION_DEFAULTS) : null;
+        const runMc = includeMonteCarlo || targetConfidence !== undefined;
+        const simulation = runMc ? simulateRetirement(resolved.inputs, SIMULATION_DEFAULTS) : null;
+        const levers = retirementLevers(resolved.inputs, {
+          target: runMc ? { kind: 'confidence', rate: targetConfidence ?? 0.8 } : { kind: 'base' },
+          context: {
+            socialSecurityFor: socialSecurityResolver(plan, summary.defaults),
+            simulation: SIMULATION_DEFAULTS,
+          },
+        });
         const { excludedAccountIds: _e, ...saved } = summary.plan;
         const d = summary.defaults;
         const partner = resolved.inputs.partner;
@@ -674,6 +685,7 @@ export function createChatTools(db: Db): ChatTool[] {
                 },
               }
             : {}),
+          levers,
           projection: {
             ...projection,
             // Every five years keeps the result short; the last point shows what's left at the end.
