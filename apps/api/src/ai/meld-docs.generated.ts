@@ -457,8 +457,12 @@ export const MELD_DOC_GUIDES: readonly MeldDocGuide[] = [
         "heading": "Tables"
       },
       {
-        "id": "features/tax#suggestions",
-        "heading": "Suggestions"
+        "id": "features/tax#whats-not-covered",
+        "heading": "What's not covered"
+      },
+      {
+        "id": "features/tax#common-planning-checks",
+        "heading": "Common planning checks"
       }
     ]
   },
@@ -678,7 +682,7 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = [
     "doc": "install",
     "docTitle": "Install",
     "heading": "Overview",
-    "content": "Meld is a desktop app for macOS and Windows. It bundles everything it needs (its own Postgres database, the API and the web app), so there's nothing else to install and no command line. You'll want a free [Plaid developer account](plaid.md) to connect banks; you can create it while Meld is open."
+    "content": "Meld is a desktop app for macOS and Windows. It bundles everything it needs (its own Postgres database, the API and the web app), so there's nothing else to install and no command line. You'll want a free [Plaid developer account](plaid.md) to connect banks; you can create it while Meld is open. Meld is built for US households (US dollars, US banks via Plaid, and US tax and retirement rules) and won't work well outside the US."
   },
   {
     "id": "install#mac",
@@ -748,7 +752,7 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = [
     "doc": "plaid",
     "docTitle": "Plaid Bank Setup",
     "heading": "What the free plan covers",
-    "content": "New Plaid teams in the US and Canada get the free **Trial** plan with real data:\n\n- Up to **10 connections** (Plaid calls them \"Items\"). One connection is one login at one institution, however many accounts sit behind it; a bank login with checking, savings and a card is one.\n- **Removing a connection doesn't give the slot back**, so don't link and unlink to experiment. Look around with demo data instead.\n- It includes the products Meld uses: Transactions, Investments and Liabilities.\n- Banks that sign you in on their own site (OAuth), such as Chase, Bank of America and Wells Fargo, work on the Trial plan. Some brokerages, Schwab for example, can take a few business days to switch on after you get production access.\n\nIf Plaid asks about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself.\n\nReal data goes into its own database (`meld`), separate from demo data (`meld_demo`) and Plaid's Sandbox (`meld_sandbox`), so switching back and forth never mixes them. Open **Account menu → Demo mode…** or **Settings → Demo mode** anytime to switch to the demo household (with the guided tour or as a sandbox) without restarting Meld; click **Back to my accounts** in the top demo bar to return.\n\n**Read Plaid's terms yourself.** When you hold Plaid keys you're Plaid's customer, and their [developer policy](https://plaid.com/developer-policy/) and terms apply to you. Decide for yourself whether your use fits them."
+    "content": "New Plaid teams in the US and Canada get the free **Trial** plan with real data (note that Meld itself is built for US households—it defaults to US institutions, USD, and US tax and retirement rules, so it won't work well outside the US):\n\n- Up to **10 connections** (Plaid calls them \"Items\"). One connection is one login at one institution, however many accounts sit behind it; a bank login with checking, savings and a card is one.\n- **Removing a connection doesn't give the slot back**, so don't link and unlink to experiment. Look around with demo data instead.\n- It includes the products Meld uses: Transactions, Investments and Liabilities.\n- Banks that sign you in on their own site (OAuth), such as Chase, Bank of America and Wells Fargo, work on the Trial plan. Some brokerages, Schwab for example, can take a few business days to switch on after you get production access.\n\nIf Plaid asks about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself.\n\nReal data goes into its own database (`meld`), separate from demo data (`meld_demo`) and Plaid's Sandbox (`meld_sandbox`), so switching back and forth never mixes them. Open **Account menu → Demo mode…** or **Settings → Demo mode** anytime to switch to the demo household (with the guided tour or as a sandbox) without restarting Meld; click **Back to my accounts** in the top demo bar to return.\n\n**Read Plaid's terms yourself.** When you hold Plaid keys you're Plaid's customer, and their [developer policy](https://plaid.com/developer-policy/) and terms apply to you. Decide for yourself whether your use fits them."
   },
   {
     "id": "plaid#plaids-sandbox-for-developers",
@@ -874,7 +878,7 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = [
     "doc": "features",
     "docTitle": "Overview",
     "heading": "Overview",
-    "content": "What each part of Meld does and how it works. For installing, see [Install](install.md). Each area below has its own guide with screenshots.\n\n> **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice."
+    "content": "What each part of Meld does and how it works. For installing, see [Install](install.md). Each area below has its own guide with screenshots.\n\n> **Built for the US.** Meld is built for US households—US banks through Plaid, US dollars, 401(k)/IRA/HSA accounts, Social Security, and US federal & state taxes—and won't work well outside the US.\n>\n> **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are simple planning and educational tools, not professional financial, tax or legal advice."
   },
   {
     "id": "features#the-app-at-a-glance",
@@ -888,7 +892,7 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = [
     "doc": "features",
     "docTitle": "Overview",
     "heading": "Guides",
-    "content": "| Guide | What it's for |\n| --- | --- |\n| [Demo data & tour](features/demo.md) | Look around with the Rivera household and the product tour |\n| [Linking accounts](features/accounts.md) | Connect banks with Plaid, sync, reconnect, Sandbox |\n| [Home, spending & budgets](features/home-and-spending.md) | Net worth, cash flow, categories, rules, budgets |\n| [Recurring, autopay & alerts](features/recurring-and-alerts.md) | Subscriptions, bills, autopay coverage, ntfy push |\n| [Cash & emergency fund](features/cash.md) | Liquid cash, APYs, runway, idle-cash nudges |\n| [Investments & loans](features/investments.md) | Holdings, performance, exposure, RSU equity, loan payoff |\n| [Retirement](features/retirement.md) | Today's-dollar projections, Social Security, gap |\n| [Tax](features/tax.md) | Federal/state estimates, harvests, contribution room |\n| [Insurance](features/insurance.md) | Life and disability policies, PDF upload |\n| [Estate](features/estate.md) | Beneficiaries, documents, family packet |\n| [Ask Meld](features/ask-meld.md) | Claude, ChatGPT, Gemini, OpenRouter, or Ollama |\n| [External agents (MCP)](features/mcp.md) | Read-only MCP for Claude Code, Cursor, and others |\n\nSetup that isn't a product screen: [Phone access over Tailscale](phone-access.md) · [Docker self-hosting](docker.md) · [Privacy](../PRIVACY.md) · [Security](../SECURITY.md)"
+    "content": "| Guide | What it's for |\n| --- | --- |\n| [Demo data & tour](features/demo.md) | Look around with the Rivera household and the product tour |\n| [Linking accounts](features/accounts.md) | Connect banks with Plaid, sync, reconnect, Sandbox |\n| [Home, spending & budgets](features/home-and-spending.md) | Net worth, cash flow, categories, rules, budgets |\n| [Recurring, autopay & alerts](features/recurring-and-alerts.md) | Subscriptions, bills, autopay coverage, ntfy push |\n| [Cash & emergency fund](features/cash.md) | Liquid cash, APYs, runway, idle-cash nudges |\n| [Investments & loans](features/investments.md) | Holdings, performance, exposure, RSU equity, loan payoff |\n| [Retirement](features/retirement.md) | Today's-dollar projections, Social Security, gap |\n| [Tax](features/tax.md) | Simple US federal & state estimates (all 50 states + DC), common checks, deadlines |\n| [Insurance](features/insurance.md) | Life and disability policies, PDF upload |\n| [Estate](features/estate.md) | Beneficiaries, documents, family packet |\n| [Ask Meld](features/ask-meld.md) | Claude, ChatGPT, Gemini, OpenRouter, or Ollama |\n| [External agents (MCP)](features/mcp.md) | Read-only MCP for Claude Code, Cursor, and others |\n\nSetup that isn't a product screen: [Phone access over Tailscale](phone-access.md) · [Docker self-hosting](docker.md) · [Privacy](../PRIVACY.md) · [Security](../SECURITY.md)"
   },
   {
     "id": "features/demo#overview",
@@ -1224,21 +1228,21 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = [
     "doc": "features/tax",
     "docTitle": "Tax",
     "heading": "Overview",
-    "content": "Estimate this year's (or last year's) federal and state income tax, see where you land in the brackets, and get rule-based suggestions for harvests and contribution room."
+    "content": "Get a simple ballpark estimate of this year's (or last year's) US federal and state income tax across all 50 US states and DC, see where you land in the brackets, and review common year-end planning checks."
   },
   {
     "id": "features/tax#where-to-find-it",
     "doc": "features/tax",
     "docTitle": "Tax",
     "heading": "Where to find it",
-    "content": "- **Plan → Tax**\n- Household income and filing status under **Plan → Profile**\n- Per-year overrides in tax settings on the Tax page"
+    "content": "- **Plan → Tax**\n- Household income, filing status, and optional US state under **Plan → Profile**\n- Per-year overrides in **Tax inputs** on the Tax page"
   },
   {
     "id": "features/tax#the-estimate",
     "doc": "features/tax",
     "docTitle": "Tax",
     "heading": "The estimate",
-    "content": "**Plan → Tax** estimates this year's (or last year's) federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It's an estimate, not a return."
+    "content": "**Plan → Tax** gives a simple ballpark estimate of this year's (or last year's) US federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It is built for straightforward US W-2 and investment situations—it's a simple estimate, not tax advice and not a return.\n\nIf you set your US state under **Plan → Profile**, Meld estimates state tax for all 50 states and DC using built-in 2025/2026 state rules (no-income-tax states, flat-rate states, or progressive brackets). State is optional; leave it unset for federal only."
   },
   {
     "id": "features/tax#income-and-gains",
@@ -1252,21 +1256,28 @@ export const MELD_DOC_SECTIONS: readonly MeldDocSection[] = [
     "doc": "features/tax",
     "docTitle": "Tax",
     "heading": "Tax inputs",
-    "content": "**Tax inputs** (per year, in `tax_settings`) cover what Meld can't see:\n\n- self-employment profit\n- other income\n- withholding and estimated payments\n- property tax and other itemized deductions\n- HSA coverage\n- whether you have a workplace plan\n- a flat state rate for states without tables"
+    "content": "**Tax inputs** (per year, in `tax_settings`) cover what Meld can't see:\n\n- self-employment profit\n- other income\n- withholding and estimated payments\n- property tax and other itemized deductions\n- HSA coverage\n- whether you have a workplace plan\n- a custom state & local rate (%) override (for example, to include NYC, county, or municipal income taxes on top of your state rate)"
   },
   {
     "id": "features/tax#tables",
     "doc": "features/tax",
     "docTitle": "Tax",
     "heading": "Tables",
-    "content": "- Federal brackets, deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs. The 2025 figures include the One Big Beautiful Bill changes.\n- California uses FTB's 2025 schedules (2026's aren't out yet), adding back HSA money and taxing gains as ordinary income.\n- States without an income tax owe nothing.\n- Tables live in `packages/shared/src/tax-tables.ts`; add a year there when the IRS and FTB publish it."
+    "content": "- **Federal:** Brackets, standard deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs (2025 figures include One Big Beautiful Bill changes).\n- **All 50 US states + DC (2025 & 2026):** 9 no-income-tax states, 15 flat-rate states, and 27 progressive jurisdictions (26 states + DC), with state standard deductions, personal/dependent exemptions or credits, CA and NJ HSA add-backs, and CA/MA high-earner surtaxes.\n- Tables live in `packages/shared/src/tax-tables.ts`; add future years there when published."
   },
   {
-    "id": "features/tax#suggestions",
+    "id": "features/tax#whats-not-covered",
     "doc": "features/tax",
     "docTitle": "Tax",
-    "heading": "Suggestions",
-    "content": "**Suggestions** are fixed rules, each with the estimated tax saved this year. They cover:\n\n- tax-loss harvesting, with wash-sale warnings for purchases or RSU vests within 30 days in any account\n- RSU supplemental withholding gaps and $0 cost-basis checks on vested RSU holdings\n- gain harvesting at 0%\n- 401(k), HSA and IRA room\n- a backdoor Roth, with a pro-rata warning when pre-tax IRAs have money in them\n- a SEP IRA or solo 401(k) for self-employment income\n- Roth conversion room in low brackets\n- an underpayment warning\n\nTap one to ask Ask Meld about it."
+    "heading": "What's not covered",
+    "content": "Treat Meld's figures as rough estimates rather than tax advice. Meld does **not** model complex tax situations, including:\n\n- **Pass-through & business filings:** K-1s (partnerships, S-corps, trusts), Schedule C business expenses, QBI (§199A), and rental depreciation or passive loss rules.\n- **Complex investments & equity:** REIT §199A or return-of-capital splits, AMT, ISOs / ESPP dispositions, prior-year capital loss carryforwards, and specific broker tax lots.\n- **Local & specialized state rules:** City and county income taxes (NYC, Maryland counties, PA/OH/IN locals—use **Custom state & local rate (%)** to approximate them), multi-state returns, state-specific credits/deductions, and Washington's capital gains tax.\n- **Non-US tax systems:** US federal and state income taxes only.\n\nIf any of these apply to your return, use dedicated tax software or a CPA."
+  },
+  {
+    "id": "features/tax#common-planning-checks",
+    "doc": "features/tax",
+    "docTitle": "Tax",
+    "heading": "Common planning checks",
+    "content": "**Common planning checks** are simple rules for common W-2 and investment situations, each with an approximate tax impact—not personalized tax advice. They cover:\n\n- tax-loss harvesting, with wash-sale warnings for purchases or RSU vests within 30 days in any account\n- RSU supplemental withholding gaps and $0 cost-basis checks on vested RSU holdings\n- gain harvesting at 0%\n- 401(k), HSA and IRA room\n- a backdoor Roth, with a pro-rata warning when pre-tax IRAs have money in them\n- a SEP IRA or solo 401(k) for self-employment income\n- Roth conversion room in low brackets\n- an underpayment warning\n\nTap one to ask Ask Meld about it."
   },
   {
     "id": "features/insurance#overview",

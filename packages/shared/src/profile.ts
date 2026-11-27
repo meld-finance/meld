@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { US_STATE_CODES } from './tax-tables';
 
 export const FilingStatus = z.enum([
   'single',
@@ -47,7 +48,7 @@ export const UserProfile = z.object({
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z]{2}$/, 'Use a two-letter state code')
+    .refine((v) => US_STATE_CODES.has(v), 'Use a valid two-letter US state code')
     .nullable(),
   dependents: z.number().int().min(0).max(20).nullable(),
   children: z.array(Child).max(20),

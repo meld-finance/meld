@@ -133,7 +133,7 @@
     "group": "Using Meld",
     "heading": "What the free plan covers",
     "url": "plaid/#what-the-free-plan-covers",
-    "text": "New Plaid teams in the US and Canada get the free Trial plan with real data: Up to 10 connections (Plaid calls them \"Items\"). One connection is one login at one institution, however many accounts sit behind it; a bank login with checking, savings and a card is one. Removing a connection doesn't give the slot back, so don't link and unlink to experiment. Look around with demo data instead. It includes the products Meld uses: Transactions, Investments and Liabilities. Banks that sign you in on their own site (OAuth), such as Chase, Bank of America and Wells Fargo, work on the Trial plan. Some brokerages, Schwab for example, can take a few business days to switch on after you get production access. If Plaid asks about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself. Real data goes into its own database (meld), separate from demo data (meld_demo) and Plaid's Sandbox (meld_sandbox), so switching back and forth never mixes them. Open Account menu → Demo mode… or Settings → Demo mode anytime to switch to the demo household (with the guided tour or as a sandbox) without restarting Meld; click Back to my accounts in the top demo bar to return. Read Plaid's terms yourself. When you hold Plaid keys you're Plaid's customer, and their developer policy and terms apply to you. Decide for yourself whether your use fits them."
+    "text": "New Plaid teams in the US and Canada get the free Trial plan with real data (note that Meld itself is built for US households—it defaults to US institutions, USD, and US tax and retirement rules, so it won't work well outside the US): Up to 10 connections (Plaid calls them \"Items\"). One connection is one login at one institution, however many accounts sit behind it; a bank login with checking, savings and a card is one. Removing a connection doesn't give the slot back, so don't link and unlink to experiment. Look around with demo data instead. It includes the products Meld uses: Transactions, Investments and Liabilities. Banks that sign you in on their own site (OAuth), such as Chase, Bank of America and Wells Fargo, work on the Trial plan. Some brokerages, Schwab for example, can take a few business days to switch on after you get production access. If Plaid asks about your use case, describe it honestly: you're connecting your own accounts to a personal finance app you run yourself. Real data goes into its own database (meld), separate from demo data (meld_demo) and Plaid's Sandbox (meld_sandbox), so switching back and forth never mixes them. Open Account menu → Demo mode… or Settings → Demo mode anytime to switch to the demo household (with the guided tour or as a sandbox) without restarting Meld; click Back to my accounts in the top demo bar to return. Read Plaid's terms yourself. When you hold Plaid keys you're Plaid's customer, and their developer policy and terms apply to you. Decide for yourself whether your use fits them."
   },
   {
     "isPage": false,
@@ -293,7 +293,7 @@
     "group": "Features & Guide",
     "heading": "Guides",
     "url": "features/#guides",
-    "text": "Guide What it's for Demo data & tour Look around with the Rivera household and the product tour Linking accounts Connect banks with Plaid, sync, reconnect, Sandbox Home, spending & budgets Net worth, cash flow, categories, rules, budgets Recurring, autopay & alerts Subscriptions, bills, autopay coverage, ntfy push Cash & emergency fund Liquid cash, APYs, runway, idle-cash nudges Investments & loans Holdings, performance, exposure, RSU equity, loan payoff Retirement Today's-dollar projections, Social Security, gap Tax Federal/state estimates, harvests, contribution room Insurance Life and disability policies, PDF upload Estate Beneficiaries, documents, family packet Ask Meld Claude, ChatGPT, Gemini, OpenRouter, or Ollama External agents (MCP) Read-only MCP for Claude Code, Cursor, and others Setup that isn't a product screen: Phone access over Tailscale · Docker self-hosting · Privacy · Security"
+    "text": "Guide What it's for Demo data & tour Look around with the Rivera household and the product tour Linking accounts Connect banks with Plaid, sync, reconnect, Sandbox Home, spending & budgets Net worth, cash flow, categories, rules, budgets Recurring, autopay & alerts Subscriptions, bills, autopay coverage, ntfy push Cash & emergency fund Liquid cash, APYs, runway, idle-cash nudges Investments & loans Holdings, performance, exposure, RSU equity, loan payoff Retirement Today's-dollar projections, Social Security, gap Tax Simple US federal & state estimates (all 50 states + DC), common checks, deadlines Insurance Life and disability policies, PDF upload Estate Beneficiaries, documents, family packet Ask Meld Claude, ChatGPT, Gemini, OpenRouter, or Ollama External agents (MCP) Read-only MCP for Claude Code, Cursor, and others Setup that isn't a product screen: Phone access over Tailscale · Docker self-hosting · Privacy · Security"
   },
   {
     "isPage": true,
@@ -685,7 +685,7 @@
     "group": "Features & Guide",
     "heading": "Where to find it",
     "url": "features/tax/#where-to-find-it",
-    "text": "Plan → Tax Household income and filing status under Plan → Profile Per-year overrides in tax settings on the Tax page"
+    "text": "Plan → Tax Household income, filing status, and optional US state under Plan → Profile Per-year overrides in Tax inputs on the Tax page"
   },
   {
     "isPage": false,
@@ -693,7 +693,7 @@
     "group": "Features & Guide",
     "heading": "The estimate",
     "url": "features/tax/#the-estimate",
-    "text": "Plan → Tax estimates this year's (or last year's) federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It's an estimate, not a return."
+    "text": "Plan → Tax gives a simple ballpark estimate of this year's (or last year's) US federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It is built for straightforward US W-2 and investment situations—it's a simple estimate, not tax advice and not a return. If you set your US state under Plan → Profile, Meld estimates state tax for all 50 states and DC using built-in 2025/2026 state rules (no-income-tax states, flat-rate states, or progressive brackets). State is optional; leave it unset for federal only."
   },
   {
     "isPage": false,
@@ -709,7 +709,7 @@
     "group": "Features & Guide",
     "heading": "Tax inputs",
     "url": "features/tax/#tax-inputs",
-    "text": "Tax inputs (per year, in tax_settings) cover what Meld can't see: self-employment profit other income withholding and estimated payments property tax and other itemized deductions HSA coverage whether you have a workplace plan a flat state rate for states without tables"
+    "text": "Tax inputs (per year, in tax_settings) cover what Meld can't see: self-employment profit other income withholding and estimated payments property tax and other itemized deductions HSA coverage whether you have a workplace plan a custom state & local rate (%) override (for example, to include NYC, county, or municipal income taxes on top of your state rate)"
   },
   {
     "isPage": false,
@@ -717,15 +717,23 @@
     "group": "Features & Guide",
     "heading": "Tables",
     "url": "features/tax/#tables",
-    "text": "Federal brackets, deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs. The 2025 figures include the One Big Beautiful Bill changes. California uses FTB's 2025 schedules (2026's aren't out yet), adding back HSA money and taxing gains as ordinary income. States without an income tax owe nothing. Tables live in packages/shared/src/tax-tables.ts; add a year there when the IRS and FTB publish it."
+    "text": "Federal: Brackets, standard deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs (2025 figures include One Big Beautiful Bill changes). All 50 US states + DC (2025 & 2026): 9 no-income-tax states, 15 flat-rate states, and 27 progressive jurisdictions (26 states + DC), with state standard deductions, personal/dependent exemptions or credits, CA and NJ HSA add-backs, and CA/MA high-earner surtaxes. Tables live in packages/shared/src/tax-tables.ts; add future years there when published."
   },
   {
     "isPage": false,
     "pageTitle": "Tax",
     "group": "Features & Guide",
-    "heading": "Suggestions",
-    "url": "features/tax/#suggestions",
-    "text": "Suggestions are fixed rules, each with the estimated tax saved this year. They cover: tax-loss harvesting, with wash-sale warnings for purchases or RSU vests within 30 days in any account RSU supplemental withholding gaps and $0 cost-basis checks on vested RSU holdings gain harvesting at 0% 401(k), HSA and IRA room a backdoor Roth, with a pro-rata warning when pre-tax IRAs have money in them a SEP IRA or solo 401(k) for self-employment income Roth conversion room in low brackets an underpayment warning Tap one to ask Ask Meld about it."
+    "heading": "What's not covered",
+    "url": "features/tax/#whats-not-covered",
+    "text": "Treat Meld's figures as rough estimates rather than tax advice. Meld does not model complex tax situations, including: Pass-through & business filings: K-1s (partnerships, S-corps, trusts), Schedule C business expenses, QBI (§199A), and rental depreciation or passive loss rules. Complex investments & equity: REIT §199A or return-of-capital splits, AMT, ISOs / ESPP dispositions, prior-year capital loss carryforwards, and specific broker tax lots. Local & specialized state rules: City and county income taxes (NYC, Maryland counties, PA/OH/IN locals—use Custom state & local rate (%) to approximate them), multi-state returns, state-specific credits/deductions, and Washington's capital gains tax. Non-US tax systems: US federal and state income taxes only. If any of these apply to your return, use dedicated tax software or a CPA."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Tax",
+    "group": "Features & Guide",
+    "heading": "Common planning checks",
+    "url": "features/tax/#common-planning-checks",
+    "text": "Common planning checks are simple rules for common W-2 and investment situations, each with an approximate tax impact—not personalized tax advice. They cover: tax-loss harvesting, with wash-sale warnings for purchases or RSU vests within 30 days in any account RSU supplemental withholding gaps and $0 cost-basis checks on vested RSU holdings gain harvesting at 0% 401(k), HSA and IRA room a backdoor Roth, with a pro-rata warning when pre-tax IRAs have money in them a SEP IRA or solo 401(k) for self-employment income Roth conversion room in low brackets an underpayment warning Tap one to ask Ask Meld about it."
   },
   {
     "isPage": true,

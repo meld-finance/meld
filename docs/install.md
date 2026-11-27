@@ -2,7 +2,7 @@
 
 # Install Meld
 
-Meld is a desktop app for macOS and Windows. It bundles everything it needs (its own Postgres database, the API and the web app), so there's nothing else to install and no command line. You'll want a free [Plaid developer account](plaid.md) to connect banks; you can create it while Meld is open.
+Meld is a desktop app for macOS and Windows. It bundles everything it needs (its own Postgres database, the API and the web app), so there's nothing else to install and no command line. You'll want a free [Plaid developer account](plaid.md) to connect banks; you can create it while Meld is open. Meld is built for US households (US dollars, US banks via Plaid, and US tax and retirement rules) and won't work well outside the US.
 
 ## Mac
 

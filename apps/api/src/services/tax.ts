@@ -2,6 +2,8 @@ import {
   EMPTY_TAX_SETTINGS,
   federalTables,
   householdGrossIncome,
+  stateName,
+  stateTables,
   taxTreatment,
   TaxSettings,
   type HarvestCandidate,
@@ -450,8 +452,22 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
   const notes: string[] = [];
   if (fed.year !== year) notes.push(`Federal figures use ${fed.year} brackets and limits; Meld doesn't have ${year}'s yet.`);
   if (base.state?.tablesYear) notes.push(`${base.state.state} figures use ${base.state.tablesYear} brackets; ${year}'s haven't been published.`);
-  if (!profile.state) notes.push('Add your state to your profile to include state tax.');
-  else if (!base.state) notes.push(`Meld has no tables for ${profile.state}; enter an effective state rate in Tax inputs to include it.`);
+  if (!profile.state) notes.push('Add your US state in Plan → Profile to include state income tax.');
+  else if (!base.state) notes.push(`Meld has no tables for ${profile.state}; enter a custom state rate in Tax inputs to include it.`);
+  else if (settings.stateFlatRate === null) {
+    if (profile.state === 'WA') {
+      notes.push(
+        'Washington has no tax on wages, though long-term capital gains above $290,000 ($278,000 in 2025) face a 7%–9.9% state capital gains tax (not modeled here).',
+      );
+    } else if (stateTables(profile.state, year)?.localTaxNote) {
+      notes.push(
+        'State estimate excludes local or city income taxes (such as NYC, county, or municipal taxes). Enter a custom combined rate in Tax inputs if they apply to you.',
+      );
+    }
+    if (stateTables(profile.state, year)?.hsaTaxable && inputs.hsa > 0) {
+      notes.push(`${stateName(profile.state) ?? profile.state} does not deduct HSA contributions, so they are added back to state taxable income.`);
+    }
+  }
   if (rsuTotal > 0) {
     notes.push(
       settings.profileIncludesRsus

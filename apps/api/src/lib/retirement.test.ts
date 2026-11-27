@@ -618,8 +618,11 @@ describe('partner Social Security & after-tax bridge estimate', () => {
   it('estimates after-tax bridge income by filing status and state', () => {
     expect(estimateAfterTaxIncome(0, 'married_joint', 'CA')).toBe(0);
     const tx = estimateAfterTaxIncome(120_000, 'married_joint', 'TX');
+    const pa = estimateAfterTaxIncome(120_000, 'married_joint', 'PA');
     const ny = estimateAfterTaxIncome(120_000, 'married_joint', 'NY');
     const ca = estimateAfterTaxIncome(120_000, 'married_joint', 'CA');
+    expect(tx).toBeGreaterThan(pa);
+    expect(pa).toBeGreaterThan(ny);
     expect(tx).toBeGreaterThan(ca);
     expect(tx).toBeGreaterThan(ny);
     expect(ca).toBeGreaterThan(70_000);

@@ -4,6 +4,8 @@
 
 Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer: there's no Meld server and no account to create, and your data stays in a database on your machine.
 
+> **Built for the US.** Meld is designed for US households (USD, US bank connections through Plaid, 401(k)/IRA/HSA accounts, Social Security, and US federal & state taxes) and won't work well outside the US.
+
 Download for Mac: [Apple silicon](https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg) or [Intel](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg) · [Windows (preview)](https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe) · [Website](https://meld-finance.github.io/meld/) · [Docs](https://meld-finance.github.io/meld/docs/) · [Install](docs/install.md) · [Features](docs/features.md) · [Phone access](docs/phone-access.md) · [Docker](docs/docker.md) · [Privacy](PRIVACY.md) · [Security](SECURITY.md)
 
 ![Meld's Home screen: Ask Meld bar, net worth chart, cash and spending vitals, prioritized to-dos and upcoming bills](site/images/home.png)
@@ -19,7 +21,7 @@ Meld started because no single app answered everyday money questions and long-te
 - **AI assistants** (ChatGPT and Claude) can now link bank accounts, but that's one more place to connect everything, and they see only what you link, not your home, policies, tax estimate or retirement plan.
 - **Self-hosted apps** (Actual, Firefly III) are free and keep your data yours, but they're mostly about budgeting, and bank syncing usually means running a server with Docker, paying for SimpleFIN, or doing manual CSV imports.
 
-With Meld you link your accounts once and they sync automatically every few hours—no tedious CSV imports. The same live data answers this week's questions (where the money went, what's recurring, will autopay clear) and the big ones (am I on track, what will I owe, is my estate in order), and Ask Meld sees all of it when you ask for tax or money advice.
+With Meld you link your accounts once and they sync automatically every few hours—no tedious CSV imports. The same live data answers this week's questions (where the money went, what's recurring, will autopay clear) and the big ones (am I on track, what will I owe, is my estate in order), and Ask Meld sees all of it when you ask about your money, spending, or tax estimates.
 
 ## What it does
 
@@ -30,7 +32,7 @@ With Meld you link your accounts once and they sync automatically every few hour
 - **Investments across all your accounts.** See your overall asset allocation across multiple brokerage and retirement accounts combined, look-through sector/region/bond exposure inside funds, time-weighted returns and dividend income.
 - **Retirement.** A projection in today's dollars with Social Security, property sales, life events, what-if scenarios and 1,000 simulated markets.
 - **Estate & family packet.** Flags missing beneficiaries and documents, keeps trusts/wills/POAs and contacts organized, and exports a PDF family packet (optionally password-protected) listing every account and who to call.
-- **Tax & insurance.** Federal and California tax estimates with a year-end checklist, plus life and disability policy coverage read from PDFs and checked against your family's needs.
+- **Tax & insurance.** Simple federal and state tax estimates (all 50 US states + DC) with a year-end checklist for straightforward W-2 and investment situations, plus life and disability policy coverage read from PDFs and checked against your family's needs.
 - **Ask Meld.** Ask about your own numbers using free local models through Ollama, your ChatGPT Go, Plus, Pro or Business plan (no API key needed), Gemini and other models through OpenRouter, or Claude.
 
 <table>

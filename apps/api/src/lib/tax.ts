@@ -11,9 +11,11 @@
 import {
   bracketAt,
   bracketTax,
-  californiaTables,
+  calculateStateTax,
   federalTables,
   NO_INCOME_TAX_STATES,
+  stateName,
+  stateTables,
   tableStatus,
   type BracketSlice,
   type ChecklistItem,
@@ -96,36 +98,37 @@ function netCapital(st: number, lt: number, lossLimit: number) {
 }
 
 function stateTax(inputs: TaxInputs, federalAgi: number): StateTax | null {
-  const { state, year } = inputs;
-  if (!state) return null;
+  if (!inputs.state) return null;
+  const state = inputs.state.trim().toUpperCase();
+  const { year } = inputs;
   const status = tableStatus(inputs.filingStatus);
-  if (state === 'CA') {
-    const t = californiaTables(year);
-    // California taxes HSA money and has its own (smaller) standard deduction, with no SALT cap to apply.
-    const agi = federalAgi + inputs.hsa;
-    const deduction = Math.max(t.standardDeduction[status], inputs.propertyTax + inputs.otherItemized);
-    const taxable = Math.max(0, agi - deduction);
-    const surcharge = 0.01 * Math.max(0, taxable - t.surchargeFrom);
-    const steps = Math.ceil(Math.max(0, federalAgi - t.creditPhaseOutFrom[status]) / (status === 'married_separate' ? 1_250 : 2_500));
-    const people = status === 'married_joint' ? 2 : 1;
-    const credits =
-      Math.max(0, t.personalCredit[status] - 6 * steps * people) + inputs.dependents * Math.max(0, t.dependentCredit - 6 * steps);
-    return {
-      state,
-      method: 'tables',
-      tablesYear: t.year === year ? null : t.year,
-      taxableIncome: round2(taxable),
-      total: round2(Math.max(0, bracketTax(t.brackets[status], taxable) + surcharge - credits)),
-      bracketRate: bracketAt(t.brackets[status], taxable).rate + (taxable > t.surchargeFrom ? 0.01 : 0),
-    };
+  if (inputs.stateFlatRate !== null) {
+    const rate = inputs.stateFlatRate / 100;
+    const taxable = Math.max(0, federalAgi);
+    return { state, method: 'flat', tablesYear: null, taxableIncome: round2(taxable), total: round2(taxable * rate), bracketRate: rate };
   }
   if (NO_INCOME_TAX_STATES.has(state)) {
     return { state, method: 'none', tablesYear: null, taxableIncome: 0, total: 0, bracketRate: 0 };
   }
-  if (inputs.stateFlatRate === null) return null;
-  const rate = inputs.stateFlatRate / 100;
-  const taxable = Math.max(0, federalAgi);
-  return { state, method: 'flat', tablesYear: null, taxableIncome: round2(taxable), total: round2(taxable * rate), bracketRate: rate };
+  const t = stateTables(state, year);
+  if (!t) return null;
+  const res = calculateStateTax({
+    table: t,
+    year,
+    status,
+    federalAgi,
+    hsa: inputs.hsa,
+    itemizedNonSalt: inputs.propertyTax + inputs.otherItemized,
+    dependents: inputs.dependents,
+  });
+  return {
+    state,
+    method: 'tables',
+    tablesYear: t.year === year ? null : t.year,
+    taxableIncome: round2(res.taxableIncome),
+    total: round2(res.total),
+    bracketRate: res.bracketRate,
+  };
 }
 
 /** Federal and state income tax for a full year. */
@@ -548,11 +551,12 @@ export function buildSuggestions(ctx: SuggestionContext): TaxSuggestion[] {
     const limit = (settings.hsaCoverage === 'family' ? t.limits.hsaFamily : t.limits.hsaSelf) + (age !== null && age >= 55 ? t.limits.hsaCatchUp : 0);
     const room = Math.max(0, limit - inputs.hsa);
     if (room > 100) {
+      const hsaTaxedByState = Boolean(stateTables(inputs.state, inputs.year)?.hsaTaxable);
       out.push({
         id: 'hsa',
         kind: 'save',
         title: `${money(room)} of HSA room left`,
-        detail: `HSA contributions are deductible federally${inputs.state === 'CA' ? ' (California taxes them)' : ''}, grow tax-free and come out tax-free for medical costs. Through payroll they also skip Social Security and Medicare tax. You have until the filing deadline to contribute for ${inputs.year}.`,
+        detail: `HSA contributions are deductible federally${hsaTaxedByState ? ` (${stateName(inputs.state) ?? inputs.state} taxes them)` : ''}, grow tax-free and come out tax-free for medical costs. Through payroll they also skip Social Security and Medicare tax. You have until the filing deadline to contribute for ${inputs.year}.`,
         impact: saved({ hsa: inputs.hsa + room }),
         question: `Should I max out my HSA for ${inputs.year}, and should I invest it rather than spend from it?`,
       });
@@ -809,7 +813,7 @@ export function buildChecklist(ctx: ChecklistContext): ChecklistItem[] {
       due: q4,
       dueLabel: 'Payment due',
       title: owe !== null && owe > 1_000 ? `Cover about ${money(owe)} by the Q4 estimate` : covered ? 'Q4 estimate: on track to be covered' : 'Make the Q4 estimated payment',
-      detail: `The fourth estimated payment for ${year} is due ${shortDate(q4)}, ${year + 1}${inputs.state === 'CA' ? ', for California too' : ''}. ${
+      detail: `The fourth estimated payment for ${year} is due ${shortDate(q4)}, ${year + 1}${base.state && base.state.method !== 'none' ? ', and most states with an income tax use the same date' : ''}. ${
         covered
           ? 'Withholding and payments so far look like enough, so you may be able to skip it; check again once December pay is in.'
           : 'Paying at least 100% of last year’s tax (110% if last year’s AGI was over $150,000) through the year avoids a penalty. Extra withholding from a December paycheck counts as paid evenly through the year, so it also covers short earlier quarters; a Q4 payment only covers Q4.'

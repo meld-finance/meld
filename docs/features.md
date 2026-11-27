@@ -4,7 +4,9 @@
 
 What each part of Meld does and how it works. For installing, see [Install](install.md). Each area below has its own guide with screenshots.
 
-> **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are for planning and education, not professional financial, tax or legal advice.
+> **Built for the US.** Meld is built for US households—US banks through Plaid, US dollars, 401(k)/IRA/HSA accounts, Social Security, and US federal & state taxes—and won't work well outside the US.
+>
+> **Not financial advice.** Meld's estimates and suggestions (tax, retirement, estate, Ask Meld) are simple planning and educational tools, not professional financial, tax or legal advice.
 
 ![Home screen with net worth, Worth your attention, and Coming up](images/features/home.png)
 
@@ -29,7 +31,7 @@ Five tabs:
 | [Cash & emergency fund](features/cash.md) | Liquid cash, APYs, runway, idle-cash nudges |
 | [Investments & loans](features/investments.md) | Holdings, performance, exposure, RSU equity, loan payoff |
 | [Retirement](features/retirement.md) | Today's-dollar projections, Social Security, gap |
-| [Tax](features/tax.md) | Federal/state estimates, harvests, contribution room |
+| [Tax](features/tax.md) | Simple US federal & state estimates (all 50 states + DC), common checks, deadlines |
 | [Insurance](features/insurance.md) | Life and disability policies, PDF upload |
 | [Estate](features/estate.md) | Beneficiaries, documents, family packet |
 | [Ask Meld](features/ask-meld.md) | Claude, ChatGPT, Gemini, OpenRouter, or Ollama |

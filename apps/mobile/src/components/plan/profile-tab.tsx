@@ -1,10 +1,11 @@
-import { Child, FilingStatus, householdGrossIncome, type Partner, type UserProfile } from '@meld/shared';
+import { Child, FilingStatus, householdGrossIncome, US_STATES, type Partner, type UserProfile } from '@meld/shared';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { Chip } from '@/components/chip';
+import { Dropdown } from '@/components/dropdown';
 import { WithTip, type Tip } from '@/components/info-tip';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -19,6 +20,8 @@ const FILING_LABELS: Record<FilingStatus, string> = {
   head_of_household: 'Head of household',
   qualifying_widow: 'Qualifying surviving spouse',
 };
+
+const STATE_OPTIONS = [{ value: '', label: 'Not set' }, ...US_STATES.map((s) => ({ value: s.code, label: `${s.name} (${s.code})` }))];
 
 /** About you, taxes, benefits and goals: the inputs Ask Meld and future planning tools use. */
 export function ProfileTab() {
@@ -57,7 +60,7 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
   const [displayName, setDisplayName] = useState(str(initial.displayName));
   const [birthYear, setBirthYear] = useState(str(initial.birthYear));
   const [filingStatus, setFilingStatus] = useState(initial.filingStatus);
-  const [state, setState] = useState(str(initial.state));
+  const [state, setState] = useState(initial.state?.toUpperCase() ?? '');
   const [dependents, setDependents] = useState(str(initial.dependents));
   const [income, setIncome] = useState(str(initial.annualGrossIncome));
   const [hasPartner, setHasPartner] = useState(initial.partner !== null);
@@ -88,7 +91,6 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
     annualGrossIncome: !validMoney(numbers.annualGrossIncome),
     partnerBirthYear: hasPartner && !validYear(numbers.partnerBirthYear),
     partnerIncome: hasPartner && !validMoney(numbers.partnerIncome),
-    state: !!state.trim() && !/^[A-Za-z]{2}$/.test(state.trim()),
   };
   const draftChildren = children.map((c) => ({ id: c.id, name: text(c.name), birthYear: thisYear - (int(c.age) ?? NaN) }));
   const invalidChildren = draftChildren.map((c) => !Child.safeParse(c).success || c.birthYear > thisYear);
@@ -237,7 +239,9 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
         </View>
       </Card>
 
-      <Card title="Taxes">
+      <Card
+        title="Taxes"
+        subtitle="US federal and state taxes only. State is optional and used for state tax estimates, RSU withholding, retirement bridge pay, and estate checks.">
         <Field label="Filing status">
           <View style={styles.chips}>
             {FilingStatus.options.map((f) => (
@@ -246,8 +250,15 @@ function ProfileForm({ initial }: { initial: UserProfile }) {
           </View>
         </Field>
         <Row>
-          <Field label="State" invalid={invalid.state}>
-            <Input value={state} onChangeText={setState} placeholder="e.g. CA" autoCapitalize="characters" maxLength={2} />
+          <Field label="US state">
+            <Dropdown
+              options={STATE_OPTIONS}
+              value={state}
+              onChange={setState}
+              accessibilityLabel="US state"
+              searchable
+              searchPlaceholder="Search state…"
+            />
           </Field>
           <Field label="Dependents" invalid={invalid.dependents}>
             <Input value={dependents} onChangeText={setDependents} placeholder="0" keyboardType="number-pad" inputMode="numeric" />

@@ -28,7 +28,7 @@ export const TaxSettings = z.object({
   propertyTax: amount,
   /** Mortgage interest, charity and other itemized deductions, apart from state and local taxes. */
   otherItemized: amount,
-  /** Effective state rate, in percent, for states Meld has no tables for. */
+  /** Optional custom effective state and local tax rate (%), overriding Meld's built-in state tables (for example, to include NYC or local municipal taxes). */
   stateFlatRate: z.number().min(0).max(20).nullable(),
   /** Realized gains from your broker's statements, in place of Meld's estimate. */
   realizedGainsOverride: z.object({ shortTerm: z.number(), longTerm: z.number() }).nullable(),
@@ -103,7 +103,7 @@ export type FederalTax = z.infer<typeof FederalTax>;
 
 export const StateTax = z.object({
   state: z.string(),
-  /** 'tables': Meld's bracket tables; 'flat': your effective rate; 'none': the state has no income tax. */
+  /** 'tables': Meld's built-in state brackets; 'flat': your custom state/local rate override; 'none': no broad state income tax. */
   method: z.enum(['tables', 'flat', 'none']),
   /** The year of the tables used, when they're not the tax year's. */
   tablesYear: z.number().nullable(),

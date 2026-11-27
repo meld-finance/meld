@@ -32,7 +32,7 @@ export default function PlanScreen() {
     <Screen wide refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
       <TabbedHeader
         title="Plan"
-        description="Plan for retirement, keep taxes down, make sure your family is covered, and leave things in order."
+        description="Plan for retirement, estimate taxes, make sure your family is covered, and leave things in order."
         options={[...TABS]}
         value={tab}
         onChange={setTab}

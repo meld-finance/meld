@@ -1,5 +1,5 @@
 import type { HarvestCandidate, TaxPlan } from '@meld/shared';
-import { EMPTY_TAX_SETTINGS } from '@meld/shared';
+import { EMPTY_TAX_SETTINGS, NO_INCOME_TAX_STATES, US_STATES, UserProfile } from '@meld/shared';
 import { describe, expect, it } from 'vitest';
 import {
   buildChecklist,
@@ -95,17 +95,21 @@ describe('estimateTax', () => {
     expect(estimateTax(inputs({ filingStatus: 'married_joint', grossIncome: 410_000, childrenUnder17: 2 })).federal.childTaxCredit).toBe(3_900);
   });
 
-  it('uses California tables, with the HSA added back and exemption credits', () => {
-    // FTB's worked example: $125,000 taxable on Schedule Y is $4,768.10, less the $307 joint credit.
-    const e = estimateTax(inputs({ filingStatus: 'married_joint', state: 'CA', grossIncome: 136_412, hsa: 5_000 }));
-    expect(e.state).toMatchObject({ state: 'CA', method: 'tables', tablesYear: 2025, taxableIncome: 125_000, total: 4_461.1, bracketRate: 0.08 });
-    expect(e.total).toBeCloseTo(e.federal.total + 4_461.1, 2);
+  it('uses California 2025 and 2026 tables, with HSA added back and exemption credits', () => {
+    // FTB's 2025 worked example: $125,000 taxable on Schedule Y is $4,768.10, less the $307 joint credit.
+    const e25 = estimateTax(inputs({ year: 2025, filingStatus: 'married_joint', state: 'CA', grossIncome: 136_412, hsa: 5_000 }));
+    expect(e25.state).toMatchObject({ state: 'CA', method: 'tables', tablesYear: null, taxableIncome: 125_000, total: 4_461.1, bracketRate: 0.08 });
+    expect(e25.total).toBeCloseTo(e25.federal.total + 4_461.1, 2);
+
+    // 2026 indexed MFJ standard deduction ($11,800) and personal credit ($316).
+    const e26 = estimateTax(inputs({ year: 2026, filingStatus: 'married_joint', state: 'CA', grossIncome: 136_800, hsa: 5_000 }));
+    expect(e26.state).toMatchObject({ state: 'CA', method: 'tables', tablesYear: null, taxableIncome: 125_000, total: 4_274.24, bracketRate: 0.08 });
   });
 
   it('adds California’s 1% surcharge over $1M', () => {
-    const lower = estimateTax(inputs({ state: 'CA', grossIncome: 1_005_706 }));
+    const lower = estimateTax(inputs({ year: 2025, state: 'CA', grossIncome: 1_005_706 }));
     expect(lower.state!.taxableIncome).toBe(1_000_000);
-    const higher = estimateTax(inputs({ state: 'CA', grossIncome: 1_105_706 }));
+    const higher = estimateTax(inputs({ year: 2025, state: 'CA', grossIncome: 1_105_706 }));
     expect(higher.state!.total - lower.state!.total).toBeCloseTo(100_000 * (0.123 + 0.01), 2);
     expect(higher.state!.bracketRate).toBeCloseTo(0.133);
   });
@@ -116,10 +120,87 @@ describe('estimateTax', () => {
     expect(e.federal.deduction).toBe(40_400 + 10_000);
   });
 
-  it('uses a flat rate for other states, and nothing where there is no income tax', () => {
-    expect(estimateTax(inputs({ state: 'NY', stateFlatRate: 5, grossIncome: 100_000 })).state).toMatchObject({ method: 'flat', total: 5_000 });
+  it('covers all 50 US states and DC for 2025 and 2026', () => {
+    expect(US_STATES).toHaveLength(51);
+    for (const year of [2025, 2026]) {
+      for (const { code } of US_STATES) {
+        const res = estimateTax(inputs({ year, state: code, filingStatus: 'married_joint', grossIncome: 150_000, dependents: 1 }));
+        expect(res.state).not.toBeNull();
+        expect(res.state!.state).toBe(code);
+        expect(res.state!.tablesYear).toBeNull();
+        if (NO_INCOME_TAX_STATES.has(code)) {
+          expect(res.state!.method).toBe('none');
+          expect(res.state!.total).toBe(0);
+        } else {
+          expect(res.state!.method).toBe('tables');
+          expect(res.state!.total).toBeGreaterThan(0);
+          expect(res.state!.bracketRate).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it('models progressive, flat, HSA-nonconforming, and surcharge states accurately', () => {
+    // NY 2025 -> 2026 middle-class rate reduction.
+    const ny25 = estimateTax(inputs({ year: 2025, state: 'NY', grossIncome: 100_000 })).state!;
+    const ny26 = estimateTax(inputs({ year: 2026, state: 'NY', grossIncome: 100_000 })).state!;
+    expect(ny25.method).toBe('tables');
+    expect(ny26.total).toBeLessThan(ny25.total);
+
+    // NJ adds HSA back to state AGI and uses personal exemptions.
+    const njNoHsa = estimateTax(inputs({ state: 'NJ', grossIncome: 100_000, hsa: 0 })).state!;
+    const njWithHsa = estimateTax(inputs({ state: 'NJ', grossIncome: 100_000, hsa: 4_000 })).state!;
+    expect(njWithHsa.taxableIncome).toBe(njNoHsa.taxableIncome);
+    expect(njWithHsa.total).toBe(njNoHsa.total);
+
+    // MA 5% base + 4% surtax above $1,107,750 in 2026.
+    const maHigh = estimateTax(inputs({ year: 2026, state: 'MA', grossIncome: 1_212_150 })).state!;
+    expect(maHigh.taxableIncome).toBe(1_207_750);
+    expect(maHigh.bracketRate).toBeCloseTo(0.09);
+    expect(maHigh.total).toBeCloseTo(1_207_750 * 0.05 + 100_000 * 0.04, 2);
+
+    // Flat states: IL, PA, CO, UT, NC (2025 -> 2026 cut), OH (2025 -> 2026 2.75% flat above $26,050).
+    expect(estimateTax(inputs({ state: 'PA', grossIncome: 100_000 })).state).toMatchObject({ method: 'tables', taxableIncome: 100_000, total: 3_070 });
+    expect(estimateTax(inputs({ state: 'IL', grossIncome: 100_000 })).state).toMatchObject({ method: 'tables', taxableIncome: 97_075 });
+    expect(estimateTax(inputs({ state: 'CO', grossIncome: 100_000 })).state).toMatchObject({ method: 'tables', taxableIncome: 83_900 });
+    expect(estimateTax(inputs({ state: 'UT', grossIncome: 50_000 })).state!.total).toBeLessThan(2_250);
+    expect(estimateTax(inputs({ state: 'UT', grossIncome: 100_000 })).state!.total).toBe(4_500);
+    expect(estimateTax(inputs({ year: 2026, state: 'NC', grossIncome: 100_000 })).state!.total).toBeLessThan(
+      estimateTax(inputs({ year: 2025, state: 'NC', grossIncome: 100_000 })).state!.total,
+    );
+    expect(estimateTax(inputs({ year: 2026, state: 'OH', grossIncome: 200_000 })).state!.bracketRate).toBeCloseTo(0.0275);
+    expect(estimateTax(inputs({ year: 2025, state: 'OH', grossIncome: 200_000 })).state!.bracketRate).toBeCloseTo(0.03125);
+
+    // Representative progressive states: OR, MN, VA, DC.
+    for (const st of ['OR', 'MN', 'VA', 'DC']) {
+      expect(estimateTax(inputs({ state: st, grossIncome: 120_000 })).state).toMatchObject({ state: st, method: 'tables' });
+    }
+
+    // No-income-tax states and custom rate overrides (e.g. NYC local rate).
     expect(estimateTax(inputs({ state: 'TX', grossIncome: 100_000 })).state).toMatchObject({ method: 'none', total: 0 });
-    expect(estimateTax(inputs({ state: 'NY', grossIncome: 100_000 })).state).toBeNull();
+    expect(estimateTax(inputs({ state: 'WA', grossIncome: 100_000 })).state).toMatchObject({ method: 'none', total: 0 });
+    expect(estimateTax(inputs({ state: 'FL', grossIncome: 100_000 })).state).toMatchObject({ method: 'none', total: 0 });
+    expect(estimateTax(inputs({ state: 'NY', stateFlatRate: 9.5, grossIncome: 100_000 })).state).toMatchObject({ method: 'flat', total: 9_500 });
+    expect(estimateTax(inputs({ state: 'CA', stateFlatRate: 8, grossIncome: 100_000 })).state).toMatchObject({ method: 'flat', total: 8_000 });
+    expect(estimateTax(inputs({ state: null, grossIncome: 100_000 })).state).toBeNull();
+  });
+
+  it('validates US state codes on UserProfile', () => {
+    const baseProfile = {
+      displayName: null,
+      birthYear: null,
+      filingStatus: null,
+      dependents: null,
+      children: [],
+      annualGrossIncome: null,
+      partner: null,
+      occupation: null,
+      employerBenefits: null,
+      goals: null,
+    };
+    expect(UserProfile.parse({ ...baseProfile, state: 'dc' }).state).toBe('DC');
+    expect(UserProfile.safeParse({ ...baseProfile, state: 'ZZ' }).success).toBe(false);
+    expect(UserProfile.safeParse({ ...baseProfile, state: 'California' }).success).toBe(false);
   });
 
   it('finds the combined marginal rate', () => {
@@ -341,6 +422,16 @@ describe('buildSuggestions', () => {
     expect(s.find((x) => x.id === 'rsu-withholding-gap')?.kind).toBe('warning');
     expect(s.find((x) => x.id === 'rsu-cost-basis')?.detail).toContain('ACME');
     expect(s.find((x) => x.id === 'harvest-losses')?.detail).toContain('including an RSU vest');
+  });
+
+  it('notes HSA state taxation only for nonconforming states (CA and NJ)', () => {
+    const withHsa = { settings: { ...EMPTY_TAX_SETTINGS, hsaCoverage: 'self' as const } };
+    const caHsa = suggest(inputs({ state: 'CA', grossIncome: 120_000 }), withHsa).find((x) => x.id === 'hsa');
+    const njHsa = suggest(inputs({ state: 'NJ', grossIncome: 120_000 }), withHsa).find((x) => x.id === 'hsa');
+    const nyHsa = suggest(inputs({ state: 'NY', grossIncome: 120_000 }), withHsa).find((x) => x.id === 'hsa');
+    expect(caHsa?.detail).toContain('California taxes them');
+    expect(njHsa?.detail).toContain('New Jersey taxes them');
+    expect(nyHsa?.detail).not.toContain('taxes them');
   });
 });
 

@@ -54,11 +54,12 @@ describe('generateVestSchedule', () => {
 });
 
 describe('defaultSupplementalStateRate', () => {
-  it('uses CA 10.23%, 0% for no-tax states, and 5% fallback', () => {
+  it('uses state supplemental rates, 0% for no-tax states, and 5% fallback', () => {
     expect(defaultSupplementalStateRate('CA')).toBe(10.23);
     expect(defaultSupplementalStateRate('wa')).toBe(0);
     expect(defaultSupplementalStateRate('TX')).toBe(0);
-    expect(defaultSupplementalStateRate('NY')).toBe(5);
+    expect(defaultSupplementalStateRate('NY')).toBe(11.7);
+    expect(defaultSupplementalStateRate('IL')).toBe(4.95);
     expect(defaultSupplementalStateRate(null)).toBe(0);
   });
 });
