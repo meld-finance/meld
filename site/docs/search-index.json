@@ -643,6 +643,14 @@
     "isPage": false,
     "pageTitle": "Retirement",
     "group": "Features & Guide",
+    "heading": "Ways to adjust your plan",
+    "url": "features/retirement/#ways-to-adjust-your-plan",
+    "text": "Below the chart, Meld shows single-change options toward a goal—either Base (steady expected return) or a Monte Carlo confidence target (80%, 85%, 90%, or 95%) lasting to any Last to age you choose: When you're short of the target: see how much more to save per month, how many extra years to work, how much less to spend per month in retirement, or (when delaying to 70 is enough on its own) claiming Social Security later. When you have room to spare: see how much more you can afford to spend per month, how many years earlier you can retire, how much less you need to save now (down to $0/yr if current savings already cover the goal), and how old your savings still last (Lasts longer). Click Try it on any option to preview it in the chart, KPI tiles, and stress test without saving yet, or Undo to revert that preview."
+  },
+  {
+    "isPage": false,
+    "pageTitle": "Retirement",
+    "group": "Features & Guide",
     "heading": "Social Security",
     "url": "features/retirement/#social-security",
     "text": "Social Security is estimated from your profile's income until you type the monthly amount at full retirement age from your statement (ssa.gov/myaccount). The estimate uses today's benefit formula and wage base, assuming you earn your current pay from 22 until you retire (up to 35 years). With a partner on your profile: Each person's benefit is estimated from their own income and stop-work age (or overridden individually) and claimed at their own claiming age (67 by default). When married and no statement figure is entered for the lower earner, Meld adds a spousal top-up up to half of the higher earner's full benefit (capped at full retirement age, with no delayed credits past FRA on the spousal top-up). Without a partner on your profile: A married estimate takes the lower of one earner plus a spousal benefit and two equal earners. Meld adjusts the benefit for the age you claim: less before full retirement age, 8% a year more on your own benefit after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age."

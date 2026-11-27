@@ -68,6 +68,10 @@ export const TIPS = {
     title: 'On track or short',
     body: 'The difference between what you’re projected to have and what you’ll need. If you’re short, you can save more, retire later, spend less, or claim Social Security later; try changing a number to see the effect.',
   },
+  levers: {
+    title: 'Ways to adjust your plan',
+    body: 'Each option shows a single change that reaches your target on its own—or, if you have room to spare, how far you could stretch while staying on target.\n\nYou can also combine smaller changes across saving, retirement age and spending. Tapping “Try it” previews the change without saving.',
+  },
   lifeEvents: {
     title: 'Life events',
     body: 'Big changes you can see coming: kids leaving home, paying off the mortgage, working part-time in retirement, an inheritance, a new roof. Each one changes your spending, income or saving from a certain age, or adds or takes a one-time sum.\n\nTime them by your age, your partner’s age, or a child’s age from your profile.',

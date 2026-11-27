@@ -909,19 +909,23 @@ function percentiles(values: Float64Array): Percentiles {
   return { p10: p(0.1), p25: p(0.25), p50: p(0.5), p75: p(0.75), p90: p(0.9) };
 }
 
+function makeReturnDrawer(expectedReturn: number, settings: SimulationSettings): () => number {
+  const m = expectedReturn / 100;
+  // Lognormal with mean m and standard deviation s: ln(1+R) ~ N(μ, σ²).
+  const s = settings.volatility / 100;
+  const sigma = Math.sqrt(Math.log(1 + (s / (1 + m)) ** 2));
+  const mu = Math.log(1 + m) - sigma ** 2 / 2;
+  const z = normal(random(settings.seed));
+  return sigma === 0 ? () => m : () => Math.exp(mu + sigma * z()) - 1;
+}
+
 /**
  * Runs the projection many times with a random return each year. Returns are lognormal with an average
  * of `expectedReturn` and a standard deviation of about `volatility`, so a run of bad years early in
  * retirement shows up the way it does in real markets. With no volatility it matches projectRetirement.
  */
 export function simulateRetirement(i: RetirementInputs, settings: SimulationSettings): SimulationResult {
-  const m = i.expectedReturn / 100;
-  // Lognormal with mean m and standard deviation s: ln(1+R) ~ N(μ, σ²).
-  const s = settings.volatility / 100;
-  const sigma = Math.sqrt(Math.log(1 + (s / (1 + m)) ** 2));
-  const mu = Math.log(1 + m) - sigma ** 2 / 2;
-  const z = normal(random(settings.seed));
-  const draw = sigma === 0 ? () => m : () => Math.exp(mu + sigma * z()) - 1;
+  const draw = makeReturnDrawer(i.expectedReturn, settings);
 
   const years = i.lifeExpectancy - i.currentAge + 1;
   const start = Math.max(firstRetireAge(i), i.currentAge);
@@ -972,4 +976,442 @@ export function mortgagePayoffAge(
     if (remainingLoanBalance(balance, interestRatePct, monthlyPayment, years * 12) < 1) return currentAge + years;
   }
   return null;
+}
+
+// --- Levers & cushion tips ---------------------------------------------------
+
+export type RetirementTarget = { kind: 'base' } | { kind: 'confidence'; rate: number };
+
+export type SocialSecurityAmounts = number | { yours: number; partner: number };
+
+export type RetirementLeverContext = {
+  /** Recomputes Social Security when retirement or claiming age changes; falls back to keeping current benefit when omitted. */
+  socialSecurityFor?: (retirementAge: number, socialSecurityAge: number) => SocialSecurityAmounts;
+  simulation?: SimulationSettings;
+};
+
+export type SavingLever = { annualDelta: number; monthlyDelta: number; targetAnnual: number };
+export type RetirementAgeLever = { targetAge: number; yearsDelta: number };
+export type SpendingLever = { annualDelta: number; monthlyDelta: number; targetAnnual: number };
+export type SocialSecurityLever = { targetClaimAge: number; yearsDelta: number; annualBenefitDelta: number };
+export type LongevityLever = { maxAge: number; yearsExtra: number; capped: boolean };
+
+export type RetirementLevers = {
+  target: RetirementTarget;
+  targetAge: number;
+  status: 'short' | 'on_target' | 'ahead';
+  currentSuccessRate: number | null;
+  currentGap: number;
+  currentDepletionAge: number | null;
+  saving: SavingLever | null;
+  retirementAge: RetirementAgeLever | null;
+  spending: SpendingLever | null;
+  socialSecurity: SocialSecurityLever | null;
+  longevity: LongevityLever | null;
+};
+
+const MAX_LEVER_MONTHLY = 1_000_000;
+const MIN_AHEAD_MONTHLY = 25;
+
+/** Resolves annual Social Security benefit for any retirement & claiming age given the plan and profile defaults. */
+export function socialSecurityResolver(
+  plan: Pick<RetirementPlan, 'socialSecurityAnnual'> &
+    Partial<Pick<RetirementPlan, 'partnerSocialSecurityAnnual' | 'partnerRetirementAge' | 'partnerSocialSecurityAge'>>,
+  defaults: Pick<RetirementSummary['defaults'], 'annualIncome' | 'married' | 'birthYear'> &
+    Partial<Pick<RetirementSummary['defaults'], 'yourIncome' | 'partner'>>,
+): (retirementAge: number, socialSecurityAge: number) => SocialSecurityAmounts {
+  return (retirementAge, socialSecurityAge) => {
+    if (defaults.birthYear === null) return 0;
+    const partner = defaults.partner;
+    if (partner && partner.birthYear !== null && partner.currentAge !== null) {
+      const partnerRetireAge =
+        plan.partnerRetirementAge ?? Math.max(RETIREMENT_DEFAULTS.retirementAge, partner.currentAge);
+      const partnerClaimAge = plan.partnerSocialSecurityAge ?? RETIREMENT_DEFAULTS.socialSecurityAge;
+      const couple = resolveCoupleSocialSecurity({
+        married: defaults.married,
+        yourBirthYear: defaults.birthYear,
+        yourIncome: 'yourIncome' in defaults ? (defaults.yourIncome ?? null) : defaults.annualIncome,
+        yourRetireAge: retirementAge,
+        yourOverrideAnnual: plan.socialSecurityAnnual,
+        yourClaimAge: socialSecurityAge,
+        partnerBirthYear: partner.birthYear,
+        partnerIncome: partner.annualIncome,
+        partnerRetireAge,
+        partnerOverrideAnnual: plan.partnerSocialSecurityAnnual ?? null,
+        partnerClaimAge,
+      });
+      return { yours: couple.yours.claimedAnnual, partner: couple.partner.claimedAnnual };
+    }
+    const full = socialSecurityAtFullAge(plan, defaults, retirementAge).annual;
+    return Math.round(full * claimingFactor(defaults.birthYear, socialSecurityAge));
+  };
+}
+
+function applySocialSecurity(c: RetirementInputs, ss: SocialSecurityAmounts): RetirementInputs {
+  if (typeof ss === 'number') return { ...c, socialSecurityAnnual: ss };
+  return {
+    ...c,
+    socialSecurityAnnual: ss.yours,
+    ...(c.partner ? { partner: { ...c.partner, socialSecurityAnnual: ss.partner } } : {}),
+  };
+}
+
+function totalSocialSecurity(ss: SocialSecurityAmounts): number {
+  return typeof ss === 'number' ? ss : ss.yours + ss.partner;
+}
+
+function precomputeReturns(expectedReturn: number, settings: SimulationSettings, steps: number): Float64Array {
+  const draw = makeReturnDrawer(expectedReturn, settings);
+  const returns = new Float64Array(settings.trials * steps);
+  for (let idx = 0; idx < returns.length; idx++) returns[idx] = draw();
+  return returns;
+}
+
+function successRateWithReturns(i: RetirementInputs, returns: Float64Array, trials: number, steps: number): number {
+  let failed = 0;
+  for (let t = 0; t < trials; t++) {
+    let balance = i.startingBalance;
+    const baseIdx = t * steps;
+    let short = false;
+    for (let y = 0; y <= steps; y++) {
+      const age = i.currentAge + y;
+      const lump = lumpsAt(i, age, balance);
+      if (lump.short) {
+        short = true;
+        break;
+      }
+      balance = lump.balance;
+      if (y === steps) break;
+      const step = stepYear(i, age, balance, returns[baseIdx + y]!);
+      if (step.short) {
+        short = true;
+        break;
+      }
+      balance = step.balance;
+    }
+    if (short) failed++;
+  }
+  return 1 - failed / trials;
+}
+
+/** Single-pass survival rate matching `simulateRetirement(...).successRate` RNG offsets without sorting percentiles. */
+function successRateExact(i: RetirementInputs, settings: SimulationSettings): number {
+  const draw = makeReturnDrawer(i.expectedReturn, settings);
+  let failed = 0;
+  for (let t = 0; t < settings.trials; t++) {
+    let balance = i.startingBalance;
+    let short = false;
+    for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
+      const lump = lumpsAt(i, age, balance);
+      if (lump.short) short = true;
+      balance = lump.balance;
+      if (age === i.lifeExpectancy) break;
+      const r = draw();
+      if (!short) {
+        const step = stepYear(i, age, balance, r);
+        if (step.short) short = true;
+        balance = step.balance;
+      }
+    }
+    if (short) failed++;
+  }
+  return 1 - failed / settings.trials;
+}
+
+function solveShortfallSaving(
+  baseInputs: RetirementInputs,
+  baseProj: RetirementProjection,
+  target: RetirementTarget,
+  meets: (c: RetirementInputs) => boolean,
+): SavingLever | null {
+  const baseSaving = baseInputs.annualContribution;
+  const candidate = (m: number): RetirementInputs => ({
+    ...baseInputs,
+    annualContribution: Math.round(baseSaving + m * 12),
+  });
+  let m: number | null = null;
+  if (
+    target.kind === 'base' &&
+    baseProj.extraMonthly !== null &&
+    baseProj.extraMonthly > 0 &&
+    meets(candidate(baseProj.extraMonthly))
+  ) {
+    m = baseProj.extraMonthly;
+  } else {
+    let hi = Math.max(100, Math.ceil((baseInputs.annualSpending || 60_000) / 12));
+    while (hi < MAX_LEVER_MONTHLY && !meets(candidate(hi))) hi = Math.min(MAX_LEVER_MONTHLY, hi * 2);
+    if (!meets(candidate(hi))) return null;
+    let lo = 1;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (meets(candidate(mid))) hi = mid;
+      else lo = mid + 1;
+    }
+    m = lo;
+  }
+  const targetAnnual = Math.round(baseSaving + m * 12);
+  return { annualDelta: targetAnnual - Math.round(baseSaving), monthlyDelta: m, targetAnnual };
+}
+
+function solveShortfallSpending(baseInputs: RetirementInputs, meets: (c: RetirementInputs) => boolean): SpendingLever | null {
+  const baseSpend = baseInputs.annualSpending;
+  if (baseSpend <= 0 || !meets({ ...baseInputs, annualSpending: 0 })) return null;
+  const candidate = (cutMonthly: number): RetirementInputs => ({
+    ...baseInputs,
+    annualSpending: Math.max(0, Math.round(baseSpend - cutMonthly * 12)),
+  });
+  let lo = 1;
+  let hi = Math.ceil(baseSpend / 12);
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (meets(candidate(mid))) hi = mid;
+    else lo = mid + 1;
+  }
+  const targetAnnual = Math.max(0, Math.round(baseSpend - lo * 12));
+  return {
+    annualDelta: targetAnnual - Math.round(baseSpend),
+    monthlyDelta: targetAnnual === 0 ? -Math.ceil(baseSpend / 12) : -lo,
+    targetAnnual,
+  };
+}
+
+function solveAheadSpending(baseInputs: RetirementInputs, meets: (c: RetirementInputs) => boolean): SpendingLever | null {
+  const baseSpend = baseInputs.annualSpending;
+  const candidate = (m: number): RetirementInputs => ({
+    ...baseInputs,
+    annualSpending: m === 0 ? baseSpend : Math.round(baseSpend + m * 12),
+  });
+  let hi = Math.max(100, Math.ceil((baseSpend || 60_000) / 12));
+  while (hi < MAX_LEVER_MONTHLY && meets(candidate(hi))) hi = Math.min(MAX_LEVER_MONTHLY, hi * 2);
+  if (meets(candidate(hi))) return null;
+  let lo = 0;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (meets(candidate(mid))) lo = mid;
+    else hi = mid - 1;
+  }
+  if (lo < MIN_AHEAD_MONTHLY) return null;
+  const targetAnnual = Math.round(baseSpend + lo * 12);
+  return { annualDelta: targetAnnual - Math.round(baseSpend), monthlyDelta: lo, targetAnnual };
+}
+
+function solveAheadSaving(baseInputs: RetirementInputs, meets: (c: RetirementInputs) => boolean): SavingLever | null {
+  const baseSaving = baseInputs.annualContribution;
+  if (baseSaving <= 0) return null;
+  if (baseSaving >= MIN_AHEAD_MONTHLY * 12 && meets({ ...baseInputs, annualContribution: 0 })) {
+    return {
+      annualDelta: -Math.round(baseSaving),
+      monthlyDelta: -Math.round(baseSaving / 12),
+      targetAnnual: 0,
+    };
+  }
+  const candidate = (cutMonthly: number): RetirementInputs => ({
+    ...baseInputs,
+    annualContribution: cutMonthly === 0 ? baseSaving : Math.max(0, Math.round(baseSaving - cutMonthly * 12)),
+  });
+  let lo = 0;
+  let hi = Math.floor(baseSaving / 12);
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (meets(candidate(mid))) lo = mid;
+    else hi = mid - 1;
+  }
+  if (lo < MIN_AHEAD_MONTHLY) return null;
+  const targetAnnual = Math.max(0, Math.round(baseSaving - lo * 12));
+  return { annualDelta: targetAnnual - Math.round(baseSaving), monthlyDelta: -lo, targetAnnual };
+}
+
+function solveLongevity(
+  baseInputs: RetirementInputs,
+  targetAge: number,
+  target: RetirementTarget,
+  simSettings: SimulationSettings,
+): LongevityLever | null {
+  if (targetAge >= 120) return null;
+  let maxAge = targetAge;
+  if (target.kind === 'base') {
+    const p120 = projectRetirement({ ...baseInputs, lifeExpectancy: 120 });
+    if (p120.depletionAge === null && p120.gap <= 0) {
+      maxAge = 120;
+    } else {
+      const candidate = p120.depletionAge ?? 120;
+      const check = projectRetirement({ ...baseInputs, lifeExpectancy: candidate });
+      maxAge = check.depletionAge === null && check.gap <= 0 ? candidate : candidate - 1;
+    }
+    maxAge = Math.max(targetAge, Math.min(120, maxAge));
+  } else {
+    const draw = makeReturnDrawer(baseInputs.expectedReturn, simSettings);
+    const failCounts = new Int32Array(122);
+    for (let t = 0; t < simSettings.trials; t++) {
+      let balance = baseInputs.startingBalance;
+      let failAt = 121;
+      for (let age = baseInputs.currentAge; age <= 120; age++) {
+        const lump = lumpsAt(baseInputs, age, balance);
+        if (lump.short && failAt === 121) failAt = age;
+        balance = lump.balance;
+        if (age === 120) break;
+        const r = draw();
+        const step = stepYear(baseInputs, age, balance, r);
+        if (step.short && failAt === 121) failAt = age + 1;
+        balance = step.balance;
+      }
+      failCounts[failAt]!++;
+    }
+    let cumFailed = 0;
+    for (let a = 0; a < targetAge; a++) cumFailed += failCounts[a]!;
+    let bestAge = targetAge;
+    for (let a = targetAge; a <= 120; a++) {
+      cumFailed += failCounts[a]!;
+      if (1 - cumFailed / simSettings.trials >= target.rate - 1e-9) bestAge = a;
+      else break;
+    }
+    // Varying lifeExpectancy shifts trial RNG offsets; verify against the exact simulation.
+    let verified = bestAge;
+    let passed = verified <= targetAge;
+    for (let checks = 0; checks < 3 && verified > targetAge; checks++) {
+      if (successRateExact({ ...baseInputs, lifeExpectancy: verified }, simSettings) >= target.rate - 1e-9) {
+        passed = true;
+        break;
+      }
+      verified--;
+    }
+    if (!passed && verified > targetAge) {
+      if (successRateExact({ ...baseInputs, lifeExpectancy: verified }, simSettings) < target.rate - 1e-9) {
+        verified = targetAge;
+      }
+    }
+    maxAge = verified;
+  }
+  return maxAge > targetAge ? { maxAge, yearsExtra: maxAge - targetAge, capped: maxAge === 120 } : null;
+}
+
+/**
+ * Solves single-lever adjustments toward a base or Monte Carlo confidence target (if short) or
+ * reveals how much spending, earlier retirement, saving reduction, and longevity the plan can support (if ahead).
+ */
+export function retirementLevers(
+  inputs: RetirementInputs,
+  options?: { target?: RetirementTarget; targetAge?: number; context?: RetirementLeverContext },
+): RetirementLevers {
+  const rawTarget = options?.target ?? { kind: 'confidence', rate: 0.8 };
+  const target: RetirementTarget =
+    rawTarget.kind === 'confidence'
+      ? { kind: 'confidence', rate: Math.min(1, Math.max(0.01, rawTarget.rate)) }
+      : { kind: 'base' };
+  const targetAge = Math.min(
+    120,
+    Math.max(
+      Math.round(options?.targetAge ?? inputs.lifeExpectancy),
+      inputs.retirementAge + 1,
+      inputs.partner ? inputs.partner.retirementAgeInYours + 1 : 0,
+      inputs.currentAge + 1,
+    ),
+  );
+  const baseInputs = targetAge === inputs.lifeExpectancy ? inputs : { ...inputs, lifeExpectancy: targetAge };
+  const simSettings = options?.context?.simulation ?? SIMULATION_DEFAULTS;
+  const ssFor = options?.context?.socialSecurityFor;
+
+  const baseProj = projectRetirement(baseInputs);
+  const baseMeets = (c: RetirementInputs) => {
+    const p = projectRetirement(c);
+    return p.depletionAge === null && p.gap <= 0;
+  };
+
+  let currentSuccessRate: number | null = null;
+  let meets = baseMeets;
+  if (target.kind === 'confidence') {
+    const steps = Math.max(0, targetAge - baseInputs.currentAge);
+    const returns = precomputeReturns(baseInputs.expectedReturn, simSettings, steps);
+    currentSuccessRate = successRateWithReturns(baseInputs, returns, simSettings.trials, steps);
+    const goalRate = target.rate;
+    meets = (c) => successRateWithReturns(c, returns, simSettings.trials, steps) >= goalRate - 1e-9;
+  }
+
+  const withRetireAge = (age: number): RetirementInputs => {
+    const next: RetirementInputs = { ...baseInputs, retirementAge: age };
+    return ssFor ? applySocialSecurity(next, ssFor(age, baseInputs.socialSecurityAge)) : next;
+  };
+  const withClaimAge = (claimAge: number): RetirementInputs => {
+    const next: RetirementInputs = { ...baseInputs, socialSecurityAge: claimAge };
+    return ssFor ? applySocialSecurity(next, ssFor(baseInputs.retirementAge, claimAge)) : next;
+  };
+
+  const retired = baseInputs.retirementAge <= baseInputs.currentAge;
+
+  if (!meets(baseInputs)) {
+    const saving = retired ? null : solveShortfallSaving(baseInputs, baseProj, target, meets);
+    let retirementAge: RetirementAgeLever | null = null;
+    if (!retired) {
+      const maxRetire = Math.min(100, targetAge - 1);
+      for (let age = baseInputs.retirementAge + 1; age <= maxRetire; age++) {
+        if (meets(withRetireAge(age))) {
+          retirementAge = { targetAge: age, yearsDelta: age - baseInputs.retirementAge };
+          break;
+        }
+      }
+    }
+    const spending = solveShortfallSpending(baseInputs, meets);
+    let socialSecurity: SocialSecurityLever | null = null;
+    const currentTotalSs =
+      baseInputs.socialSecurityAnnual + (baseInputs.partner ? baseInputs.partner.socialSecurityAnnual : 0);
+    if (
+      ssFor &&
+      baseInputs.socialSecurityAge < 70 &&
+      totalSocialSecurity(ssFor(baseInputs.retirementAge, 70)) > currentTotalSs
+    ) {
+      for (let claimAge = baseInputs.socialSecurityAge + 1; claimAge <= 70; claimAge++) {
+        const nextTotal = totalSocialSecurity(ssFor(baseInputs.retirementAge, claimAge));
+        if (nextTotal > currentTotalSs && meets(withClaimAge(claimAge))) {
+          socialSecurity = {
+            targetClaimAge: claimAge,
+            yearsDelta: claimAge - baseInputs.socialSecurityAge,
+            annualBenefitDelta: nextTotal - currentTotalSs,
+          };
+          break;
+        }
+      }
+    }
+    return {
+      target,
+      targetAge,
+      status: 'short',
+      currentSuccessRate,
+      currentGap: baseProj.gap,
+      currentDepletionAge: baseProj.depletionAge,
+      saving,
+      retirementAge,
+      spending,
+      socialSecurity,
+      longevity: null,
+    };
+  }
+
+  const spending = solveAheadSpending(baseInputs, meets);
+  let retirementAge: RetirementAgeLever | null = null;
+  if (!retired) {
+    const minRetire = Math.max(18, baseInputs.currentAge);
+    let best: number | null = null;
+    for (let age = baseInputs.retirementAge - 1; age >= minRetire; age--) {
+      if (meets(withRetireAge(age))) best = age;
+      else break;
+    }
+    if (best !== null) retirementAge = { targetAge: best, yearsDelta: best - baseInputs.retirementAge };
+  }
+  const saving = retired ? null : solveAheadSaving(baseInputs, meets);
+  const longevity = solveLongevity(baseInputs, targetAge, target, simSettings);
+  const status = spending || retirementAge || saving || longevity ? 'ahead' : 'on_target';
+
+  return {
+    target,
+    targetAge,
+    status,
+    currentSuccessRate,
+    currentGap: baseProj.gap,
+    currentDepletionAge: baseProj.depletionAge,
+    saving,
+    retirementAge,
+    spending,
+    socialSecurity: null,
+    longevity,
+  };
 }

@@ -55,7 +55,7 @@ export const TOUR: TourStep[] = [
     place: 'Plan → Retirement',
     href: '/plan',
     answer:
-      'Retirement projects your savings, Social Security and spending in today’s dollars, and shows the extra monthly saving that closes any gap. Try a different retirement age.',
+      'Retirement projects your savings, Social Security and spending in today’s dollars, and shows what closes any gap—or how much extra spending or earlier retirement your cushion can support. Try a different retirement age.',
   },
   {
     question: 'Am I missing tax savings?',
