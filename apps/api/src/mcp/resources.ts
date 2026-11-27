@@ -61,7 +61,7 @@ const STATIC_RESOURCES: Record<string, { mimeType: string; text: string }> = {
 - **RSUs & vesting**: Unvested RSUs are excluded from net worth and portfolio totals until vested; use \`get_equity_grants\` for vesting schedules and estimated gross/net values.
 - **Retirement projections**: Amounts and after-inflation returns are in today's dollars.
 - **Privacy & masking**: Runs of 9+ digits are masked to \`••••1234\`. Hidden accounts, full account/policy numbers, estate contact details, and uploaded PDFs are never exposed.
-- **Educational disclaimer**: Meld outputs and estimates are educational, not licensed financial, tax, or legal advice.`,
+- **US scope & educational disclaimer**: Meld is built for US personal finances (USD, US accounts via Plaid, IRS/state tax rules, 401(k)/IRA/HSA, Social Security). Outputs and estimates are educational, not licensed financial, tax, or legal advice.`,
   },
   'meld://docs/retirement': {
     mimeType: 'text/markdown',
@@ -86,7 +86,8 @@ const STATIC_RESOURCES: Record<string, { mimeType: string; text: string }> = {
     mimeType: 'text/markdown',
     text: `# Tax Plan Guide (\`get_tax_plan\`)
 
-- **Estimate only**: Combines profile income/filing status/state, \`tax_settings\` overrides, and synced account activity. Not a filed return.
+- **Simple US estimate only**: Combines profile income/filing status/state (covering federal plus all 50 US states and DC for 2025/2026, or a custom state/local rate override), \`tax_settings\` overrides, and synced account activity for straightforward W-2 and investment situations. Not tax advice and not a return.
+- **Not covered**: K-1s (partnerships, S-corps, trusts), Schedule C business expenses and QBI (§199A), REIT §199A/return-of-capital splits, rental depreciation/passive losses, AMT/ISOs/ESPP dispositions, local/city income taxes (use the custom rate override), multi-state returns, state-specific credits/deductions, Washington's capital gains tax, prior-year loss carryforwards, and non-US tax systems.
 - **\`detected\`**: YTD paychecks, contractor deposits, taxable-account dividends/interest, average-cost realized gains (\`realizedRough: true\` means incomplete history), retirement/HSA contributions, pre-tax IRA balances (relevant for backdoor Roth pro-rata rule), and RSU vest income/withholding gap.
 - **\`harvest\`**: Taxable holdings with unrealized losses; \`recentPurchase\`, \`recentVest\`, and \`upcomingVest\` flag buys or RSU vests within 30 days (wash-sale risk).
 - **\`checklist\`**: Upcoming deadlines (last trading day for harvesting, last paycheck for 401(k), Jan 15 for Q4 estimate, Apr 15 for IRA/HSA/SEP, Dec 31 for charity/FSA/RMD). Pass \`includeDetails: true\` for full bracket slices and explanatory prose.`,

@@ -44,7 +44,7 @@ export function TaxChecklist({ plan, onShowProfile }: { plan: TaxPlan; onShowPro
   return (
     <Card
       title={`${plan.year} year-end checklist`}
-      subtitle="Tax moves that run out, by date. Tick them off as you go. General rules, not tax advice.">
+      subtitle="Common US tax deadlines and planning reminders, by date. Tick them off as you go. Estimates only, not tax advice.">
       <View style={styles.hero}>
         {toYearEnd >= 0 ? (
           <View>

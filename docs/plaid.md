@@ -62,7 +62,7 @@ Then go to **Accounts → Link account**, pick your bank and sign in to it in Pl
 
 ## What the free plan covers
 
-New Plaid teams in the US and Canada get the free **Trial** plan with real data:
+New Plaid teams in the US and Canada get the free **Trial** plan with real data (note that Meld itself is built for US households—it defaults to US institutions, USD, and US tax and retirement rules, so it won't work well outside the US):
 
 - Up to **10 connections** (Plaid calls them "Items"). One connection is one login at one institution, however many accounts sit behind it; a bank login with checking, savings and a card is one.
 - **Removing a connection doesn't give the slot back**, so don't link and unlink to experiment. Look around with demo data instead.

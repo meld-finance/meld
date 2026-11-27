@@ -2,19 +2,21 @@
 
 # Tax
 
-Estimate this year's (or last year's) federal and state income tax, see where you land in the brackets, and get rule-based suggestions for harvests and contribution room.
+Get a simple ballpark estimate of this year's (or last year's) US federal and state income tax across all 50 US states and DC, see where you land in the brackets, and review common year-end planning checks.
 
 ![Tax plan with rates and suggestions](../images/features/tax.png)
 
 ## Where to find it
 
 - **Plan → Tax**
-- Household income and filing status under **Plan → Profile**
-- Per-year overrides in tax settings on the Tax page
+- Household income, filing status, and optional US state under **Plan → Profile**
+- Per-year overrides in **Tax inputs** on the Tax page
 
 ## The estimate
 
-**Plan → Tax** estimates this year's (or last year's) federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It's an estimate, not a return.
+**Plan → Tax** gives a simple ballpark estimate of this year's (or last year's) US federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It is built for straightforward US W-2 and investment situations—it's a simple estimate, not tax advice and not a return.
+
+If you set your US state under **Plan → Profile**, Meld estimates state tax for all 50 states and DC using built-in 2025/2026 state rules (no-income-tax states, flat-rate states, or progressive brackets). State is optional; leave it unset for federal only.
 
 ## Income and gains
 
@@ -32,18 +34,28 @@ Estimate this year's (or last year's) federal and state income tax, see where yo
 - property tax and other itemized deductions
 - HSA coverage
 - whether you have a workplace plan
-- a flat state rate for states without tables
+- a custom state & local rate (%) override (for example, to include NYC, county, or municipal income taxes on top of your state rate)
 
 ## Tables
 
-- Federal brackets, deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs. The 2025 figures include the One Big Beautiful Bill changes.
-- California uses FTB's 2025 schedules (2026's aren't out yet), adding back HSA money and taxing gains as ordinary income.
-- States without an income tax owe nothing.
-- Tables live in `packages/shared/src/tax-tables.ts`; add a year there when the IRS and FTB publish it.
+- **Federal:** Brackets, standard deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs (2025 figures include One Big Beautiful Bill changes).
+- **All 50 US states + DC (2025 & 2026):** 9 no-income-tax states, 15 flat-rate states, and 27 progressive jurisdictions (26 states + DC), with state standard deductions, personal/dependent exemptions or credits, CA and NJ HSA add-backs, and CA/MA high-earner surtaxes.
+- Tables live in `packages/shared/src/tax-tables.ts`; add future years there when published.
 
-## Suggestions
+## What's not covered
 
-**Suggestions** are fixed rules, each with the estimated tax saved this year. They cover:
+Treat Meld's figures as rough estimates rather than tax advice. Meld does **not** model complex tax situations, including:
+
+- **Pass-through & business filings:** K-1s (partnerships, S-corps, trusts), Schedule C business expenses, QBI (§199A), and rental depreciation or passive loss rules.
+- **Complex investments & equity:** REIT §199A or return-of-capital splits, AMT, ISOs / ESPP dispositions, prior-year capital loss carryforwards, and specific broker tax lots.
+- **Local & specialized state rules:** City and county income taxes (NYC, Maryland counties, PA/OH/IN locals—use **Custom state & local rate (%)** to approximate them), multi-state returns, state-specific credits/deductions, and Washington's capital gains tax.
+- **Non-US tax systems:** US federal and state income taxes only.
+
+If any of these apply to your return, use dedicated tax software or a CPA.
+
+## Common planning checks
+
+**Common planning checks** are simple rules for common W-2 and investment situations, each with an approximate tax impact—not personalized tax advice. They cover:
 
 - tax-loss harvesting, with wash-sale warnings for purchases or RSU vests within 30 days in any account
 - RSU supplemental withholding gaps and $0 cost-basis checks on vested RSU holdings

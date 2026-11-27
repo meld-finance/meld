@@ -194,6 +194,8 @@ describe.skipIf(!testDatabaseUrl)('chat routes (Postgres)', () => {
 
     const bad = await app.inject({ method: 'PUT', url: '/profile', headers, payload: { ...profile, state: 'California' } });
     expect(bad.statusCode).toBe(400);
+    const badCode = await app.inject({ method: 'PUT', url: '/profile', headers, payload: { ...profile, state: 'ZZ' } });
+    expect(badCode.statusCode).toBe(400);
     const badPartner = await app.inject({
       method: 'PUT',
       url: '/profile',

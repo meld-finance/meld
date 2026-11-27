@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { NO_INCOME_TAX_STATES } from './tax-tables';
+import { NO_INCOME_TAX_STATES, stateTables } from './tax-tables';
 
 export const EquityGrantKind = z.enum(['rsu']);
 export type EquityGrantKind = z.infer<typeof EquityGrantKind>;
@@ -30,12 +30,64 @@ export type EquityPriceSource = z.infer<typeof EquityPriceSource>;
 export const DEFAULT_FEDERAL_SUPPLEMENTAL_RATE = 22;
 export const MEDICARE_RATE = 1.45;
 
+const SUPPLEMENTAL_STATE_RATES: Record<string, number> = {
+  AL: 5,
+  AR: 3.9,
+  AZ: 2.5,
+  CA: 10.23,
+  CO: 4.4,
+  CT: 6.99,
+  DC: 8.5,
+  DE: 6.6,
+  GA: 4.99,
+  HI: 8.25,
+  IA: 3.8,
+  ID: 5.3,
+  IL: 4.95,
+  IN: 2.95,
+  KS: 5.58,
+  KY: 3.5,
+  LA: 3,
+  MA: 5,
+  MD: 5.75,
+  ME: 7.15,
+  MI: 4.25,
+  MN: 6.25,
+  MO: 4.7,
+  MS: 4,
+  MT: 5.65,
+  NC: 3.99,
+  ND: 2.5,
+  NE: 4.55,
+  NJ: 6.37,
+  NM: 4.9,
+  NY: 11.7,
+  OH: 2.75,
+  OK: 4.5,
+  OR: 8,
+  PA: 3.07,
+  RI: 5.99,
+  SC: 5.21,
+  UT: 4.5,
+  VA: 5.75,
+  VT: 6.6,
+  WI: 5.3,
+  WV: 4.58,
+};
+
 /** Default supplemental state withholding rate (%) used when a grant leaves state withholding blank. */
 export function defaultSupplementalStateRate(state: string | null): number {
   if (!state) return 0;
   const upper = state.trim().toUpperCase();
-  if (upper === 'CA') return 10.23;
   if (NO_INCOME_TAX_STATES.has(upper)) return 0;
+  const known = SUPPLEMENTAL_STATE_RATES[upper];
+  if (known !== undefined) return known;
+  const tbl = stateTables(upper, 2026);
+  if (tbl) {
+    const single = tbl.brackets.single;
+    const rate = single[Math.floor(single.length / 2)]?.rate ?? single.at(-1)?.rate ?? 0.05;
+    return Math.round(rate * 10_000) / 100;
+  }
   return 5;
 }
 

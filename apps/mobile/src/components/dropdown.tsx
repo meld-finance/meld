@@ -1,5 +1,5 @@
 import { useRef, useState, type ComponentRef } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
@@ -19,18 +19,33 @@ type Props<T extends string> = {
   accessibilityLabel: string;
   /** Open the list upward, for a select near the bottom of the screen. */
   openUp?: boolean;
+  /** Show a filter box at the top of the menu for long option lists. */
+  searchable?: boolean;
+  searchPlaceholder?: string;
 };
 
 /** A compact select: the current choice, opening a list of options in a window-level menu. */
-export function Dropdown<T extends string>({ options, value, onChange, accessibilityLabel, openUp }: Props<T>) {
+export function Dropdown<T extends string>({
+  options,
+  value,
+  onChange,
+  accessibilityLabel,
+  openUp,
+  searchable,
+  searchPlaceholder = 'Search…',
+}: Props<T>) {
   const theme = useTheme();
   const window = useWindowDimensions();
   const anchor = useRef<ComponentRef<typeof Pressable>>(null);
   const [at, setAt] = useState<Rect | null>(null);
+  const [query, setQuery] = useState('');
   const open = !!at;
   const current = options.find((o) => o.value === value) ?? options[0];
 
-  const close = () => setAt(null);
+  const close = () => {
+    setAt(null);
+    setQuery('');
+  };
   const toggle = () => {
     if (at) {
       close();
@@ -38,6 +53,12 @@ export function Dropdown<T extends string>({ options, value, onChange, accessibi
     }
     anchor.current?.measureInWindow((x, y, width, height) => setAt({ x, y, width, height }));
   };
+
+  const trimmed = query.trim().toLowerCase();
+  const visibleOptions =
+    searchable && trimmed
+      ? options.filter((o) => o.label.toLowerCase().includes(trimmed) || o.value.toLowerCase().includes(trimmed))
+      : options;
 
   const place = (() => {
     if (!at) return null;
@@ -87,25 +108,45 @@ export function Dropdown<T extends string>({ options, value, onChange, accessibi
         <Pressable style={StyleSheet.absoluteFill} onPress={close} accessibilityLabel="Close menu" />
         {place && (
           <View style={[styles.menu, place, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-            <ScrollView keyboardShouldPersistTaps="handled" bounces={false}>
-              {options.map((o) => (
-                <Pressable
-                  key={o.value}
-                  accessibilityRole="menuitem"
-                  accessibilityState={{ selected: o.value === value }}
-                  onPress={() => {
-                    onChange(o.value);
-                    close();
-                  }}
-                  style={({ hovered }) => [
-                    styles.option,
-                    (hovered || o.value === value) && { backgroundColor: theme.backgroundSelected },
-                  ]}>
-                  <ThemedText type={o.value === value ? 'smallBold' : 'small'}>
-                    {o.label}
-                  </ThemedText>
-                </Pressable>
-              ))}
+            {searchable && (
+              <View style={[styles.searchWrap, { borderBottomColor: theme.border }]}>
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder={searchPlaceholder}
+                  placeholderTextColor={theme.textSecondary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={[styles.searchInput, { color: theme.text, backgroundColor: theme.background }]}
+                  accessibilityLabel={searchPlaceholder}
+                />
+              </View>
+            )}
+            <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled" bounces={false}>
+              {visibleOptions.length === 0 ? (
+                <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
+                  No matches
+                </ThemedText>
+              ) : (
+                visibleOptions.map((o) => (
+                  <Pressable
+                    key={o.value}
+                    accessibilityRole="menuitem"
+                    accessibilityState={{ selected: o.value === value }}
+                    onPress={() => {
+                      onChange(o.value);
+                      close();
+                    }}
+                    style={({ hovered }) => [
+                      styles.option,
+                      (hovered || o.value === value) && { backgroundColor: theme.backgroundSelected },
+                    ]}>
+                    <ThemedText type={o.value === value ? 'smallBold' : 'small'}>
+                      {o.label}
+                    </ThemedText>
+                  </Pressable>
+                ))
+              )}
             </ScrollView>
           </View>
         )}
@@ -138,5 +179,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
+  searchWrap: {
+    paddingHorizontal: Spacing.two,
+    paddingTop: Spacing.one,
+    paddingBottom: Spacing.two,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  searchInput: {
+    borderRadius: Spacing.one + Spacing.half,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one + Spacing.half,
+    fontSize: 14,
+  },
+  scroll: { flexShrink: 1 },
+  empty: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
   option: { paddingVertical: Spacing.two, paddingHorizontal: Spacing.three },
 });

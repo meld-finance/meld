@@ -99,7 +99,7 @@
         <h1>Tax</h1>
         <p class="doc-summary">Federal and state estimates, realized gains, contribution room, and harvest suggestions.</p>
         <div class="doc-meta">
-          <span class="doc-meta-pill">2 min read</span>
+          <span class="doc-meta-pill">3 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/tax.md">View docs/features/tax.md on GitHub ↗</a>
         </div>
       </div>
@@ -111,11 +111,12 @@
           <a class="depth-2" href="#income-and-gains">Income and gains</a>
           <a class="depth-2" href="#tax-inputs">Tax inputs</a>
           <a class="depth-2" href="#tables">Tables</a>
-          <a class="depth-2" href="#suggestions">Suggestions</a>
+          <a class="depth-2" href="#whats-not-covered">What's not covered</a>
+          <a class="depth-2" href="#common-planning-checks">Common planning checks</a>
         </nav>
       </details>
       <div class="prose">
-        <p>Estimate this year's (or last year's) federal and state income tax, see where you land in the brackets, and get rule-based suggestions for harvests and contribution room.</p>
+        <p>Get a simple ballpark estimate of this year's (or last year's) US federal and state income tax across all 50 US states and DC, see where you land in the brackets, and review common year-end planning checks.</p>
 
 <p><a class="doc-figure" href="../../images/features/tax.png" target="_blank" rel="noopener"><img src="../../images/features/tax.png" alt="Tax plan with rates and suggestions" loading="lazy"></a></p>
 
@@ -123,13 +124,15 @@
 
 <ul>
 <li><strong>Plan → Tax</strong></li>
-<li>Household income and filing status under <strong>Plan → Profile</strong></li>
-<li>Per-year overrides in tax settings on the Tax page</li>
+<li>Household income, filing status, and optional US state under <strong>Plan → Profile</strong></li>
+<li>Per-year overrides in <strong>Tax inputs</strong> on the Tax page</li>
 </ul>
 
 <h2 id="the-estimate">The estimate<a class="heading-anchor" href="#the-estimate" aria-label="Link to The estimate">#</a></h2>
 
-<p><strong>Plan → Tax</strong> estimates this year's (or last year's) federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It's an estimate, not a return.</p>
+<p><strong>Plan → Tax</strong> gives a simple ballpark estimate of this year's (or last year's) US federal and state income tax: effective and marginal rates, where your income lands in the brackets, and what you're on track to owe or get back. It is built for straightforward US W-2 and investment situations—it's a simple estimate, not tax advice and not a return.</p>
+
+<p>If you set your US state under <strong>Plan → Profile</strong>, Meld estimates state tax for all 50 states and DC using built-in 2025/2026 state rules (no-income-tax states, flat-rate states, or progressive brackets). State is optional; leave it unset for federal only.</p>
 
 <h2 id="income-and-gains">Income and gains<a class="heading-anchor" href="#income-and-gains" aria-label="Link to Income and gains">#</a></h2>
 
@@ -148,21 +151,33 @@
 <li>property tax and other itemized deductions</li>
 <li>HSA coverage</li>
 <li>whether you have a workplace plan</li>
-<li>a flat state rate for states without tables</li>
+<li>a custom state &amp; local rate (%) override (for example, to include NYC, county, or municipal income taxes on top of your state rate)</li>
 </ul>
 
 <h2 id="tables">Tables<a class="heading-anchor" href="#tables" aria-label="Link to Tables">#</a></h2>
 
 <ul>
-<li>Federal brackets, deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs. The 2025 figures include the One Big Beautiful Bill changes.</li>
-<li>California uses FTB's 2025 schedules (2026's aren't out yet), adding back HSA money and taxing gains as ordinary income.</li>
-<li>States without an income tax owe nothing.</li>
-<li>Tables live in <code>packages/shared/src/tax-tables.ts</code>; add a year there when the IRS and FTB publish it.</li>
+<li><strong>Federal:</strong> Brackets, standard deductions, capital gains rates, NIIT, additional Medicare and self-employment tax, the SALT cap and the child tax credit for 2025 and 2026, plus contribution limits and Roth/IRA phase-outs (2025 figures include One Big Beautiful Bill changes).</li>
+<li><strong>All 50 US states + DC (2025 &amp; 2026):</strong> 9 no-income-tax states, 15 flat-rate states, and 27 progressive jurisdictions (26 states + DC), with state standard deductions, personal/dependent exemptions or credits, CA and NJ HSA add-backs, and CA/MA high-earner surtaxes.</li>
+<li>Tables live in <code>packages/shared/src/tax-tables.ts</code>; add future years there when published.</li>
 </ul>
 
-<h2 id="suggestions">Suggestions<a class="heading-anchor" href="#suggestions" aria-label="Link to Suggestions">#</a></h2>
+<h2 id="whats-not-covered">What's not covered<a class="heading-anchor" href="#whats-not-covered" aria-label="Link to What's not covered">#</a></h2>
 
-<p><strong>Suggestions</strong> are fixed rules, each with the estimated tax saved this year. They cover:</p>
+<p>Treat Meld's figures as rough estimates rather than tax advice. Meld does <strong>not</strong> model complex tax situations, including:</p>
+
+<ul>
+<li><strong>Pass-through &amp; business filings:</strong> K-1s (partnerships, S-corps, trusts), Schedule C business expenses, QBI (§199A), and rental depreciation or passive loss rules.</li>
+<li><strong>Complex investments &amp; equity:</strong> REIT §199A or return-of-capital splits, AMT, ISOs / ESPP dispositions, prior-year capital loss carryforwards, and specific broker tax lots.</li>
+<li><strong>Local &amp; specialized state rules:</strong> City and county income taxes (NYC, Maryland counties, PA/OH/IN locals—use <strong>Custom state &amp; local rate (%)</strong> to approximate them), multi-state returns, state-specific credits/deductions, and Washington's capital gains tax.</li>
+<li><strong>Non-US tax systems:</strong> US federal and state income taxes only.</li>
+</ul>
+
+<p>If any of these apply to your return, use dedicated tax software or a CPA.</p>
+
+<h2 id="common-planning-checks">Common planning checks<a class="heading-anchor" href="#common-planning-checks" aria-label="Link to Common planning checks">#</a></h2>
+
+<p><strong>Common planning checks</strong> are simple rules for common W-2 and investment situations, each with an approximate tax impact—not personalized tax advice. They cover:</p>
 
 <ul>
 <li>tax-loss harvesting, with wash-sale warnings for purchases or RSU vests within 30 days in any account</li>
@@ -197,7 +212,8 @@
           <li><a class="toc-link depth-2" href="#income-and-gains">Income and gains</a></li>
           <li><a class="toc-link depth-2" href="#tax-inputs">Tax inputs</a></li>
           <li><a class="toc-link depth-2" href="#tables">Tables</a></li>
-          <li><a class="toc-link depth-2" href="#suggestions">Suggestions</a></li>
+          <li><a class="toc-link depth-2" href="#whats-not-covered">What's not covered</a></li>
+          <li><a class="toc-link depth-2" href="#common-planning-checks">Common planning checks</a></li>
     </ul>
   </aside>
 </div>

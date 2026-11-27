@@ -33,7 +33,7 @@ export function TaxTab({ onShowProfile }: { onShowProfile: () => void }) {
     <>
       <TabHeading
         title="Taxes"
-        subtitle="An estimate of the year’s federal and state income tax from your profile, synced accounts and the inputs below. An estimate, not tax advice."
+        subtitle="A simple ballpark estimate of US federal and state income tax from your profile, synced accounts and the inputs below. Built for straightforward W-2 and investment situations — not tax advice."
         actions={<Segmented size="small" options={YEARS} value={year} onChange={setYear} />}
       />
       {plan.isPending ? (
@@ -82,6 +82,16 @@ function TaxPlanView({ plan, onShowProfile }: { plan: TaxPlan; onShowProfile: ()
             />
           </TileRow>
 
+          {!state && (
+            <Card
+              title="Add your state to include state tax"
+              subtitle="Meld covers all 50 US states and DC. Set your state in Profile to add a state tax estimate (optional — leave blank for federal only).">
+              <View style={styles.buttons}>
+                <Button label="Set state in profile" size="small" variant="secondary" onPress={onShowProfile} />
+              </View>
+            </Card>
+          )}
+
           <TaxChecklist plan={plan} onShowProfile={onShowProfile} />
 
           <Suggestions suggestions={plan.suggestions} />
@@ -98,6 +108,8 @@ function TaxPlanView({ plan, onShowProfile }: { plan: TaxPlan; onShowProfile: ()
       {plan.harvest.length > 0 && <HarvestCard candidates={plan.harvest} />}
 
       <TaxInputs plan={plan} />
+
+      <LimitationsCard />
 
       {plan.notes.length > 0 && (
         <View style={styles.notes}>
@@ -119,9 +131,9 @@ function Suggestions({ suggestions }: { suggestions: TaxSuggestion[] }) {
   if (!suggestions.length) return null;
   return (
     <View style={styles.suggestions}>
-      <ThemedText type="cardTitle">Ways to lower your tax</ThemedText>
+      <ThemedText type="cardTitle">Common planning checks</ThemedText>
       <ThemedText type="small" themeColor="textSecondary">
-        General rules applied to your numbers, not tax advice. Check with a tax professional before acting on one.
+        Simple rules applied to your numbers for common W-2 and investment moves—estimates only, not tax advice. Confirm with tax software or a CPA before acting.
       </ThemedText>
       {suggestions.map((s) => (
         <InsightCallout
@@ -224,9 +236,9 @@ function TaxCard({ plan, style }: { plan: TaxPlan; style?: object }) {
               value={formatWholeCurrency(s.total)}
               note={
                 s.method === 'none'
-                  ? 'No state income tax'
+                  ? 'No state income tax on wages'
                   : s.method === 'flat'
-                    ? `Your ${percent(s.bracketRate)} rate on federal AGI`
+                    ? `Your ${percent(s.bracketRate)} custom state/local rate on federal AGI`
                     : `On ${formatWholeCurrency(s.taxableIncome)} taxable${s.tablesYear ? `, ${s.tablesYear} brackets` : ''}`
               }
               strong
@@ -348,7 +360,7 @@ const MONEY_FIELDS: { key: MoneyField; label: string; group: 'income' | 'paid' |
   { key: 'stateEstimatedPayments', label: 'State estimated payments', group: 'paid' },
   { key: 'propertyTax', label: 'Property tax', group: 'deductions' },
   { key: 'otherItemized', label: 'Mortgage interest, charity, other itemized', group: 'deductions' },
-  { key: 'stateFlatRate', label: 'State tax rate (%)', group: 'deductions' },
+  { key: 'stateFlatRate', label: 'Custom state & local rate (%)', group: 'deductions' },
 ];
 
 const str = (v: number | null) => (v === null ? '' : String(v));
@@ -383,8 +395,13 @@ function TaxInputs({ plan }: { plan: TaxPlan }) {
   const placeholders: Partial<Record<MoneyField, string>> = {
     pretax401k: plan.income ? `${formatWholeCurrency(plan.income.pretax401k)} (projected)` : undefined,
     hsaContributions: d.hsaContributions ? `${formatWholeCurrency(d.hsaContributions)} (so far)` : undefined,
+    stateFlatRate:
+      plan.state?.method === 'tables'
+        ? 'Auto (built-in tables)'
+        : plan.state?.method === 'none'
+          ? '0% (no state income tax)'
+          : '%',
   };
-  const showStateRate = !!plan.state && plan.state.method === 'flat' ? true : !plan.state;
 
   function submit() {
     if (!valid) return;
@@ -402,7 +419,7 @@ function TaxInputs({ plan }: { plan: TaxPlan }) {
 
   const fields = (group: 'income' | 'paid' | 'deductions') => (
     <Row>
-      {MONEY_FIELDS.filter((f) => f.group === group && (f.key !== 'stateFlatRate' || showStateRate)).map((f) => (
+      {MONEY_FIELDS.filter((f) => f.group === group).map((f) => (
         <Field key={f.key} label={f.label} invalid={invalid[f.key]}>
           <Input
             value={text[f.key]}
@@ -478,6 +495,29 @@ function TaxInputs({ plan }: { plan: TaxPlan }) {
   );
 }
 
+const LIMITATIONS = [
+  ['Pass-through & business filings', 'K-1s (partnerships, S-corps, trusts), Schedule C business expenses, QBI (§199A), and rental depreciation or passive loss rules.'],
+  ['Complex investments & equity', 'REIT §199A or return-of-capital splits, AMT, ISOs / ESPP dispositions, prior-year capital loss carryforwards, and specific broker tax lots (Meld estimates average cost).'],
+  ['Local & specialized state rules', 'City and county income taxes (NYC, Maryland counties, PA/OH/IN locals — use the custom rate override above), multi-state returns, state-specific credits/deductions, and Washington’s capital gains tax.'],
+  ['Non-US tax systems', 'Meld models US federal and state income taxes only.'],
+] as const;
+
+function LimitationsCard() {
+  return (
+    <Card
+      title="What this simple estimate doesn’t cover"
+      subtitle="If any of these apply to your return, treat Meld’s numbers as rough context and use tax software or a CPA.">
+      <View style={styles.limitations}>
+        {LIMITATIONS.map(([title, body]) => (
+          <ThemedText key={title} type="small" themeColor="textSecondary">
+            • <ThemedText type="smallBold">{title}:</ThemedText> {body}
+          </ThemedText>
+        ))}
+      </View>
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
   columns: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: Spacing.three },
   half: { flexGrow: 1, flexShrink: 1, flexBasis: 420, maxWidth: '100%', minWidth: 0 },
@@ -499,5 +539,6 @@ const styles = StyleSheet.create({
   range: { width: 150, textAlign: 'right' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   buttons: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  limitations: { gap: Spacing.one },
   notes: { gap: Spacing.one },
 });
