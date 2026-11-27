@@ -392,17 +392,80 @@
   <div class="hero">
     <div class="wrap">
       <img class="hero-mark" src="logo.svg" alt="" width="112" height="112">
-      <span class="eyebrow">Free &amp; open source · runs on your Mac</span>
+      <span class="eyebrow" id="download-eyebrow">Free &amp; open source · runs on your Mac</span>
       <h1>Your whole financial picture. <span class="soft">No subscription, no cloud.</span></h1>
       <p class="lede">Meld brings your bank accounts, cards, investments, loans and insurance into one place, tells you what needs doing, and answers questions about your money with AI. It runs on your own computer, so your financial data never sits on someone else's server.</p>
       <div class="actions">
-        <a class="btn btn-primary" href="https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg">
+        <a class="btn btn-primary" id="download-btn" href="https://github.com/meld-finance/meld/releases/latest/download/Meld-arm64.dmg">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>
-          Download for Mac
+          <span id="download-label">Download for Mac</span>
         </a>
         <a class="btn btn-secondary" href="#compare">How it compares</a>
       </div>
-      <p class="fineprint">For Apple silicon. Also for <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg">Intel Macs</a> and <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe">Windows (preview)</a>.</p>
+      <p class="fineprint" id="download-fineprint">For Apple silicon. Also for <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-x64.dmg">Intel Macs</a> and <a href="https://github.com/meld-finance/meld/releases/latest/download/Meld-x64-setup.exe">Windows (preview)</a>.</p>
+      <script>
+      (function () {
+        var base = 'https://github.com/meld-finance/meld/releases/latest/download/';
+        var arm = base + 'Meld-arm64.dmg';
+        var intel = base + 'Meld-x64.dmg';
+        var win = base + 'Meld-x64-setup.exe';
+        var ua = navigator.userAgent || '';
+        var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        var isWin = /Win/i.test(platform) || /Windows/i.test(ua);
+        var isMac = /Mac/i.test(platform) || /Mac OS|Macintosh/i.test(ua);
+        var btn = document.getElementById('download-btn');
+        var label = document.getElementById('download-label');
+        var fine = document.getElementById('download-fineprint');
+        var eye = document.getElementById('download-eyebrow');
+        if (!btn || !label || !fine || !eye) return;
+
+        function macIsIntel() {
+          try {
+            var c = document.createElement('canvas');
+            var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+            if (!gl) return false;
+            var ext = gl.getExtension('WEBGL_debug_renderer_info');
+            if (!ext) return false;
+            var renderer = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '');
+            if (/Apple/i.test(renderer)) return false;
+            if (/Intel|AMD|Radeon/i.test(renderer)) return true;
+          } catch (e) {}
+          return false;
+        }
+
+        function apply(href, text, eyebrow, fineHtml) {
+          btn.href = href;
+          label.textContent = text;
+          eye.textContent = eyebrow;
+          fine.innerHTML = fineHtml;
+        }
+
+        if (isWin) {
+          apply(win, 'Download for Windows', 'Free & open source · runs on Windows',
+            'Windows installer (preview). Also for <a href="' + arm + '">Apple silicon</a> and <a href="' + intel + '">Intel Macs</a>.');
+          return;
+        }
+
+        if (isMac && macIsIntel()) {
+          apply(intel, 'Download for Mac', 'Free & open source · runs on your Mac',
+            'For Intel Macs. Also for <a href="' + arm + '">Apple silicon</a> and <a href="' + win + '">Windows (preview)</a>.');
+          return;
+        }
+
+        // Default: Apple silicon Mac (and unknown platforms).
+        apply(arm, 'Download for Mac', 'Free & open source · runs on your Mac',
+          'For Apple silicon. Also for <a href="' + intel + '">Intel Macs</a> and <a href="' + win + '">Windows (preview)</a>.');
+
+        if (isMac && navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+          navigator.userAgentData.getHighEntropyValues(['architecture']).then(function (hints) {
+            if (hints && hints.architecture === 'x86') {
+              apply(intel, 'Download for Mac', 'Free & open source · runs on your Mac',
+                'For Intel Macs. Also for <a href="' + arm + '">Apple silicon</a> and <a href="' + win + '">Windows (preview)</a>.');
+            }
+          }).catch(function () {});
+        }
+      })();
+      </script>
       <ul class="proof">
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>$0, forever</li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>No account to create</li>
