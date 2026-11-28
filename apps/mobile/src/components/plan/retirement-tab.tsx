@@ -1,4 +1,5 @@
 import {
+  buildRetirementNudges,
   childName,
   firstRetireAge,
   fullRetireAge,
@@ -17,6 +18,7 @@ import {
   simulateRetirement,
   socialSecurityAtFullAge,
   SPENDING_DECLINE_AGE,
+  type PlanningMode,
   type RetirementAccount,
   type RetirementInputs,
   type RetirementSummary,
@@ -50,7 +52,13 @@ import {
 import { MonteCarlo } from '@/components/plan/monte-carlo';
 import { Field, Input, Row } from '@/components/plan/profile-tab';
 import { RetirementAccounts } from '@/components/plan/retirement-accounts';
+import {
+  RetirementDetailedSettings,
+  sameDetailedSettings,
+  type DetailedSettingsDraft,
+} from '@/components/plan/retirement-detailed';
 import { RetirementLevers, type LeverPatch } from '@/components/plan/retirement-levers';
+import { RetirementNudges } from '@/components/plan/retirement-nudges';
 import { AgeStepper, SaveBar, SocialSecurity, SpendingPath, Summary } from '@/components/plan/retirement-parts';
 import { RetirementProperties, type PropertyDraft } from '@/components/plan/retirement-properties';
 import { TIPS } from '@/components/plan/retirement-tips';
@@ -62,9 +70,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { formatCompactCurrency, formatWholeCurrency } from '@/lib/format';
 import { useRetirement, useSaveRetirementPlan } from '@/lib/queries';
 
-/** The plan's numbers, typed in as text; accounts, properties and life events have their own controls. */
-type NumberField = Exclude<keyof RetirementPlan, 'excludedAccountIds' | 'properties' | 'spendingChanges'>;
-const FIELDS: NumberField[] = [
+/** The plan's numbers, typed in as text; accounts, properties, life events, and detailed tax rules have their own controls. */
+const FIELDS = [
   'retirementAge',
   'lifeExpectancy',
   'annualContribution',
@@ -83,9 +90,10 @@ const FIELDS: NumberField[] = [
   'otherSavings',
   'propertyAppreciation',
   'sellingCostPercent',
-];
+] as const;
+type NumberField = (typeof FIELDS)[number];
 
-type WorkspaceSection = 'assumptions' | 'events' | 'accounts' | 'properties' | 'stress' | 'compare';
+type WorkspaceSection = 'assumptions' | 'detailed' | 'events' | 'accounts' | 'properties' | 'stress' | 'compare';
 type ChartMode = 'balance' | 'cashflow';
 
 const MORTGAGE_LABEL = 'Mortgage paid off';
@@ -175,6 +183,17 @@ function RetirementPlanner({
       eventDraft(c, false, resolvedSortAge(c, summary.defaults.children, summary.defaults.birthYear, summary.defaults.partner)),
     ),
   );
+  const [planningMode, setPlanningMode] = useState<PlanningMode>(summary.plan.planningMode);
+  const [detailedDraft, setDetailedDraft] = useState<DetailedSettingsDraft>(() => ({
+    withdrawalOrder: summary.plan.withdrawalOrder,
+    rothConversionBracket: summary.plan.rothConversionBracket,
+    contributionSplit: summary.plan.contributionSplit,
+    includeCatchUps: summary.plan.includeCatchUps,
+    retirementState: summary.plan.retirementState,
+    taxableBasisText: str(summary.plan.taxableBasisPercent),
+    rothBasisText: str(summary.plan.rothContributionBasis),
+    penaltyFreeEarlyAccess: summary.plan.penaltyFreeEarlyAccess,
+  }));
   const [saved, setSaved] = useState(false);
   const [lastTry, setLastTry] = useState<{ label: string; previous: Partial<Record<NumberField, string>> } | null>(null);
   const [section, setSection] = useState<WorkspaceSection>('assumptions');
@@ -227,12 +246,31 @@ function RetirementPlanner({
       return b.sellAge || b.rent;
     })
     .map((p) => p.id);
-  const valid = !Object.values(invalid).some(Boolean) && invalidPropIds.length === 0 && !unfinished;
+  const taxableBasisPercent = num(detailedDraft.taxableBasisText);
+  const rothContributionBasis = num(detailedDraft.rothBasisText);
+  const invalidTaxableBasis = !RetirementPlan.shape.taxableBasisPercent.safeParse(taxableBasisPercent).success;
+  const invalidRothBasis = !RetirementPlan.shape.rothContributionBasis.safeParse(rothContributionBasis).success;
+  const detailedError = planningMode === 'detailed' && (invalidTaxableBasis || invalidRothBasis);
+
+  const valid = !Object.values(invalid).some(Boolean) && invalidPropIds.length === 0 && !unfinished && !detailedError;
+
+  const detailedValues = {
+    planningMode,
+    withdrawalOrder: detailedDraft.withdrawalOrder,
+    rothConversionBracket: detailedDraft.rothConversionBracket,
+    contributionSplit: detailedDraft.contributionSplit,
+    includeCatchUps: detailedDraft.includeCatchUps,
+    retirementState: detailedDraft.retirementState,
+    taxableBasisPercent: invalidTaxableBasis ? summary.plan.taxableBasisPercent : taxableBasisPercent,
+    rothContributionBasis: invalidRothBasis ? summary.plan.rothContributionBasis : rothContributionBasis,
+    penaltyFreeEarlyAccess: detailedDraft.penaltyFreeEarlyAccess,
+  };
 
   // Live: the tiles and chart follow what's typed, falling back to the saved plan for anything invalid.
   const draft: RetirementPlan = {
     ...summary.plan,
     ...Object.fromEntries(FIELDS.map((f) => [f, invalid[f] ? summary.plan[f] : values[f]])),
+    ...detailedValues,
     properties: validProperties,
     spendingChanges: validEvents,
   };
@@ -251,7 +289,15 @@ function RetirementPlanner({
   const dirty =
     FIELDS.some((f) => values[f] !== summary.plan[f]) ||
     !sameSales(draftProperties, summary.plan.properties) ||
-    !sameEvents(draftEvents, summary.plan.spendingChanges);
+    !sameEvents(draftEvents, summary.plan.spendingChanges) ||
+    !sameDetailedSettings(
+      {
+        ...detailedValues,
+        taxableBasisPercent,
+        rothContributionBasis,
+      },
+      summary.plan,
+    );
 
   const d = summary.defaults;
   const income = d.annualIncome;
@@ -359,11 +405,30 @@ function RetirementPlanner({
     setEvents((all) => all.filter((e) => e.key !== key));
   }
 
+  function updateDetailed(patch: Partial<DetailedSettingsDraft>) {
+    setSaved(false);
+    setDetailedDraft((cur) => ({ ...cur, ...patch }));
+  }
+
+  function switchMode(next: PlanningMode) {
+    setSaved(false);
+    setPlanningMode(next);
+    if (next === 'simple' && section === 'detailed') setSection('assumptions');
+  }
+
   function submit() {
     if (!valid) return;
     setSaved(false);
     save.mutate(
-      { ...summary.plan, ...values, properties: draftProperties, spendingChanges: draftEvents },
+      {
+        ...summary.plan,
+        ...values,
+        ...detailedValues,
+        taxableBasisPercent,
+        rothContributionBasis,
+        properties: draftProperties,
+        spendingChanges: draftEvents,
+      },
       {
         onSuccess: () => {
           setSaved(true);
@@ -469,6 +534,8 @@ function RetirementPlanner({
   function jumpToFirstIssue() {
     if (assumptionsError) {
       setSection('assumptions');
+    } else if (detailedError) {
+      setSection('detailed');
     } else if (unfinished) {
       setSection('events');
       const firstBad = eventChecks.find((c) => c.bad);
@@ -486,6 +553,9 @@ function RetirementPlanner({
 
   const sectionOptions: { id: WorkspaceSection; label: string; badge?: string; hasError?: boolean }[] = [
     { id: 'assumptions', label: 'Assumptions', hasError: assumptionsError },
+    ...(planningMode === 'detailed'
+      ? [{ id: 'detailed' as const, label: 'Taxes & withdrawals', hasError: detailedError }]
+      : []),
     { id: 'events', label: 'Life events', badge: events.length ? String(events.length) : undefined, hasError: unfinished },
     {
       id: 'accounts',
@@ -530,6 +600,27 @@ function RetirementPlanner({
     resolved.inputs?.partner && resolved.inputs.retirementAge !== resolved.inputs.partner.retirementAgeInYours
   );
 
+  const nudges =
+    resolved.inputs && projection && d.birthYear !== null
+      ? buildRetirementNudges({
+          planningMode,
+          currentAge: resolved.inputs.currentAge,
+          birthYear: d.birthYear,
+          retirementAge: resolved.inputs.retirementAge,
+          firstRetireAge: firstRetireAge(resolved.inputs),
+          filingStatus: d.filingStatus,
+          state: d.state,
+          retirementState: draft.retirementState,
+          accounts: summary.accounts,
+          otherSavings: draft.otherSavings ?? 0,
+          projectedAtRetirement: projection.atRetirement,
+          withdrawalOrder: draft.withdrawalOrder,
+          rothConversionBracket: draft.rothConversionBracket,
+          penaltyFreeEarlyAccess: draft.penaltyFreeEarlyAccess,
+          rothContributionBasis: draft.rothContributionBasis,
+        })
+      : [];
+
   const saveBar = (dirty || saved || save.isError) && (
     <SaveBar
       dirty={dirty}
@@ -552,6 +643,30 @@ function RetirementPlanner({
   return (
     <>
       <ScenarioBar summary={summary} dirty={dirty} onSelect={onSelectScenario} />
+
+      <View style={[styles.modeBar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        <View style={styles.modeInfo}>
+          <WithTip tip={TIPS.planningMode}>
+            <ThemedText type="smallBold">
+              {planningMode === 'detailed' ? 'Detailed tax & withdrawal model' : 'Simple projection'}
+            </ThemedText>
+          </WithTip>
+          <ThemedText type="small" themeColor="textSecondary">
+            {planningMode === 'detailed'
+              ? 'Tracks Pre-tax, Roth & Taxable accounts separately with federal/state taxes, RMDs, and withdrawal order.'
+              : 'All savings in one pool with no withdrawal taxes—best for a quick big-picture check.'}
+          </ThemedText>
+        </View>
+        <Segmented
+          size="small"
+          options={[
+            { value: 'simple', label: 'Simple' },
+            { value: 'detailed', label: 'Detailed' },
+          ]}
+          value={planningMode}
+          onChange={switchMode}
+        />
+      </View>
 
       <View style={styles.intro}>
         <WithTip tip={TIPS.todaysDollars}>
@@ -679,6 +794,21 @@ function RetirementPlanner({
           appliedTry={lastTry?.label ?? null}
           onTry={applyLever}
           onUndoTry={undoLever}
+        />
+      )}
+
+      {nudges.length > 0 && (
+        <RetirementNudges
+          nudges={nudges}
+          onEnableDetailed={() => {
+            switchMode('detailed');
+            setSection('detailed');
+          }}
+          onOpenProfile={onShowProfile}
+          onOpenDetailedSettings={() => {
+            if (planningMode !== 'detailed') switchMode('detailed');
+            setSection('detailed');
+          }}
         />
       )}
 
@@ -1224,6 +1354,19 @@ function RetirementPlanner({
         </View>
       )}
 
+      {activeSection === 'detailed' && planningMode === 'detailed' && (
+        <RetirementDetailedSettings
+          draft={detailedDraft}
+          summary={summary}
+          projection={projection}
+          firstRetireAge={resolved.inputs ? firstRetireAge(resolved.inputs) : retireFallback}
+          invalidTaxableBasis={invalidTaxableBasis}
+          invalidRothBasis={invalidRothBasis}
+          onChange={updateDetailed}
+          onShowProfile={onShowProfile}
+        />
+      )}
+
       {activeSection === 'events' && (
         <LifeEvents
           drafts={events}
@@ -1293,6 +1436,18 @@ function RetirementPlanner({
 }
 
 const styles = StyleSheet.create({
+  modeBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two + Spacing.half,
+    borderWidth: 1,
+    borderRadius: Spacing.three + Spacing.one,
+    paddingVertical: Spacing.two + Spacing.half,
+    paddingHorizontal: Spacing.three,
+  },
+  modeInfo: { flex: 1, flexShrink: 1, minWidth: 220, gap: 2 },
   intro: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: Spacing.one, rowGap: Spacing.half },
   missing: { gap: Spacing.two, alignItems: 'flex-start' },
   workspaceTabs: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: 2 },

@@ -231,6 +231,19 @@ export function Summary({
           onPress={onPressStress}
         />
       )}
+      {p.taxSummary && (
+        <StatTile
+          label="Est. lifetime tax"
+          tip={TIPS.estimatedTaxes}
+          tone={p.taxSummary.lifetimeEarlyPenalty > 0 ? 'warning' : undefined}
+          value={p.taxSummary.lifetimeTax}
+          caption={
+            p.taxSummary.lifetimeEarlyPenalty > 0
+              ? `~${Math.round(p.taxSummary.effectiveTaxRate * 100)}% rate · Includes ${formatCompactCurrency(p.taxSummary.lifetimeEarlyPenalty)} early penalty`
+              : `~${Math.round(p.taxSummary.effectiveTaxRate * 100)}% effective rate in retirement`
+          }
+        />
+      )}
       {p.sales.length > 0 && (
         <StatTile
           label="Property sales"

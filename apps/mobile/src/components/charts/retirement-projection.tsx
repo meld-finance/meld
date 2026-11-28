@@ -350,6 +350,17 @@ export function RetirementProjection({
                     : `Age ${point.age} · ${year}`}
                 </ThemedText>
                 <ThemedText type="smallBold">{formatWholeCurrency(point.balance)}</ThemedText>
+                {point.buckets && (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {[
+                      point.buckets.pretax > 0 && `Pre-tax ${formatCompactCurrency(point.buckets.pretax)}`,
+                      point.buckets.roth > 0 && `Roth ${formatCompactCurrency(point.buckets.roth)}`,
+                      point.buckets.taxable > 0 && `Taxable ${formatCompactCurrency(point.buckets.taxable)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </ThemedText>
+                )}
                 {cashRow && cashRow.phase === 'working' && (
                   <ThemedText type="small" themeColor="textSecondary">
                     Saving {formatWholeCurrency(cashRow.saving)}/yr
@@ -361,6 +372,12 @@ export function RetirementProjection({
                       Spend {formatCompactCurrency(cashRow.spending)} · Income{' '}
                       {formatCompactCurrency(cashFlowIncomeTotal(cashRow))}
                     </ThemedText>
+                    {(cashRow.estimatedTax ?? 0) > 0 && (
+                      <ThemedText type="small" style={{ color: accents.orange.fg }}>
+                        Est. taxes {formatCompactCurrency(cashRow.estimatedTax!)}
+                        {(cashRow.rmd ?? 0) > 0 ? ` · RMD ${formatCompactCurrency(cashRow.rmd!)}` : ''}
+                      </ThemedText>
+                    )}
                     <ThemedText
                       type="small"
                       themeColor={cashRow.saving > 0 || cashRow.withdrawal < 0 ? 'positive' : 'textSecondary'}>

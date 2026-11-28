@@ -12,6 +12,8 @@ export * from './plaid';
 export * from './profile';
 export * from './transactions';
 export * from './retirement';
+export * from './retirement-tax';
+export * from './rmd';
 export * from './social-security';
 export * from './tax';
 export * from './tax-tables';

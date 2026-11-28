@@ -17,9 +17,9 @@ import {
   type SimulationSettings,
   type UpdateScenario,
 } from '@meld/shared';
-import { and, asc, desc, eq, ne } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { accounts, manualAssets, retirementScenarios, retirementSimulations } from '../db/schema';
+import { accounts, holdings, manualAssets, retirementScenarios, retirementSimulations } from '../db/schema';
 import { HttpError } from '../lib/http';
 import { localDate } from '../lib/networth';
 import { listAccounts, listLiabilities } from './accounts';
@@ -191,6 +191,30 @@ export async function getRetirement(db: Db, today = localDate(), scenarioId?: st
     };
   });
 
+  const taxableIds = retirementAccounts
+    .filter((a) => a.included && (a.taxTreatment === 'taxable' || a.taxTreatment === 'unknown'))
+    .map((a) => a.id);
+  let taxableBasisPercent: number | null = null;
+  if (taxableIds.length > 0) {
+    const shareById = new Map(accountList.map((a) => [a.id, (a.ownershipPercent ?? 100) / 100]));
+    const holdingRows = await db
+      .select({ accountId: holdings.accountId, value: holdings.institutionValue, costBasis: holdings.costBasis })
+      .from(holdings)
+      .where(inArray(holdings.accountId, taxableIds));
+    let totalVal = 0;
+    let totalBasis = 0;
+    for (const h of holdingRows) {
+      if (h.value !== null && h.value > 0 && h.costBasis !== null && h.costBasis >= 0) {
+        const share = shareById.get(h.accountId) ?? 1;
+        totalVal += h.value * share;
+        totalBasis += Math.min(h.value, h.costBasis) * share;
+      }
+    }
+    if (totalVal > 0) {
+      taxableBasisPercent = Math.round((totalBasis / totalVal) * 1000) / 10;
+    }
+  }
+
   const spending = cashflow.reduce((sum, m) => sum + m.spending, 0);
   const year = Number(today.slice(0, 4));
   return {
@@ -215,6 +239,7 @@ export async function getRetirement(db: Db, today = localDate(), scenarioId?: st
           }
         : null,
       children: profile.children,
+      taxableBasisPercent,
     },
     accounts: retirementAccounts,
     properties: homes.map((h) => ({ id: h.id, name: h.name, address: h.address, value: ownedValue(h, new Date(`${today}T00:00:00`)) })),

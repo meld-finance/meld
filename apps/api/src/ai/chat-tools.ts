@@ -13,6 +13,7 @@
  *   get_estate_plan, get_meld_docs.
  */
 import {
+  buildRetirementNudges,
   currentValue,
   estimatePayoff,
   firstRetireAge,
@@ -582,22 +583,24 @@ export function createChatTools(db: Db): ChatTool[] {
       description:
         'Retirement projection, gap, levers & Monte Carlo (today’s dollars); pass overrides.',
       deferLoading: true,
-      input: RetirementPlan.pick({
-        retirementAge: true,
-        lifeExpectancy: true,
-        annualContribution: true,
-        partnerRetirementAge: true,
-        partnerLifeExpectancy: true,
-        partnerAnnualContribution: true,
-        partnerSocialSecurityAge: true,
-        annualSpending: true,
-        spendingChanges: true,
-        spendingDeclinePercent: true,
-        expectedReturn: true,
-        socialSecurityAge: true,
-      })
+      input: RetirementPlan.pick({ spendingChanges: true })
         .partial()
         .extend({
+          retirementAge: z.number().int().min(30).max(90).optional(),
+          lifeExpectancy: z.number().int().min(50).max(115).optional(),
+          annualContribution: z.number().min(0).optional(),
+          annualSpending: z.number().min(0).optional(),
+          spendingDeclinePercent: z.number().min(0).max(5).optional(),
+          expectedReturn: z.number().min(0).max(15).optional(),
+          socialSecurityAge: z.number().int().min(62).max(70).optional(),
+          partnerRetirementAge: z.number().int().min(30).max(90).optional(),
+          partnerLifeExpectancy: z.number().int().min(50).max(115).optional(),
+          partnerAnnualContribution: z.number().min(0).optional(),
+          partnerSocialSecurityAge: z.number().int().min(62).max(70).optional(),
+          planningMode: z.enum(['simple', 'detailed']).optional(),
+          withdrawalOrder: z.enum(['taxable_first', 'bracket_fill', 'pretax_first', 'pro_rata']).optional(),
+          rothConversionBracket: z.number().int().optional(),
+          retirementState: z.string().optional(),
           includeMonteCarlo: z.boolean().default(false).describe('Run Monte Carlo'),
           targetConfidence: z.number().min(0.5).max(0.99).optional().describe('Confidence goal'),
         }),
@@ -605,10 +608,14 @@ export function createChatTools(db: Db): ChatTool[] {
         const { includeMonteCarlo: _mc, targetConfidence: _tc, ...overrides } = input;
         return Object.values(overrides).some((v) => v !== undefined) ? 'Ran a retirement what-if' : 'Checked your retirement plan';
       },
-      run: async ({ includeMonteCarlo, targetConfidence, ...overrides }) => {
+      run: async ({ includeMonteCarlo, targetConfidence, rothConversionBracket, ...overrides }) => {
         const summary = await getRetirement(db);
         const whatIf = Object.fromEntries(Object.entries(overrides).filter(([, v]) => v !== undefined && v !== null));
-        const plan = { ...summary.plan, ...whatIf };
+        const conv: 12 | 22 | 24 | undefined =
+          rothConversionBracket === 12 || rothConversionBracket === 22 || rothConversionBracket === 24
+            ? rothConversionBracket
+            : undefined;
+        const plan = { ...summary.plan, ...whatIf, ...(conv !== undefined ? { rothConversionBracket: conv } : {}) };
         const resolved = resolvePlan(plan, summary);
         if (!resolved.inputs) return { missing: resolved.missing, accounts: summary.accounts };
         const projection = projectRetirement(resolved.inputs);
@@ -658,9 +665,27 @@ export function createChatTools(db: Db): ChatTool[] {
                 ...socialSecurityAtFullAge(plan, d, resolved.inputs.retirementAge),
                 fullRetirementAge: formatFullRetirementAge(d.birthYear!),
               };
+        const nudges = buildRetirementNudges({
+          planningMode: plan.planningMode,
+          currentAge: resolved.inputs.currentAge,
+          birthYear: d.birthYear!,
+          retirementAge: resolved.inputs.retirementAge,
+          firstRetireAge: firstRetireAge(resolved.inputs),
+          filingStatus: d.filingStatus,
+          state: d.state,
+          retirementState: plan.retirementState,
+          accounts: summary.accounts,
+          otherSavings: plan.otherSavings ?? 0,
+          projectedAtRetirement: projection.atRetirement,
+          withdrawalOrder: plan.withdrawalOrder,
+          rothConversionBracket: plan.rothConversionBracket,
+          penaltyFreeEarlyAccess: plan.penaltyFreeEarlyAccess,
+          rothContributionBasis: plan.rothContributionBasis,
+        });
         return {
           scenario: summary.scenario.name,
           otherScenarios: summary.scenarios.filter((s) => !s.active).map((s) => s.name),
+          planningMode: plan.planningMode,
           assumptions: resolved.inputs,
           ...(partner
             ? {
@@ -674,6 +699,9 @@ export function createChatTools(db: Db): ChatTool[] {
             .map(([k]) => k),
           whatIf: Object.keys(whatIf).length ? whatIf : undefined,
           accounts: summary.accounts.map(({ id: _id, ...a }) => a),
+          ...(nudges.length
+            ? { nudges: nudges.map(({ id, tone, title, summary: s }) => ({ id, tone, title, summary: s })) }
+            : {}),
           ...(simulation
             ? {
                 monteCarlo: {

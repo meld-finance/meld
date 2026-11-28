@@ -102,7 +102,43 @@ export const TIPS = {
   },
   taxTreatment: {
     title: 'Tax types',
-    body: 'Tax-deferred (traditional 401(k), IRA): no tax going in, taxed when you take it out.\n\nTax-free (Roth): taxed going in, nothing to pay when you take it out.\n\nTaxable (brokerage): no special treatment; you pay tax on dividends and gains along the way.\n\nThe projection doesn’t subtract taxes, so leave room for them in your spending.',
+    body: 'Tax-deferred (traditional 401(k), 403(b), 457(b), IRA): no tax going in, taxed as ordinary income when you take it out.\n\nTax-free (Roth IRA, Roth 401(k), HSA): taxed going in, qualified withdrawals come out tax-free.\n\nTaxable (brokerage): you pay capital gains tax only on growth above what you originally paid in.\n\nSimple mode ignores withdrawal taxes; turn on Detailed mode to model all three buckets automatically.',
+  },
+  planningMode: {
+    title: 'Simple vs. Detailed mode',
+    body: 'Simple mode combines all counted accounts into one pool and skips withdrawal taxes—ideal for a quick big-picture check when retirement is decades away.\n\nDetailed mode tracks Pre-tax, Roth, and Taxable buckets separately, estimates federal and state taxes, models IRS Required Minimum Distributions (RMDs), and lets you test withdrawal orders and Roth conversions.',
+  },
+  withdrawalOrder: {
+    title: 'Withdrawal order',
+    body: 'Which type of account you spend from first in retirement affects how much tax you pay over your lifetime.\n\n• Taxable first: lets tax-advantaged accounts keep growing, but can leave a big pre-tax balance for RMDs later.\n• Fill low bracket: draws enough pre-tax money to use up low tax brackets first, smoothing taxes over time.\n• Pre-tax first: drains traditional 401(k)/IRA balances early to minimize future RMDs.\n• Proportional: pulls from every bucket in proportion to its balance.',
+  },
+  rothConversions: {
+    title: 'Roth conversions',
+    body: 'Moving money from a traditional 401(k) or IRA into a Roth IRA during lower-income years (like early retirement before Social Security and RMDs start).\n\nYou pay income tax on the converted amount now at a lower bracket so it grows tax-free forever and shrinks future required withdrawals.',
+  },
+  contributionSplit: {
+    title: 'Where new savings go',
+    body: 'How your future retirement contributions split across Pre-tax (traditional 401(k)/IRA), Roth, and Taxable brokerage accounts.\n\nLeave blank to match the tax mix of your current retirement accounts automatically.',
+  },
+  catchUps: {
+    title: 'Age 50+ catch-up contributions',
+    body: 'IRS rules let workers save extra into 401(k)/403(b)/457(b) plans starting at age 50 (+$8,000/yr) and an even larger “super catch-up” at ages 60–63 (+$11,250/yr). Turn this on to include those automatic step-ups while working.',
+  },
+  retirementState: {
+    title: 'Retirement tax state',
+    body: 'Retirement withdrawals are generally taxed by the state you live in when you withdraw the money—not where you earned it. Leave on “Same as Profile” or pick another state to test relocating in retirement.',
+  },
+  taxableBasis: {
+    title: 'Taxable cost basis',
+    body: 'When you sell investments in a regular brokerage account, you only pay capital gains tax on the profit—not the original amount you paid in (your “cost basis”).\n\nMeld estimates this automatically from your synced brokerage holdings; override it here if your broker doesn’t report basis.',
+  },
+  earlyAccess: {
+    title: 'Early withdrawals before 59½',
+    body: 'Traditional 401(k), 403(b), and IRA withdrawals before age 59½ normally carry a 10% IRS early-withdrawal penalty on top of income tax.\n\nWays to access money penalty-free earlier include spending from a regular brokerage account, withdrawing past Roth IRA contributions, tapping a governmental 457(b) after leaving that job, or using IRS rules like the Rule of 55 or 72(t) scheduled payments.',
+  },
+  estimatedTaxes: {
+    title: 'Estimated retirement taxes',
+    body: 'Estimated federal and state income taxes on your retirement withdrawals, pension, taxable portion of Social Security, capital gains from brokerage sales, and any age-59½ penalties, in today’s dollars.',
   },
   properties: {
     title: 'Selling a property',

@@ -1,4 +1,5 @@
 import {
+  formatInvestmentSubtype,
   retirementBalance,
   type RetirementAccount,
   type RetirementSummary,
@@ -27,25 +28,8 @@ const BUCKETS: { key: TaxTreatment; label: string }[] = [
   { key: 'unknown', label: 'Other accounts' },
 ];
 
-const SUBTYPE_LABELS: Record<string, string> = {
-  '401k': '401(k)',
-  '403b': '403(b)',
-  '457b': '457(b)',
-  ira: 'Traditional IRA',
-  roth: 'Roth IRA',
-  'roth 401k': 'Roth 401(k)',
-  sep: 'SEP IRA',
-  simple: 'SIMPLE IRA',
-  hsa: 'HSA',
-  brokerage: 'Brokerage',
-  '529': '529 Plan',
-  ugma: 'UGMA',
-  utma: 'UTMA',
-};
-
 function formatSubtype(subtype: string | null): string | null {
-  if (!subtype) return null;
-  return SUBTYPE_LABELS[subtype.toLowerCase()] ?? subtype;
+  return formatInvestmentSubtype(subtype);
 }
 
 /** Spacious accounts manager: tax-mix bar, filter pills, tax-grouped switches, other savings, and 529 disclosure. */

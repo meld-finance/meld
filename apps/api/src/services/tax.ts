@@ -39,8 +39,14 @@ const EPS = 1e-6;
 const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 // --- Loading -----------------------------------------------------------------------
 
-const K401_SUBTYPES = new Set(['401k', '401a', '403b', '457b', 'thrift savings plan']);
+const K401_PRETAX_SUBTYPES = new Set(['401k', '401a', '403b', 'thrift savings plan', 'solo 401k']);
+const K401_ROTH_SUBTYPES = new Set(['roth 401k', 'roth 403b', 'roth tsp', 'roth solo 401k']);
+const K457B_SUBTYPES = new Set(['457b', 'roth 457b']);
 const IRA_SUBTYPES = new Set(['ira', 'sep ira', 'simple ira', 'sarsep', 'keogh']);
+const PRETAX_RETIREMENT_SUBTYPES = new Set([
+  'ira', 'sep ira', 'simple ira', 'sarsep', 'keogh',
+  '401k', '401a', '403b', '457b', 'thrift savings plan', 'solo 401k', 'cash balance plan', 'profit sharing plan', 'retirement',
+]);
 const INVESTMENT_INCOME = ['dividend', 'qualified dividend', 'non-qualified dividend', 'short-term capital gain', 'long-term capital gain', 'interest'];
 const PAYCHECK = ['INCOME_WAGES', 'INCOME_SALARY'];
 const CONTRACTOR = ['INCOME_CONTRACTOR'];
@@ -254,6 +260,8 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
 
   // Contributions so far this year, by kind of account.
   let k401Contributions = 0;
+  let roth401kContributions = 0;
+  let k457bContributions = 0;
   let hsaContributions = 0;
   let iraContributions = 0;
   let rothContributions = 0;
@@ -263,7 +271,9 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     if (!contribution) continue;
     const amount = -t.amount * share(t.accountId);
     const subtype = accountById.get(t.accountId)?.subtype?.toLowerCase() ?? '';
-    if (K401_SUBTYPES.has(subtype)) k401Contributions += amount;
+    if (K401_PRETAX_SUBTYPES.has(subtype)) k401Contributions += amount;
+    else if (K401_ROTH_SUBTYPES.has(subtype)) roth401kContributions += amount;
+    else if (K457B_SUBTYPES.has(subtype)) k457bContributions += amount;
     else if (subtype === 'hsa') hsaContributions += amount;
     else if (amount <= ROLLOVER_OVER && IRA_SUBTYPES.has(subtype)) iraContributions += amount;
     else if (amount <= ROLLOVER_OVER && subtype === 'roth') rothContributions += amount;
@@ -271,6 +281,9 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
   const subtypes = accountRows.map((a) => ({ ...a, subtype: a.subtype?.toLowerCase() ?? '' }));
   const traditionalIraBalance = subtypes
     .filter((a) => a.subtype === 'ira' || a.subtype === 'sep ira' || a.subtype === 'simple ira')
+    .reduce((s, a) => s + (a.balance ?? 0) * a.share, 0);
+  const pretaxRetirementBalance = subtypes
+    .filter((a) => PRETAX_RETIREMENT_SUBTYPES.has(a.subtype))
     .reduce((s, a) => s + (a.balance ?? 0) * a.share, 0);
 
   // Taxable holdings worth less than they cost.
@@ -343,12 +356,16 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     realizedRough,
     sales,
     k401Contributions: round2(k401Contributions),
-    k401Accounts: subtypes.filter((a) => K401_SUBTYPES.has(a.subtype)).length,
+    k401Accounts: subtypes.filter((a) => K401_PRETAX_SUBTYPES.has(a.subtype) || K401_ROTH_SUBTYPES.has(a.subtype)).length,
+    roth401kContributions: round2(roth401kContributions),
+    k457bContributions: round2(k457bContributions),
+    k457bAccounts: subtypes.filter((a) => K457B_SUBTYPES.has(a.subtype)).length,
     hsaContributions: round2(hsaContributions),
     hsaAccount: subtypes.some((a) => a.subtype === 'hsa'),
     iraContributions: round2(iraContributions),
     rothContributions: round2(rothContributions),
     traditionalIraBalance: round2(traditionalIraBalance),
+    pretaxRetirementBalance: round2(pretaxRetirementBalance),
     has529: subtypes.some((a) => a.subtype === '529'),
     rsuVestedYtd: equity.vestedYtd,
     rsuScheduledRemaining: equity.scheduledRemaining,
@@ -388,7 +405,15 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
   if (!profile.filingStatus || profileIncome === null) {
     return {
       ...plan,
-      checklist: checklistWithoutEstimate(year, today, ageAtYearEnd, detected.traditionalIraBalance, profile.employerBenefits, new Set(checklistDone)),
+      checklist: checklistWithoutEstimate(
+        year,
+        today,
+        ageAtYearEnd,
+        detected.pretaxRetirementBalance || detected.traditionalIraBalance,
+        profile.employerBenefits,
+        new Set(checklistDone),
+        profile.birthYear,
+      ),
     };
   }
 
@@ -496,6 +521,7 @@ export async function getTaxPlan(db: Db, year: number, today = localDate()): Pro
     detected,
     harvest: plan.harvest,
     age: ageAtYearEnd,
+    birthYear: profile.birthYear,
     balanceDue,
   };
   const suggestions = buildSuggestions(suggestionContext);

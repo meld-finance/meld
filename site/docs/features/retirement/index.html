@@ -99,7 +99,7 @@
         <h1>Retirement</h1>
         <p class="doc-summary">Today’s-dollar projections, Social Security, property sales, and the savings gap.</p>
         <div class="doc-meta">
-          <span class="doc-meta-pill">4 min read</span>
+          <span class="doc-meta-pill">9 min read</span>
           <a class="edit-link" href="https://github.com/meld-finance/meld/blob/main/docs/features/retirement.md">View docs/features/retirement.md on GitHub ↗</a>
         </div>
       </div>
@@ -111,6 +111,13 @@
           <a class="depth-2" href="#partners-and-staggered-retirement">Partners and staggered retirement</a>
           <a class="depth-2" href="#ways-to-adjust-your-plan">Ways to adjust your plan</a>
           <a class="depth-2" href="#social-security">Social Security</a>
+          <a class="depth-2" href="#simple-vs-detailed-mode">Simple vs. Detailed mode</a>
+          <a class="depth-2" href="#how-retirement-drawdowns-work-across-account-types">How retirement drawdowns work across account types</a>
+          <a class="depth-3" href="#withdrawal-order-strategies">Withdrawal order strategies</a>
+          <a class="depth-3" href="#annual-roth-conversions">Annual Roth conversions</a>
+          <a class="depth-3" href="#required-minimum-distributions-rmds">Required Minimum Distributions (RMDs)</a>
+          <a class="depth-3" href="#early-retirement--the-age-59½-rule">Early retirement &amp; the age 59½ rule</a>
+          <a class="depth-3" href="#retirement-tax-state-social-security-tax-and-catch-ups">Retirement tax state, Social Security tax, and catch-ups</a>
           <a class="depth-2" href="#which-accounts-count">Which accounts count</a>
           <a class="depth-2" href="#properties">Properties</a>
         </nav>
@@ -166,6 +173,82 @@
 
 <p>Meld adjusts the benefit for the age you claim: less before full retirement age, 8% a year more on your own benefit after it up to 70. Buttons show what 62, full retirement age and 70 pay, and tapping one sets the claiming age.</p>
 
+<h2 id="simple-vs-detailed-mode">Simple vs. Detailed mode<a class="heading-anchor" href="#simple-vs-detailed-mode" aria-label="Link to Simple vs. Detailed mode">#</a></h2>
+
+<p>Meld supports two retirement planning modes—switch between them at the top of <strong>Plan → Retirement</strong> at any time:</p>
+
+<ul>
+<li><strong>Simple mode (default):</strong> Treats all included accounts as one combined pool with no retirement income-tax modeling. Ideal if you're decades away from retiring or want a fast, low-friction check on savings rate and retirement age.</li>
+<li><strong>Detailed mode (tax-aware):</strong> Splits your accounts into <strong>three tax buckets</strong> (Pre-tax, Tax-free Roth, and Taxable brokerage) and models federal &amp; state income taxes, long-term capital gains, Social Security taxability, Required Minimum Distributions (RMDs), optional Roth conversions, early-withdrawal rules before age 59½, and IRS catch-up contributions.</li>
+</ul>
+
+<p>As your plan gets closer to retirement—or when taxes and withdrawal rules start to have a meaningful impact—Meld shows friendly, dismissible <strong>contextual tips</strong> with plain-English explanations (&quot;What does this mean?&quot;) so you can understand why a setting matters before turning it on.</p>
+
+<h2 id="how-retirement-drawdowns-work-across-account-types">How retirement drawdowns work across account types<a class="heading-anchor" href="#how-retirement-drawdowns-work-across-account-types" aria-label="Link to How retirement drawdowns work across account types">#</a></h2>
+
+<p>When you retire, a dollar in one account does not buy the same amount of spending as a dollar in another account, because the IRS taxes withdrawals differently depending on where the money lives:</p>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th scope="col">Bucket</th><th scope="col">Typical accounts</th><th scope="col">How withdrawals are taxed</th><th scope="col">Early-withdrawal &amp; RMD rules</th></tr></thead>
+<tbody>
+<tr><td><strong>Pre-tax (Tax-deferred)</strong></td><td>Traditional 401(k), 403(b), 457(b), TSP, Solo 401(k), Traditional / Rollover / SEP / SIMPLE IRA, Cash Balance Plan</td><td><strong>100% ordinary income tax</strong> (federal + state) on every dollar withdrawn. Because you pay tax on the way out, you must withdraw <em>more</em> than your spending to cover the tax bill.</td><td>Subject to <strong>RMDs</strong> starting at age 73 or 75. Withdrawing before <strong>age 59½</strong> normally adds a <strong>10% penalty</strong> (except governmental <strong>457(b)</strong> plans, which are penalty-free after leaving the employer, or when you qualify for Rule of 55 / 72(t)).</td></tr>
+<tr><td><strong>Taxable brokerage</strong></td><td>Individual or joint brokerage accounts, savings / cash set aside for retirement</td><td><strong>Only the gains are taxed</strong>, at lower <strong>long-term capital gains rates</strong> (0%, 15%, or 20% federal, plus 3.8% NIIT for high incomes and applicable state tax). Your original deposit (<strong>cost basis</strong>) comes out tax-free.</td><td><strong>No RMDs</strong> and <strong>no early-withdrawal penalty</strong> at any age—making taxable accounts the easiest bridge for early retirees.</td></tr>
+<tr><td><strong>Tax-free (Roth / HSA)</strong></td><td>Roth IRA, Roth 401(k), Roth 403(b), Roth 457(b), Roth TSP, Roth Solo 401(k), HSA</td><td><strong>$0 tax</strong> on qualified withdrawals—every dollar withdrawn is a full dollar of spending, and it doesn't push you into a higher tax bracket or make more of your Social Security taxable.</td><td><strong>No RMDs</strong> during your lifetime. Your <strong>original Roth contributions</strong> can be withdrawn tax- and penalty-free at any age; investment earnings are penalty-free after 59½ (and the 5-year rule).</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>In Detailed mode, Meld automatically sorts your included accounts into these three buckets (and estimates your taxable brokerage cost-basis percentage from your tracked holdings' cost basis—which you can override in <strong>Taxes &amp; withdrawals</strong>).</p>
+
+<h3 id="withdrawal-order-strategies">Withdrawal order strategies<a class="heading-anchor" href="#withdrawal-order-strategies" aria-label="Link to Withdrawal order strategies">#</a></h3>
+
+<p>In <strong>Taxes &amp; withdrawals</strong>, choose which bucket Meld taps first when you need spending money (after any mandatory RMDs are satisfied):</p>
+
+<ol>
+<li><strong>Taxable → Pre-tax → Roth (<code>Taxable first</code>, default):</strong> Spends brokerage accounts first, letting tax-advantaged accounts keep compounding, then draws pre-tax, saving tax-free Roth for last. Simple and classic—though if your pre-tax balance is very large, waiting until RMD age can cause a tax spike in your 70s.</li>
+<li><strong>Fill low tax bracket first (<code>Bracket fill</code>):</strong> Pulls from pre-tax accounts up to the top of the 12% federal tax bracket (or your Roth conversion ceiling if set), then covers the rest of your spending from taxable and Roth. Smooths taxes across retirement and reduces future RMD spikes.</li>
+<li><strong>Pre-tax → Taxable → Roth (<code>Pre-tax first</code>):</strong> Draws down pre-tax accounts early while your income is lower, shrinking future RMDs and preserving taxable and Roth balances for later.</li>
+<li><strong>Proportional across buckets (<code>Pro-rata</code>):</strong> Pulls from all three buckets in proportion to their balances each year for a steady blended tax rate.</li>
+</ol>
+
+<h3 id="annual-roth-conversions">Annual Roth conversions<a class="heading-anchor" href="#annual-roth-conversions" aria-label="Link to Annual Roth conversions">#</a></h3>
+
+<p>In the years after you stop working—especially before Social Security and RMDs begin—your taxable income is often unusually low. Turning on <strong>Annual Roth conversions</strong> (12%, 22%, or 24% federal bracket) tells Meld to convert pre-tax dollars into your Roth bucket each retired year up to the top of that bracket, whenever spare taxable cash or surplus income can pay the conversion tax.</p>
+
+<p><strong>Why people do it:</strong> Paying 12% or 22% tax voluntarily in your 60s shrinks your pre-tax balance before RMDs begin in your 70s, potentially preventing 24%–32%+ tax spikes later and leaving more tax-free Roth money for late retirement or heirs.</p>
+
+<h3 id="required-minimum-distributions-rmds">Required Minimum Distributions (RMDs)<a class="heading-anchor" href="#required-minimum-distributions-rmds" aria-label="Link to Required Minimum Distributions (RMDs)">#</a></h3>
+
+<p>Under <strong>SECURE 2.0</strong>, the IRS requires you to start withdrawing a minimum percentage from pre-tax retirement accounts (401(k), 403(b), 457(b), Traditional/Rollover/SEP/SIMPLE IRA) each year based on the <strong>IRS Uniform Lifetime Table</strong>:</p>
+
+<ul>
+<li>Born <strong>1950 or earlier:</strong> RMDs start at age <strong>72</strong></li>
+<li>Born <strong>1951–1959:</strong> RMDs start at age <strong>73</strong></li>
+<li>Born <strong>1960 or later:</strong> RMDs start at age <strong>75</strong></li>
+</ul>
+
+<p>In Detailed mode, Meld enforces RMDs automatically each year starting at your RMD age. If an RMD is larger than you need to spend, Meld pays the income tax on it and automatically <strong>reinvests the leftover cash into your taxable brokerage bucket</strong> (with 100% cost basis, since you already paid tax on it).</p>
+
+<h3 id="early-retirement--the-age-59½-rule">Early retirement &amp; the age 59½ rule<a class="heading-anchor" href="#early-retirement--the-age-59½-rule" aria-label="Link to Early retirement &amp; the age 59½ rule">#</a></h3>
+
+<p>Normally, withdrawing from a 401(k), 403(b), or Traditional IRA before age 59½ triggers a <strong>10% IRS early-withdrawal penalty</strong> on top of income taxes. In Detailed mode, Meld automatically models penalty-free paths before age 60:</p>
+
+<ul>
+<li><strong>Taxable brokerage</strong> is always tapped first before age 60 when available (0% early penalty).</li>
+<li><strong>Governmental 457(b)</strong> balances are automatically exempt from the 10% early penalty once you separate from your employer.</li>
+<li><strong>Original Roth contributions</strong> (entered as <strong>Past Roth contributions</strong> in <strong>Taxes &amp; withdrawals</strong>) come out tax- and penalty-free before Roth earnings are touched.</li>
+<li><strong>Rule of 55 / 72(t) SEPP / Roth conversion ladder:</strong> If you plan to use one of these IRS penalty-free early-access strategies, flip on <strong>Penalty-free early access</strong> in <strong>Taxes &amp; withdrawals</strong> to waive the 10% penalty before age 60.</li>
+</ul>
+
+<h3 id="retirement-tax-state-social-security-tax-and-catch-ups">Retirement tax state, Social Security tax, and catch-ups<a class="heading-anchor" href="#retirement-tax-state-social-security-tax-and-catch-ups" aria-label="Link to Retirement tax state, Social Security tax, and catch-ups">#</a></h3>
+
+<ul>
+<li><strong>Retirement tax state:</strong> Uses your Profile state by default, or set a different state under <strong>Taxes &amp; withdrawals</strong> to model relocating in retirement (for example, moving from California to Florida or Texas).</li>
+<li><strong>Social Security taxability:</strong> Models the IRS provisional-income formula—depending on your other taxable income, 0%, up to 50%, or up to 85% of your Social Security benefit is included in federal taxable income.</li>
+<li><strong>Contribution split &amp; catch-ups:</strong> Choose how your ongoing annual savings split across Pre-tax, Roth, and Taxable accounts, and optionally turn on <strong>Auto IRS catch-up contributions</strong> to automatically add age-50+ ($8,000/yr) and age 60–63 super catch-up ($11,250/yr) workplace savings while working.</li>
+</ul>
+
 <h2 id="which-accounts-count">Which accounts count<a class="heading-anchor" href="#which-accounts-count" aria-label="Link to Which accounts count">#</a></h2>
 
 <p>Every visible investment account counts at your ownership share, except 529, Coverdell, UTMA/UGMA and other education or custodial accounts. Turn off any account you're saving for something else (a down payment, say), and add cash set aside for retirement as <strong>Other savings</strong>.</p>
@@ -176,7 +259,7 @@
 
 <p><strong>Properties</strong> you'd sell to fund retirement can count too. Turn on a home from the Accounts tab and set the age you'd sell it, its mortgage, and net rent per year (rent minus costs). At that age your share of the price (grown 1% a year after inflation by default, less 6% selling costs) minus what's left on the mortgage joins your savings; rent counts as saving before retirement and as income after, until the sale. The mortgage balance is projected from its rate and payment; taxes on the gain aren't included.</p>
 
-<p>Ask Meld can read the plan and try what-ifs (&quot;what if I retire at 60?&quot;) without changing what you saved.</p>
+<p>Ask Meld can read the plan (including Detailed mode tax summaries, RMDs, and nudges) and try what-ifs (&quot;what if I retire at 60?&quot;, &quot;what if I convert to the 22% bracket?&quot;, &quot;what if I retire in Florida?&quot;) without changing what you saved.</p>
       </div>
       <nav class="pager" aria-label="Page navigation">
       <a class="pager-card prev" href="../../features/investments/">
@@ -198,6 +281,13 @@
           <li><a class="toc-link depth-2" href="#partners-and-staggered-retirement">Partners and staggered retirement</a></li>
           <li><a class="toc-link depth-2" href="#ways-to-adjust-your-plan">Ways to adjust your plan</a></li>
           <li><a class="toc-link depth-2" href="#social-security">Social Security</a></li>
+          <li><a class="toc-link depth-2" href="#simple-vs-detailed-mode">Simple vs. Detailed mode</a></li>
+          <li><a class="toc-link depth-2" href="#how-retirement-drawdowns-work-across-account-types">How retirement drawdowns work across account types</a></li>
+          <li><a class="toc-link depth-3" href="#withdrawal-order-strategies">Withdrawal order strategies</a></li>
+          <li><a class="toc-link depth-3" href="#annual-roth-conversions">Annual Roth conversions</a></li>
+          <li><a class="toc-link depth-3" href="#required-minimum-distributions-rmds">Required Minimum Distributions (RMDs)</a></li>
+          <li><a class="toc-link depth-3" href="#early-retirement--the-age-59½-rule">Early retirement &amp; the age 59½ rule</a></li>
+          <li><a class="toc-link depth-3" href="#retirement-tax-state-social-security-tax-and-catch-ups">Retirement tax state, Social Security tax, and catch-ups</a></li>
           <li><a class="toc-link depth-2" href="#which-accounts-count">Which accounts count</a></li>
           <li><a class="toc-link depth-2" href="#properties">Properties</a></li>
     </ul>

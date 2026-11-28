@@ -318,11 +318,15 @@ const DETECTED: TaxPlan['detected'] = {
   sales: 0,
   k401Contributions: 0,
   k401Accounts: 0,
+  roth401kContributions: 0,
+  k457bContributions: 0,
+  k457bAccounts: 0,
   hsaContributions: 0,
   hsaAccount: false,
   iraContributions: 0,
   rothContributions: 0,
   traditionalIraBalance: 0,
+  pretaxRetirementBalance: 0,
   has529: false,
   rsuVestedYtd: 0,
   rsuScheduledRemaining: 0,
@@ -387,12 +391,26 @@ describe('buildSuggestions', () => {
     expect(s.some((x) => x.id === 'backdoor-roth')).toBe(false);
   });
 
-  it('prices the 401(k) room left', () => {
+  it('prices the 401(k) room left and counts Roth 401(k) deferrals against the shared cap', () => {
     const i = inputs({ grossIncome: 150_000, pretax401k: 10_000 });
     const k = suggest(i, { detected: { ...DETECTED, k401Accounts: 1 } }).find((x) => x.id === '401k');
     expect(k?.title).toMatch(/\$14,500/);
     expect(k?.impact).toBe(Math.round(estimateTax(i).total - estimateTax({ ...i, pretax401k: 24_500 }).total));
     expect(suggest(i).some((x) => x.id === '401k')).toBe(false);
+
+    // Pre-tax $10k + Roth 401(k) $14.5k = $24.5k (full 2026 cap -> no room left).
+    const maxed = suggest(i, { detected: { ...DETECTED, k401Accounts: 1, roth401kContributions: 14_500 } });
+    expect(maxed.some((x) => x.id === '401k')).toBe(false);
+  });
+
+  it('tracks governmental 457(b) headroom separately from 401(k)/403(b)', () => {
+    const i = inputs({ grossIncome: 200_000, pretax401k: 24_500 });
+    const s = suggest(i, { detected: { ...DETECTED, k401Accounts: 1, k457bAccounts: 1, k457bContributions: 5_000 } });
+    expect(s.some((x) => x.id === '401k')).toBe(false);
+    const k457 = s.find((x) => x.id === '457b');
+    expect(k457?.title).toMatch(/\$19,500/);
+    expect(k457?.detail).toContain('stacks on top');
+    expect(k457?.impact).toBeGreaterThan(0);
   });
 
   it('puts an underpayment warning first and finds room for 0% gains', () => {
@@ -507,9 +525,32 @@ describe('buildChecklist', () => {
     expect(january.some((x) => x.id === 'q4-estimate')).toBe(true);
   });
 
-  it('reminds people 73 and over to take their RMD', () => {
-    const c = checklist(inputs({ grossIncome: 80_000 }), { age: 75, detected: { ...DETECTED, traditionalIraBalance: 300_000 } });
-    expect(c.find((x) => x.id === 'rmd')?.due).toBe('2026-12-31');
+  it('reminds people at their SECURE 2.0 RMD age (73 vs 75) and includes workplace pre-tax balances', () => {
+    const c = checklist(inputs({ grossIncome: 80_000 }), {
+      age: 75,
+      birthYear: 1951,
+      detected: { ...DETECTED, traditionalIraBalance: 300_000, pretaxRetirementBalance: 300_000 },
+    });
+    const rmd = c.find((x) => x.id === 'rmd');
+    expect(rmd?.due).toBe('2026-12-31');
+    expect(rmd?.title).toMatch(/\$12,195/); // 300k / 24.6
     expect(c.find((x) => x.id === 'charity')?.detail).toMatch(/qualified charitable distribution/);
+
+    // Born 1960 -> RMD starts at 75, not 73.
+    const born1960At73 = checklist(inputs({ year: 2033, grossIncome: 80_000 }), {
+      today: '2033-06-01',
+      age: 73,
+      birthYear: 1960,
+      detected: { ...DETECTED, pretaxRetirementBalance: 500_000 },
+    });
+    expect(born1960At73.some((x) => x.id === 'rmd')).toBe(false);
+
+    // Workplace 401(k) balance triggers RMD even when traditionalIraBalance is 0.
+    const workplaceOnly = checklist(inputs({ grossIncome: 80_000 }), {
+      age: 73,
+      birthYear: 1953,
+      detected: { ...DETECTED, pretaxRetirementBalance: 530_000 },
+    });
+    expect(workplaceOnly.find((x) => x.id === 'rmd')?.title).toMatch(/\$20,000/); // 530k / 26.5
   });
 });
