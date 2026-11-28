@@ -11,9 +11,11 @@
 import {
   bracketAt,
   bracketTax,
+  calculateRmd,
   calculateStateTax,
   federalTables,
   NO_INCOME_TAX_STATES,
+  rmdStartAge,
   stateName,
   stateTables,
   tableStatus,
@@ -425,20 +427,34 @@ export type SuggestionContext = {
   harvest: HarvestCandidate[];
   /** Age at the end of the tax year, when known. */
   age: number | null;
+  /** Owner's birth year, for SECURE 2.0 RMD starting age (73 vs 75). */
+  birthYear?: number | null;
   balanceDue: number | null;
 };
 
 const money = (n: number) => `$${Math.round(n).toLocaleString('en-US')}`;
 const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
 
-/** Pre-tax 401(k) room left this year: one limit per person with a plan, plus catch-up. */
+/** Employee 401(k)/403(b)/TSP room left this year (pre-tax + Roth share one cap per person, plus catch-up). */
 function k401Headroom({ inputs, detected, age }: SuggestionContext) {
   const t = federalTables(inputs.year);
   const joint = tableStatus(inputs.filingStatus) === 'married_joint';
   const people = Math.max(1, Math.min(joint ? 2 : 1, detected.k401Accounts));
   const catchUp = age === null ? 0 : age >= 60 && age <= 63 ? t.limits.k401CatchUp60to63 : age >= 50 ? t.limits.k401CatchUp : 0;
   const limit = t.limits.k401 * people + catchUp;
-  return { people, catchUp, limit, room: Math.max(0, limit - inputs.pretax401k) };
+  const used = inputs.pretax401k + (detected.roth401kContributions ?? 0);
+  return { people, catchUp, limit, used, room: Math.max(0, limit - used) };
+}
+
+/** Governmental 457(b) room left this year: separate deferral cap that stacks on top of 401(k)/403(b). */
+function k457bHeadroom({ inputs, detected, age }: SuggestionContext) {
+  const t = federalTables(inputs.year);
+  const joint = tableStatus(inputs.filingStatus) === 'married_joint';
+  const people = Math.max(1, Math.min(joint ? 2 : 1, detected.k457bAccounts ?? 0));
+  const catchUp = age === null ? 0 : age >= 60 && age <= 63 ? t.limits.k401CatchUp60to63 : age >= 50 ? t.limits.k401CatchUp : 0;
+  const limit = t.limits.k401 * people + catchUp;
+  const used = detected.k457bContributions ?? 0;
+  return { people, catchUp, limit, used, room: Math.max(0, limit - used) };
 }
 
 export function buildSuggestions(ctx: SuggestionContext): TaxSuggestion[] {
@@ -529,13 +545,14 @@ export function buildSuggestions(ctx: SuggestionContext): TaxSuggestion[] {
     });
   }
 
-  const { people: k401People, catchUp, limit: k401Limit, room: k401Room } = k401Headroom(ctx);
+  const { people: k401People, catchUp, limit: k401Limit, used: k401Used, room: k401Room } = k401Headroom(ctx);
   if ((detected.k401Accounts > 0 || settings.coveredByWorkplacePlan) && k401Room > 500) {
+    const rothPart = detected.roth401kContributions ?? 0;
     out.push({
       id: '401k',
       kind: 'save',
       title: `${money(k401Room)} of 401(k) room left`,
-      detail: `You're on pace for ${money(inputs.pretax401k)} of pre-tax deferrals against a ${money(k401Limit)} limit${
+      detail: `You're on pace for ${money(k401Used)} of ${rothPart > 0 ? 'pre-tax and Roth ' : 'pre-tax '}deferrals against a ${money(k401Limit)} limit${
         k401People > 1 ? ' for the two of you' : ''
       }${catchUp ? `, catch-up included` : ''}. Raising your deferral for the rest of the year lowers this year's tax at your ${pct(
         ctx.marginal,
@@ -545,6 +562,24 @@ export function buildSuggestions(ctx: SuggestionContext): TaxSuggestion[] {
       impact: saved({ pretax401k: inputs.pretax401k + k401Room }),
       question: `I have ${money(k401Room)} of 401(k) room left this year. Should I max it out pre-tax or use Roth 401(k)?`,
     });
+  }
+
+  if ((detected.k457bAccounts ?? 0) > 0) {
+    const { people: k457People, catchUp: c457, limit: k457Limit, used: k457Used, room: k457Room } = k457bHeadroom(ctx);
+    if (k457Room > 500) {
+      out.push({
+        id: '457b',
+        kind: 'save',
+        title: `${money(k457Room)} of 457(b) room left`,
+        detail: `A governmental 457(b) has its own ${money(k457Limit)} employee limit${k457People > 1 ? ' for the two of you' : ''}${
+          c457 ? ', catch-up included' : ''
+        } that stacks on top of a 401(k) or 403(b) (${money(k457Used)} contributed so far). Pre-tax 457(b) deferrals lower this year's tax at your ${pct(
+          ctx.marginal,
+        )} marginal rate—and unlike a 401(k), governmental 457(b) withdrawals have no 10% early penalty once you leave the employer.`,
+        impact: saved({ pretax401k: inputs.pretax401k + k457Room }),
+        question: `I have ${money(k457Room)} of 457(b) contribution room left this year. How does it stack with my other workplace plan?`,
+      });
+    }
   }
 
   if (settings.hsaCoverage) {
@@ -777,6 +812,21 @@ export function buildChecklist(ctx: ChecklistContext): ChecklistItem[] {
     },
   );
 
+  fromSuggestion(
+    '457b',
+    yearEnd,
+    'Last paycheck',
+    () => {
+      const left = paychecksLeft(year, today);
+      const { room, people } = k457bHeadroom(ctx);
+      return left > 0
+        ? `457(b) deferrals come out of pay and usually take a payroll cycle to change. On about ${left} semi-monthly paycheck${
+            left === 1 ? '' : 's'
+          } left, that's roughly ${money(room / left)} each${people > 1 ? ', split between the two of you' : ''}.`
+        : `457(b) deferrals must come out of pay before year-end; check with payroll whether a final paycheck can still take a higher election.`;
+    },
+  );
+
   fromSuggestion('roth-conversion', yearEnd, 'Year ends', () => `A conversion counts in the year the money moves, so finish it by ${shortDate(yearEnd)}. Brokers get busy in late December; start a week or two early.`);
 
   const backdoor = byId.get('backdoor-roth');
@@ -889,7 +939,8 @@ export function buildChecklist(ctx: ChecklistContext): ChecklistItem[] {
     });
   }
 
-  const rmd = rmdItem(year, age, detected.traditionalIraBalance);
+  const rmdBalance = detected.pretaxRetirementBalance || detected.traditionalIraBalance;
+  const rmd = rmdItem(year, age, rmdBalance, ctx.birthYear ?? null);
   if (rmd) out.push(rmd);
   out.push(fsaItem(year, ctx.employerBenefits));
 
@@ -900,8 +951,16 @@ export function buildChecklist(ctx: ChecklistContext): ChecklistItem[] {
  * The checklist before there's an estimate (no filing status or income yet): only the deadlines that
  * don't rest on one. The card says what to fill in for the rest.
  */
-export function checklistWithoutEstimate(year: number, today: string, age: number | null, traditionalIraBalance: number, employerBenefits: string | null, done: ReadonlySet<string>): ChecklistItem[] {
-  const rmd = rmdItem(year, age, traditionalIraBalance);
+export function checklistWithoutEstimate(
+  year: number,
+  today: string,
+  age: number | null,
+  pretaxBalance: number,
+  employerBenefits: string | null,
+  done: ReadonlySet<string>,
+  birthYear: number | null = null,
+): ChecklistItem[] {
+  const rmd = rmdItem(year, age, pretaxBalance, birthYear);
   return finishChecklist([...(rmd ? [rmd] : []), fsaItem(year, employerBenefits)], today, done);
 }
 
@@ -912,18 +971,22 @@ function finishChecklist(items: Omit<ChecklistItem, 'done'>[], today: string, do
     .sort((a, b) => a.due.localeCompare(b.due) || Number(a.general) - Number(b.general) || (b.impact ?? 0) - (a.impact ?? 0));
 }
 
-/** Required minimum distributions, from the year you turn 73. */
-function rmdItem(year: number, age: number | null, traditionalIraBalance: number): Omit<ChecklistItem, 'done'> | null {
-  if (age === null || age < 73 || traditionalIraBalance <= 0) return null;
+/** Required minimum distributions, from the SECURE 2.0 starting age (73 for 1951–1959, 75 for 1960+). */
+function rmdItem(year: number, age: number | null, pretaxBalance: number, birthYear: number | null = null): Omit<ChecklistItem, 'done'> | null {
+  if (age === null || pretaxBalance <= 0) return null;
+  const effectiveBirthYear = birthYear ?? year - age;
+  const startAge = rmdStartAge(effectiveBirthYear);
+  if (age < startAge) return null;
+  const est = Math.round(calculateRmd(pretaxBalance, age, effectiveBirthYear));
   const yearEnd = `${year}-12-31`;
   return {
     id: 'rmd',
     due: yearEnd,
     dueLabel: 'Distribution deadline',
-    title: 'Take your required minimum distribution',
-    detail: `Pre-tax IRAs (${money(traditionalIraBalance)}) need a minimum withdrawal by ${shortDate(yearEnd)}${
-      age === 73 ? `; the first one can wait until April 1, ${year + 1}, but then two land in ${year + 1}` : ''
-    }. Missing it costs 25% of the shortfall. It's last year's December 31 balance divided by an IRS life-expectancy factor.`,
+    title: est > 0 ? `Take your ~${money(est)} required minimum distribution` : 'Take your required minimum distribution',
+    detail: `Pre-tax retirement accounts (${money(pretaxBalance)}) need a minimum withdrawal by ${shortDate(yearEnd)}${
+      age === startAge ? `; your first one (at age ${startAge}) can wait until April 1, ${year + 1}, but then two land in ${year + 1}` : ''
+    }. Missing it costs up to 25% of the shortfall. It's last year's December 31 balance divided by an IRS life-expectancy factor (Roth IRAs and Roth workplace plans have no lifetime RMDs).`,
     impact: null,
     suggestionId: null,
     general: false,

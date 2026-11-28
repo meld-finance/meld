@@ -60,10 +60,11 @@ If any of these apply to your return, use dedicated tax software or a CPA.
 - tax-loss harvesting, with wash-sale warnings for purchases or RSU vests within 30 days in any account
 - RSU supplemental withholding gaps and $0 cost-basis checks on vested RSU holdings
 - gain harvesting at 0%
-- 401(k), HSA and IRA room
+- 401(k)/403(b)/TSP room (counting both pre-tax and Roth workplace deferrals toward the shared employee cap), separate governmental 457(b) room (which stacks on top of your 401(k)/403(b) limit), HSA, and IRA room
 - a backdoor Roth, with a pro-rata warning when pre-tax IRAs have money in them
 - a SEP IRA or solo 401(k) for self-employment income
 - Roth conversion room in low brackets
+- Required Minimum Distribution (RMD) reminders using SECURE 2.0 start ages (73 for birth years 1951–1959, 75 for 1960+) and the IRS Uniform Lifetime Table across both IRAs and workplace pre-tax accounts
 - an underpayment warning
 
 Tap one to ask Ask Meld about it.

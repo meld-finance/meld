@@ -1,7 +1,24 @@
 import { z } from 'zod';
-import { TaxTreatment } from './investments';
+import { is457bSubtype, TaxTreatment } from './investments';
 import { remainingLoanBalance } from './liabilities';
 import { Child, FilingStatus, partnerName } from './profile';
+import {
+  applyBucketLump,
+  buildRetirementTaxContext,
+  ContributionSplit,
+  initBucketState,
+  normalizeContributionSplit,
+  PlanningMode,
+  RothConversionBracket,
+  scaleBucketState,
+  stepBucketYear,
+  totalBuckets,
+  WithdrawalOrder,
+  type BucketBalances,
+  type BucketWithdrawals,
+  type DetailedRetirementConfig,
+  type RetirementTaxContext,
+} from './retirement-tax';
 import { claimingFactor, estimateSocialSecurityMonthly, resolveCoupleSocialSecurity } from './social-security';
 import { estimateAfterTaxIncome } from './tax-tables';
 
@@ -88,6 +105,24 @@ export const RetirementPlan = z.object({
   excludedAccountIds: z.array(z.string().uuid()),
   properties: z.array(PropertySale),
   spendingChanges: z.array(SpendingChange),
+  /** 'simple' uses a single savings pool; 'detailed' tracks pre-tax, Roth & taxable buckets with taxes & RMDs. */
+  planningMode: PlanningMode.default('simple'),
+  /** Detailed mode: which tax bucket to draw from first in retirement. */
+  withdrawalOrder: WithdrawalOrder.default('taxable_first'),
+  /** Detailed mode: optional federal bracket ceiling (%) to fill with Roth conversions each year. */
+  rothConversionBracket: RothConversionBracket.nullable().default(null),
+  /** Detailed mode: how ongoing contributions split across pre-tax, Roth, and taxable (%). Null uses account mix. */
+  contributionSplit: ContributionSplit.nullable().default(null),
+  /** Detailed mode: automatically add IRS age-50 and 60–63 catch-up contributions while working. */
+  includeCatchUps: z.boolean().default(false),
+  /** Detailed mode: optional two-letter US state override for retirement taxes (null uses Profile state). */
+  retirementState: z.string().trim().length(2).nullable().default(null),
+  /** Detailed mode: override for taxable brokerage cost basis (% of value); null uses synced holdings basis. */
+  taxableBasisPercent: z.number().min(0).max(100).nullable().default(null),
+  /** Detailed mode: past Roth contributions accessible tax- and penalty-free before age 59½. */
+  rothContributionBasis: z.number().nonnegative().nullable().default(null),
+  /** Detailed mode: early pre-tax withdrawals before age 60 avoid the 10% penalty (e.g. Rule of 55, 72(t)). */
+  penaltyFreeEarlyAccess: z.boolean().default(false),
 });
 export type RetirementPlan = z.infer<typeof RetirementPlan>;
 
@@ -113,6 +148,15 @@ export const EMPTY_RETIREMENT_PLAN: RetirementPlan = {
   excludedAccountIds: [],
   properties: [],
   spendingChanges: [],
+  planningMode: 'simple',
+  withdrawalOrder: 'taxable_first',
+  rothConversionBracket: null,
+  contributionSplit: null,
+  includeCatchUps: false,
+  retirementState: null,
+  taxableBasisPercent: null,
+  rothContributionBasis: null,
+  penaltyFreeEarlyAccess: false,
 };
 
 export const RETIREMENT_DEFAULTS = {
@@ -223,6 +267,8 @@ export const RetirementSummary = z.object({
       .nullable(),
     /** From the profile, for spending changes that follow a child's age. */
     children: z.array(Child),
+    /** Weighted cost-basis percentage inferred from synced taxable investment holdings (0–100); null if unknown. */
+    taxableBasisPercent: z.number().nullable().default(null),
   }),
   /** Visible investment accounts, largest first. */
   accounts: z.array(RetirementAccount),
@@ -304,6 +350,8 @@ export type RetirementInputs = {
   sales: SaleEvent[];
   /** Partner inputs when a partner with a birth year is configured; null/undefined otherwise. */
   partner?: ResolvedPartner | null;
+  /** Present in Detailed mode: enables 3-bucket tax-aware withdrawals, RMDs, and Roth conversions. */
+  detailed?: DetailedRetirementConfig | null;
 };
 
 /** Your age when the first spouse/person retires (when withdrawals or bridge cash flows begin). */
@@ -343,8 +391,8 @@ export type MissingInput = 'birth year' | 'retirement spending';
 export type ResolvedPlan = { inputs: RetirementInputs | null; missing: MissingInput[] };
 
 type SummaryParts = {
-  defaults: Omit<RetirementSummary['defaults'], 'yourIncome' | 'filingStatus' | 'state' | 'partner'> &
-    Partial<Pick<RetirementSummary['defaults'], 'yourIncome' | 'filingStatus' | 'state' | 'partner'>>;
+  defaults: Omit<RetirementSummary['defaults'], 'yourIncome' | 'filingStatus' | 'state' | 'partner' | 'taxableBasisPercent'> &
+    Partial<Pick<RetirementSummary['defaults'], 'yourIncome' | 'filingStatus' | 'state' | 'partner' | 'taxableBasisPercent'>>;
   accounts: RetirementAccount[];
   properties: RetirementProperty[];
   mortgages: RetirementMortgage[];
@@ -497,6 +545,39 @@ export function resolvePlan(plan: RetirementPlan, summary: SummaryParts): Resolv
     socialSecurityAnnual = Math.round(fullSocialSecurity * claimingFactor(birthYear, socialSecurityAge));
   }
 
+  let detailed: DetailedRetirementConfig | null = null;
+  if (plan.planningMode === 'detailed') {
+    const included = summary.accounts.filter((a) => a.included);
+    const pretax = included.filter((a) => a.taxTreatment === 'tax_deferred').reduce((s, a) => s + a.value, 0);
+    const roth = included.filter((a) => a.taxTreatment === 'tax_free').reduce((s, a) => s + a.value, 0);
+    const taxableAccounts = included
+      .filter((a) => a.taxTreatment === 'taxable' || a.taxTreatment === 'unknown')
+      .reduce((s, a) => s + a.value, 0);
+    const otherCash = Math.max(0, plan.otherSavings ?? 0);
+    const taxable = taxableAccounts + otherCash;
+    const pretax457bBalance = included
+      .filter((a) => a.taxTreatment === 'tax_deferred' && is457bSubtype(a.subtype))
+      .reduce((s, a) => s + a.value, 0);
+    const basisPct = plan.taxableBasisPercent ?? d.taxableBasisPercent ?? 50;
+    // Other savings (cash) has 100% cost basis; investment taxable accounts use inferred or overridden basis %.
+    const taxableBasis = taxableAccounts * (basisPct / 100) + otherCash;
+    const buckets: BucketBalances = { pretax, roth, taxable };
+    detailed = {
+      birthYear,
+      filingStatus,
+      state: plan.retirementState ?? state,
+      buckets,
+      taxableBasis,
+      pretax457bBalance,
+      rothContributionBasis: Math.min(roth, plan.rothContributionBasis ?? 0),
+      contributionSplit: normalizeContributionSplit(plan.contributionSplit ?? null, buckets),
+      includeCatchUps: plan.includeCatchUps ?? false,
+      withdrawalOrder: plan.withdrawalOrder ?? 'taxable_first',
+      rothConversionBracket: plan.rothConversionBracket ?? null,
+      penaltyFreeEarlyAccess: plan.penaltyFreeEarlyAccess ?? false,
+    };
+  }
+
   return {
     inputs: {
       currentAge,
@@ -515,6 +596,7 @@ export function resolvePlan(plan: RetirementPlan, summary: SummaryParts): Resolv
       pensionAnnual: plan.pensionAnnual ?? 0,
       sales,
       partner: resolvedPartner,
+      ...(detailed ? { detailed } : {}),
     },
     missing: [],
   };
@@ -546,7 +628,7 @@ export function inYourAges(
 
 export type RetirementProjection = {
   /** Balance at the start of each age (after any sale that year), from today's age to life expectancy. */
-  points: { age: number; balance: number }[];
+  points: { age: number; balance: number; buckets?: BucketBalances }[];
   /** Property sales within the plan, by age. */
   sales: { name: string; age: number; proceeds: number }[];
   /** Yearly spending in the first year of retirement. */
@@ -561,6 +643,14 @@ export type RetirementProjection = {
   extraMonthly: number | null;
   /** First age the money can't cover that year's spending; null if it lasts. */
   depletionAge: number | null;
+  /** Present in Detailed mode: total estimated taxes, penalties, RMDs, and Roth conversions over the plan. */
+  taxSummary?: {
+    lifetimeTax: number;
+    lifetimeEarlyPenalty: number;
+    lifetimeRmd: number;
+    lifetimeRothConversions: number;
+    effectiveTaxRate: number;
+  };
 };
 
 /** Net rent in a year from properties not yet sold. */
@@ -677,6 +767,192 @@ function stepYear(i: RetirementInputs, age: number, balance: number, r: number):
   return { balance: Math.max(0, balance - need) * (1 + r), short: need > balance + 0.005 };
 }
 
+/** Initial 3-bucket state, scaling proportionally if `startingBalance` was overridden. */
+function initialDetailedState(i: RetirementInputs, cfg: DetailedRetirementConfig) {
+  const baseTotal = totalBuckets(cfg.buckets);
+  if (Math.abs(baseTotal - i.startingBalance) <= 0.5) return initBucketState(cfg);
+  if (baseTotal > 0) return scaleBucketState(cfg, i.startingBalance / baseTotal);
+  const split = cfg.contributionSplit;
+  return {
+    pretax: i.startingBalance * split.pretax,
+    roth: i.startingBalance * split.roth,
+    taxable: i.startingBalance * split.taxable,
+    taxableBasis: i.startingBalance * split.taxable,
+    pretax457b: 0,
+    rothBasis: 0,
+  };
+}
+
+/** Runs one year of the 3-bucket tax-aware engine for `i` at `age` and real return `r`. */
+function stepDetailedYear(
+  i: RetirementInputs,
+  age: number,
+  state: ReturnType<typeof initBucketState>,
+  cfg: DetailedRetirementConfig,
+  taxCtx: RetirementTaxContext,
+  r: number,
+) {
+  const phase = yearPhase(i, age);
+  const youWorking = age < i.retirementAge;
+  const partnerAge = i.partner ? i.partner.currentAge + (age - i.currentAge) : null;
+  const partnerWorking = !!(i.partner && age < i.partner.retirementAgeInYours);
+  const workingNetIncome =
+    phase === 'bridge' ? (youWorking ? (i.bridgeIncomeAnnual ?? 0) : (i.partner?.bridgeIncomeAnnual ?? 0)) : 0;
+  const plannedSaving =
+    phase === 'working'
+      ? savedAt(i, age)
+      : phase === 'bridge'
+        ? (youWorking ? i.annualContribution : (i.partner?.annualContribution ?? 0)) + eventsAt(i, 'saving', age)
+        : 0;
+  return stepBucketYear(state, cfg, taxCtx, {
+    age,
+    phase,
+    r,
+    spending: phase === 'working' ? 0 : spendingAt(i, age),
+    workingNetIncome,
+    plannedSaving,
+    socialSecurity: socialSecurityAt(i, age),
+    pension: pensionAt(i, age),
+    rent: rentAt(i, age),
+    eventIncome: eventsAt(i, 'income', age),
+    youWorking,
+    partnerAge,
+    partnerWorking,
+  });
+}
+
+function projectRetirementDetailed(i: RetirementInputs, cfg: DetailedRetirementConfig): RetirementProjection {
+  const r = i.expectedReturn / 100;
+  const firstRetire = firstRetireAge(i);
+  const start = Math.max(firstRetire, i.currentAge);
+  const taxCtx = buildRetirementTaxContext(cfg.filingStatus, cfg.state, cfg.rothConversionBracket);
+  const state = initialDetailedState(i, cfg);
+
+  const points: RetirementProjection['points'] = [];
+  let atRetirement = totalBuckets(state);
+  let atStartSnapshot = { ...state };
+  let depletionAge: number | null = null;
+  let lifetimeTax = 0;
+  let lifetimeEarlyPenalty = 0;
+  let lifetimeRmd = 0;
+  let lifetimeRothConversions = 0;
+  let lifetimeOutflow = 0;
+
+  for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
+    const lump = salesAt(i, age) + onceAt(i, age);
+    if (applyBucketLump(state, lump) && depletionAge === null) depletionAge = age;
+    const total = totalBuckets(state);
+    points.push({
+      age,
+      balance: Math.round(total),
+      buckets: { pretax: Math.round(state.pretax), roth: Math.round(state.roth), taxable: Math.round(state.taxable) },
+    });
+    if (age === start) {
+      atRetirement = total;
+      atStartSnapshot = { ...state };
+    }
+    if (age === i.lifeExpectancy) break;
+    const step = stepDetailedYear(i, age, state, cfg, taxCtx, r);
+    if (step.short && depletionAge === null) depletionAge = age;
+    lifetimeTax += step.estimatedTax;
+    lifetimeEarlyPenalty += step.earlyPenalty;
+    lifetimeRmd += step.rmd;
+    lifetimeRothConversions += step.rothConversion;
+    if (yearPhase(i, age) !== 'working') {
+      lifetimeOutflow += spendingAt(i, age) + step.estimatedTax;
+    }
+  }
+
+  // Solve minimum balance needed at `start` preserving the bucket composition at `start`.
+  const snapTotal = totalBuckets(atStartSnapshot);
+  const sharePretax = snapTotal > 0 ? atStartSnapshot.pretax / snapTotal : cfg.contributionSplit.pretax;
+  const shareRoth = snapTotal > 0 ? atStartSnapshot.roth / snapTotal : cfg.contributionSplit.roth;
+  const shareTaxable = snapTotal > 0 ? atStartSnapshot.taxable / snapTotal : cfg.contributionSplit.taxable;
+  const taxableBasisRatio = atStartSnapshot.taxable > 0 ? atStartSnapshot.taxableBasis / atStartSnapshot.taxable : 0.5;
+  const share457b = atStartSnapshot.pretax > 0 ? atStartSnapshot.pretax457b / atStartSnapshot.pretax : 0;
+  const shareRothBasis = atStartSnapshot.roth > 0 ? atStartSnapshot.rothBasis / atStartSnapshot.roth : 0;
+
+  const survivesFromStart = (totalAtStart: number): boolean => {
+    const s = {
+      pretax: totalAtStart * sharePretax,
+      roth: totalAtStart * shareRoth,
+      taxable: totalAtStart * shareTaxable,
+      taxableBasis: totalAtStart * shareTaxable * taxableBasisRatio,
+      pretax457b: totalAtStart * sharePretax * share457b,
+      rothBasis: totalAtStart * shareRoth * shareRothBasis,
+    };
+    for (let age = start; age < i.lifeExpectancy; age++) {
+      if (age > start) {
+        const lump = salesAt(i, age) + onceAt(i, age);
+        if (applyBucketLump(s, lump)) return false;
+      }
+      if (stepDetailedYear(i, age, s, cfg, taxCtx, r).short) return false;
+    }
+    return true;
+  };
+
+  let neededDollars = 0;
+  if (!survivesFromStart(0)) {
+    let lo = 0;
+    let hi = Math.max(100_000, atRetirement * 2, i.annualSpending * 30);
+    while (hi < 1e9 && !survivesFromStart(hi)) hi *= 2;
+    for (let iter = 0; iter < 30 && hi - lo > 0.5; iter++) {
+      const mid = (lo + hi) / 2;
+      if (survivesFromStart(mid)) hi = mid;
+      else lo = mid;
+    }
+    neededDollars = Math.ceil(hi);
+  }
+
+  const atRetirementDollars = Math.round(atRetirement);
+  const gap = neededDollars - atRetirementDollars;
+  const years = firstRetire - i.currentAge;
+  let extraMonthly: number | null = null;
+  if (gap > 0 && years > 0) {
+    const survivesWithExtra = (m: number): boolean => {
+      const cand: RetirementInputs = { ...i, annualContribution: i.annualContribution + m * 12 };
+      const s = initialDetailedState(cand, cfg);
+      for (let age = cand.currentAge; age < cand.lifeExpectancy; age++) {
+        if (applyBucketLump(s, salesAt(cand, age) + onceAt(cand, age))) return false;
+        if (stepDetailedYear(cand, age, s, cfg, taxCtx, r).short) return false;
+      }
+      return true;
+    };
+    let hi = Math.max(100, Math.ceil(gap / Math.max(1, years) / 12));
+    while (hi < MAX_LEVER_MONTHLY && !survivesWithExtra(hi)) hi = Math.min(MAX_LEVER_MONTHLY, hi * 2);
+    if (survivesWithExtra(hi)) {
+      let lo = 1;
+      while (lo < hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (survivesWithExtra(mid)) hi = mid;
+        else lo = mid + 1;
+      }
+      extraMonthly = lo;
+    }
+  }
+
+  return {
+    points,
+    sales: i.sales
+      .filter((s) => s.age < i.lifeExpectancy)
+      .map(({ name, age, proceeds }) => ({ name, age, proceeds }))
+      .sort((a, b) => a.age - b.age),
+    spendingAtRetirement: Math.round(spendingAt(i, start)),
+    atRetirement: atRetirementDollars,
+    needed: neededDollars,
+    gap,
+    extraMonthly,
+    depletionAge,
+    taxSummary: {
+      lifetimeTax: Math.round(lifetimeTax),
+      lifetimeEarlyPenalty: Math.round(lifetimeEarlyPenalty),
+      lifetimeRmd: Math.round(lifetimeRmd),
+      lifetimeRothConversions: Math.round(lifetimeRothConversions),
+      effectiveTaxRate: lifetimeOutflow > 0 ? Math.round((lifetimeTax / lifetimeOutflow) * 1000) / 1000 : 0,
+    },
+  };
+}
+
 /**
  * Year-by-year projection in today's dollars. A property sold at an age adds its proceeds at the start
  * of that year, as does a one-time sum. Before the first retirement age, a year's growth is followed
@@ -684,6 +960,7 @@ function stepYear(i: RetirementInputs, age: number, balance: number, r: number):
  * first; once both are retired, each year's withdrawal comes out first and the rest grows.
  */
 export function projectRetirement(i: RetirementInputs): RetirementProjection {
+  if (i.detailed) return projectRetirementDetailed(i, i.detailed);
   const r = i.expectedReturn / 100;
   const firstRetire = firstRetireAge(i);
   const start = Math.max(firstRetire, i.currentAge);
@@ -759,10 +1036,75 @@ export type RetirementCashFlowYear = {
   saving: number;
   withdrawal: number;
   lump: number;
+  /** Present in Detailed mode: estimated federal + state taxes (including any early penalty). */
+  estimatedTax?: number;
+  /** Present in Detailed mode: 10% early-withdrawal penalty portion of `estimatedTax`. */
+  earlyPenalty?: number;
+  /** Present in Detailed mode: IRS Required Minimum Distribution from pre-tax accounts. */
+  rmd?: number;
+  /** Present in Detailed mode: Roth conversion moved from pre-tax to Roth. */
+  rothConversion?: number;
+  /** Present in Detailed mode: gross withdrawal broken down by tax bucket. */
+  withdrawalsByBucket?: BucketWithdrawals;
+  /** Present in Detailed mode: start-of-year balances by tax bucket. */
+  buckets?: BucketBalances;
 };
 
 /** Year-by-year cash flow breakdown across working, bridge (staggered), and fully retired phases. */
 export function retirementCashFlow(i: RetirementInputs): RetirementCashFlowYear[] {
+  if (i.detailed) {
+    const cfg = i.detailed;
+    const r = i.expectedReturn / 100;
+    const taxCtx = buildRetirementTaxContext(cfg.filingStatus, cfg.state, cfg.rothConversionBracket);
+    const state = initialDetailedState(i, cfg);
+    const out: RetirementCashFlowYear[] = [];
+    for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
+      const lump = Math.round(salesAt(i, age) + onceAt(i, age));
+      applyBucketLump(state, lump);
+      const buckets: BucketBalances = {
+        pretax: Math.round(state.pretax),
+        roth: Math.round(state.roth),
+        taxable: Math.round(state.taxable),
+      };
+      const phase = yearPhase(i, age);
+      const retired = phase !== 'working';
+      const partnerAge = i.partner ? i.partner.currentAge + (age - i.currentAge) : null;
+      const ss = socialSecurityAt(i, age);
+      const pension = pensionAt(i, age);
+      const rent = Math.round(rentAt(i, age));
+      const eventIncome = Math.round(eventsAt(i, 'income', age));
+      const youWorking = age < i.retirementAge;
+      const workingIncome =
+        phase === 'bridge' ? Math.round(youWorking ? (i.bridgeIncomeAnnual ?? 0) : (i.partner?.bridgeIncomeAnnual ?? 0)) : 0;
+      const step = stepDetailedYear(i, age, state, cfg, taxCtx, r);
+      out.push({
+        age,
+        phase,
+        partnerAge,
+        retired,
+        spending: retired ? Math.round(spendingAt(i, age)) : 0,
+        workingIncome,
+        socialSecurity: ss,
+        pension: retired ? pension : 0,
+        rent,
+        eventIncome,
+        saving: Math.round(step.saving),
+        withdrawal: Math.round(step.withdrawal),
+        lump,
+        estimatedTax: Math.round(step.estimatedTax),
+        earlyPenalty: Math.round(step.earlyPenalty),
+        rmd: Math.round(step.rmd),
+        rothConversion: Math.round(step.rothConversion),
+        withdrawalsByBucket: {
+          pretax: Math.round(step.withdrawals.pretax),
+          roth: Math.round(step.withdrawals.roth),
+          taxable: Math.round(step.withdrawals.taxable),
+        },
+        buckets,
+      });
+    }
+    return out;
+  }
   const out: RetirementCashFlowYear[] = [];
   for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
     const phase = yearPhase(i, age);
@@ -933,18 +1275,31 @@ export function simulateRetirement(i: RetirementInputs, settings: SimulationSett
   const balances = Array.from({ length: years }, () => new Float64Array(settings.trials));
   const depletions: number[] = [];
 
+  const cfg = i.detailed ?? null;
+  const taxCtx = cfg ? buildRetirementTaxContext(cfg.filingStatus, cfg.state, cfg.rothConversionBracket) : null;
+
   for (let t = 0; t < settings.trials; t++) {
-    let balance = i.startingBalance;
     let depleted: number | null = null;
-    for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
-      const lump = lumpsAt(i, age, balance);
-      if (lump.short && depleted === null) depleted = age;
-      balance = lump.balance;
-      balances[age - i.currentAge]![t] = balance;
-      if (age === i.lifeExpectancy) break;
-      const step = stepYear(i, age, balance, draw());
-      if (step.short && depleted === null) depleted = age;
-      balance = step.balance;
+    if (cfg && taxCtx) {
+      const state = initialDetailedState(i, cfg);
+      for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
+        if (applyBucketLump(state, salesAt(i, age) + onceAt(i, age)) && depleted === null) depleted = age;
+        balances[age - i.currentAge]![t] = totalBuckets(state);
+        if (age === i.lifeExpectancy) break;
+        if (stepDetailedYear(i, age, state, cfg, taxCtx, draw()).short && depleted === null) depleted = age;
+      }
+    } else {
+      let balance = i.startingBalance;
+      for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
+        const lump = lumpsAt(i, age, balance);
+        if (lump.short && depleted === null) depleted = age;
+        balance = lump.balance;
+        balances[age - i.currentAge]![t] = balance;
+        if (age === i.lifeExpectancy) break;
+        const step = stepYear(i, age, balance, draw());
+        if (step.short && depleted === null) depleted = age;
+        balance = step.balance;
+      }
     }
     if (depleted !== null) depletions.push(depleted);
   }
@@ -1068,26 +1423,44 @@ function precomputeReturns(expectedReturn: number, settings: SimulationSettings,
 }
 
 function successRateWithReturns(i: RetirementInputs, returns: Float64Array, trials: number, steps: number): number {
+  const cfg = i.detailed ?? null;
+  const taxCtx = cfg ? buildRetirementTaxContext(cfg.filingStatus, cfg.state, cfg.rothConversionBracket) : null;
   let failed = 0;
   for (let t = 0; t < trials; t++) {
-    let balance = i.startingBalance;
     const baseIdx = t * steps;
     let short = false;
-    for (let y = 0; y <= steps; y++) {
-      const age = i.currentAge + y;
-      const lump = lumpsAt(i, age, balance);
-      if (lump.short) {
-        short = true;
-        break;
+    if (cfg && taxCtx) {
+      const state = initialDetailedState(i, cfg);
+      for (let y = 0; y <= steps; y++) {
+        const age = i.currentAge + y;
+        if (applyBucketLump(state, salesAt(i, age) + onceAt(i, age))) {
+          short = true;
+          break;
+        }
+        if (y === steps) break;
+        if (stepDetailedYear(i, age, state, cfg, taxCtx, returns[baseIdx + y]!).short) {
+          short = true;
+          break;
+        }
       }
-      balance = lump.balance;
-      if (y === steps) break;
-      const step = stepYear(i, age, balance, returns[baseIdx + y]!);
-      if (step.short) {
-        short = true;
-        break;
+    } else {
+      let balance = i.startingBalance;
+      for (let y = 0; y <= steps; y++) {
+        const age = i.currentAge + y;
+        const lump = lumpsAt(i, age, balance);
+        if (lump.short) {
+          short = true;
+          break;
+        }
+        balance = lump.balance;
+        if (y === steps) break;
+        const step = stepYear(i, age, balance, returns[baseIdx + y]!);
+        if (step.short) {
+          short = true;
+          break;
+        }
+        balance = step.balance;
       }
-      balance = step.balance;
     }
     if (short) failed++;
   }
@@ -1097,20 +1470,32 @@ function successRateWithReturns(i: RetirementInputs, returns: Float64Array, tria
 /** Single-pass survival rate matching `simulateRetirement(...).successRate` RNG offsets without sorting percentiles. */
 function successRateExact(i: RetirementInputs, settings: SimulationSettings): number {
   const draw = makeReturnDrawer(i.expectedReturn, settings);
+  const cfg = i.detailed ?? null;
+  const taxCtx = cfg ? buildRetirementTaxContext(cfg.filingStatus, cfg.state, cfg.rothConversionBracket) : null;
   let failed = 0;
   for (let t = 0; t < settings.trials; t++) {
-    let balance = i.startingBalance;
     let short = false;
-    for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
-      const lump = lumpsAt(i, age, balance);
-      if (lump.short) short = true;
-      balance = lump.balance;
-      if (age === i.lifeExpectancy) break;
-      const r = draw();
-      if (!short) {
-        const step = stepYear(i, age, balance, r);
-        if (step.short) short = true;
-        balance = step.balance;
+    if (cfg && taxCtx) {
+      const state = initialDetailedState(i, cfg);
+      for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
+        if (applyBucketLump(state, salesAt(i, age) + onceAt(i, age))) short = true;
+        if (age === i.lifeExpectancy) break;
+        const r = draw();
+        if (!short && stepDetailedYear(i, age, state, cfg, taxCtx, r).short) short = true;
+      }
+    } else {
+      let balance = i.startingBalance;
+      for (let age = i.currentAge; age <= i.lifeExpectancy; age++) {
+        const lump = lumpsAt(i, age, balance);
+        if (lump.short) short = true;
+        balance = lump.balance;
+        if (age === i.lifeExpectancy) break;
+        const r = draw();
+        if (!short) {
+          const step = stepYear(i, age, balance, r);
+          if (step.short) short = true;
+          balance = step.balance;
+        }
       }
     }
     if (short) failed++;
@@ -1241,19 +1626,31 @@ function solveLongevity(
     maxAge = Math.max(targetAge, Math.min(120, maxAge));
   } else {
     const draw = makeReturnDrawer(baseInputs.expectedReturn, simSettings);
+    const cfg = baseInputs.detailed ?? null;
+    const taxCtx = cfg ? buildRetirementTaxContext(cfg.filingStatus, cfg.state, cfg.rothConversionBracket) : null;
     const failCounts = new Int32Array(122);
     for (let t = 0; t < simSettings.trials; t++) {
-      let balance = baseInputs.startingBalance;
       let failAt = 121;
-      for (let age = baseInputs.currentAge; age <= 120; age++) {
-        const lump = lumpsAt(baseInputs, age, balance);
-        if (lump.short && failAt === 121) failAt = age;
-        balance = lump.balance;
-        if (age === 120) break;
-        const r = draw();
-        const step = stepYear(baseInputs, age, balance, r);
-        if (step.short && failAt === 121) failAt = age + 1;
-        balance = step.balance;
+      if (cfg && taxCtx) {
+        const state = initialDetailedState(baseInputs, cfg);
+        for (let age = baseInputs.currentAge; age <= 120; age++) {
+          if (applyBucketLump(state, salesAt(baseInputs, age) + onceAt(baseInputs, age)) && failAt === 121) failAt = age;
+          if (age === 120) break;
+          const r = draw();
+          if (failAt === 121 && stepDetailedYear(baseInputs, age, state, cfg, taxCtx, r).short) failAt = age + 1;
+        }
+      } else {
+        let balance = baseInputs.startingBalance;
+        for (let age = baseInputs.currentAge; age <= 120; age++) {
+          const lump = lumpsAt(baseInputs, age, balance);
+          if (lump.short && failAt === 121) failAt = age;
+          balance = lump.balance;
+          if (age === 120) break;
+          const r = draw();
+          const step = stepYear(baseInputs, age, balance, r);
+          if (step.short && failAt === 121) failAt = age + 1;
+          balance = step.balance;
+        }
       }
       failCounts[failAt]!++;
     }

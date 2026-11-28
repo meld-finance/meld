@@ -30,7 +30,7 @@ Five tabs:
 | [Recurring, autopay & alerts](features/recurring-and-alerts.md) | Subscriptions, bills, autopay coverage, ntfy push |
 | [Cash & emergency fund](features/cash.md) | Liquid cash, APYs, runway, idle-cash nudges |
 | [Investments & loans](features/investments.md) | Holdings, performance, exposure, RSU equity, loan payoff |
-| [Retirement](features/retirement.md) | Today's-dollar projections, Social Security, gap |
+| [Retirement](features/retirement.md) | Today's-dollar projections, Simple & tax-aware Detailed mode, RMDs, Roth conversions, Social Security |
 | [Tax](features/tax.md) | Simple US federal & state estimates (all 50 states + DC), common checks, deadlines |
 | [Insurance](features/insurance.md) | Life and disability policies, PDF upload |
 | [Estate](features/estate.md) | Beneficiaries, documents, family packet |

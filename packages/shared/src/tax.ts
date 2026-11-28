@@ -194,12 +194,19 @@ export const TaxPlan = z.object({
     sales: z.number(),
     k401Contributions: z.number(),
     k401Accounts: z.number(),
+    /** Roth 401(k)/403(b)/TSP contributions (share the employee deferral limit with pre-tax 401(k)/403(b)). */
+    roth401kContributions: z.number().default(0),
+    /** Governmental 457(b) contributions (separate deferral limit that stacks on top of 401(k)/403(b)). */
+    k457bContributions: z.number().default(0),
+    k457bAccounts: z.number().default(0),
     hsaContributions: z.number(),
     hsaAccount: z.boolean(),
     iraContributions: z.number(),
     rothContributions: z.number(),
     /** Pre-tax IRA balances, which make a backdoor Roth partly taxable. */
     traditionalIraBalance: z.number(),
+    /** All pre-tax retirement balances subject to RMDs (traditional IRAs plus pre-tax 401(k)/403(b)/457(b)/TSP). */
+    pretaxRetirementBalance: z.number().default(0),
     has529: z.boolean(),
     rsuVestedYtd: z.number(),
     rsuScheduledRemaining: z.number(),

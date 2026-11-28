@@ -8,11 +8,14 @@ export type TaxTreatment = z.infer<typeof TaxTreatment>;
 
 // Plaid investment account subtypes, grouped by how withdrawals are taxed.
 const TAX_DEFERRED = new Set([
-  '401a', '401k', '403b', '457b', 'ira', 'keogh', 'lif', 'lira', 'lrif', 'lrsp', 'pension',
+  '401a', '401k', '403b', '457b', 'cash balance plan', 'ira', 'keogh', 'lif', 'lira', 'lrif', 'lrsp', 'pension',
   'prif', 'profit sharing plan', 'qshr', 'rdsp', 'resp', 'retirement', 'rlif', 'rrif', 'rrsp',
-  'sarsep', 'sep ira', 'simple ira', 'sipp', 'thrift savings plan',
+  'sarsep', 'sep ira', 'simple ira', 'sipp', 'solo 401k', 'thrift savings plan',
 ]);
-const TAX_FREE = new Set(['roth', 'roth 401k', 'hsa', '529', 'tfsa', 'isa', 'education savings account']);
+const TAX_FREE = new Set([
+  'roth', 'roth 401k', 'roth 403b', 'roth 457b', 'roth solo 401k', 'roth tsp', 'hsa', '529', 'tfsa', 'isa',
+  'education savings account',
+]);
 const TAXABLE = new Set([
   'brokerage', 'cash isa', 'crypto exchange', 'fixed annuity', 'gic', 'health reimbursement arrangement',
   'mutual fund', 'non-custodial wallet', 'non-taxable brokerage account', 'other annuity', 'other insurance',
@@ -26,6 +29,43 @@ export function taxTreatment(subtype: string | null): TaxTreatment {
   if (TAX_FREE.has(s)) return 'tax_free';
   if (TAXABLE.has(s)) return 'taxable';
   return 'unknown';
+}
+
+/** Governmental 457(b) plans have a separate deferral limit and no 10% early-withdrawal penalty after leaving the job. */
+export function is457bSubtype(subtype: string | null): boolean {
+  const s = subtype?.toLowerCase();
+  return s === '457b' || s === 'roth 457b';
+}
+
+export const INVESTMENT_SUBTYPE_LABELS: Record<string, string> = {
+  '401a': '401(a)',
+  '401k': '401(k)',
+  '403b': '403(b)',
+  '457b': '457(b)',
+  ira: 'Traditional IRA',
+  roth: 'Roth IRA',
+  'roth 401k': 'Roth 401(k)',
+  'roth 403b': 'Roth 403(b)',
+  'roth 457b': 'Roth 457(b)',
+  'roth solo 401k': 'Roth Solo 401(k)',
+  'roth tsp': 'Roth TSP',
+  'solo 401k': 'Solo 401(k)',
+  'thrift savings plan': 'TSP',
+  'cash balance plan': 'Cash Balance Plan',
+  sep: 'SEP IRA',
+  'sep ira': 'SEP IRA',
+  simple: 'SIMPLE IRA',
+  'simple ira': 'SIMPLE IRA',
+  hsa: 'HSA',
+  brokerage: 'Brokerage',
+  '529': '529 Plan',
+  ugma: 'UGMA',
+  utma: 'UTMA',
+};
+
+export function formatInvestmentSubtype(subtype: string | null): string | null {
+  if (!subtype) return null;
+  return INVESTMENT_SUBTYPE_LABELS[subtype.toLowerCase()] ?? subtype;
 }
 
 // --- What's inside a security ------------------------------------------------

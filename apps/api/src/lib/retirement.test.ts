@@ -1,4 +1,6 @@
 import {
+  buildRetirementNudges,
+  calculateRmd,
   PARTNER_AGE_ID,
   claimedAnnualBenefit,
   claimingFactor,
@@ -10,6 +12,7 @@ import {
   fullRetireAge,
   fullRetirementAgeMonths,
   inYourAges,
+  is457bSubtype,
   isEducationAccount,
   mortgagePayoffAge,
   projectRetirement,
@@ -18,12 +21,15 @@ import {
   resolvePlan,
   retirementCashFlow,
   retirementLevers,
+  rmdStartAge,
   saleBreakdown,
   saleProceeds,
   simulateRetirement,
   socialSecurityResolver,
   spendingAt,
   spousalClaimingFactor,
+  taxableSocialSecurity,
+  taxTreatment,
   withPlan,
   yearPhase,
   type Child,
@@ -1149,5 +1155,274 @@ describe('retirementLevers', () => {
     expect(aheadCouple.status).toBe('ahead');
     expect(aheadCouple.spending!.monthlyDelta).toBeGreaterThan(0);
     expect(aheadCouple.retirementAge!.yearsDelta).toBeLessThan(0);
+  });
+});
+
+describe('RMDs and tax subtypes', () => {
+  it('computes SECURE 2.0 RMD start ages and Uniform Lifetime Table amounts', () => {
+    expect(rmdStartAge(1949)).toBe(72);
+    expect(rmdStartAge(1955)).toBe(73);
+    expect(rmdStartAge(1960)).toBe(75);
+    expect(calculateRmd(1_000_000, 74, 1960)).toBe(0);
+    expect(Math.round(calculateRmd(1_000_000, 75, 1960))).toBe(Math.round(1_000_000 / 24.6));
+    expect(Math.round(calculateRmd(265_000, 73, 1955))).toBe(10_000);
+  });
+
+  it('classifies expanded Roth and self-employed workplace subtypes', () => {
+    expect(taxTreatment('roth 403b')).toBe('tax_free');
+    expect(taxTreatment('roth 457b')).toBe('tax_free');
+    expect(taxTreatment('roth solo 401k')).toBe('tax_free');
+    expect(taxTreatment('solo 401k')).toBe('tax_deferred');
+    expect(is457bSubtype('457b')).toBe(true);
+    expect(is457bSubtype('roth 457b')).toBe(true);
+    expect(is457bSubtype('403b')).toBe(false);
+  });
+
+  it('computes IRS provisional-income Social Security taxability', () => {
+    expect(taxableSocialSecurity(30_000, 5_000, 'single')).toBe(0); // provisional 20k <= 25k
+    expect(taxableSocialSecurity(30_000, 15_000, 'single')).toBe(2_500); // provisional 30k -> 50% of 5k
+    expect(taxableSocialSecurity(30_000, 100_000, 'single')).toBe(25_500); // 85% cap
+    expect(taxableSocialSecurity(40_000, 10_000, 'married_joint')).toBe(0); // provisional 30k <= 32k
+  });
+});
+
+describe('Detailed mode (3-bucket tax-aware retirement engine)', () => {
+  const makeSummary = (accounts: RetirementAccount[], overrides: Partial<Parameters<typeof resolvePlan>[1]['defaults']> = {}) => ({
+    defaults: {
+      currentAge: 60,
+      birthYear: 1966,
+      married: true,
+      annualSpending: 100_000,
+      annualIncome: 180_000,
+      yourIncome: 180_000,
+      filingStatus: 'married_joint' as const,
+      state: 'CA',
+      partner: null,
+      children: [] as Child[],
+      taxableBasisPercent: 60,
+      ...overrides,
+    },
+    accounts,
+    properties: [],
+    mortgages: [],
+  });
+
+  const acct = (id: string, subtype: string, value: number): RetirementAccount => ({
+    id,
+    name: subtype,
+    institutionName: 'Vanguard',
+    subtype,
+    taxTreatment: taxTreatment(subtype),
+    value,
+    included: true,
+    excludedReason: null,
+  });
+
+  it('requires a larger nest egg for pre-tax savings than tax-free Roth savings', () => {
+    const pretaxSummary = makeSummary([acct('00000000-0000-4000-8000-000000000001', '401k', 2_000_000)]);
+    const rothSummary = makeSummary([acct('00000000-0000-4000-8000-000000000002', 'roth', 2_000_000)]);
+    const detailedPlan = {
+      ...EMPTY_RETIREMENT_PLAN,
+      planningMode: 'detailed' as const,
+      retirementAge: 65,
+      lifeExpectancy: 90,
+      annualSpending: 100_000,
+      spendingDeclinePercent: 0,
+      socialSecurityAnnual: 0,
+    };
+
+    const simpleProj = projectRetirement(resolvePlan({ ...detailedPlan, planningMode: 'simple' }, pretaxSummary).inputs!);
+    const pretaxProj = projectRetirement(resolvePlan(detailedPlan, pretaxSummary).inputs!);
+    const rothProj = projectRetirement(resolvePlan(detailedPlan, rothSummary).inputs!);
+
+    // Roth withdrawals are tax-free, so Roth needed matches Simple needed closely; Pre-tax needs ~11-12% more (MFJ effective tax).
+    expect(pretaxProj.needed).toBeGreaterThan(rothProj.needed * 1.1);
+    expect(Math.abs(rothProj.needed - simpleProj.needed)).toBeLessThan(100);
+    expect(pretaxProj.taxSummary!.lifetimeTax).toBeGreaterThan(200_000);
+    expect(rothProj.taxSummary!.lifetimeTax).toBe(0);
+
+    // Exact depletion invariant in Detailed mode: starting at `needed` at retirement lasts to lifeExpectancy.
+    const pretaxInputs = resolvePlan(detailedPlan, pretaxSummary).inputs!;
+    const exact = projectRetirement({ ...pretaxInputs, currentAge: 65, startingBalance: pretaxProj.needed });
+    expect(exact.depletionAge).toBeNull();
+    expect(exact.points.at(-1)!.balance).toBeLessThan(500);
+  });
+
+  it('draws from the expected buckets under each withdrawal order', () => {
+    const summary = makeSummary([
+      acct('00000000-0000-4000-8000-000000000001', '401k', 600_000),
+      acct('00000000-0000-4000-8000-000000000002', 'roth', 300_000),
+      acct('00000000-0000-4000-8000-000000000003', 'brokerage', 400_000),
+    ]);
+    const firstRetireYear = (withdrawalOrder: 'taxable_first' | 'bracket_fill' | 'pretax_first' | 'pro_rata') => {
+      const inputs = resolvePlan(
+        {
+          ...EMPTY_RETIREMENT_PLAN,
+          planningMode: 'detailed',
+          retirementAge: 65,
+          lifeExpectancy: 85,
+          annualSpending: 90_000,
+          spendingDeclinePercent: 0,
+          socialSecurityAnnual: 0,
+          withdrawalOrder,
+        },
+        summary,
+      ).inputs!;
+      return retirementCashFlow(inputs).find((r) => r.age === 65)!.withdrawalsByBucket!;
+    };
+
+    const tf = firstRetireYear('taxable_first');
+    expect(tf.taxable).toBeGreaterThan(80_000);
+    expect(tf.pretax).toBe(0);
+
+    const pf = firstRetireYear('pretax_first');
+    expect(pf.pretax).toBeGreaterThan(90_000);
+    expect(pf.taxable).toBe(0);
+
+    const bf = firstRetireYear('bracket_fill');
+    expect(bf.pretax).toBeGreaterThan(0);
+
+    const pr = firstRetireYear('pro_rata');
+    expect(pr.pretax).toBeGreaterThan(0);
+    expect(pr.roth).toBeGreaterThan(0);
+    expect(pr.taxable).toBeGreaterThan(0);
+  });
+
+  it('lowers lifetime tax when relocating from a high-tax state (CA) to a no-tax state (FL)', () => {
+    const summary = makeSummary([acct('00000000-0000-4000-8000-000000000001', '401k', 2_500_000)]);
+    const basePlan = {
+      ...EMPTY_RETIREMENT_PLAN,
+      planningMode: 'detailed' as const,
+      retirementAge: 65,
+      lifeExpectancy: 90,
+      annualSpending: 110_000,
+      spendingDeclinePercent: 0,
+      socialSecurityAnnual: 30_000,
+    };
+    const caProj = projectRetirement(resolvePlan(basePlan, summary).inputs!);
+    const flProj = projectRetirement(resolvePlan({ ...basePlan, retirementState: 'FL' }, summary).inputs!);
+    expect(flProj.taxSummary!.lifetimeTax).toBeLessThan(caProj.taxSummary!.lifetimeTax - 50_000);
+    expect(flProj.needed).toBeLessThan(caProj.needed);
+  });
+
+  it('enforces RMDs starting at age 75 (born 1966) and shrinks them with Roth conversions', () => {
+    const summary = makeSummary([
+      acct('00000000-0000-4000-8000-000000000001', '401k', 2_000_000),
+      acct('00000000-0000-4000-8000-000000000002', 'brokerage', 600_000),
+    ]);
+    const noConvPlan = {
+      ...EMPTY_RETIREMENT_PLAN,
+      planningMode: 'detailed' as const,
+      retirementAge: 62,
+      lifeExpectancy: 90,
+      annualSpending: 90_000,
+      spendingDeclinePercent: 0,
+      socialSecurityAnnual: 36_000,
+      socialSecurityAge: 70,
+      withdrawalOrder: 'taxable_first' as const,
+      rothConversionBracket: null,
+    };
+    const withConvPlan = { ...noConvPlan, rothConversionBracket: 22 as const };
+
+    const cfNoConv = retirementCashFlow(resolvePlan(noConvPlan, summary).inputs!);
+    expect(cfNoConv.find((r) => r.age === 74)!.rmd).toBe(0);
+    expect(cfNoConv.find((r) => r.age === 75)!.rmd).toBeGreaterThan(50_000);
+
+    const projNoConv = projectRetirement(resolvePlan(noConvPlan, summary).inputs!);
+    const projConv = projectRetirement(resolvePlan(withConvPlan, summary).inputs!);
+    expect(projConv.taxSummary!.lifetimeRothConversions).toBeGreaterThan(200_000);
+    expect(projConv.taxSummary!.lifetimeRmd).toBeLessThan(projNoConv.taxSummary!.lifetimeRmd);
+  });
+
+  it('applies 10% early withdrawal penalty before 60 on 401(k), but exempts 457(b) and Rule of 55 toggle', () => {
+    const k401Summary = makeSummary([acct('00000000-0000-4000-8000-000000000001', '401k', 1_800_000)], {
+      currentAge: 52,
+      birthYear: 1974,
+      state: 'TX',
+    });
+    const k457Summary = makeSummary([acct('00000000-0000-4000-8000-000000000002', '457b', 1_800_000)], {
+      currentAge: 52,
+      birthYear: 1974,
+      state: 'TX',
+    });
+    const earlyPlan = {
+      ...EMPTY_RETIREMENT_PLAN,
+      planningMode: 'detailed' as const,
+      retirementAge: 53,
+      lifeExpectancy: 85,
+      annualSpending: 70_000,
+      spendingDeclinePercent: 0,
+      socialSecurityAnnual: 0,
+    };
+
+    const p401 = projectRetirement(resolvePlan(earlyPlan, k401Summary).inputs!);
+    const p457 = projectRetirement(resolvePlan(earlyPlan, k457Summary).inputs!);
+    const pRule55 = projectRetirement(resolvePlan({ ...earlyPlan, penaltyFreeEarlyAccess: true }, k401Summary).inputs!);
+
+    expect(p401.taxSummary!.lifetimeEarlyPenalty).toBeGreaterThan(30_000);
+    expect(p457.taxSummary!.lifetimeEarlyPenalty).toBe(0);
+    expect(pRule55.taxSummary!.lifetimeEarlyPenalty).toBe(0);
+    expect(p457.needed).toBeLessThan(p401.needed);
+  });
+
+  it('matches deterministic Detailed projection when Monte Carlo volatility is 0 and runs fast', () => {
+    const summary = makeSummary([
+      acct('00000000-0000-4000-8000-000000000001', '401k', 900_000),
+      acct('00000000-0000-4000-8000-000000000002', 'roth', 300_000),
+      acct('00000000-0000-4000-8000-000000000003', 'brokerage', 400_000),
+    ]);
+    const inputs = resolvePlan(
+      {
+        ...EMPTY_RETIREMENT_PLAN,
+        planningMode: 'detailed',
+        retirementAge: 65,
+        lifeExpectancy: 92,
+        annualContribution: 25_000,
+        includeCatchUps: true,
+        withdrawalOrder: 'bracket_fill',
+        rothConversionBracket: 12,
+      },
+      summary,
+    ).inputs!;
+    const proj = projectRetirement(inputs);
+    const detSim = simulateRetirement(inputs, { trials: 50, volatility: 0, seed: 1 });
+    expect(detSim.bands.map((b) => ({ age: b.age, balance: b.p50 }))).toEqual(
+      proj.points.map(({ age, balance }) => ({ age, balance })),
+    );
+
+    const t0 = performance.now();
+    const mc = simulateRetirement(inputs, { trials: 1000, volatility: 12, seed: 1 });
+    const elapsedMs = performance.now() - t0;
+    expect(mc.successRate).toBeGreaterThanOrEqual(0);
+    expect(mc.successRate).toBeLessThanOrEqual(1);
+    expect(elapsedMs).toBeLessThan(1000);
+  });
+
+  it('builds plain-English contextual nudges based on age, pre-tax mix, early retirement, and RMDs', () => {
+    const nudges = buildRetirementNudges({
+      planningMode: 'simple',
+      currentAge: 52,
+      birthYear: 1974,
+      retirementAge: 56,
+      firstRetireAge: 56,
+      filingStatus: null,
+      state: null,
+      retirementState: null,
+      accounts: [{ subtype: '401k', taxTreatment: 'tax_deferred', value: 900_000, included: true }],
+      otherSavings: 0,
+      projectedAtRetirement: 1_200_000,
+      withdrawalOrder: 'taxable_first',
+      rothConversionBracket: null,
+      penaltyFreeEarlyAccess: false,
+      rothContributionBasis: null,
+    });
+    expect(nudges.length).toBeGreaterThanOrEqual(2);
+    expect(nudges.length).toBeLessThanOrEqual(3);
+    expect(nudges.some((n) => n.id === 'missing-tax-profile')).toBe(true);
+    expect(nudges.some((n) => n.id === 'near-retirement-detailed')).toBe(true);
+    expect(nudges.some((n) => n.id === 'early-retirement-59-half')).toBe(true);
+    for (const n of nudges) {
+      expect(n.explainer.length).toBeGreaterThan(60);
+    }
   });
 });

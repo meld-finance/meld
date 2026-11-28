@@ -79,6 +79,7 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
       state: null,
       partner: null,
       children: [],
+      taxableBasisPercent: null,
     });
     await saveProfile(ctx.db, {
       displayName: null,
@@ -104,6 +105,7 @@ describe.skipIf(!testDatabaseUrl)('retirement (Postgres)', () => {
       state: 'CA',
       partner: { name: 'Jordan', currentAge: 37, birthYear: 1989, annualIncome: 120000 },
       children: [{ id: 'k1', name: 'Mia', birthYear: 2016 }],
+      taxableBasisPercent: null,
     });
   });
 

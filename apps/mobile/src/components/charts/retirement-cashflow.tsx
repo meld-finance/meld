@@ -60,8 +60,13 @@ export function RetirementCashFlow({
     onActiveAgeChange?.(age);
   };
 
+  const hasTaxes = rows.some((r) => (r.estimatedTax ?? 0) > 0);
   const { min, max, ticks } = zeroBasedScale(
-    rows.map((r) => (r.retired ? Math.max(r.spending, cashFlowIncomeTotal(r)) : Math.max(0, r.saving))),
+    rows.map((r) =>
+      r.retired
+        ? Math.max(r.spending + (r.estimatedTax ?? 0), cashFlowIncomeTotal(r) + Math.max(0, r.withdrawal))
+        : Math.max(0, r.saving),
+    ),
     TICKS,
   );
   const plotW = Math.max(width - END_PAD_X * 2, 1);
@@ -89,9 +94,13 @@ export function RetirementCashFlow({
   const every = rows.length > 40 ? 10 : 5;
   const labeled = rows.map((r, i) => (r.age % every === 0 ? i : -1)).filter((i) => i >= 0);
 
-  // Crisp spending curve across bridge and retired years.
+  // Crisp spending + tax curve across bridge and retired years.
   const retiredSegments = rows
-    .map((r, i) => (r.retired ? `${i === firstRetireIndex || !rows[i - 1]?.retired ? 'M' : 'L'}${x(i).toFixed(1)},${y(r.spending).toFixed(1)}` : null))
+    .map((r, i) =>
+      r.retired
+        ? `${i === firstRetireIndex || !rows[i - 1]?.retired ? 'M' : 'L'}${x(i).toFixed(1)},${y(r.spending + (r.estimatedTax ?? 0)).toFixed(1)}`
+        : null,
+    )
     .filter(Boolean)
     .join(' ');
 
@@ -156,13 +165,17 @@ export function RetirementCashFlow({
                   const work = Math.max(0, r.workingIncome);
                   const ss = Math.max(0, r.socialSecurity);
                   const other = Math.max(0, r.pension + Math.max(0, r.rent) + Math.max(0, r.eventIncome));
+                  const tax = Math.max(0, r.estimatedTax ?? 0);
                   const draw = Math.max(0, r.withdrawal);
+                  // Show how spending + taxes are funded; highlight the tax slice at the top of the bar.
+                  const netDraw = Math.max(0, draw - tax);
                   let cum = 0;
                   const segs: { val: number; color: string }[] = [
                     { val: work, color: accents.teal.fg },
                     { val: ss, color: viz.trend },
                     { val: other, color: viz.series1 },
-                    { val: draw, color: viz.series2 },
+                    { val: netDraw, color: viz.series2 },
+                    ...(tax > 0 ? [{ val: tax, color: accents.purple.fg }] : []),
                   ];
                   return segs.map((s, idx) => {
                     if (s.val <= 0) return null;
@@ -311,6 +324,38 @@ export function RetirementCashFlow({
                             ? `Surplus saved: +${formatWholeCurrency(-activeRow.withdrawal)}`
                             : 'Covered by income'}
                     </ThemedText>
+                    {activeRow.withdrawalsByBucket && activeRow.withdrawal > 0 && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {[
+                          activeRow.withdrawalsByBucket.taxable > 0 &&
+                            `Taxable ${formatCompactCurrency(activeRow.withdrawalsByBucket.taxable)}`,
+                          activeRow.withdrawalsByBucket.pretax > 0 &&
+                            `Pre-tax ${formatCompactCurrency(activeRow.withdrawalsByBucket.pretax)}`,
+                          activeRow.withdrawalsByBucket.roth > 0 &&
+                            `Roth ${formatCompactCurrency(activeRow.withdrawalsByBucket.roth)}`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </ThemedText>
+                    )}
+                    {(activeRow.estimatedTax ?? 0) > 0 && (
+                      <ThemedText type="small" style={{ color: accents.purple.fg }}>
+                        Est. taxes: {formatWholeCurrency(activeRow.estimatedTax!)}
+                        {(activeRow.earlyPenalty ?? 0) > 0
+                          ? ` (incl. ${formatCompactCurrency(activeRow.earlyPenalty!)} penalty)`
+                          : ''}
+                      </ThemedText>
+                    )}
+                    {(activeRow.rmd ?? 0) > 0 && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        Includes {formatCompactCurrency(activeRow.rmd!)} RMD
+                      </ThemedText>
+                    )}
+                    {(activeRow.rothConversion ?? 0) > 0 && (
+                      <ThemedText type="small" style={{ color: accents.purple.fg }}>
+                        Roth conversion: {formatCompactCurrency(activeRow.rothConversion!)}
+                      </ThemedText>
+                    )}
                   </>
                 )}
                 {activeRow.lump !== 0 && (
@@ -356,10 +401,11 @@ export function RetirementCashFlow({
         {hasWorkIncome && <LegendItem color={accents.teal.fg} label="Work income" />}
         <LegendItem color={viz.trend} label="Social Security" />
         <LegendItem color={viz.series2} label="From savings" />
+        {hasTaxes && <LegendItem color={accents.purple.fg} label="Est. taxes" />}
         <View style={styles.legendItem}>
           <View style={[styles.legendLine, { backgroundColor: theme.text }]} />
           <ThemedText type="small" themeColor="textSecondary">
-            Spending
+            {hasTaxes ? 'Spending + taxes' : 'Spending'}
           </ThemedText>
         </View>
       </View>
